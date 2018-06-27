@@ -64,12 +64,16 @@ func GetHistoricAggregates(
 
 	u.RawQuery = q.Encode()
 
-	agg := &HistoricAggregates{}
-
 	resp, err := get(u)
 	if err != nil {
 		return nil, err
 	}
+
+	if resp.StatusCode >= http.StatusMultipleChoices {
+		return nil, fmt.Errorf("status code %v", resp.StatusCode)
+	}
+
+	agg := &HistoricAggregates{}
 
 	if err = unmarshal(resp, agg); err != nil {
 		return nil, err
@@ -102,6 +106,10 @@ func GetHistoricTrades(symbol, date string, limit, offset *int) (*HistoricTrades
 	resp, err := get(u)
 	if err != nil {
 		return nil, err
+	}
+
+	if resp.StatusCode >= http.StatusMultipleChoices {
+		return nil, fmt.Errorf("status code %v", resp.StatusCode)
 	}
 
 	trades := &HistoricTrades{}
@@ -137,6 +145,10 @@ func GetHistoricQuotes(symbol, date string, limit, offset *int) (*HistoricQuotes
 	resp, err := get(u)
 	if err != nil {
 		return nil, err
+	}
+
+	if resp.StatusCode >= http.StatusMultipleChoices {
+		return nil, fmt.Errorf("status code %v", resp.StatusCode)
 	}
 
 	quotes := &HistoricQuotes{}
