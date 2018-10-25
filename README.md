@@ -93,6 +93,19 @@ The HTTP API document is located at https://docs.alpaca.markets/
 
 The Alpaca API requires API key ID and secret key, which you can obtain from the web console after you sign in. This key pair can then be applied to the SDK either by setting environment variables (`APCA_API_KEY_ID=<key_id>` and `APCA_API_SECRET_KEY=<secret_key>`), or hardcoding them into the Go code directly as shown in the examples above.
 
+```sh
+$ export APCA_API_KEY_ID=xxxxx
+$ export APCA_API_SECRET_KEY=yyyyy
+```
+
+## Endpoint
+
+For paper trading, set the environment variable `APCA_API_BASE_URL`.
+
+```sh
+$ export APCA_API_BASE_URL=https://paper-api.alpaca.markets
+```
+
 ## GoDoc
 
 For a more in-depth look at the SDK, see the [GoDoc](https://godoc.org/github.com/alpacahq/alpaca-trade-api-go)
