@@ -29,7 +29,11 @@ func GetStream() *Stream {
 // Subscribe to the specified NATS stream with the supplied handler
 func (s *Stream) Subscribe(channel string, handler func(msg interface{})) (err error) {
 	if s.conn == nil {
-		c, err := nats.Connect(os.Getenv("POLYGON_NATS_SERVERS"), nats.Token(common.Credentials().ID))
+		servers, ok := os.LookupEnv("POLYGON_NATS_SERVERS")
+		if !ok {
+			servers = "nats://nats1.polygon.io:31101, nats://nats2.polygon.io:31102, nats://nats3.polygon.io:31103"
+		}
+		c, err := nats.Connect(servers, nats.Token(common.Credentials().ID))
 		if err != nil {
 			return err
 		}

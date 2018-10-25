@@ -39,11 +39,14 @@ func Register(stream string, handler func(msg interface{})) (err error) {
 // Close gracefully closes all streams
 func Close() error {
 	// close alpaca connection
-	if err := u.alpaca.Close(); err != nil {
-		return err
-	}
+	err1 := u.alpaca.Close()
+	// close polygon connection
+	err2 := u.polygon.Close()
 
-	return u.polygon.Close()
+	if err1 != nil {
+		return err1
+	}
+	return err2
 }
 
 // Unified is the unified streaming structure combining the

@@ -38,7 +38,10 @@ var (
 )
 
 func init() {
-	if s := os.Getenv("ALPACA_BASE_URL"); s != "" {
+	if s := os.Getenv("APCA_API_BASE_URL"); s != "" {
+		base = s
+	} else if s := os.Getenv("ALPACA_BASE_URL"); s != "" {
+		// legacy compatibility...
 		base = s
 	}
 }
