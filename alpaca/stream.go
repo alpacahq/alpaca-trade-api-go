@@ -154,6 +154,7 @@ func (s *Stream) auth() (err error) {
 
 	// ensure the auth response comes in a timely manner
 	s.conn.SetReadDeadline(time.Now().Add(5 * time.Second))
+	defer s.conn.SetReadDeadline(time.Time{})
 
 	if err = s.conn.ReadJSON(&msg); err != nil {
 		return
@@ -184,7 +185,12 @@ func GetStream() *Stream {
 }
 
 func openSocket() *websocket.Conn {
-	u := url.URL{Scheme: "ws", Host: base, Path: "/stream"}
+	scheme := "wss"
+	ub, _ := url.Parse(base)
+	if ub.Scheme == "http" {
+		scheme = "ws"
+	}
+	u := url.URL{Scheme: scheme, Host: ub.Host, Path: "/stream"}
 	c, _, err := websocket.DefaultDialer.Dial(u.String(), nil)
 	if err != nil {
 		panic(err)
