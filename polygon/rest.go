@@ -24,7 +24,7 @@ var (
 	// DefaultClient is the default Polygon client using the
 	// environment variable set credentials
 	DefaultClient = NewClient(common.Credentials())
-	base          = "https://api.polygon.io/"
+	base          = "https://api.polygon.io"
 	get           = func(u *url.URL) (*http.Response, error) {
 		return http.Get(u.String())
 	}

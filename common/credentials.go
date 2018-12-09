@@ -23,11 +23,8 @@ type APIKey struct {
 // Credentials returns the user's Alpaca API key ID
 // and secret for use through the SDK.
 func Credentials() *APIKey {
-	once.Do(func() {
-		key = &APIKey{
-			ID:     os.Getenv(EnvApiKeyID),
-			Secret: os.Getenv(EnvApiSecretKey),
-		}
-	})
-	return key
+	return &APIKey{
+		ID:     os.Getenv(EnvApiKeyID),
+		Secret: os.Getenv(EnvApiSecretKey),
+	}
 }
