@@ -34,7 +34,8 @@ func init() {
 }
 
 func main() {
-    acct, err := alpaca.GetAccount()
+	alpacaClient := alpaca.NewClient(common.Credentials())
+	acct, err := alpacaClient.GetAccount()
     if err != nil {
         panic(err)
     }
