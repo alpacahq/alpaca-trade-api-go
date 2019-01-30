@@ -44,14 +44,21 @@ type Order struct {
 }
 
 type Position struct {
-	AssetID    string          `json:"asset_id"`
-	Symbol     string          `json:"symbol"`
-	Exchange   string          `json:"exchange"`
-	Class      string          `json:"asset_class"`
-	AccountID  string          `json:"account_id"`
-	EntryPrice decimal.Decimal `json:"entry_price"`
-	Qty        decimal.Decimal `json:"qty"`
-	Side       string          `json:"side"`
+	AssetID        string          `json:"asset_id"`
+	Symbol         string          `json:"symbol"`
+	Exchange       string          `json:"exchange"`
+	Class          string          `json:"asset_class"`
+	AccountID      string          `json:"account_id"`
+	EntryPrice     decimal.Decimal `json:"avg_entry_price"`
+	Qty            decimal.Decimal `json:"qty"`
+	Side           string          `json:"side"`
+	MarketValue    decimal.Decimal `json:"market_value"`
+	CostBasis      decimal.Decimal `json:"cost_basis"`
+	UnrealizedPL   decimal.Decimal `json:"unrealized_pl"`
+	UnrealizedPLPC decimal.Decimal `json:"unrealized_plpc"`
+	CurrentPrice   decimal.Decimal `json:"current_price"`
+	LastdayPrice   decimal.Decimal `json:"lastday_price"`
+	ChangeToday    decimal.Decimal `json:"change_today"`
 }
 
 type Asset struct {
