@@ -113,7 +113,7 @@ func (c *Client) ListPositions() ([]Position, error) {
 // GetPosition returns the account's position for the
 // provided symbol.
 func (c *Client) GetPosition(symbol string) (*Position, error) {
-	u, err := url.Parse(fmt.Sprintf("%s/v1/positions", base))
+	u, err := url.Parse(fmt.Sprintf("%s/v1/positions/%s", base, symbol))
 	if err != nil {
 		return nil, err
 	}
