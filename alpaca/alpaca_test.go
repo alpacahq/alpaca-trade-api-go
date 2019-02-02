@@ -58,7 +58,7 @@ func (s *AlpacaTestSuite) TestAlpaca() {
 		// successful
 		do = func(c *Client, req *http.Request) (*http.Response, error) {
 			positions := []Position{
-				Position{Symbol: "APCA"},
+				{Symbol: "APCA"},
 			}
 			return &http.Response{
 				Body: genBody(positions),
@@ -114,7 +114,7 @@ func (s *AlpacaTestSuite) TestAlpaca() {
 		// successful
 		do = func(c *Client, req *http.Request) (*http.Response, error) {
 			calendar := []CalendarDay{
-				CalendarDay{
+				{
 					Date:  "2018-01-01",
 					Open:  time.Now().Format(time.RFC3339),
 					Close: time.Now().Format(time.RFC3339),
@@ -147,7 +147,7 @@ func (s *AlpacaTestSuite) TestAlpaca() {
 		// successful
 		do = func(c *Client, req *http.Request) (*http.Response, error) {
 			orders := []Order{
-				Order{
+				{
 					ID: "some_id",
 				},
 			}
@@ -238,7 +238,7 @@ func (s *AlpacaTestSuite) TestAlpaca() {
 		// successful
 		do = func(c *Client, req *http.Request) (*http.Response, error) {
 			assets := []Asset{
-				Asset{ID: "some_id"},
+				{ID: "some_id"},
 			}
 			return &http.Response{
 				Body: genBody(assets),
@@ -291,7 +291,7 @@ func (s *AlpacaTestSuite) TestAlpaca() {
 		// successful
 		do = func(c *Client, req *http.Request) (*http.Response, error) {
 			bars := []BarList{
-				BarList{
+				{
 					AssetID: "some_id",
 				},
 			}
@@ -343,7 +343,7 @@ func (s *AlpacaTestSuite) TestAlpaca() {
 	{
 		// successful
 		do = func(c *Client, req *http.Request) (*http.Response, error) {
-			quotes := []Quote{Quote{AssetID: "some_id"}}
+			quotes := []Quote{{AssetID: "some_id"}}
 			return &http.Response{
 				Body: genBody(quotes),
 			}, nil

@@ -556,8 +556,6 @@ func (c *Client) delete(u *url.URL) (*http.Response, error) {
 	return do(c, req)
 }
 
-var ()
-
 func verify(resp *http.Response) (err error) {
 	if resp.StatusCode >= http.StatusMultipleChoices {
 		var body []byte
