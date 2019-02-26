@@ -102,12 +102,12 @@ type HistoricAggregates struct {
 // AggTick is the structure that contains the actual
 // tick data included in a HistoricAggregates response
 type AggTick struct {
-	EpochMilliseconds int64   `json:"d"`
 	Open              float64 `json:"o"`
 	High              float64 `json:"h"`
 	Low               float64 `json:"l"`
 	Close             float64 `json:"c"`
 	Volume            int     `json:"v"`
+	EpochMilliseconds int64   `json:"t"`
 }
 
 // AggType used in the HistoricAggregates response
