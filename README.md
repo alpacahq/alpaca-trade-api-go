@@ -31,6 +31,8 @@ func init() {
     os.Setenv(common.EnvApiSecretKey, "<secret_key>")
 
     fmt.Printf("Running w/ credentials [%v %v]\n", common.Credentials().ID, common.Credentials().Secret)
+
+	alpaca.SetBaseUrl("https://paper-api.alpaca.markets")
 }
 
 func main() {
@@ -109,6 +111,8 @@ For paper trading, set the environment variable `APCA_API_BASE_URL`.
 ```sh
 $ export APCA_API_BASE_URL=https://paper-api.alpaca.markets
 ```
+
+You can also instead use the function `alpaca.SetBaseUrl("https://paper-api.alpaca.markets")` to configure the endpoint.
 
 ## GoDoc
 
