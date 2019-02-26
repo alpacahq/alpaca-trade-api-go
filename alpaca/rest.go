@@ -62,8 +62,8 @@ type Client struct {
 	credentials *common.APIKey
 }
 
-func SetBaseUrl(baseurl string) {
-	base = baseurl
+func SetBaseUrl(baseUrl string) {
+	base = baseUrl
 }
 
 // NewClient creates a new Alpaca client with specified
