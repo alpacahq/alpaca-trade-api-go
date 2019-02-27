@@ -20,6 +20,7 @@ var (
 	// environment variable set credentials
 	DefaultClient = NewClient(common.Credentials())
 	base          = "https://api.alpaca.markets/"
+	dataUrl		  = "https://data.alpaca.markets/"
 	do            = func(c *Client, req *http.Request) (*http.Response, error) {
 		req.Header.Set("APCA-API-KEY-ID", c.credentials.ID)
 		req.Header.Set("APCA-API-SECRET-KEY", c.credentials.Secret)
@@ -323,9 +324,9 @@ func (c *Client) GetAsset(symbol string) (*Asset, error) {
 	return asset, nil
 }
 
-// ListBarLists returns a list of bar lists corresponding to the provided
+// ListBar returns a list of bar lists corresponding to the provided
 // symbol list, and filtered by the provided parameters.
-func (c *Client) ListBarLists(symbols []string, opts BarListParams) ([]BarList, error) {
+func (c *Client) ListBars(symbols []string, opts ListBarParams) (map[string][]Bar, error) {
 	vals := url.Values{}
 	vals.Add("symbols", strings.Join(symbols, ","))
 
@@ -341,7 +342,7 @@ func (c *Client) ListBarLists(symbols []string, opts BarListParams) ([]BarList, 
 		vals.Set("limit", strconv.FormatInt(int64(*opts.Limit), 10))
 	}
 
-	u, err := url.Parse(fmt.Sprintf("%v/v1/bars?%v", base, vals.Encode()))
+	u, err := url.Parse(fmt.Sprintf("%sv1/bars/%s?%v", dataUrl, opts.Timeframe, vals.Encode()))
 	if err != nil {
 		return nil, err
 	}
@@ -350,8 +351,7 @@ func (c *Client) ListBarLists(symbols []string, opts BarListParams) ([]BarList, 
 	if err != nil {
 		return nil, err
 	}
-
-	bars := []BarList{}
+	var bars map[string][]Bar
 
 	if err = unmarshal(resp, &bars); err != nil {
 		return nil, err
@@ -360,40 +360,17 @@ func (c *Client) ListBarLists(symbols []string, opts BarListParams) ([]BarList, 
 	return bars, nil
 }
 
-// GetBarList returns a list of bars corresponding to the provided
-// symbol, and filtered by the provided parameters.
-func (c *Client) GetBarList(symbol string, opts BarListParams) (*BarList, error) {
-	vals := url.Values{}
-	vals.Set("timeframe", opts.Timeframe)
-	if opts.StartDt != nil {
-		vals.Set("start_dt", opts.StartDt.Format(time.RFC3339))
-	}
+// GetSymbolBars is a convenience method for getting the market
+// data for one symbol
+func (c *Client) GetSymbolBars(symbol string, opts ListBarParams) ([]Bar, error) {
+	symbolList := []string{symbol}
 
-	if opts.EndDt != nil {
-		vals.Set("end_dt", opts.EndDt.Format(time.RFC3339))
-	}
-
-	if opts.Limit != nil {
-		vals.Set("limit", strconv.FormatInt(int64(*opts.Limit), 10))
-	}
-
-	u, err := url.Parse(fmt.Sprintf("%v/v1/assets/%s/bars?%v", base, symbol, vals.Encode()))
+	barsMap, err := ListBars(symbolList, opts)
 	if err != nil {
 		return nil, err
 	}
 
-	resp, err := c.get(u)
-	if err != nil {
-		return nil, err
-	}
-
-	bars := &BarList{}
-
-	if err = unmarshal(resp, bars); err != nil {
-		return nil, err
-	}
-
-	return bars, nil
+	return barsMap[symbol], nil
 }
 
 // ListQuotes returns a list of quotes corresponding to the
@@ -503,18 +480,18 @@ func GetAsset(symbol string) (*Asset, error) {
 	return DefaultClient.GetAsset(symbol)
 }
 
-// ListBarLists returns a list of bar lists corresponding to the provided
-// symbol list, and filtered by the provided parameters with the default
+// ListBars returns a map of bar lists corresponding to the provided
+// symbol list that is filtered by the provided parameters with the default
 // Alpaca client.
-func ListBarLists(symbols []string, opts BarListParams) ([]BarList, error) {
-	return DefaultClient.ListBarLists(symbols, opts)
+func ListBars(symbols []string, opts ListBarParams) (map[string][]Bar, error) {
+	return DefaultClient.ListBars(symbols, opts)
 }
 
-// GetBarList returns a list of bars corresponding to the provided
-// symbol, and filtered by the provided parameters with the default
+// GetSymbolBars returns a list of bars corresponding to the provided
+// symbol that is filtered by the provided parameters with the default
 // Alpaca client.
-func GetBarList(symbol string, opts BarListParams) (*BarList, error) {
-	return DefaultClient.GetBarList(symbol, opts)
+func GetSymbolBars(symbol string, opts ListBarParams) ([]Bar, error) {
+	return DefaultClient.GetSymbolBars(symbol, opts)
 }
 
 // ListQuotes returns a list of quotes corresponding to the
@@ -558,6 +535,10 @@ func (c *Client) delete(u *url.URL) (*http.Response, error) {
 	}
 
 	return do(c, req)
+}
+
+func (bar *Bar) GetTime() (time.Time) {
+	return time.Unix(bar.Time, 0)
 }
 
 func verify(resp *http.Response) (err error) {

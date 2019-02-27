@@ -290,27 +290,34 @@ func (s *AlpacaTestSuite) TestAlpaca() {
 	{
 		// successful
 		do = func(c *Client, req *http.Request) (*http.Response, error) {
-			bars := []BarList{
+			bars := []Bar{
 				{
-					AssetID: "some_id",
+					Time: 1551157200,
+					Open: 80.2,
+					High: 80.86,
+					Low: 80.02,
+					Close: 80.51,
+					Volume: 4283085,
 				},
 			}
+			var barsMap = make(map[string][]Bar)
+			barsMap["APCA"] = bars
 			return &http.Response{
-				Body: genBody(bars),
+				Body: genBody(barsMap),
 			}, nil
 		}
 
-		bars, err := ListBarLists([]string{"APCA"}, BarListParams{Timeframe: "1D"})
+		bars, err := ListBars([]string{"APCA"}, ListBarParams{Timeframe: "1D"})
 		assert.Nil(s.T(), err)
 		require.Len(s.T(), bars, 1)
-		assert.Equal(s.T(), "some_id", bars[0].AssetID)
+		assert.Equal(s.T(), int64(1551157200), bars["APCA"][0].Time)
 
 		// api failure
 		do = func(c *Client, req *http.Request) (*http.Response, error) {
 			return &http.Response{}, fmt.Errorf("fail")
 		}
 
-		bars, err = ListBarLists([]string{"APCA"}, BarListParams{Timeframe: "1D"})
+		bars, err = ListBars([]string{"APCA"}, ListBarParams{Timeframe: "1D"})
 		assert.NotNil(s.T(), err)
 		assert.Nil(s.T(), bars)
 	}
@@ -319,13 +326,24 @@ func (s *AlpacaTestSuite) TestAlpaca() {
 	{
 		// successful
 		do = func(c *Client, req *http.Request) (*http.Response, error) {
-			bars := BarList{AssetID: "some_id"}
+			bars := []Bar{
+				{
+					Time: 1551157200,
+					Open: 80.2,
+					High: 80.86,
+					Low: 80.02,
+					Close: 80.51,
+					Volume: 4283085,
+				},
+			}
+			var barsMap = make(map[string][]Bar)
+			barsMap["APCA"] = bars
 			return &http.Response{
-				Body: genBody(bars),
+				Body: genBody(barsMap),
 			}, nil
 		}
 
-		bars, err := GetBarList("APCA", BarListParams{Timeframe: "1D"})
+		bars, err := GetSymbolBars("APCA", ListBarParams{Timeframe: "1D"})
 		assert.Nil(s.T(), err)
 		assert.NotNil(s.T(), bars)
 
@@ -334,7 +352,7 @@ func (s *AlpacaTestSuite) TestAlpaca() {
 			return &http.Response{}, fmt.Errorf("fail")
 		}
 
-		bars, err = GetBarList("APCA", BarListParams{Timeframe: "1D"})
+		bars, err = GetSymbolBars("APCA", ListBarParams{Timeframe: "1D"})
 		assert.NotNil(s.T(), err)
 		assert.Nil(s.T(), bars)
 	}

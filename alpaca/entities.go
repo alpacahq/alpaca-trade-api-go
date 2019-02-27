@@ -97,24 +97,16 @@ type Fundamental struct {
 	LongDescription   string          `json:"long_description"`
 }
 
-type BarList struct {
-	AssetID  string `json:"asset_id"`
-	Symbol   string `json:"symbol"`
-	Exchange string `json:"exchange"`
-	Class    string `json:"asset_class"`
-	Bars     []*Bar `json:"bars"`
-}
-
 type Bar struct {
-	Open   float32   `json:"open"`
-	High   float32   `json:"high"`
-	Low    float32   `json:"low"`
-	Close  float32   `json:"close"`
-	Volume int32     `json:"volume"`
-	Time   time.Time `json:"time"`
+	Time   int64 	 `json:"t"`
+	Open   float32   `json:"o"`
+	High   float32   `json:"h"`
+	Low    float32   `json:"l"`
+	Close  float32   `json:"c"`
+	Volume int32     `json:"v"`
 }
 
-type BarListParams struct {
+type ListBarParams struct {
 	Timeframe string     `url:"timeframe,omitempty"`
 	StartDt   *time.Time `url:"start_dt,omitempty"`
 	EndDt     *time.Time `url:"end_dt,omitempty"`
