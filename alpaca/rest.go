@@ -324,7 +324,7 @@ func (c *Client) GetAsset(symbol string) (*Asset, error) {
 	return asset, nil
 }
 
-// ListBar returns a list of bar lists corresponding to the provided
+// ListBars returns a list of bar lists corresponding to the provided
 // symbol list, and filtered by the provided parameters.
 func (c *Client) ListBars(symbols []string, opts ListBarParams) (map[string][]Bar, error) {
 	vals := url.Values{}
