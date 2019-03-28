@@ -21,26 +21,27 @@ type Account struct {
 }
 
 type Order struct {
-	ID            string           `json:"id"`
-	ClientOrderID string           `json:"client_order_id"`
-	CreatedAt     time.Time        `json:"created_at"`
-	UpdatedAt     time.Time        `json:"updated_at"`
-	SubmittedAt   time.Time        `json:"submitted_at"`
-	FilledAt      *time.Time       `json:"filled_at"`
-	ExpiredAt     *time.Time       `json:"expired_at"`
-	CanceledAt    *time.Time       `json:"canceled_at"`
-	FailedAt      *time.Time       `json:"failed_at"`
-	AssetID       string           `json:"asset_id"`
-	Symbol        string           `json:"symbol"`
-	Exchange      string           `json:"exchange"`
-	Class         string           `json:"asset_class"`
-	Qty           decimal.Decimal  `json:"qty"`
-	Type          OrderType        `json:"order_type"`
-	Side          Side             `json:"side"`
-	TimeInForce   TimeInForce      `json:"time_in_force"`
-	LimitPrice    *decimal.Decimal `json:"limit_price"`
-	StopPrice     *decimal.Decimal `json:"stop_price"`
-	Status        string           `json:"status"`
+	ID             string           `json:"id"`
+	ClientOrderID  string           `json:"client_order_id"`
+	CreatedAt      time.Time        `json:"created_at"`
+	UpdatedAt      time.Time        `json:"updated_at"`
+	SubmittedAt    time.Time        `json:"submitted_at"`
+	FilledAt       *time.Time       `json:"filled_at"`
+	ExpiredAt      *time.Time       `json:"expired_at"`
+	CanceledAt     *time.Time       `json:"canceled_at"`
+	FailedAt       *time.Time       `json:"failed_at"`
+	AssetID        string           `json:"asset_id"`
+	Symbol         string           `json:"symbol"`
+	Exchange       string           `json:"exchange"`
+	Class          string           `json:"asset_class"`
+	Qty            decimal.Decimal  `json:"qty"`
+	Type           OrderType        `json:"order_type"`
+	Side           Side             `json:"side"`
+	TimeInForce    TimeInForce      `json:"time_in_force"`
+	LimitPrice     *decimal.Decimal `json:"limit_price"`
+	FilledAvgPrice *decimal.Decimal `json:"filled_avg_price"`
+	StopPrice      *decimal.Decimal `json:"stop_price"`
+	Status         string           `json:"status"`
 }
 
 type Position struct {
@@ -98,12 +99,12 @@ type Fundamental struct {
 }
 
 type Bar struct {
-	Time   int64 	 `json:"t"`
-	Open   float32   `json:"o"`
-	High   float32   `json:"h"`
-	Low    float32   `json:"l"`
-	Close  float32   `json:"c"`
-	Volume int32     `json:"v"`
+	Time   int64   `json:"t"`
+	Open   float32 `json:"o"`
+	High   float32 `json:"h"`
+	Low    float32 `json:"l"`
+	Close  float32 `json:"c"`
+	Volume int32   `json:"v"`
 }
 
 type ListBarParams struct {
