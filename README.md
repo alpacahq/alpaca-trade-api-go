@@ -32,12 +32,12 @@ func init() {
 
     fmt.Printf("Running w/ credentials [%v %v]\n", common.Credentials().ID, common.Credentials().Secret)
 
-	alpaca.SetBaseUrl("https://paper-api.alpaca.markets")
+    alpaca.SetBaseUrl("https://paper-api.alpaca.markets")
 }
 
 func main() {
-	alpacaClient := alpaca.NewClient(common.Credentials())
-	acct, err := alpacaClient.GetAccount()
+    alpacaClient := alpaca.NewClient(common.Credentials())
+    acct, err := alpacaClient.GetAccount()
     if err != nil {
         panic(err)
     }
