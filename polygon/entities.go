@@ -144,3 +144,21 @@ type StreamQuote struct {
 	AskSize     int64   `json:"as"`
 	Timestamp   int64   `json:"t"`
 }
+
+// StreamAggregate is the structure that defines an aggregate that
+// polygon transmits via NATS protocol.
+type StreamAggregate struct {
+	Event             string  `json:"ev"`
+	Symbol            string  `json:"sym"`
+	Volume            int     `json:"v"`
+	AccumulatedVolume int     `json:"av"`
+	OpeningPrice      float64 `json:"op"`
+	VWAP              float64 `json:"vw"`
+	OpenPrice         float64 `json:"o"`
+	ClosePrice        float64 `json:"c"`
+	HighPrice         float64 `json:"h"`
+	LowPrice          float64 `json:"l"`
+	Average           float64 `json:"a"`
+	StartTimestamp    int64   `json:"s"`
+	EndTimestamp      int64   `json:"e"`
+}
