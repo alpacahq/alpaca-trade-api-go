@@ -162,3 +162,13 @@ type StreamAggregate struct {
 	StartTimestamp    int64   `json:"s"`
 	EndTimestamp      int64   `json:"e"`
 }
+
+// Exchange defines the Stocks / Equities "Exchange" endpoint response
+type StockExchange struct {
+	Id     int64  `json:"id"`
+	Type   string `json:"type"`
+	Market string `json:"market"`
+	Mic    string `json:"mic"`
+	Name   string `json:"name"`
+	Tape   string `json:"tape"`
+}

@@ -15,9 +15,10 @@ import (
 )
 
 const (
-	aggURL    = "%v/v1/historic/agg/%v/%v"
-	tradesURL = "%v/v1/historic/trades/%v/%v"
-	quotesURL = "%v/v1/historic/quotes/%v/%v"
+	aggURL      = "%v/v1/historic/agg/%v/%v"
+	tradesURL   = "%v/v1/historic/trades/%v/%v"
+	quotesURL   = "%v/v1/historic/quotes/%v/%v"
+	exchangeURL = "%v/v1/meta/exchanges"
 )
 
 var (
@@ -203,6 +204,37 @@ func (c *Client) GetHistoricQuotes(symbol, date string) (totalQuotes *HistoricQu
 	}
 
 	return totalQuotes, nil
+}
+
+// GetStockExchanges
+func (c *Client) GetStockExchanges() (exchanges *[]StockExchange, err error) {
+	u, err := url.Parse(fmt.Sprintf(exchangeURL, base))
+	if err != nil {
+		return nil, err
+	}
+
+	q := u.Query()
+	q.Set("apiKey", c.credentials.ID)
+
+	u.RawQuery = q.Encode()
+
+	resp, err := get(u)
+	if err != nil {
+		return nil, err
+	}
+
+	if resp.StatusCode >= http.StatusMultipleChoices {
+		return nil, fmt.Errorf("status code %v", resp.StatusCode)
+	}
+
+	// exchanges := &[]StockExchange{}
+
+	if err = unmarshal(resp, exchanges); err != nil {
+		return nil, err
+	}
+
+	return exchanges, nil
+
 }
 
 // GetHistoricAggregates requests polygon's REST API for historic aggregates
