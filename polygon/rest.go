@@ -206,8 +206,8 @@ func (c *Client) GetHistoricQuotes(symbol, date string) (totalQuotes *HistoricQu
 	return totalQuotes, nil
 }
 
-// GetStockExchanges
-func (c *Client) GetStockExchanges() (exchanges *[]StockExchange, err error) {
+// GetStockExchanges requests available stock and equity exchanges on polygon.io
+func (c *Client) GetStockExchanges() ([]StockExchange, error) {
 	u, err := url.Parse(fmt.Sprintf(exchangeURL, base))
 	if err != nil {
 		return nil, err
@@ -227,9 +227,8 @@ func (c *Client) GetStockExchanges() (exchanges *[]StockExchange, err error) {
 		return nil, fmt.Errorf("status code %v", resp.StatusCode)
 	}
 
-	// exchanges := &[]StockExchange{}
-
-	if err = unmarshal(resp, exchanges); err != nil {
+	var exchanges []StockExchange
+	if err = unmarshal(resp, &exchanges); err != nil {
 		return nil, err
 	}
 
@@ -258,6 +257,12 @@ func GetHistoricTrades(symbol, date string) (totalTrades *HistoricTrades, err er
 // on the provided date using the default Polygon client.
 func GetHistoricQuotes(symbol, date string) (totalQuotes *HistoricQuotes, err error) {
 	return DefaultClient.GetHistoricQuotes(symbol, date)
+}
+
+// GetStockExchanges queries Polygon.io REST API for information on available
+// stock and equities exchanges
+func GetStockExchanges() ([]StockExchange, error) {
+	return DefaultClient.GetStockExchanges()
 }
 
 func unmarshal(resp *http.Response, data interface{}) error {
