@@ -216,6 +216,32 @@ func (s *AlpacaTestSuite) TestAlpaca() {
 		assert.Nil(s.T(), order)
 	}
 
+	// get order
+	{
+		// successful
+		do = func(c *Client, req *http.Request) (*http.Response, error) {
+			order := Order{
+				ID: "some_order_id",
+			}
+			return &http.Response{
+				Body: genBody(order),
+			}, nil
+		}
+
+		order, err := GetOrder("some_order_id")
+		assert.Nil(s.T(), err)
+		assert.NotNil(s.T(), order)
+
+		// api failure
+		do = func(c *Client, req *http.Request) (*http.Response, error) {
+			return &http.Response{}, fmt.Errorf("fail")
+		}
+
+		order, err = GetOrder("some_order_id")
+		assert.NotNil(s.T(), err)
+		assert.Nil(s.T(), order)
+	}
+
 	// cancel order
 	{
 		// successful
@@ -292,11 +318,11 @@ func (s *AlpacaTestSuite) TestAlpaca() {
 		do = func(c *Client, req *http.Request) (*http.Response, error) {
 			bars := []Bar{
 				{
-					Time: 1551157200,
-					Open: 80.2,
-					High: 80.86,
-					Low: 80.02,
-					Close: 80.51,
+					Time:   1551157200,
+					Open:   80.2,
+					High:   80.86,
+					Low:    80.02,
+					Close:  80.51,
 					Volume: 4283085,
 				},
 			}
@@ -328,11 +354,11 @@ func (s *AlpacaTestSuite) TestAlpaca() {
 		do = func(c *Client, req *http.Request) (*http.Response, error) {
 			bars := []Bar{
 				{
-					Time: 1551157200,
-					Open: 80.2,
-					High: 80.86,
-					Low: 80.02,
-					Close: 80.51,
+					Time:   1551157200,
+					Open:   80.2,
+					High:   80.86,
+					Low:    80.02,
+					Close:  80.51,
 					Volume: 4283085,
 				},
 			}

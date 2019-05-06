@@ -20,7 +20,7 @@ var (
 	// environment variable set credentials
 	DefaultClient = NewClient(common.Credentials())
 	base          = "https://api.alpaca.markets/"
-	dataUrl		  = "https://data.alpaca.markets/"
+	dataUrl       = "https://data.alpaca.markets/"
 	do            = func(c *Client, req *http.Request) (*http.Response, error) {
 		req.Header.Set("APCA-API-KEY-ID", c.credentials.ID)
 		req.Header.Set("APCA-API-SECRET-KEY", c.credentials.Secret)
@@ -257,6 +257,27 @@ func (c *Client) PlaceOrder(req PlaceOrderRequest) (*Order, error) {
 	return order, nil
 }
 
+// GetOrder submits a request to get an order by the order ID.
+func (c *Client) GetOrder(orderID string) (*Order, error) {
+	u, err := url.Parse(fmt.Sprintf("%s/v1/orders/%s", base, orderID))
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := c.get(u)
+	if err != nil {
+		return nil, err
+	}
+
+	order := &Order{}
+
+	if err = unmarshal(resp, order); err != nil {
+		return nil, err
+	}
+
+	return order, nil
+}
+
 // CancelOrder submits a request to cancel an open order.
 func (c *Client) CancelOrder(orderID string) error {
 	u, err := url.Parse(fmt.Sprintf("%s/v1/orders/%s", base, orderID))
@@ -462,6 +483,12 @@ func PlaceOrder(req PlaceOrderRequest) (*Order, error) {
 	return DefaultClient.PlaceOrder(req)
 }
 
+// GetOrder returns a single order for the given
+// `orderID` using the default Alpaca client.
+func GetOrder(orderID string) (*Order, error) {
+	return DefaultClient.GetOrder(orderID)
+}
+
 // CancelOrder submits a request to cancel an open order with
 // the default Alpaca client.
 func CancelOrder(orderID string) error {
@@ -537,7 +564,7 @@ func (c *Client) delete(u *url.URL) (*http.Response, error) {
 	return do(c, req)
 }
 
-func (bar *Bar) GetTime() (time.Time) {
+func (bar *Bar) GetTime() time.Time {
 	return time.Unix(bar.Time, 0)
 }
 
