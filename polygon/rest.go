@@ -15,9 +15,10 @@ import (
 )
 
 const (
-	aggURL    = "%v/v1/historic/agg/%v/%v"
-	tradesURL = "%v/v1/historic/trades/%v/%v"
-	quotesURL = "%v/v1/historic/quotes/%v/%v"
+	aggURL      = "%v/v1/historic/agg/%v/%v"
+	tradesURL   = "%v/v1/historic/trades/%v/%v"
+	quotesURL   = "%v/v1/historic/quotes/%v/%v"
+	exchangeURL = "%v/v1/meta/exchanges"
 )
 
 var (
@@ -205,6 +206,36 @@ func (c *Client) GetHistoricQuotes(symbol, date string) (totalQuotes *HistoricQu
 	return totalQuotes, nil
 }
 
+// GetStockExchanges requests available stock and equity exchanges on polygon.io
+func (c *Client) GetStockExchanges() ([]StockExchange, error) {
+	u, err := url.Parse(fmt.Sprintf(exchangeURL, base))
+	if err != nil {
+		return nil, err
+	}
+
+	q := u.Query()
+	q.Set("apiKey", c.credentials.ID)
+
+	u.RawQuery = q.Encode()
+
+	resp, err := get(u)
+	if err != nil {
+		return nil, err
+	}
+
+	if resp.StatusCode >= http.StatusMultipleChoices {
+		return nil, fmt.Errorf("status code %v", resp.StatusCode)
+	}
+
+	var exchanges []StockExchange
+	if err = unmarshal(resp, &exchanges); err != nil {
+		return nil, err
+	}
+
+	return exchanges, nil
+
+}
+
 // GetHistoricAggregates requests polygon's REST API for historic aggregates
 // for the provided resolution based on the provided query parameters using
 // the default Polygon client.
@@ -226,6 +257,12 @@ func GetHistoricTrades(symbol, date string) (totalTrades *HistoricTrades, err er
 // on the provided date using the default Polygon client.
 func GetHistoricQuotes(symbol, date string) (totalQuotes *HistoricQuotes, err error) {
 	return DefaultClient.GetHistoricQuotes(symbol, date)
+}
+
+// GetStockExchanges queries Polygon.io REST API for information on available
+// stock and equities exchanges
+func GetStockExchanges() ([]StockExchange, error) {
+	return DefaultClient.GetStockExchanges()
 }
 
 func unmarshal(resp *http.Response, data interface{}) error {

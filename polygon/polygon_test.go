@@ -97,6 +97,29 @@ func (s *PolygonTestSuite) TestPolygon() {
 		assert.NotNil(s.T(), err)
 		assert.Nil(s.T(), resp)
 	}
+
+	// get exchange data
+	{
+		// successful
+		get = func(u *url.URL) (*http.Response, error) {
+			return &http.Response{
+				Body: genBody([]byte(exchangeBody)),
+			}, nil
+		}
+
+		resp, err := GetStockExchanges()
+		assert.Nil(s.T(), err)
+		assert.NotNil(s.T(), resp)
+
+		// api failure
+		get = func(u *url.URL) (*http.Response, error) {
+			return &http.Response{}, fmt.Errorf("fail")
+		}
+
+		resp, err = GetStockExchanges()
+		assert.NotNil(s.T(), err)
+		assert.Nil(s.T(), resp)
+	}
 }
 
 type nopCloser struct {
@@ -190,4 +213,38 @@ const (
 		],
 		"type": "trades"
 	}`
+	exchangeBody = `[
+		{
+		  "id": 1,
+		  "type": "exchange",
+		  "market": "equities",
+		  "mic": "XASE",
+		  "name": "NYSE American (AMEX)",
+		  "tape": "A"
+		},
+		{
+		  "id": 2,
+		  "type": "exchange",
+		  "market": "equities",
+		  "mic": "XBOS",
+		  "name": "NASDAQ OMX BX",
+		  "tape": "B"
+		},
+		{
+		  "id": 15,
+		  "type": "exchange",
+		  "market": "equities",
+		  "mic": "IEXG",
+		  "name": "IEX",
+		  "tape": "V"
+		},
+		{
+		  "id": 16,
+		  "type": "TRF",
+		  "market": "equities",
+		  "mic": "XCBO",
+		  "name": "Chicago Board Options Exchange",
+		  "tape": "W"
+		}
+	  ]`
 )
