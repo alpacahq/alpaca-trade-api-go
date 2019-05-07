@@ -1,3 +1,4 @@
+
 # alpaca-trade-api-go
 
 [![CircleCI Status](https://circleci.com/gh/alpacahq/alpaca-trade-api-go.svg?style=svg)](https://circleci.com/gh/alpacahq/alpaca-trade-api-go)
@@ -8,7 +9,10 @@
 ## Installation
 
 ```
-$ go get github.com/alpacahq/alpaca-trade-api-go
+$ go get github.com/alpacahq/alpaca-trade-api-go/common
+$ go get github.com/alpacahq/alpaca-trade-api-go/polygon
+$ go get github.com/alpacahq/alpaca-trade-api-go/stream
+$ go get github.com/alpacahq/alpaca-trade-api-go/alpaca
 ```
 
 ## Example
@@ -54,6 +58,7 @@ The SDK provides a unified streaming interface for both Polygon data updates, an
 import (
     "os"
     "fmt"
+    "encoding/json"
 
     "github.com/alpacahq/alpaca-trade-api-go/alpaca"
     "github.com/alpacahq/alpaca-trade-api-go/polygon"
