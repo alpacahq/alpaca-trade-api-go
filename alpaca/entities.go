@@ -35,6 +35,7 @@ type Order struct {
 	Exchange       string           `json:"exchange"`
 	Class          string           `json:"asset_class"`
 	Qty            decimal.Decimal  `json:"qty"`
+	FilledQty      decimal.Decimal  `json:"filled_qty"`
 	Type           OrderType        `json:"order_type"`
 	Side           Side             `json:"side"`
 	TimeInForce    TimeInForce      `json:"time_in_force"`
