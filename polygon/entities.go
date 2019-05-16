@@ -102,11 +102,11 @@ type HistoricAggregates struct {
 // V2HistoricAggregates is the structure that defines
 // aggregate data served through Polygon's v2 REST API.
 type HistoricAggregatesV2 struct {
-	Symbol        string  `json:"ticker"`
-	Adjusted      bool `json:"adjusted"`
-	QueryCount    int `json:"queryCount"`
-	ResultsCount  int `json:"resultsCount"`
-	Ticks         []AggTick `json:"results"`
+	Symbol       string    `json:"ticker"`
+	Adjusted     bool      `json:"adjusted"`
+	QueryCount   int       `json:"queryCount"`
+	ResultsCount int       `json:"resultsCount"`
+	Ticks        []AggTick `json:"results"`
 }
 
 // AggTick is the structure that contains the actual

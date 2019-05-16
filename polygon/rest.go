@@ -16,7 +16,7 @@ import (
 
 const (
 	aggURL      = "%v/v1/historic/agg/%v/%v"
-	aggv2URL	= "%v/v2/aggs/ticker/%v/range/%v/%v/%v/%v"
+	aggv2URL    = "%v/v2/aggs/ticker/%v/range/%v/%v/%v/%v"
 	tradesURL   = "%v/v1/historic/trades/%v/%v"
 	quotesURL   = "%v/v1/historic/quotes/%v/%v"
 	exchangeURL = "%v/v1/meta/exchanges"
@@ -106,7 +106,7 @@ func (c *Client) GetHistoricAggregatesV2(
 	from, to *time.Time,
 	unadjusted *bool) (*HistoricAggregatesV2, error) {
 
-	u, err := url.Parse(fmt.Sprintf(aggv2URL, base, symbol, multiplier, resolution, from.Unix() * 1000, to.Unix() * 1000))
+	u, err := url.Parse(fmt.Sprintf(aggv2URL, base, symbol, multiplier, resolution, from.Unix()*1000, to.Unix()*1000))
 	if err != nil {
 		return nil, err
 	}
