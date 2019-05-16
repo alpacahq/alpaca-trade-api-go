@@ -16,6 +16,7 @@ import (
 
 const (
 	aggURL      = "%v/v1/historic/agg/%v/%v"
+	aggv2URL	= "%v/v2/aggs/ticker/%v/range/%v/%v/%v/%v"
 	tradesURL   = "%v/v1/historic/trades/%v/%v"
 	quotesURL   = "%v/v1/historic/quotes/%v/%v"
 	exchangeURL = "%v/v1/meta/exchanges"
@@ -48,7 +49,7 @@ func NewClient(credentials *common.APIKey) *Client {
 	return &Client{credentials: credentials}
 }
 
-// GetHistoricAggregates requests polygon's REST API for historic aggregates
+// GetHistoricAggregates requests Polygon's v1 REST API for historic aggregates
 // for the provided resolution based on the provided query parameters.
 func (c *Client) GetHistoricAggregates(
 	symbol string,
@@ -88,6 +89,47 @@ func (c *Client) GetHistoricAggregates(
 	}
 
 	agg := &HistoricAggregates{}
+
+	if err = unmarshal(resp, agg); err != nil {
+		return nil, err
+	}
+
+	return agg, nil
+}
+
+// GetHistoricAggregates requests Polygon's v2 REST API for historic aggregates
+// for the provided resolution based on the provided query parameters.
+func (c *Client) GetHistoricAggregatesV2(
+	symbol string,
+	multiplier int,
+	resolution AggType,
+	from, to *time.Time,
+	unadjusted *bool) (*HistoricAggregatesV2, error) {
+
+	u, err := url.Parse(fmt.Sprintf(aggv2URL, base, symbol, multiplier, resolution, from.Unix() * 1000, to.Unix() * 1000))
+	if err != nil {
+		return nil, err
+	}
+
+	q := u.Query()
+	q.Set("apiKey", c.credentials.ID)
+
+	if unadjusted != nil {
+		q.Set("unadjusted", strconv.FormatBool(*unadjusted))
+	}
+
+	u.RawQuery = q.Encode()
+
+	resp, err := get(u)
+	if err != nil {
+		return nil, err
+	}
+
+	if resp.StatusCode >= http.StatusMultipleChoices {
+		return nil, fmt.Errorf("status code %v", resp.StatusCode)
+	}
+
+	agg := &HistoricAggregatesV2{}
 
 	if err = unmarshal(resp, agg); err != nil {
 		return nil, err
