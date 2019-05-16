@@ -50,6 +50,8 @@ func main() {
 
 The SDK provides a unified streaming interface for both Polygon data updates, and Alpaca's trade/account updates. The following example subscribes to trade updates, and prints any messages received, and subscribes to live quotes for AAPL, and prints any quotes received. The main function also ends with an empty `select{}` statement which causes the program to run indefinitely.
 
+Please note that running this example as-is requires that you have a funded Alpaca brokerage account, as that is necessary for access to Polygon's API.
+
 ```go
 import (
     "os"
