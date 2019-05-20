@@ -84,7 +84,7 @@ type QuoteTick struct {
 }
 
 // HistoricAggregates is the structure that defines
-// aggregate data served through polygon's REST API.
+// aggregate data served through Polygon's v1 REST API.
 type HistoricAggregates struct {
 	Symbol        string  `json:"symbol"`
 	AggregateType AggType `json:"aggType"`
@@ -99,6 +99,16 @@ type HistoricAggregates struct {
 	Ticks []AggTick `json:"ticks"`
 }
 
+// V2HistoricAggregates is the structure that defines
+// aggregate data served through Polygon's v2 REST API.
+type HistoricAggregatesV2 struct {
+	Symbol       string    `json:"ticker"`
+	Adjusted     bool      `json:"adjusted"`
+	QueryCount   int       `json:"queryCount"`
+	ResultsCount int       `json:"resultsCount"`
+	Ticks        []AggTick `json:"results"`
+}
+
 // AggTick is the structure that contains the actual
 // tick data included in a HistoricAggregates response
 type AggTick struct {
@@ -106,8 +116,9 @@ type AggTick struct {
 	High              float64 `json:"h"`
 	Low               float64 `json:"l"`
 	Close             float64 `json:"c"`
-	Volume            int     `json:"v"`
+	Volume            float64 `json:"v"`
 	EpochMilliseconds int64   `json:"t"`
+	Items             int64   `json:"n"` // v2 response only
 }
 
 // AggType used in the HistoricAggregates response
