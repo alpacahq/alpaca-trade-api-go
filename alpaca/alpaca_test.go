@@ -383,55 +383,6 @@ func (s *AlpacaTestSuite) TestAlpaca() {
 		assert.Nil(s.T(), bars)
 	}
 
-	// list quotes
-	{
-		// successful
-		do = func(c *Client, req *http.Request) (*http.Response, error) {
-			quotes := []Quote{{AssetID: "some_id"}}
-			return &http.Response{
-				Body: genBody(quotes),
-			}, nil
-		}
-
-		quotes, err := ListQuotes([]string{"APCA"})
-		assert.Nil(s.T(), err)
-		require.Len(s.T(), quotes, 1)
-		assert.Equal(s.T(), "some_id", quotes[0].AssetID)
-
-		// api failure
-		do = func(c *Client, req *http.Request) (*http.Response, error) {
-			return &http.Response{}, fmt.Errorf("fail")
-		}
-
-		quotes, err = ListQuotes([]string{"APCA"})
-		assert.NotNil(s.T(), err)
-		assert.Nil(s.T(), quotes)
-	}
-
-	// get quote
-	{
-		// successful
-		do = func(c *Client, req *http.Request) (*http.Response, error) {
-			quote := Quote{AssetID: "some_id"}
-			return &http.Response{
-				Body: genBody(quote),
-			}, nil
-		}
-
-		quote, err := GetQuote("APCA")
-		assert.Nil(s.T(), err)
-		assert.NotNil(s.T(), quote)
-
-		// api failure
-		do = func(c *Client, req *http.Request) (*http.Response, error) {
-			return &http.Response{}, fmt.Errorf("fail")
-		}
-
-		quote, err = GetQuote("APCA")
-		assert.NotNil(s.T(), err)
-		assert.Nil(s.T(), quote)
-	}
-
 	// test verify
 	{
 		// 200

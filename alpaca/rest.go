@@ -394,52 +394,6 @@ func (c *Client) GetSymbolBars(symbol string, opts ListBarParams) ([]Bar, error)
 	return barsMap[symbol], nil
 }
 
-// ListQuotes returns a list of quotes corresponding to the
-// provided list of symbols.
-func (c *Client) ListQuotes(symbols []string) ([]Quote, error) {
-	vals := url.Values{}
-	vals.Add("symbols", strings.Join(symbols, ","))
-
-	u, err := url.Parse(fmt.Sprintf("%v/v1/quotes?%v", base, vals.Encode()))
-	if err != nil {
-		return nil, err
-	}
-
-	resp, err := c.get(u)
-	if err != nil {
-		return nil, err
-	}
-
-	quotes := []Quote{}
-
-	if err = unmarshal(resp, &quotes); err != nil {
-		return nil, err
-	}
-
-	return quotes, nil
-}
-
-// GetQuote returns a quote corresponding to the provided symbol.
-func (c *Client) GetQuote(symbol string) (*Quote, error) {
-	u, err := url.Parse(fmt.Sprintf("%v/v1/assets/%s/quote", base, symbol))
-	if err != nil {
-		return nil, err
-	}
-
-	resp, err := c.get(u)
-	if err != nil {
-		return nil, err
-	}
-
-	quote := &Quote{}
-
-	if err = unmarshal(resp, quote); err != nil {
-		return nil, err
-	}
-
-	return quote, nil
-}
-
 // GetAccount returns the user's account information
 // using the default Alpaca client.
 func GetAccount() (*Account, error) {
@@ -519,18 +473,6 @@ func ListBars(symbols []string, opts ListBarParams) (map[string][]Bar, error) {
 // Alpaca client.
 func GetSymbolBars(symbol string, opts ListBarParams) ([]Bar, error) {
 	return DefaultClient.GetSymbolBars(symbol, opts)
-}
-
-// ListQuotes returns a list of quotes corresponding to the
-// provided list of symbols with the default Alpaca client.
-func ListQuotes(symbols []string) ([]Quote, error) {
-	return DefaultClient.ListQuotes(symbols)
-}
-
-// GetQuote returns a quote corresponding to the provided symbol
-// with the default Alpaca client.
-func GetQuote(symbol string) (*Quote, error) {
-	return DefaultClient.GetQuote(symbol)
 }
 
 func (c *Client) get(u *url.URL) (*http.Response, error) {
