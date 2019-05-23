@@ -18,6 +18,7 @@ type Account struct {
 	TradingBlocked   bool            `json:"trading_blocked"`
 	TransfersBlocked bool            `json:"transfers_blocked"`
 	AccountBlocked   bool            `json:"account_blocked"`
+	BuyingPower      decimal.Decimal `json:"buying_power"`
 }
 
 type Order struct {
@@ -195,4 +196,12 @@ type ClientMsg struct {
 type ServerMsg struct {
 	Stream string      `json:"stream" msgpack:"stream"`
 	Data   interface{} `json:"data"`
+}
+
+type TradeUpdate struct {
+	Event     string          `json:"event"`
+	Quantity  int             `json:"qty"`
+	Price     decimal.Decimal `json:"price"`
+	Timestamp time.Time       `json:"timestamp"`
+	Order     Order           `json:"order"`
 }
