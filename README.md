@@ -79,7 +79,8 @@ func main() {
 }
 
 func tradeHandler(msg interface{}) {
-    fmt.Println(msg)
+    tradeupdate := msg.(alpaca.TradeUpdate)
+	fmt.Printf("%s event received for order %s.\n", tradeupdate.Event, tradeupdate.Order.ID)
 }
 
 func quoteHandler(msg interface{}) {
