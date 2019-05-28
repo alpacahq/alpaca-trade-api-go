@@ -200,8 +200,5 @@ type ServerMsg struct {
 
 type TradeUpdate struct {
 	Event     string          `json:"event"`
-	Quantity  int             `json:"qty"`
-	Price     decimal.Decimal `json:"price"`
-	Timestamp time.Time       `json:"timestamp"`
 	Order     Order           `json:"order"`
 }

@@ -1,6 +1,7 @@
 package alpaca
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/url"
@@ -88,8 +89,17 @@ func (s *Stream) start() {
 
 		if err := s.conn.ReadJSON(&msg); err == nil {
 			if v, ok := s.handlers.Load(msg.Stream); ok {
-				h := v.(func(msg interface{}))
-				h(msg.Data)
+				switch msg.Stream {
+				case TradeUpdates:
+					bytes, _ := json.Marshal(msg.Data)
+					var tradeupdate TradeUpdate
+					json.Unmarshal(bytes, &tradeupdate)
+					h := v.(func(msg interface{}))
+					h(tradeupdate)
+				default:
+					h := v.(func(msg interface{}))
+					h(msg.Data)
+				}
 			}
 		} else {
 			if websocket.IsCloseError(err) {
