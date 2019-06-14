@@ -5,7 +5,7 @@ import (
 	"sync"
 
 	"github.com/alpacahq/alpaca-trade-api-go/common"
-	nats "github.com/nats-io/go-nats"
+	nats "github.com/nats-io/nats.go"
 )
 
 var (
