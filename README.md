@@ -60,7 +60,7 @@ import (
     "github.com/alpacahq/alpaca-trade-api-go/alpaca"
     "github.com/alpacahq/alpaca-trade-api-go/polygon"
     "github.com/alpacahq/alpaca-trade-api-go/stream"
-    nats "github.com/nats-io/go-nats"
+    nats "github.com/nats-io/nats.go"
 )
 
 func main() {
