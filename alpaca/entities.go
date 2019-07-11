@@ -181,6 +181,7 @@ const (
 	FOK TimeInForce = "fok"
 	GTX TimeInForce = "gtx"
 	GTD TimeInForce = "gtd"
+	CLS TimeInForce = "cls"
 )
 
 // stream
@@ -199,6 +200,6 @@ type ServerMsg struct {
 }
 
 type TradeUpdate struct {
-	Event     string          `json:"event"`
-	Order     Order           `json:"order"`
+	Event string `json:"event"`
+	Order Order  `json:"order"`
 }
