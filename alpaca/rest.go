@@ -355,6 +355,10 @@ func (c *Client) ListBars(symbols []string, opts ListBarParams) (map[string][]Ba
 	vals := url.Values{}
 	vals.Add("symbols", strings.Join(symbols, ","))
 
+	if opts.Timeframe == "" {
+		return nil, fmt.Errorf("timeframe is required for the bars endpoint")
+	}
+
 	if opts.StartDt != nil {
 		vals.Set("start_dt", opts.StartDt.Format(time.RFC3339))
 	}
@@ -367,7 +371,7 @@ func (c *Client) ListBars(symbols []string, opts ListBarParams) (map[string][]Ba
 		vals.Set("limit", strconv.FormatInt(int64(*opts.Limit), 10))
 	}
 
-	u, err := url.Parse(fmt.Sprintf("%s/v1/bars/%s?%v", dataUrl, opts.Timeframe, vals.Encode()))
+	u, err := url.Parse(fmt.Sprintf("%sv1/bars/%s?%v", dataUrl, opts.Timeframe, vals.Encode()))
 	if err != nil {
 		return nil, err
 	}
