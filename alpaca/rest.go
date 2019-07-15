@@ -394,7 +394,7 @@ func (c *Client) ListBars(symbols []string, opts ListBarParams) (map[string][]Ba
 func (c *Client) GetSymbolBars(symbol string, opts ListBarParams) ([]Bar, error) {
 	symbolList := []string{symbol}
 
-	barsMap, err := ListBars(symbolList, opts)
+	barsMap, err := c.ListBars(symbolList, opts)
 	if err != nil {
 		return nil, err
 	}
