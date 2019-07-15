@@ -230,10 +230,10 @@ func (alp alpacaClientContainer) rebalance() {
 		if longTPResp > 0 {
 			alpacaClient.long.adjustedQty = int(alpacaClient.long.equityAmt / longTPResp)
 		} else {
-			alpacaClient.long.adjustedQty = -1
+			alp.long.adjustedQty = -1
 		}
 	} else {
-		alpacaClient.long.adjustedQty = -1
+		alp.long.adjustedQty = -1
 	}
 
 	shortBOResp := alpacaClient.sendBatchOrder(alpacaClient.short.qty, alpacaClient.short.list, "sell")
@@ -244,10 +244,10 @@ func (alp alpacaClientContainer) rebalance() {
 		if shortTPResp > 0 {
 			alpacaClient.short.adjustedQty = int(alpacaClient.short.equityAmt / shortTPResp)
 		} else {
-			alpacaClient.short.adjustedQty = -1
+			alp.short.adjustedQty = -1
 		}
 	} else {
-		alpacaClient.short.adjustedQty = -1
+		alp.short.adjustedQty = -1
 	}
 
 	// Reorder stocks that didn't throw an error so that the equity quota is reached.
@@ -275,11 +275,11 @@ func (alp alpacaClientContainer) rerank() {
 	alpacaClient.long.list = nil
 	alpacaClient.short.list = nil
 
-	for i, stock := range alpacaClient.allStocks {
+	for i, stock := range alp.allStocks {
 		if i < longShortAmount {
-			alpacaClient.short.list = append(alpacaClient.short.list, stock.name)
-		} else if i > (len(alpacaClient.allStocks) - 1 - longShortAmount) {
-			alpacaClient.long.list = append(alpacaClient.long.list, stock.name)
+			alp.short.list = append(alp.short.list, stock.name)
+		} else if i > (len(alp.allStocks) - 1 - longShortAmount) {
+			alp.long.list = append(alp.long.list, stock.name)
 		} else {
 			continue
 		}
@@ -294,14 +294,14 @@ func (alp alpacaClientContainer) rerank() {
 		equity += rawVal
 	}
 
-	alpacaClient.short.equityAmt = equity * 0.30
-	alpacaClient.long.equityAmt = equity + alpacaClient.short.equityAmt
+	alp.short.equityAmt = equity * 0.30
+	alp.long.equityAmt = equity + alp.short.equityAmt
 
 	longTotal := alpacaClient.getTotalPrice(alpacaClient.long.list)
 	shortTotal := alpacaClient.getTotalPrice(alpacaClient.short.list)
 
-	alpacaClient.long.qty = int(alpacaClient.long.equityAmt / longTotal)
-	alpacaClient.short.qty = int(alpacaClient.short.equityAmt / shortTotal)
+	alp.long.qty = int(alp.long.equityAmt / longTotal)
+	alp.short.qty = int(alp.short.equityAmt / shortTotal)
 }
 
 // Get the total price of the array of input stocks.
