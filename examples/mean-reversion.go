@@ -24,8 +24,8 @@ type alpacaClientContainer struct {
 var alpacaClient alpacaClientContainer
 
 func init() {
-	os.Setenv(common.EnvApiKeyID, "PKM4OPMZT6GJFCLF9ZCB")
-	os.Setenv(common.EnvApiSecretKey, "IxOUZCVXnB/8pfVt/idXPaI6qVw/7pEBMxacHSpK")
+	os.Setenv(common.EnvApiKeyID, "API_KEY")
+	os.Setenv(common.EnvApiSecretKey, "API_SECRET")
 	alpaca.SetBaseUrl("https://paper-api.alpaca.markets")
 
 	alpacaClient = alpacaClientContainer{
@@ -58,21 +58,47 @@ func main() {
 	}
 	fmt.Println("Market Opened.")
 
+	// Get the running average of prices of the last 20 minutes, waiting until we have 20 bars from market open.
+	fmt.Println("Waiting for 20 bars...")
+	for {
+		layout := "2006-01-02T15:04:05.000Z"
+		rawTime, _ := time.Parse(layout, time.Now().String())
+		currTime := rawTime.String()
+		cal, _ := alpacaClient.client.GetCalendar(&currTime, &currTime)
+		marketOpen, _ := time.Parse(layout, cal[0].Open)
+		bars, _ := alpacaClient.client.GetSymbolBars(alpacaClient.stock, alpaca.ListBarParams{Timeframe: "minute", StartDt: &marketOpen})
+		if len(bars) >= 20 {
+			break
+		} else {
+			time.Sleep(60000 * time.Millisecond)
+		}
+	}
+	fmt.Println("We have 20 bars.")
+
+	amtBars := 20
+	bars, err := alpacaClient.client.GetSymbolBars(alpacaClient.stock, alpaca.ListBarParams{Timeframe: "minute", Limit: &amtBars})
+	if err != nil {
+		fmt.Println(err)
+	}
+	for _, bar := range bars {
+		alpacaClient.closingPrices = append(alpacaClient.closingPrices, float64(bar.Close))
+		if len(alpacaClient.closingPrices) > 20 {
+			alpacaClient.closingPrices = alpacaClient.closingPrices[1:]
+		}
+		alpacaClient.runningAverage = ((alpacaClient.runningAverage * float64(len(alpacaClient.closingPrices)-1)) + float64(bar.Close)) / float64(len(alpacaClient.closingPrices))
+	}
+
 	for {
 		cRun := make(chan bool)
 		go alpacaClient.run(cRun)
 		<-cRun
-		fmt.Println("End")
 	}
 }
 
 // Rebalance our portfolio every minute based off running average data
 func (alp alpacaClientContainer) run(cRun chan bool) {
 	if alpacaClient.lastOrder != "" {
-		err := alp.client.CancelOrder(alpacaClient.lastOrder)
-		if err != nil {
-			fmt.Println(err)
-		}
+		_ = alp.client.CancelOrder(alpacaClient.lastOrder)
 	}
 
 	// Rebalance the portfolio
@@ -129,17 +155,13 @@ func (alp alpacaClientContainer) rebalance(cRebalance chan bool) {
 	positionVal := 0.0
 	position, err := alp.client.GetPosition(alpacaClient.stock)
 	if err != nil {
-		fmt.Println(err)
 	} else {
 		positionQty = int(position.Qty.IntPart())
 		positionVal, _ = position.MarketValue.Float64()
 	}
 
 	// Get the new updated price and running average
-	bars, err := alp.client.GetSymbolBars(alpacaClient.stock, alpaca.ListBarParams{Timeframe: "minute"})
-	if err != nil {
-		fmt.Println(err)
-	}
+	bars, _ := alp.client.GetSymbolBars(alpacaClient.stock, alpaca.ListBarParams{Timeframe: "minute"})
 	currPrice := float64(bars[len(bars)-1].Close)
 	alpacaClient.closingPrices = append(alpacaClient.closingPrices, currPrice)
 	if len(alpacaClient.closingPrices) > 20 {
@@ -159,16 +181,10 @@ func (alp alpacaClientContainer) rebalance(cRebalance chan bool) {
 		}
 	} else if currPrice < alpacaClient.runningAverage {
 		// Determine optimal amount of shares based on portfolio and market data
-		account, err := alp.client.GetAccount()
-		if err != nil {
-			fmt.Println(err)
-		}
+		account, _ := alp.client.GetAccount()
 		buyingPower, _ := account.BuyingPower.Float64()
-		positions, err := alp.client.ListPositions()
-		if err != nil {
-			fmt.Println(err)
-		}
-		portfolioVal := 0.0
+		positions, _ := alp.client.ListPositions()
+		portfolioVal, _ := account.Cash.Float64()
 		for _, position := range positions {
 			rawVal, _ := position.MarketValue.Float64()
 			portfolioVal += rawVal
@@ -197,6 +213,7 @@ func (alp alpacaClientContainer) rebalance(cRebalance chan bool) {
 			<-cSubmitLO
 		}
 	}
+	cRebalance <- true
 }
 
 // Submit a limit order if quantity is above 0
@@ -204,19 +221,25 @@ func (alp alpacaClientContainer) submitLimitOrder(qty int, symbol string, price 
 	account, _ := alp.client.GetAccount()
 	if qty > 0 {
 		adjSide := alpaca.Side(side)
-		lastOrder, err := alp.client.PlaceOrder(alpaca.PlaceOrderRequest{
+		limPrice := decimal.NewFromFloat(price)
+		order, err := alp.client.PlaceOrder(alpaca.PlaceOrderRequest{
 			AccountID:   account.ID,
 			AssetKey:    &symbol,
 			Qty:         decimal.NewFromFloat(float64(qty)),
 			Side:        adjSide,
 			Type:        "limit",
+			LimitPrice:  &limPrice,
 			TimeInForce: "day",
 		})
-		fmt.Println("Limit order of " + strconv.Itoa(qty) + " " + symbol + ", " + side)
-		alpacaClient.lastOrder = lastOrder.ID
+		if err == nil {
+			fmt.Println("Limit order of " + "|" + strconv.Itoa(qty) + " " + symbol + " " + side + "|" + " completed.")
+		} else {
+			fmt.Println("Order of " + "|" + strconv.Itoa(qty) + " " + symbol + " " + side + "|" + " did not go through.")
+		}
+		alpacaClient.lastOrder = order.ID
 		cSubmitLO <- err
 	} else {
-		fmt.Println("Quantity is 0, order of " + strconv.Itoa(qty) + " " + symbol + " " + side + " not sent")
+		fmt.Println("Quantity is <= 0, order order of " + strconv.Itoa(qty) + " " + symbol + " " + side + " not sent")
 		cSubmitLO <- nil
 	}
 	return
@@ -235,11 +258,15 @@ func (alp alpacaClientContainer) submitMarketOrder(qty int, symbol string, side 
 			Type:        "market",
 			TimeInForce: "day",
 		})
-		fmt.Println("Market order of " + strconv.Itoa(qty) + " " + symbol + ", " + side)
+		if err == nil {
+			fmt.Println("Market order of " + "|" + strconv.Itoa(qty) + " " + symbol + " " + side + "|" + " completed.")
+		} else {
+			fmt.Println("Order of " + "|" + strconv.Itoa(qty) + " " + symbol + " " + side + "|" + " did not go through.")
+		}
 		alpacaClient.lastOrder = lastOrder.ID
 		cSubmitMO <- err
 	} else {
-		fmt.Println("Quantity is 0, order of " + strconv.Itoa(qty) + " " + symbol + " " + side + " not completed")
+		fmt.Println("Quantity is <= 0, order of " + strconv.Itoa(qty) + " " + symbol + " " + side + " not completed")
 		cSubmitMO <- nil
 	}
 	return
