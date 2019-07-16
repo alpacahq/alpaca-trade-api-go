@@ -137,6 +137,12 @@ func (alp alpacaClientContainer) rebalance() {
 	fmt.Printf("%v", alpacaClient.short.list)
 	fmt.Println()
 
+	fmt.Print("We are longing: ")
+	fmt.Printf("%v", alpacaClient.long.list)
+	fmt.Println()
+	fmt.Print("We are shorting: ")
+	fmt.Printf("%v", alpacaClient.short.list)
+	fmt.Println()
 	// Clear existing orders again.
 	status, until, limit := "open", time.Now(), 100
 	orders, _ := alpacaClient.client.ListOrders(&status, &until, &limit)
@@ -230,10 +236,10 @@ func (alp alpacaClientContainer) rebalance() {
 		if longTPResp > 0 {
 			alpacaClient.long.adjustedQty = int(alpacaClient.long.equityAmt / longTPResp)
 		} else {
-			alp.long.adjustedQty = -1
+			alpacaClient.long.adjustedQty = -1
 		}
 	} else {
-		alp.long.adjustedQty = -1
+		alpacaClient.long.adjustedQty = -1
 	}
 
 	shortBOResp := alpacaClient.sendBatchOrder(alpacaClient.short.qty, alpacaClient.short.list, "sell")
@@ -244,10 +250,10 @@ func (alp alpacaClientContainer) rebalance() {
 		if shortTPResp > 0 {
 			alpacaClient.short.adjustedQty = int(alpacaClient.short.equityAmt / shortTPResp)
 		} else {
-			alp.short.adjustedQty = -1
+			alpacaClient.short.adjustedQty = -1
 		}
 	} else {
-		alp.short.adjustedQty = -1
+		alpacaClient.short.adjustedQty = -1
 	}
 
 	// Reorder stocks that didn't throw an error so that the equity quota is reached.
@@ -275,11 +281,11 @@ func (alp alpacaClientContainer) rerank() {
 	alpacaClient.long.list = nil
 	alpacaClient.short.list = nil
 
-	for i, stock := range alp.allStocks {
+	for i, stock := range alpacaClient.allStocks {
 		if i < longShortAmount {
-			alp.short.list = append(alp.short.list, stock.name)
-		} else if i > (len(alp.allStocks) - 1 - longShortAmount) {
-			alp.long.list = append(alp.long.list, stock.name)
+			alpacaClient.short.list = append(alpacaClient.short.list, stock.name)
+		} else if i > (len(alpacaClient.allStocks) - 1 - longShortAmount) {
+			alpacaClient.long.list = append(alpacaClient.long.list, stock.name)
 		} else {
 			continue
 		}
@@ -294,14 +300,15 @@ func (alp alpacaClientContainer) rerank() {
 		equity += rawVal
 	}
 
-	alp.short.equityAmt = equity * 0.30
-	alp.long.equityAmt = equity + alp.short.equityAmt
+	alpacaClient.short.equityAmt = equity * 0.30
+	alpacaClient.long.equityAmt = equity + alpacaClient.short.equityAmt
 
 	longTotal := alpacaClient.getTotalPrice(alpacaClient.long.list)
 	shortTotal := alpacaClient.getTotalPrice(alpacaClient.short.list)
 
-	alp.long.qty = int(alp.long.equityAmt / longTotal)
-	alp.short.qty = int(alp.short.equityAmt / shortTotal)
+	alpacaClient.long.qty = int(alpacaClient.long.equityAmt / longTotal)
+	alpacaClient.short.qty = int(alpacaClient.short.equityAmt / shortTotal)
+	cRerank <- true
 }
 
 // Get the total price of the array of input stocks.
