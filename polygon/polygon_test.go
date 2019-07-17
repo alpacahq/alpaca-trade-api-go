@@ -59,7 +59,7 @@ func (s *PolygonTestSuite) TestPolygon() {
 
 		date := "2018-01-03"
 
-		resp, err := GetHistoricTrades("APCA", date)
+		resp, err := GetHistoricTrades("APCA", date, nil)
 		assert.Nil(s.T(), err)
 		assert.NotNil(s.T(), resp)
 
@@ -68,7 +68,7 @@ func (s *PolygonTestSuite) TestPolygon() {
 			return &http.Response{}, fmt.Errorf("fail")
 		}
 
-		resp, err = GetHistoricTrades("APCA", date)
+		resp, err = GetHistoricTrades("APCA", date, nil)
 		assert.NotNil(s.T(), err)
 		assert.Nil(s.T(), resp)
 	}
