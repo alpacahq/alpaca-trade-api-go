@@ -99,7 +99,7 @@ type HistoricAggregates struct {
 	Ticks []AggTick `json:"ticks"`
 }
 
-// V2HistoricAggregates is the structure that defines
+// HistoricAggregatesV2 is the structure that defines
 // aggregate data served through Polygon's v2 REST API.
 type HistoricAggregatesV2 struct {
 	Symbol       string    `json:"ticker"`
@@ -107,6 +107,11 @@ type HistoricAggregatesV2 struct {
 	QueryCount   int       `json:"queryCount"`
 	ResultsCount int       `json:"resultsCount"`
 	Ticks        []AggTick `json:"results"`
+}
+
+type GetHistoricTradesParams struct {
+	Offset int64 `json:"offset"`
+	Limit  int64 `json:"limit"`
 }
 
 // AggTick is the structure that contains the actual
