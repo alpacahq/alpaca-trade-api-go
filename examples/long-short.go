@@ -5,7 +5,6 @@ import (
 	"math"
 	"os"
 	"sort"
-	"strconv"
 	"time"
 
 	"github.com/alpacahq/alpaca-trade-api-go/alpaca"
@@ -35,8 +34,8 @@ type stockField struct {
 var alpacaClient alpacaClientContainer
 
 func init() {
-	API_KEY := "API_KEY"
-	API_SECRET := "API_SECRET"
+	API_KEY := "YOUR_API_KEY_HERE"
+	API_SECRET := "YOUR_API_SECRET_HERE"
 	BASE_URL := "https://paper-api.alpaca.markets"
 
 	os.Setenv(common.EnvApiKeyID, API_KEY)
@@ -87,7 +86,6 @@ func main() {
 
 // Rebalance the portfolio every minute, making necessary trades.
 func (alp alpacaClientContainer) run() {
-	alpacaClient.rebalance()
 
 	// Figure out when the market will close so we can prepare to sell beforehand.
 	clock, _ := alpacaClient.client.GetClock()
@@ -112,6 +110,8 @@ func (alp alpacaClientContainer) run() {
 		fmt.Println("Sleeping until market close (15 minutes).")
 		time.Sleep((60000 * 15) * time.Millisecond)
 	} else {
+		// Rebalance the portfolio.
+		alpacaClient.rebalance()
 		time.Sleep(60000 * time.Millisecond)
 	}
 }
@@ -336,13 +336,13 @@ func (alp alpacaClientContainer) submitOrder(qty int, symbol string, side string
 			TimeInForce: "day",
 		})
 		if err == nil {
-			fmt.Println("Market order of " + "|" + strconv.Itoa(qty) + " " + symbol + " " + side + "|" + " completed.")
+			fmt.Printf("Market order of | %d %s %s | completed.\n", qty, symbol, side)
 		} else {
-			fmt.Println("Order of " + "|" + strconv.Itoa(qty) + " " + symbol + " " + side + "|" + " did not go through.")
+			fmt.Printf("Order of | %d %s %s | did not go through.\n", qty, symbol, side)
 		}
 		return err
 	}
-	fmt.Println("Quantity is <= 0, order of " + "|" + strconv.Itoa(qty) + " " + symbol + " " + side + "|" + " not completed")
+	fmt.Printf("Quantity is <= 0, order of | %d %s %s | not sent.\n", qty, symbol, side)
 	return nil
 }
 
