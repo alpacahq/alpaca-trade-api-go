@@ -137,12 +137,13 @@ func (alp alpacaClientContainer) rebalance() {
 	fmt.Printf("%v", alpacaClient.short.list)
 	fmt.Println()
 
-	fmt.Print("We are longing: ")
+	fmt.Print("We are taking a long position in: ")
 	fmt.Printf("%v", alpacaClient.long.list)
 	fmt.Println()
-	fmt.Print("We are shorting: ")
+	fmt.Print("We are taking a short position in: ")
 	fmt.Printf("%v", alpacaClient.short.list)
 	fmt.Println()
+
 	// Clear existing orders again.
 	status, until, limit := "open", time.Now(), 100
 	orders, _ := alpacaClient.client.ListOrders(&status, &until, &limit)
@@ -308,7 +309,6 @@ func (alp alpacaClientContainer) rerank() {
 
 	alpacaClient.long.qty = int(alpacaClient.long.equityAmt / longTotal)
 	alpacaClient.short.qty = int(alpacaClient.short.equityAmt / shortTotal)
-	cRerank <- true
 }
 
 // Get the total price of the array of input stocks.
