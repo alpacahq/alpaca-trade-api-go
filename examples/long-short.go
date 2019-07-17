@@ -35,9 +35,13 @@ type stockField struct {
 var alpacaClient alpacaClientContainer
 
 func init() {
-	os.Setenv(common.EnvApiKeyID, "API_KEY")
-	os.Setenv(common.EnvApiSecretKey, "API_SECRET")
-	alpaca.SetBaseUrl("https://paper-api.alpaca.markets")
+	API_KEY := "API_KEY"
+	API_SECRET := "API_SECRET"
+	BASE_URL := "https://paper-api.alpaca.markets"
+
+	os.Setenv(common.EnvApiKeyID, API_KEY)
+	os.Setenv(common.EnvApiSecretKey, API_SECRET)
+	alpaca.SetBaseUrl(BASE_URL)
 
 	// Format the allStocks variable for use in the class.
 	allStocks := []stockField{}
@@ -66,11 +70,10 @@ func main() {
 	}
 
 	// Wait for market to open.
-	cAMO := make(chan bool)
 	fmt.Println("Waiting for market to open...")
 	for {
-		go alpacaClient.awaitMarketOpen(cAMO)
-		if <-cAMO {
+		isOpen := alpacaClient.awaitMarketOpen()
+		if isOpen {
 			break
 		}
 		time.Sleep(2000 * time.Millisecond)
@@ -78,17 +81,13 @@ func main() {
 	fmt.Println("Market Opened.")
 
 	for {
-		cRun := make(chan bool)
-		go alpacaClient.run(cRun)
-		<-cRun
+		alpacaClient.run()
 	}
 }
 
 // Rebalance the portfolio every minute, making necessary trades.
-func (alp alpacaClientContainer) run(cRun chan bool) {
-	cRebalance := make(chan bool)
-	go alpacaClient.rebalance(cRebalance)
-	<-cRebalance
+func (alp alpacaClientContainer) run() {
+	alpacaClient.rebalance()
 
 	// Figure out when the market will close so we can prepare to sell beforehand.
 	clock, _ := alpacaClient.client.GetClock()
@@ -107,9 +106,7 @@ func (alp alpacaClientContainer) run(cRun chan bool) {
 			}
 			qty, _ := position.Qty.Float64()
 			qty = math.Abs(qty)
-			cSubmitOrder := make(chan error)
-			go alpacaClient.submitOrder(int(qty), position.Symbol, orderSide, cSubmitOrder)
-			<-cSubmitOrder
+			alpacaClient.submitOrder(int(qty), position.Symbol, orderSide)
 		}
 		// Run script again after market close for next trading day.
 		fmt.Println("Sleeping until market close (15 minutes).")
@@ -117,33 +114,29 @@ func (alp alpacaClientContainer) run(cRun chan bool) {
 	} else {
 		time.Sleep(60000 * time.Millisecond)
 	}
-	cRun <- true
 }
 
 // Spin until the market is open.
-func (alp alpacaClientContainer) awaitMarketOpen(cAMO chan bool) {
+func (alp alpacaClientContainer) awaitMarketOpen() bool {
 	clock, _ := alpacaClient.client.GetClock()
 	if clock.IsOpen {
-		cAMO <- true
-	} else {
-		fmt.Println("spinning")
+		return true
 	}
-	cAMO <- true
-	return
+	fmt.Println("spinning")
+	return false
 }
 
 // Rebalance our position after an update.
-func (alp alpacaClientContainer) rebalance(cRebalance chan bool) {
-	cRank := make(chan bool)
-	go alpacaClient.rerank(cRank)
-	<-cRank
+func (alp alpacaClientContainer) rebalance() {
+	alpacaClient.rerank()
 
-	fmt.Print("We are longing: ")
+	fmt.Print("We are taking a long position in: ")
 	fmt.Printf("%v", alpacaClient.long.list)
 	fmt.Println()
-	fmt.Print("We are shorting: ")
+	fmt.Print("We are taking a short position in: ")
 	fmt.Printf("%v", alpacaClient.short.list)
 	fmt.Println()
+
 	// Clear existing orders again.
 	status, until, limit := "open", time.Now(), 100
 	orders, _ := alpacaClient.client.ListOrders(&status, &until, &limit)
@@ -156,13 +149,8 @@ func (alp alpacaClientContainer) rebalance(cRebalance chan bool) {
 	var executed [2][]string
 	positions, _ := alpacaClient.client.ListPositions()
 	for _, position := range positions {
-		cIndexOfLong := make(chan int)
-		go indexOf(alpacaClient.long.list, position.Symbol, cIndexOfLong)
-		indLong := <-cIndexOfLong
-
-		cIndexOfShort := make(chan int)
-		go indexOf(alpacaClient.short.list, position.Symbol, cIndexOfShort)
-		indShort := <-cIndexOfShort
+		indLong := indexOf(alpacaClient.long.list, position.Symbol)
+		indShort := indexOf(alpacaClient.short.list, position.Symbol)
 
 		rawQty, _ := position.Qty.Float64()
 		qty := int(math.Abs(rawQty))
@@ -176,16 +164,12 @@ func (alp alpacaClientContainer) rebalance(cRebalance chan bool) {
 				} else {
 					side = "buy"
 				}
-				cSO := make(chan error)
-				go alpacaClient.submitOrder(int(math.Abs(float64(qty))), position.Symbol, side, cSO)
-				<-cSO
+				alpacaClient.submitOrder(int(math.Abs(float64(qty))), position.Symbol, side)
 			} else {
 				if position.Side == "long" {
 					// Position changed from long to short.  Clear long position to prep for short sell.
 					side = "sell"
-					cSO := make(chan error)
-					go alpacaClient.submitOrder(qty, position.Symbol, side, cSO)
-					<-cSO
+					alpacaClient.submitOrder(qty, position.Symbol, side)
 				} else {
 					// Position in short list
 					if qty == alpacaClient.short.qty {
@@ -202,9 +186,7 @@ func (alp alpacaClientContainer) rebalance(cRebalance chan bool) {
 							side = "sell"
 						}
 						qty = diff
-						cSO := make(chan error)
-						go alpacaClient.submitOrder(qty, position.Symbol, side, cSO)
-						<-cSO
+						alpacaClient.submitOrder(qty, position.Symbol, side)
 					}
 					executed[1] = append(executed[1], position.Symbol)
 					alpacaClient.blacklist = append(alpacaClient.blacklist, position.Symbol)
@@ -215,9 +197,7 @@ func (alp alpacaClientContainer) rebalance(cRebalance chan bool) {
 			if position.Side == "short" {
 				// Position changed from short to long.  Clear short position to prep for long purchase.
 				side = "buy"
-				cSO := make(chan error)
-				go alpacaClient.submitOrder(qty, position.Symbol, side, cSO)
-				<-cSO
+				alpacaClient.submitOrder(qty, position.Symbol, side)
 			} else {
 				if qty == alpacaClient.long.qty {
 					// Position is where we want it.  Pass for now.
@@ -232,9 +212,7 @@ func (alp alpacaClientContainer) rebalance(cRebalance chan bool) {
 						side = "buy"
 					}
 					qty = diff
-					cSO := make(chan error)
-					go alpacaClient.submitOrder(qty, position.Symbol, side, cSO)
-					<-cSO
+					alpacaClient.submitOrder(qty, position.Symbol, side)
 				}
 				executed[0] = append(executed[0], position.Symbol)
 				alpacaClient.blacklist = append(alpacaClient.blacklist, position.Symbol)
@@ -243,15 +221,12 @@ func (alp alpacaClientContainer) rebalance(cRebalance chan bool) {
 	}
 
 	// Send orders to all remaining stocks in the long and short list.
-	cSendBOLong := make(chan [2][]string)
-	go alpacaClient.sendBatchOrder(alpacaClient.long.qty, alpacaClient.long.list, "buy", cSendBOLong)
-	longBOResp := <-cSendBOLong
+	longBOResp := alpacaClient.sendBatchOrder(alpacaClient.long.qty, alpacaClient.long.list, "buy")
 	executed[0] = append(executed[0], longBOResp[0][:]...)
 	if len(longBOResp[1][:]) > 0 {
 		// Handle rejected/incomplete orders and determine new quantities to purchase.
-		cGetTPLong := make(chan float64)
-		go alpacaClient.getTotalPrice(executed[0], cGetTPLong)
-		longTPResp := <-cGetTPLong
+
+		longTPResp := alpacaClient.getTotalPrice(executed[0])
 		if longTPResp > 0 {
 			alpacaClient.long.adjustedQty = int(alpacaClient.long.equityAmt / longTPResp)
 		} else {
@@ -261,15 +236,11 @@ func (alp alpacaClientContainer) rebalance(cRebalance chan bool) {
 		alpacaClient.long.adjustedQty = -1
 	}
 
-	cSendBOShort := make(chan [2][]string)
-	go alpacaClient.sendBatchOrder(alpacaClient.short.qty, alpacaClient.short.list, "sell", cSendBOShort)
-	shortBOResp := <-cSendBOShort
+	shortBOResp := alpacaClient.sendBatchOrder(alpacaClient.short.qty, alpacaClient.short.list, "sell")
 	executed[1] = append(executed[1], shortBOResp[0][:]...)
 	if len(shortBOResp[1][:]) > 0 {
 		// Handle rejected/incomplete orders and determine new quantities to purchase.
-		cGetTPShort := make(chan float64)
-		go alpacaClient.getTotalPrice(executed[1], cGetTPShort)
-		shortTPResp := <-cGetTPShort
+		shortTPResp := alpacaClient.getTotalPrice(executed[1])
 		if shortTPResp > 0 {
 			alpacaClient.short.adjustedQty = int(alpacaClient.short.equityAmt / shortTPResp)
 		} else {
@@ -283,28 +254,21 @@ func (alp alpacaClientContainer) rebalance(cRebalance chan bool) {
 	if alpacaClient.long.adjustedQty > -1 {
 		alpacaClient.long.qty = alpacaClient.long.adjustedQty - alpacaClient.long.qty
 		for _, stock := range executed[0] {
-			cResendSOLong := make(chan error)
-			go alpacaClient.submitOrder(alpacaClient.long.qty, stock, "buy", cResendSOLong)
-			<-cResendSOLong
+			alpacaClient.submitOrder(alpacaClient.long.qty, stock, "buy")
 		}
 	}
 
 	if alpacaClient.short.adjustedQty > -1 {
 		alpacaClient.short.qty = alpacaClient.short.adjustedQty - alpacaClient.short.qty
 		for _, stock := range executed[1] {
-			cResendSOShort := make(chan error)
-			go alpacaClient.submitOrder(alpacaClient.short.qty, stock, "sell", cResendSOShort)
-			<-cResendSOShort
+			alpacaClient.submitOrder(alpacaClient.short.qty, stock, "sell")
 		}
 	}
-	cRebalance <- true
 }
 
 // Re-rank all stocks to adjust longs and shorts.
-func (alp alpacaClientContainer) rerank(cRerank chan bool) {
-	cRank := make(chan bool)
-	go alpacaClient.rank(cRank)
-	<-cRank
+func (alp alpacaClientContainer) rerank() {
+	alpacaClient.rank()
 
 	// Grabs the top and bottom quarter of the sorted stock list to get the long and short lists.
 	longShortAmount := int(len(alpacaClient.allStocks) / 4)
@@ -333,32 +297,26 @@ func (alp alpacaClientContainer) rerank(cRerank chan bool) {
 	alpacaClient.short.equityAmt = equity * 0.30
 	alpacaClient.long.equityAmt = equity + alpacaClient.short.equityAmt
 
-	cgetTPLong := make(chan float64)
-	go alpacaClient.getTotalPrice(alpacaClient.long.list, cgetTPLong)
-	longTotal := <-cgetTPLong
-
-	cgetTPShort := make(chan float64)
-	go alpacaClient.getTotalPrice(alpacaClient.short.list, cgetTPShort)
-	shortTotal := <-cgetTPShort
+	longTotal := alpacaClient.getTotalPrice(alpacaClient.long.list)
+	shortTotal := alpacaClient.getTotalPrice(alpacaClient.short.list)
 
 	alpacaClient.long.qty = int(alpacaClient.long.equityAmt / longTotal)
 	alpacaClient.short.qty = int(alpacaClient.short.equityAmt / shortTotal)
-	cRerank <- true
 }
 
 // Get the total price of the array of input stocks.
-func (alp alpacaClientContainer) getTotalPrice(arr []string, getTP chan float64) {
+func (alp alpacaClientContainer) getTotalPrice(arr []string) float64 {
 	totalPrice := 0.0
 	for _, stock := range arr {
 		numBars := 1
 		bar, _ := alpacaClient.client.GetSymbolBars(stock, alpaca.ListBarParams{Timeframe: "minute", Limit: &numBars})
 		totalPrice += float64(bar[0].Close)
 	}
-	getTP <- totalPrice
+	return totalPrice
 }
 
 // Submit an order if quantity is above 0.
-func (alp alpacaClientContainer) submitOrder(qty int, symbol string, side string, cSubmitOrder chan error) {
+func (alp alpacaClientContainer) submitOrder(qty int, symbol string, side string) error {
 	account, _ := alpacaClient.client.GetAccount()
 	if qty > 0 {
 		adjSide := alpaca.Side(side)
@@ -375,37 +333,32 @@ func (alp alpacaClientContainer) submitOrder(qty int, symbol string, side string
 		} else {
 			fmt.Println("Order of " + "|" + strconv.Itoa(qty) + " " + symbol + " " + side + "|" + " did not go through.")
 		}
-		cSubmitOrder <- err
-	} else {
-		fmt.Println("Quantity is <= 0, order of " + "|" + strconv.Itoa(qty) + " " + symbol + " " + side + "|" + " not completed")
-		cSubmitOrder <- nil
+		return err
 	}
-	return
+	fmt.Println("Quantity is <= 0, order of " + "|" + strconv.Itoa(qty) + " " + symbol + " " + side + "|" + " not completed")
+	return nil
 }
 
 // Submit a batch order that returns completed and uncompleted orders.
-func (alp alpacaClientContainer) sendBatchOrder(qty int, stocks []string, side string, cSendBO chan [2][]string) {
+func (alp alpacaClientContainer) sendBatchOrder(qty int, stocks []string, side string) [2][]string {
 	var executed []string
 	var incomplete []string
 	for _, stock := range stocks {
-		cIndexOf := make(chan int)
-		go indexOf(alpacaClient.blacklist, stock, cIndexOf)
-		index := <-cIndexOf
+		index := indexOf(alpacaClient.blacklist, stock)
 		if index == -1 {
-			cSubmitOrder := make(chan error)
-			go alpacaClient.submitOrder(qty, stock, side, cSubmitOrder)
-			if <-cSubmitOrder != nil {
+			resp := alpacaClient.submitOrder(qty, stock, side)
+			if resp != nil {
 				incomplete = append(incomplete, stock)
 			} else {
 				executed = append(executed, stock)
 			}
 		}
 	}
-	cSendBO <- [2][]string{executed, incomplete}
+	return [2][]string{executed, incomplete}
 }
 
 // Get percent changes of the stock prices over the past 10 days.
-func (alp alpacaClientContainer) getPercentChanges(cGetPC chan bool) {
+func (alp alpacaClientContainer) getPercentChanges() {
 	length := 10
 	for i, stock := range alpacaClient.allStocks {
 		startTime, endTime := time.Unix(time.Now().Unix()-int64(length*60), 0), time.Now()
@@ -413,31 +366,25 @@ func (alp alpacaClientContainer) getPercentChanges(cGetPC chan bool) {
 		percentChange := (bars[len(bars)-1].Close - bars[0].Open) / bars[0].Open
 		alpacaClient.allStocks[i].pc = float64(percentChange)
 	}
-	cGetPC <- true
 }
 
 // Mechanism used to rank the stocks, the basis of the Long-Short Equity Strategy.
-func (alp alpacaClientContainer) rank(cRank chan bool) {
+func (alp alpacaClientContainer) rank() {
 	// Ranks all stocks by percent change over the past 10 days (higher is better).
-	cGetPC := make(chan bool)
-	go alpacaClient.getPercentChanges(cGetPC)
-	<-cGetPC
+	alpacaClient.getPercentChanges()
 
 	// Sort the stocks in place by the percent change field (marked by pc).
 	sort.Slice(alpacaClient.allStocks, func(i, j int) bool {
 		return alpacaClient.allStocks[i].pc < alpacaClient.allStocks[j].pc
 	})
-	cRank <- true
 }
 
 // Helper method to imitate the indexOf array method.
-func indexOf(arr []string, str string, cIndexOf chan int) {
+func indexOf(arr []string, str string) int {
 	for i, elem := range arr {
 		if elem == str {
-			cIndexOf <- i
-			return
+			return i
 		}
 	}
-	cIndexOf <- -1
-	return
+	return -1
 }
