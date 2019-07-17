@@ -24,9 +24,13 @@ type alpacaClientContainer struct {
 var alpacaClient alpacaClientContainer
 
 func init() {
-	os.Setenv(common.EnvApiKeyID, "API_KEY")
-	os.Setenv(common.EnvApiSecretKey, "API_SECRET")
-	alpaca.SetBaseUrl("https://paper-api.alpaca.markets")
+	API_KEY := "API_KEY"
+	API_SECRET := "API_SECRET"
+	BASE_URL := "https://paper-api.alpaca.markets"
+
+	os.Setenv(common.EnvApiKeyID, API_KEY)
+	os.Setenv(common.EnvApiSecretKey, API_SECRET)
+	alpaca.SetBaseUrl(BASE_URL)
 
 	alpacaClient = alpacaClientContainer{
 		alpaca.NewClient(common.Credentials()),
@@ -50,7 +54,7 @@ func main() {
 	cAMO := make(chan bool)
 	fmt.Println("Waiting for market to open...")
 	for {
-		go alpacaClient.awaitMarketOpen(cAMO)
+		alpacaClient.awaitMarketOpen(cAMO)
 		if <-cAMO {
 			break
 		}
@@ -90,27 +94,27 @@ func main() {
 
 	for {
 		cRun := make(chan bool)
-		go alpacaClient.run(cRun)
+		alpacaClient.run(cRun)
 		<-cRun
 	}
 }
 
-// Rebalance our portfolio every minute based off running average data
+// Rebalance our portfolio every minute based off running average data.
 func (alp alpacaClientContainer) run(cRun chan bool) {
 	if alpacaClient.lastOrder != "" {
 		_ = alp.client.CancelOrder(alpacaClient.lastOrder)
 	}
 
-	// Rebalance the portfolio
+	// Rebalance the portfolio.
 	cRebalance := make(chan bool)
-	go alp.rebalance(cRebalance)
+	alp.rebalance(cRebalance)
 	<-cRebalance
 
 	// Figure out when the market will close so we can prepare to sell beforehand.
 	clock, _ := alp.client.GetClock()
 	timeToClose := int((clock.NextClose.UnixNano() - clock.Timestamp.UnixNano()) / 1000000)
 	if timeToClose < 60000*15 {
-		// Close all positions when 15 minutes til market close
+		// Close all positions when 15 minutes til market close.
 		fmt.Println("Market closing soon.  Closing positions.")
 
 		positions, _ := alp.client.ListPositions()
@@ -124,9 +128,9 @@ func (alp alpacaClientContainer) run(cRun chan bool) {
 			qty, _ := position.Qty.Float64()
 			qty = math.Abs(qty)
 			cSubmitMO := make(chan error)
-			go alp.submitMarketOrder(int(qty), position.Symbol, orderSide, cSubmitMO)
+			alp.submitMarketOrder(int(qty), position.Symbol, orderSide, cSubmitMO)
 			<-cSubmitMO
-			// Run script again after market close for next trading day
+			// Run script again after market close for next trading day.
 			time.Sleep((60000 * 15) * time.Millisecond)
 		}
 	} else {
@@ -135,7 +139,7 @@ func (alp alpacaClientContainer) run(cRun chan bool) {
 	cRun <- true
 }
 
-// Spin until the market is open
+// Spin until the market is open.
 func (alp alpacaClientContainer) awaitMarketOpen(cAMO chan bool) {
 	clock, _ := alp.client.GetClock()
 	if clock.IsOpen {
@@ -148,9 +152,9 @@ func (alp alpacaClientContainer) awaitMarketOpen(cAMO chan bool) {
 	return
 }
 
-// Rebalance our position after an update
+// Rebalance our position after an update.
 func (alp alpacaClientContainer) rebalance(cRebalance chan bool) {
-	// Get our position, if any
+	// Get our position, if any.
 	positionQty := 0
 	positionVal := 0.0
 	position, err := alp.client.GetPosition(alpacaClient.stock)
@@ -160,7 +164,7 @@ func (alp alpacaClientContainer) rebalance(cRebalance chan bool) {
 		positionVal, _ = position.MarketValue.Float64()
 	}
 
-	// Get the new updated price and running average
+	// Get the new updated price and running average.
 	bars, _ := alp.client.GetSymbolBars(alpacaClient.stock, alpaca.ListBarParams{Timeframe: "minute"})
 	currPrice := float64(bars[len(bars)-1].Close)
 	alpacaClient.closingPrices = append(alpacaClient.closingPrices, currPrice)
@@ -170,17 +174,17 @@ func (alp alpacaClientContainer) rebalance(cRebalance chan bool) {
 	alpacaClient.runningAverage = ((alpacaClient.runningAverage * float64(len(alpacaClient.closingPrices)-1)) + currPrice) / float64(len(alpacaClient.closingPrices))
 
 	if currPrice > alpacaClient.runningAverage {
-		// Sell our position if the price is above the running average, if any
+		// Sell our position if the price is above the running average, if any.
 		if positionQty > 0 {
 			fmt.Println("Setting position to zero")
 			cSubmitLO := make(chan error)
-			go alp.submitLimitOrder(positionQty, alpacaClient.stock, currPrice, "sell", cSubmitLO)
+			alp.submitLimitOrder(positionQty, alpacaClient.stock, currPrice, "sell", cSubmitLO)
 			<-cSubmitLO
 		} else {
 			fmt.Println("No position in the stock.  No action required.")
 		}
 	} else if currPrice < alpacaClient.runningAverage {
-		// Determine optimal amount of shares based on portfolio and market data
+		// Determine optimal amount of shares based on portfolio and market data.
 		account, _ := alp.client.GetAccount()
 		buyingPower, _ := account.BuyingPower.Float64()
 		positions, _ := alp.client.ListPositions()
@@ -193,14 +197,14 @@ func (alp alpacaClientContainer) rebalance(cRebalance chan bool) {
 		targetPositionValue := portfolioVal * portfolioShare
 		amountToAdd := targetPositionValue - positionVal
 
-		// Add to our position, constrained by our buying power; or, sell down to optimal amount of shares
+		// Add to our position, constrained by our buying power; or, sell down to optimal amount of shares.
 		if amountToAdd > 0 {
 			if amountToAdd > buyingPower {
 				amountToAdd = buyingPower
 			}
 			var qtyToBuy = int(amountToAdd / currPrice)
 			cSubmitLO := make(chan error)
-			go alp.submitLimitOrder(qtyToBuy, alpacaClient.stock, currPrice, "buy", cSubmitLO)
+			alp.submitLimitOrder(qtyToBuy, alpacaClient.stock, currPrice, "buy", cSubmitLO)
 			<-cSubmitLO
 		} else {
 			amountToAdd *= -1
@@ -209,14 +213,14 @@ func (alp alpacaClientContainer) rebalance(cRebalance chan bool) {
 				qtyToSell = positionQty
 			}
 			cSubmitLO := make(chan error)
-			go alp.submitLimitOrder(qtyToSell, alpacaClient.stock, currPrice, "buy", cSubmitLO)
+			alp.submitLimitOrder(qtyToSell, alpacaClient.stock, currPrice, "buy", cSubmitLO)
 			<-cSubmitLO
 		}
 	}
 	cRebalance <- true
 }
 
-// Submit a limit order if quantity is above 0
+// Submit a limit order if quantity is above 0.
 func (alp alpacaClientContainer) submitLimitOrder(qty int, symbol string, price float64, side string, cSubmitLO chan error) {
 	account, _ := alp.client.GetAccount()
 	if qty > 0 {
@@ -245,7 +249,7 @@ func (alp alpacaClientContainer) submitLimitOrder(qty int, symbol string, price 
 	return
 }
 
-// Submit a market order if quantity is above 0
+// Submit a market order if quantity is above 0.
 func (alp alpacaClientContainer) submitMarketOrder(qty int, symbol string, side string, cSubmitMO chan error) {
 	account, _ := alp.client.GetAccount()
 	if qty > 0 {
