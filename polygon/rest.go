@@ -140,8 +140,19 @@ func (c *Client) GetHistoricAggregatesV2(
 
 // GetHistoricTrades requests polygon's REST API for historic trades
 // on the provided date .
-func (c *Client) GetHistoricTrades(symbol, date string) (totalTrades *HistoricTrades, err error) {
+func (c *Client) GetHistoricTrades(
+	symbol string,
+	date string,
+	opts *GetHistoricTradesParams) (totalTrades *HistoricTrades, err error) {
+
 	offset := int64(0)
+	limit := int64(10000)
+	if opts != nil {
+		offset = opts.Offset
+		if opts.Limit != 0 {
+			limit = opts.Limit
+		}
+	}
 	for {
 		u, err := url.Parse(fmt.Sprintf(tradesURL, base, symbol, date))
 		if err != nil {
@@ -150,7 +161,7 @@ func (c *Client) GetHistoricTrades(symbol, date string) (totalTrades *HistoricTr
 
 		q := u.Query()
 		q.Set("apiKey", c.credentials.ID)
-		q.Set("limit", strconv.FormatInt(10000, 10))
+		q.Set("limit", strconv.FormatInt(limit, 10))
 
 		if offset > 0 {
 			q.Set("offset", strconv.FormatInt(offset, 10))
@@ -291,8 +302,11 @@ func GetHistoricAggregates(
 
 // GetHistoricTrades requests polygon's REST API for historic trades
 // on the provided date using the default Polygon client.
-func GetHistoricTrades(symbol, date string) (totalTrades *HistoricTrades, err error) {
-	return DefaultClient.GetHistoricTrades(symbol, date)
+func GetHistoricTrades(
+	symbol string,
+	date string,
+	opts *GetHistoricTradesParams) (totalTrades *HistoricTrades, err error) {
+	return DefaultClient.GetHistoricTrades(symbol, date, opts)
 }
 
 // GetHistoricQuotes requests polygon's REST API for historic quotes
