@@ -15,7 +15,7 @@ type alpacaClientContainer struct {
 	client         *alpaca.Client
 	runningAverage float64
 	lastOrder      string
-	timeToClose    float64
+	amtBars        int
 	stock          string
 }
 
@@ -26,16 +26,26 @@ func init() {
 	API_SECRET := "YOUR_API_SECRET_HERE"
 	BASE_URL := "https://paper-api.alpaca.markets"
 
-	os.Setenv(common.EnvApiKeyID, API_KEY)
-	os.Setenv(common.EnvApiSecretKey, API_SECRET)
+	// Check for environment variables
+	if common.Credentials().ID == "" {
+		os.Setenv(common.EnvApiKeyID, API_KEY)
+	}
+	if common.Credentials().Secret == "" {
+		os.Setenv(common.EnvApiSecretKey, API_SECRET)
+	}
 	alpaca.SetBaseUrl(BASE_URL)
 
+	// Check if user input a stock, default is AAPL
+	stock := "AAPL"
+	if len(os.Args[1:]) == 1 {
+		stock = os.Args[1]
+	}
 	alpacaClient = alpacaClientContainer{
 		alpaca.NewClient(common.Credentials()),
 		0.0,
 		"",
-		0.0,
-		"AAPL",
+		20,
+		stock,
 	}
 }
 
@@ -54,26 +64,25 @@ func main() {
 		if isOpen {
 			break
 		}
-		time.Sleep(60000 * time.Millisecond)
+		time.Sleep(1 * time.Minute)
 	}
 	fmt.Println("Market Opened.")
 
 	// Wait until 20 bars of data since market open have been collected.
-	fmt.Println("Waiting for 20 bars...")
+	fmt.Printf("Waiting for %d bars...\n", alpacaClient.amtBars)
 	for {
-		layout := "2006-01-02T15:04:05.000Z"
-		rawTime, _ := time.Parse(layout, time.Now().String())
+		rawTime, _ := time.Parse(time.RFC3339, time.Now().String())
 		currTime := rawTime.String()
 		cal, _ := alpacaClient.client.GetCalendar(&currTime, &currTime)
-		marketOpen, _ := time.Parse(layout, cal[0].Open)
+		marketOpen, _ := time.Parse(time.RFC3339, cal[0].Open)
 		bars, _ := alpacaClient.client.GetSymbolBars(alpacaClient.stock, alpaca.ListBarParams{Timeframe: "minute", StartDt: &marketOpen})
-		if len(bars) >= 20 {
+		if len(bars) >= alpacaClient.amtBars {
 			break
 		} else {
-			time.Sleep(60000 * time.Millisecond)
+			time.Sleep(1 * time.Minute)
 		}
 	}
-	fmt.Println("We have 20 bars.")
+	fmt.Printf("We have %d bars.\n", alpacaClient.amtBars)
 
 	for {
 		alpacaClient.run()
@@ -88,8 +97,7 @@ func (alp alpacaClientContainer) run() {
 
 	// Figure out when the market will close so we can prepare to sell beforehand.
 	clock, _ := alp.client.GetClock()
-	timeToClose := int((clock.NextClose.UnixNano() - clock.Timestamp.UnixNano()) / 1000000)
-	if timeToClose < 60000*15 {
+	if clock.NextClose.Sub(clock.Timestamp) < 15*time.Minute {
 		// Close all positions when 15 minutes til market close.
 		fmt.Println("Market closing soon.  Closing positions.")
 
@@ -107,11 +115,11 @@ func (alp alpacaClientContainer) run() {
 		}
 		// Run script again after market close for next trading day.
 		fmt.Println("Sleeping until market close (15 minutes).")
-		time.Sleep((60000 * 15) * time.Millisecond)
+		time.Sleep(15 * time.Minute)
 	} else {
 		// Rebalance the portfolio.
 		alp.rebalance()
-		time.Sleep(60000 * time.Millisecond)
+		time.Sleep(1 * time.Minute)
 	}
 }
 
@@ -121,8 +129,8 @@ func (alp alpacaClientContainer) awaitMarketOpen() bool {
 	if clock.IsOpen {
 		return true
 	}
-	timeToOpen := int(((clock.NextOpen.UnixNano() - clock.Timestamp.UnixNano()) / 1000000000.0) / 60.0)
-	fmt.Printf("%d minutes til next market open.\n", timeToOpen)
+	timeToOpen := int(clock.NextOpen.Sub(clock.Timestamp).Minutes())
+	fmt.Printf("%d minutes until next market open.\n", timeToOpen)
 	return false
 }
 
@@ -139,22 +147,21 @@ func (alp alpacaClientContainer) rebalance() {
 	}
 
 	// Get the new updated price and running average.
-	amtBars := 20
-	bars, _ := alp.client.GetSymbolBars(alpacaClient.stock, alpaca.ListBarParams{Timeframe: "minute", Limit: &amtBars})
+	bars, _ := alp.client.GetSymbolBars(alpacaClient.stock, alpaca.ListBarParams{Timeframe: "minute", Limit: &alpacaClient.amtBars})
 	currPrice := float64(bars[len(bars)-1].Close)
 	alpacaClient.runningAverage = 0.0
 	for _, bar := range bars {
 		alpacaClient.runningAverage += float64(bar.Close)
 	}
-	alpacaClient.runningAverage /= 20.0
+	alpacaClient.runningAverage /= float64(alpacaClient.amtBars)
 
 	if currPrice > alpacaClient.runningAverage {
 		// Sell our position if the price is above the running average, if any.
 		if positionQty > 0 {
-			fmt.Println("Setting position to zero")
+			fmt.Println("Setting long position to zero")
 			alp.submitLimitOrder(positionQty, alpacaClient.stock, currPrice, "sell")
 		} else {
-			fmt.Println("No position in the stock.  No action required.")
+			fmt.Println("No action required.")
 		}
 	} else if currPrice < alpacaClient.runningAverage {
 		// Determine optimal amount of shares based on portfolio and market data.
