@@ -122,7 +122,8 @@ func (alp alpacaClientContainer) awaitMarketOpen() bool {
 	if clock.IsOpen {
 		return true
 	}
-	fmt.Println("spinning")
+	timeToOpen := int(((clock.NextOpen.UnixNano() - clock.Timestamp.UnixNano()) / 1000000000.0) / 60.0)
+	fmt.Printf("%d minutes til next market open.\n", timeToOpen)
 	return false
 }
 
@@ -130,12 +131,8 @@ func (alp alpacaClientContainer) awaitMarketOpen() bool {
 func (alp alpacaClientContainer) rebalance() {
 	alpacaClient.rerank()
 
-	fmt.Print("We are taking a long position in: ")
-	fmt.Printf("%v", alpacaClient.long.list)
-	fmt.Println()
-	fmt.Print("We are taking a short position in: ")
-	fmt.Printf("%v", alpacaClient.short.list)
-	fmt.Println()
+	fmt.Printf("We are taking a long position in: %v.\n", alpacaClient.long.list)
+	fmt.Printf("We are taking a short position in: %v.\n", alpacaClient.short.list)
 
 	fmt.Print("We are taking a long position in: ")
 	fmt.Printf("%v", alpacaClient.long.list)
