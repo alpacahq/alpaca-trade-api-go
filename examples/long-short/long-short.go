@@ -20,7 +20,6 @@ type alpacaClientContainer struct {
 	blacklist []string
 }
 type bucket struct {
-	bucketType  string
 	list        []string
 	qty         int
 	adjustedQty int
@@ -38,8 +37,13 @@ func init() {
 	API_SECRET := "YOUR_API_SECRET_HERE"
 	BASE_URL := "https://paper-api.alpaca.markets"
 
-	os.Setenv(common.EnvApiKeyID, API_KEY)
-	os.Setenv(common.EnvApiSecretKey, API_SECRET)
+	// Check for environment variables
+	if common.Credentials().ID == "" {
+		os.Setenv(common.EnvApiKeyID, API_KEY)
+	}
+	if common.Credentials().Secret == "" {
+		os.Setenv(common.EnvApiSecretKey, API_SECRET)
+	}
 	alpaca.SetBaseUrl(BASE_URL)
 
 	// Format the allStocks variable for use in the class.
@@ -51,8 +55,8 @@ func init() {
 
 	alpacaClient = alpacaClientContainer{
 		alpaca.NewClient(common.Credentials()),
-		bucket{"Long", []string{}, -1, -1, 0},
-		bucket{"Short", []string{}, -1, -1, 0},
+		bucket{[]string{}, -1, -1, 0},
+		bucket{[]string{}, -1, -1, 0},
 		make([]stockField, len(allStocks)),
 		[]string{},
 	}
@@ -75,7 +79,7 @@ func main() {
 		if isOpen {
 			break
 		}
-		time.Sleep(2000 * time.Millisecond)
+		time.Sleep(1 * time.Minute)
 	}
 	fmt.Println("Market Opened.")
 
@@ -89,8 +93,7 @@ func (alp alpacaClientContainer) run() {
 
 	// Figure out when the market will close so we can prepare to sell beforehand.
 	clock, _ := alpacaClient.client.GetClock()
-	timeToClose := int((clock.NextClose.UnixNano() - clock.Timestamp.UnixNano()) / 1000000)
-	if timeToClose < 60000*15 {
+	if clock.NextClose.Sub(clock.Timestamp) < 15*time.Minute {
 		// Close all positions when 15 minutes til market close.
 		fmt.Println("Market closing soon.  Closing positions.")
 
@@ -108,11 +111,11 @@ func (alp alpacaClientContainer) run() {
 		}
 		// Run script again after market close for next trading day.
 		fmt.Println("Sleeping until market close (15 minutes).")
-		time.Sleep((60000 * 15) * time.Millisecond)
+		time.Sleep(15 * time.Minute)
 	} else {
 		// Rebalance the portfolio.
 		alpacaClient.rebalance()
-		time.Sleep(60000 * time.Millisecond)
+		time.Sleep(1 * time.Minute)
 	}
 }
 
@@ -122,8 +125,8 @@ func (alp alpacaClientContainer) awaitMarketOpen() bool {
 	if clock.IsOpen {
 		return true
 	}
-	timeToOpen := int(((clock.NextOpen.UnixNano() - clock.Timestamp.UnixNano()) / 1000000000.0) / 60.0)
-	fmt.Printf("%d minutes til next market open.\n", timeToOpen)
+	timeToOpen := int(clock.NextOpen.Sub(clock.Timestamp).Minutes())
+	fmt.Printf("%d minutes until next market open.\n", timeToOpen)
 	return false
 }
 
