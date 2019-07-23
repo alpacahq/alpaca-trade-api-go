@@ -136,6 +136,25 @@ const (
 	Day AggType = "day"
 )
 
+// polygon stream
+
+// PolygonClientMsg is the standard message sent by clients of the stream interface
+type PolygonClientMsg struct {
+	Action string `json:"action"`
+	Params string `json:"params"`
+}
+
+type PolygonAuthMsg struct {
+	Event   string `json:"ev"`
+	Status  string `json:"status"`
+	Message string `json:"message"`
+}
+
+// PolygonServerMsg contains the field that is present in all responses to identify their type
+type PolgyonServerMsg struct {
+	Event string `json:"ev"`
+}
+
 // StreamTrade is the structure that defines a trade that
 // polygon transmits via NATS protocol.
 type StreamTrade struct {
