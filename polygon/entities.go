@@ -156,7 +156,7 @@ type PolgyonServerMsg struct {
 }
 
 // StreamTrade is the structure that defines a trade that
-// polygon transmits via NATS protocol.
+// polygon transmits via websocket protocol.
 type StreamTrade struct {
 	Symbol     string  `json:"sym"`
 	Exchange   int     `json:"x"`
@@ -167,7 +167,7 @@ type StreamTrade struct {
 }
 
 // StreamQuote is the structure that defines a quote that
-// polygon transmits via NATS protocol.
+// polygon transmits via websocket protocol.
 type StreamQuote struct {
 	Symbol      string  `json:"sym"`
 	Condition   int     `json:"c"`
@@ -181,7 +181,7 @@ type StreamQuote struct {
 }
 
 // StreamAggregate is the structure that defines an aggregate that
-// polygon transmits via NATS protocol.
+// polygon transmits via websocket protocol.
 type StreamAggregate struct {
 	Event             string  `json:"ev"`
 	Symbol            string  `json:"sym"`

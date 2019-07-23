@@ -53,44 +53,42 @@ The SDK provides a unified streaming interface for both Polygon data updates, an
 Please note that running this example as-is requires that you have a funded Alpaca brokerage account, as that is necessary for access to Polygon's API.
 
 ```go
-import (
-    "os"
-    "fmt"
+package main
 
-    "github.com/alpacahq/alpaca-trade-api-go/alpaca"
-    "github.com/alpacahq/alpaca-trade-api-go/polygon"
-    "github.com/alpacahq/alpaca-trade-api-go/stream"
-    nats "github.com/nats-io/nats.go"
+import (
+	"fmt"
+	"os"
+
+	"github.com/alpacahq/alpaca-trade-api-go/alpaca"
+	"github.com/alpacahq/alpaca-trade-api-go/common"
+	"github.com/alpacahq/alpaca-trade-api-go/polygon"
+	"github.com/alpacahq/alpaca-trade-api-go/stream"
 )
 
 func main() {
-    os.Setenv(common.EnvApiKeyID, "<key_id>")
-    os.Setenv(common.EnvApiSecretKey, "<secret_key>")
+	os.Setenv(common.EnvApiKeyID, "your_key_id")
+	os.Setenv(common.EnvApiSecretKey, "your_secret_key")
 
-    if err := stream.Register(alpaca.TradeUpdates, tradeHandler); err != nil {
-        panic(err)
-    }
+	if err := stream.Register(alpaca.TradeUpdates, tradeHandler); err != nil {
+		panic(err)
+	}
 
-    if err := stream.Register("Q.AAPL", quoteHandler); err != nil {
-        panic(err)
-    }
+	if err := stream.Register("Q.AAPL", quoteHandler); err != nil {
+		panic(err)
+	}
 
-    select{}
+	select {}
 }
 
 func tradeHandler(msg interface{}) {
-    tradeupdate := msg.(alpaca.TradeUpdate)
-    fmt.Printf("%s event received for order %s.\n", tradeupdate.Event, tradeupdate.Order.ID)
+	tradeupdate := msg.(alpaca.TradeUpdate)
+	fmt.Printf("%s event received for order %s.\n", tradeupdate.Event, tradeupdate.Order.ID)
 }
 
 func quoteHandler(msg interface{}) {
-    quote := polygon.StreamQuote{}
+	quote := msg.(polygon.StreamQuote)
 
-    if err := json.Unmarshal(msg.(*nats.Msg).Data, &quote); err != nil {
-        panic(err)
-    }
-
-    fmt.Println(quote.Symbol, quote.BidPrice, quote.BidSize, quote.AskPrice, quote.AskSize)
+	fmt.Println(quote.Symbol, quote.BidPrice, quote.BidSize, quote.AskPrice, quote.AskSize)
 }
 ```
 

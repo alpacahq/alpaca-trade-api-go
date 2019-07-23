@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-	"net/url"
 	"os"
 	"strings"
 	"sync"
@@ -41,6 +40,12 @@ func (s *Stream) Subscribe(channel string, handler func(msg interface{})) (err e
 		s.conn = openSocket()
 	}
 
+	// read connection message
+	msg := []PolgyonServerMsg{}
+	if err = s.conn.ReadJSON(&msg); err != nil {
+		return
+	}
+
 	if err = s.auth(); err != nil {
 		return
 	}
@@ -49,7 +54,8 @@ func (s *Stream) Subscribe(channel string, handler func(msg interface{})) (err e
 		go s.start()
 	})
 
-	s.handlers.Store(channel, handler)
+	topic := channel[:strings.IndexByte(channel, '.')]
+	s.handlers.Store(topic, handler)
 
 	if err = s.sub(channel); err != nil {
 		return
@@ -95,17 +101,19 @@ func (s *Stream) handleError(err error) {
 
 func (s *Stream) start() {
 	for {
-		if _, bytes, err := s.conn.ReadMessage(); err == nil {
-			msgArray := []PolgyonServerMsg{}
-			if err := json.Unmarshal(bytes, msgArray); err == nil {
+		if _, arrayBytes, err := s.conn.ReadMessage(); err == nil {
+			msgArray := []interface{}{}
+			if err := json.Unmarshal(arrayBytes, &msgArray); err == nil {
 				for _, msg := range msgArray {
-					if v, ok := s.handlers.Load(msg.Event); ok {
-						switch msg.Event {
+					msgMap := msg.(map[string]interface{})
+					if v, ok := s.handlers.Load(msgMap["ev"]); ok {
+						msgBytes, _ := json.Marshal(msg)
+						switch msgMap["ev"] {
 						case SecondAggs:
 							fallthrough
 						case MinuteAggs:
 							var minuteAgg StreamAggregate
-							if err := json.Unmarshal(bytes, minuteAgg); err == nil {
+							if err := json.Unmarshal(msgBytes, &minuteAgg); err == nil {
 								h := v.(func(msg interface{}))
 								h(minuteAgg)
 							} else {
@@ -113,7 +121,7 @@ func (s *Stream) start() {
 							}
 						case Quotes:
 							var quoteUpdate StreamQuote
-							if err := json.Unmarshal(bytes, quoteUpdate); err == nil {
+							if err := json.Unmarshal(msgBytes, &quoteUpdate); err == nil {
 								h := v.(func(msg interface{}))
 								h(quoteUpdate)
 							} else {
@@ -121,7 +129,7 @@ func (s *Stream) start() {
 							}
 						case Trades:
 							var tradeUpdate StreamTrade
-							if err := json.Unmarshal(bytes, tradeUpdate); err == nil {
+							if err := json.Unmarshal(msgBytes, &tradeUpdate); err == nil {
 								h := v.(func(msg interface{}))
 								h(tradeUpdate)
 							} else {
@@ -176,7 +184,7 @@ func (s *Stream) auth() (err error) {
 		return
 	}
 
-	msg := PolygonAuthMsg{}
+	msg := []PolygonAuthMsg{}
 
 	// ensure the auth response comes in a timely manner
 	s.conn.SetReadDeadline(time.Now().Add(5 * time.Second))
@@ -186,7 +194,7 @@ func (s *Stream) auth() (err error) {
 		return
 	}
 
-	if !strings.EqualFold(msg.Status, "success") {
+	if !strings.EqualFold(msg[0].Status, "auth_success") {
 		return fmt.Errorf("failed to authorize alpaca stream")
 	}
 
@@ -209,17 +217,11 @@ func GetStream() *Stream {
 }
 
 func openSocket() *websocket.Conn {
-	scheme := "wss"
 	polygonStreamEndpoint, ok := os.LookupEnv("POLYGON_WS_URL")
 	if !ok {
-		polygonStreamEndpoint = "alpaca.socket.polygon.io"
+		polygonStreamEndpoint = "wss://alpaca.socket.polygon.io/stocks"
 	}
-	ub, _ := url.Parse(polygonStreamEndpoint)
-	if ub.Scheme == "http" {
-		scheme = "ws"
-	}
-	u := url.URL{Scheme: scheme, Host: ub.Host, Path: "/stocks"}
-	c, _, err := websocket.DefaultDialer.Dial(u.String(), nil)
+	c, _, err := websocket.DefaultDialer.Dial(polygonStreamEndpoint, nil)
 	if err != nil {
 		panic(err)
 	}
