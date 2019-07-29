@@ -297,6 +297,21 @@ func (c *Client) CancelOrder(orderID string) error {
 	return verify(resp)
 }
 
+// CancelAllOrders submits a request to cancel an open order.
+func (c *Client) CancelAllOrders() error {
+	u, err := url.Parse(fmt.Sprintf("%s/%s/orders", base, apiVersion))
+	if err != nil {
+		return err
+	}
+
+	resp, err := c.delete(u)
+	if err != nil {
+		return err
+	}
+
+	return verify(resp)
+}
+
 // ListAssets returns the list of assets, filtered by
 // the input parameters.
 func (c *Client) ListAssets(status *string) ([]Asset, error) {
