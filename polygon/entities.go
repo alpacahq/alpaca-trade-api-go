@@ -136,8 +136,27 @@ const (
 	Day AggType = "day"
 )
 
+// polygon stream
+
+// PolygonClientMsg is the standard message sent by clients of the stream interface
+type PolygonClientMsg struct {
+	Action string `json:"action"`
+	Params string `json:"params"`
+}
+
+type PolygonAuthMsg struct {
+	Event   string `json:"ev"`
+	Status  string `json:"status"`
+	Message string `json:"message"`
+}
+
+// PolygonServerMsg contains the field that is present in all responses to identify their type
+type PolgyonServerMsg struct {
+	Event string `json:"ev"`
+}
+
 // StreamTrade is the structure that defines a trade that
-// polygon transmits via NATS protocol.
+// polygon transmits via websocket protocol.
 type StreamTrade struct {
 	Symbol     string  `json:"sym"`
 	Exchange   int     `json:"x"`
@@ -148,7 +167,7 @@ type StreamTrade struct {
 }
 
 // StreamQuote is the structure that defines a quote that
-// polygon transmits via NATS protocol.
+// polygon transmits via websocket protocol.
 type StreamQuote struct {
 	Symbol      string  `json:"sym"`
 	Condition   int     `json:"c"`
@@ -162,7 +181,7 @@ type StreamQuote struct {
 }
 
 // StreamAggregate is the structure that defines an aggregate that
-// polygon transmits via NATS protocol.
+// polygon transmits via websocket protocol.
 type StreamAggregate struct {
 	Event             string  `json:"ev"`
 	Symbol            string  `json:"sym"`
