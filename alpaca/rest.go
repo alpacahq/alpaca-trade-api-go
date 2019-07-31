@@ -119,8 +119,7 @@ func (c *Client) ListPositions() ([]Position, error) {
 	return positions, nil
 }
 
-// GetPosition returns the account's position for the
-// provided symbol.
+// GetPosition returns the account's position for the provided symbol.
 func (c *Client) GetPosition(symbol string) (*Position, error) {
 	u, err := url.Parse(fmt.Sprintf("%s/%s/positions/%s", base, apiVersion, symbol))
 	if err != nil {
@@ -145,6 +144,36 @@ func (c *Client) GetPosition(symbol string) (*Position, error) {
 	}
 
 	return position, nil
+}
+
+// CloseAllPositions liquidates all open positions at market price.
+func (c *Client) CloseAllPositions() error {
+	u, err := url.Parse(fmt.Sprintf("%s/%s/positions", base, apiVersion))
+	if err != nil {
+		return err
+	}
+
+	resp, err := c.delete(u)
+	if err != nil {
+		return err
+	}
+
+	return verify(resp)
+}
+
+// ClosePosition liquidates the position for the given symbol at market price.
+func (c *Client) ClosePosition(symbol string) error {
+	u, err := url.Parse(fmt.Sprintf("%s/%s/positions/%s", base, apiVersion, symbol))
+	if err != nil {
+		return err
+	}
+
+	resp, err := c.delete(u)
+	if err != nil {
+		return err
+	}
+
+	return verify(resp)
 }
 
 // GetClock returns the current market clock.
