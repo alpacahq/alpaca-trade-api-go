@@ -58,6 +58,7 @@ func (s *Stream) Subscribe(channel string, handler func(msg interface{})) (err e
 	s.handlers.Store(topic, handler)
 
 	if err = s.sub(channel); err != nil {
+		s.handlers.Delete(topic)
 		return
 	}
 
@@ -86,6 +87,15 @@ func (s *Stream) Close() error {
 	return s.conn.Close()
 }
 
+func (s *Stream) reconnect() {
+	s.conn = openSocket()
+	s.handlers.Range(func(key, value interface{}) bool {
+		// there should be no errors if we've previously successfully connected
+		s.sub(key.(string))
+		return true
+	})
+}
+
 func (s *Stream) handleError(err error) {
 	if websocket.IsCloseError(err) {
 		// if this was a graceful closure, don't reconnect
@@ -96,7 +106,7 @@ func (s *Stream) handleError(err error) {
 		log.Printf("polygon stream read error (%v)", err)
 	}
 
-	s.conn = openSocket()
+	s.reconnect()
 }
 
 func (s *Stream) start() {
