@@ -85,7 +85,11 @@ func (s *Stream) Close() error {
 }
 
 func (s *Stream) reconnect() {
+	s.authenticated.Store(false)
 	s.conn = openSocket()
+	if err := s.auth(); err != nil {
+		return
+	}
 	s.handlers.Range(func(key, value interface{}) bool {
 		// there should be no errors if we've previously successfully connected
 		s.sub(key.(string))
@@ -185,6 +189,8 @@ func (s *Stream) auth() (err error) {
 	if !strings.EqualFold(m["status"].(string), "authorized") {
 		return fmt.Errorf("failed to authorize alpaca stream")
 	}
+
+	s.authenticated.Store(true)
 
 	return
 }
