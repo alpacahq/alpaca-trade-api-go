@@ -23,8 +23,12 @@ var (
 	dataUrl       = "https://data.alpaca.markets/"
 	apiVersion    = "v2"
 	do            = func(c *Client, req *http.Request) (*http.Response, error) {
-		req.Header.Set("APCA-API-KEY-ID", c.credentials.ID)
-		req.Header.Set("APCA-API-SECRET-KEY", c.credentials.Secret)
+		if c.credentials.OAuth != "" {
+			req.Header.Set("Authorization", "Bearer "+c.credentials.OAuth)
+		} else {
+			req.Header.Set("APCA-API-KEY-ID", c.credentials.ID)
+			req.Header.Set("APCA-API-SECRET-KEY", c.credentials.Secret)
+		}
 
 		resp, err := http.DefaultClient.Do(req)
 		if err != nil {
