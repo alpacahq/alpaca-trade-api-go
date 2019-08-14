@@ -53,6 +53,7 @@ func (s *Stream) Subscribe(channel string, handler func(msg interface{})) (err e
 		s.handlers.Store(channel, handler)
 
 		if err = s.sub(channel); err != nil {
+			s.handlers.Delete(channel)
 			return
 		}
 	default:
@@ -83,6 +84,19 @@ func (s *Stream) Close() error {
 	return s.conn.Close()
 }
 
+func (s *Stream) reconnect() {
+	s.authenticated.Store(false)
+	s.conn = openSocket()
+	if err := s.auth(); err != nil {
+		return
+	}
+	s.handlers.Range(func(key, value interface{}) bool {
+		// there should be no errors if we've previously successfully connected
+		s.sub(key.(string))
+		return true
+	})
+}
+
 func (s *Stream) start() {
 	for {
 		msg := ServerMsg{}
@@ -111,7 +125,7 @@ func (s *Stream) start() {
 				log.Printf("alpaca stream read error (%v)", err)
 			}
 
-			s.conn = openSocket()
+			s.reconnect()
 		}
 	}
 }
@@ -175,6 +189,8 @@ func (s *Stream) auth() (err error) {
 	if !strings.EqualFold(m["status"].(string), "authorized") {
 		return fmt.Errorf("failed to authorize alpaca stream")
 	}
+
+	s.authenticated.Store(true)
 
 	return
 }
