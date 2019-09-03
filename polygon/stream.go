@@ -245,15 +245,15 @@ func openSocket() *websocket.Conn {
 		c, _, err = websocket.DefaultDialer.Dial(polygonStreamEndpoint, nil)
 		// if the error is not nil...
 		if err != nil {
-			// try to reconnect up to 3 times
+			// try to reconnect up to 3 times if it's an abnormal closure
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
 				return (attempt < 3), err
-			} else { // otherwise crash
+			} else { // otherwise, crash
 				panic(err)
 			}
 		}
 		// no error, c connection is open
-		return (attempt < 3), err
+		return false, nil
 	})
 	if err != nil {
 		panic(err)
