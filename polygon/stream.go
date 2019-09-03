@@ -12,6 +12,7 @@ import (
 
 	"github.com/alpacahq/alpaca-trade-api-go/common"
 	"github.com/gorilla/websocket"
+	"gopkg.in/matryer/try.v1"
 )
 
 const (
@@ -238,7 +239,22 @@ func openSocket() *websocket.Conn {
 	if !ok {
 		polygonStreamEndpoint = "wss://alpaca.socket.polygon.io/stocks"
 	}
-	c, _, err := websocket.DefaultDialer.Dial(polygonStreamEndpoint, nil)
+	var c *websocket.Conn
+	err := try.Do(func(attempt int) (bool, error) {
+		var err error
+		c, _, err = websocket.DefaultDialer.Dial(polygonStreamEndpoint, nil)
+		// if the error is not nil...
+		if err != nil {
+			// try to reconnect up to 3 times
+			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
+				return (attempt < 3), err
+			} else { // otherwise crash
+				panic(err)
+			}
+		}
+		// no error, c connection is open
+		return (attempt < 3), err
+	})
 	if err != nil {
 		panic(err)
 	}
