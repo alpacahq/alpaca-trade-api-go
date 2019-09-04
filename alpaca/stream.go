@@ -233,5 +233,5 @@ func openSocket() *websocket.Conn {
 		}
 		time.Sleep(1 * time.Second)
 	}
-	panic(fmt.Errorf("Error: Could not open Polygon stream (max retries exceeded)."))
+	panic(fmt.Errorf("Error: Could not open Alpaca stream (max retries exceeded)."))
 }
