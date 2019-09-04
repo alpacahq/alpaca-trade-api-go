@@ -21,6 +21,10 @@ const (
 	Quotes     = "Q"
 )
 
+const (
+	MaxConnectionAttempts = 3
+)
+
 var (
 	once sync.Once
 	str  *Stream
