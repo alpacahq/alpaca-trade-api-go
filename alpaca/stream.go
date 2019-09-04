@@ -19,6 +19,10 @@ const (
 	AccountUpdates = "account_updates"
 )
 
+const (
+	MaxConnectionAttempts = 3
+)
+
 var (
 	once sync.Once
 	str  *Stream
@@ -217,9 +221,17 @@ func openSocket() *websocket.Conn {
 		scheme = "ws"
 	}
 	u := url.URL{Scheme: scheme, Host: ub.Host, Path: "/stream"}
-	c, _, err := websocket.DefaultDialer.Dial(u.String(), nil)
-	if err != nil {
-		panic(err)
+	connectionAttempts := 0
+	for connectionAttempts < MaxConnectionAttempts {
+		connectionAttempts++
+		c, _, err := websocket.DefaultDialer.Dial(u.String(), nil)
+		if err == nil {
+			return c
+		}
+		if connectionAttempts == MaxConnectionAttempts {
+			panic(err)
+		}
+		time.Sleep(1 * time.Second)
 	}
-	return c
+	panic(fmt.Errorf("Error: Could not open Polygon stream (max retries exceeded)."))
 }
