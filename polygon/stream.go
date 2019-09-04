@@ -241,7 +241,7 @@ func openSocket() *websocket.Conn {
 	connectionAttempts := 0
 	for connectionAttempts < MaxConnectionAttempts {
 		connectionAttempts++
-		c, _, err = websocket.DefaultDialer.Dial(polygonStreamEndpoint, nil)
+		c, _, err := websocket.DefaultDialer.Dial(polygonStreamEndpoint, nil)
 		if err != nil {
 			if connectionAttempts == MaxConnectionAttempts {
 				panic(err)
