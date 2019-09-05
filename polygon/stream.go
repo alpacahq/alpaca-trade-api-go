@@ -21,6 +21,10 @@ const (
 	Quotes     = "Q"
 )
 
+const (
+	MaxConnectionAttempts = 3
+)
+
 var (
 	once sync.Once
 	str  *Stream
@@ -238,14 +242,22 @@ func openSocket() *websocket.Conn {
 	if !ok {
 		polygonStreamEndpoint = "wss://alpaca.socket.polygon.io/stocks"
 	}
-	c, _, err := websocket.DefaultDialer.Dial(polygonStreamEndpoint, nil)
-	if err != nil {
-		panic(err)
+	connectionAttempts := 0
+	for connectionAttempts < MaxConnectionAttempts {
+		connectionAttempts++
+		c, _, err := websocket.DefaultDialer.Dial(polygonStreamEndpoint, nil)
+		if err != nil {
+			if connectionAttempts == MaxConnectionAttempts {
+				panic(err)
+			}
+		} else {
+			// consume connection message
+			msg := []PolgyonServerMsg{}
+			if err = c.ReadJSON(&msg); err != nil {
+				return c
+			}
+		}
+		time.Sleep(1 * time.Second)
 	}
-	// read connection message
-	msg := []PolgyonServerMsg{}
-	if err = c.ReadJSON(&msg); err != nil {
-		panic(err)
-	}
-	return c
+	panic(fmt.Errorf("Error: Could not open Polygon stream (max retries exceeded)."))
 }
