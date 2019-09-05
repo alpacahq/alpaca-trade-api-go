@@ -253,7 +253,7 @@ func openSocket() *websocket.Conn {
 		} else {
 			// consume connection message
 			msg := []PolgyonServerMsg{}
-			if err = c.ReadJSON(&msg); err != nil {
+			if err = c.ReadJSON(&msg); err == nil {
 				return c
 			}
 		}
