@@ -26,7 +26,7 @@ type Account struct {
 	DaytradingBuyingPower decimal.Decimal `json:"daytrading_buying_power"`
 	RegTBuyingPower       decimal.Decimal `json:"regt_buying_power"`
 	Equity                decimal.Decimal `json:"equity"`
-	LastEquity            decimal.Decimal `json:"equity"`
+	LastEquity            decimal.Decimal `json:"last_equity"`
 	Multiplier            string          `json:"multiplier"`
 	InitialMargin         decimal.Decimal `json:"initial_margin"`
 	MaintenanceMargin     decimal.Decimal `json:"maintenance_margin"`
