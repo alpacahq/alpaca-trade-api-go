@@ -7,18 +7,33 @@ import (
 )
 
 type Account struct {
-	ID               string          `json:"id"`
-	CreatedAt        time.Time       `json:"created_at"`
-	UpdatedAt        time.Time       `json:"updated_at"`
-	DeletedAt        *time.Time      `json:"deleted_at"`
-	Status           string          `json:"status"`
-	Currency         string          `json:"currency"`
-	Cash             decimal.Decimal `json:"cash"`
-	CashWithdrawable decimal.Decimal `json:"cash_withdrawable"`
-	TradingBlocked   bool            `json:"trading_blocked"`
-	TransfersBlocked bool            `json:"transfers_blocked"`
-	AccountBlocked   bool            `json:"account_blocked"`
-	BuyingPower      decimal.Decimal `json:"buying_power"`
+	ID                    string          `json:"id"`
+	AccountNumber         string          `json:"account_number"`
+	CreatedAt             time.Time       `json:"created_at"`
+	UpdatedAt             time.Time       `json:"updated_at"`
+	DeletedAt             *time.Time      `json:"deleted_at"`
+	Status                string          `json:"status"`
+	Currency              string          `json:"currency"`
+	Cash                  decimal.Decimal `json:"cash"`
+	CashWithdrawable      decimal.Decimal `json:"cash_withdrawable"`
+	TradingBlocked        bool            `json:"trading_blocked"`
+	TransfersBlocked      bool            `json:"transfers_blocked"`
+	AccountBlocked        bool            `json:"account_blocked"`
+	ShortingEnabled       bool            `json:"shorting_enabled"`
+	BuyingPower           decimal.Decimal `json:"buying_power"`
+	PatternDayTrader      bool            `json:"pattern_day_trader"`
+	DaytradeCount         int64           `json:"daytrade_count"`
+	DaytradingBuyingPower decimal.Decimal `json:"daytrading_buying_power"`
+	RegTBuyingPower       decimal.Decimal `json:"regt_buying_power"`
+	Equity                decimal.Decimal `json:"equity"`
+	LastEquity            decimal.Decimal `json:"equity"`
+	Multiplier            string          `json:"multiplier"`
+	InitialMargin         decimal.Decimal `json:"initial_margin"`
+	MaintenanceMargin     decimal.Decimal `json:"maintenance_margin"`
+	LastMaintenanceMargin decimal.Decimal `json:"last_maintenance_margin"`
+	LongMarketValue       decimal.Decimal `json:"long_market_value"`
+	ShortMarketValue      decimal.Decimal `json:"short_market_value"`
+	PortfolioValue        decimal.Decimal `json:"portfolio_value"`
 }
 
 type Order struct {
