@@ -168,6 +168,21 @@ type PlaceOrderRequest struct {
 	ClientOrderID string           `json:"client_order_id"`
 }
 
+type ReplaceOrderRequest struct {
+	Qty           *decimal.Decimal `json:"qty"`
+	LimitPrice    *decimal.Decimal `json:"limit_price"`
+	StopPrice     *decimal.Decimal `json:"stop_price"`
+	TimeInForce   TimeInForce      `json:"time_in_force"`
+	ClientOrderID string           `json:"client_order_id"`
+}
+
+type AccountConfigs struct {
+	NoShorting        bool
+	DtbpCheck         string
+	TradeConfirmEmail string
+	SuspendTrade      bool
+}
+
 type Side string
 
 const (
