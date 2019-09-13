@@ -103,7 +103,7 @@ func (c *Client) GetAccount() (*Account, error) {
 }
 
 // GetConfigs returns the current account configurations
-func (c *Client) GetConfigs() (*AccountConfigs, error) {
+func (c *Client) GetAccountConfigurations() (*AccountConfigurations, error) {
 	u, err := url.Parse(fmt.Sprintf("%s/%s/account/configurations", base, apiVersion))
 	if err != nil {
 		return nil, err
@@ -114,7 +114,7 @@ func (c *Client) GetConfigs() (*AccountConfigs, error) {
 		return nil, err
 	}
 
-	configs := &AccountConfigs{}
+	configs := &AccountConfigurations{}
 
 	if err = unmarshal(resp, configs); err != nil {
 		return nil, err
@@ -124,7 +124,7 @@ func (c *Client) GetConfigs() (*AccountConfigs, error) {
 }
 
 // EditConfigs patches the account configs
-func (c *Client) EditConfigs(newConfigs AccountConfigs) (*AccountConfigs, error) {
+func (c *Client) UpdateAccountConfigurations(newConfigs AccountConfigurationsRequest) (*AccountConfigurations, error) {
 	u, err := url.Parse(fmt.Sprintf("%s/%s/account/configurations", base, apiVersion))
 	if err != nil {
 		return nil, err
@@ -135,7 +135,7 @@ func (c *Client) EditConfigs(newConfigs AccountConfigs) (*AccountConfigs, error)
 		return nil, err
 	}
 
-	configs := &AccountConfigs{}
+	configs := &AccountConfigurations{}
 
 	if err = unmarshal(resp, configs); err != nil {
 		return nil, err
@@ -519,16 +519,16 @@ func GetAccount() (*Account, error) {
 	return DefaultClient.GetAccount()
 }
 
-// GetConfigs returns the account configs
+// GetAccountConfigurations returns the account configs
 // using the default Alpaca client.
-func GetConfigs() (*AccountConfigs, error) {
-	return DefaultClient.GetConfigs()
+func GetAccountConfigurations() (*AccountConfigurations, error) {
+	return DefaultClient.GetAccountConfigurations()
 }
 
-// EditConfigs changes the account configs and returns the
+// UpdateAccountConfigurations changes the account configs and returns the
 // new configs using the default Alpaca client
-func EditConfigs(newConfigs AccountConfigs) (*AccountConfigs, error) {
-	return DefaultClient.EditConfigs(newConfigs)
+func UpdateAccountConfigurations(newConfigs AccountConfigurationsRequest) (*AccountConfigurations, error) {
+	return DefaultClient.UpdateAccountConfigurations(newConfigs)
 }
 
 // ListPositions lists the account's open positions
@@ -691,5 +691,6 @@ func unmarshal(resp *http.Response, data interface{}) error {
 		return err
 	}
 
+	fmt.Println()
 	return json.Unmarshal(body, data)
 }

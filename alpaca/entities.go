@@ -156,6 +156,13 @@ type Clock struct {
 	NextClose time.Time `json:"next_close"`
 }
 
+type AccountConfigurations struct {
+	DtbpCheck            DtbpCheck         `json:"dtbp_check"`
+	NoShorting           bool              `json:"no_shorting"`
+	TradeConfirmEmail    TradeConfirmEmail `json:"trade_confirm_email"`
+	TradeSuspendedByUser bool              `json:"trade_suspended_by_user"`
+}
+
 type PlaceOrderRequest struct {
 	AccountID     string           `json:"-"`
 	AssetKey      *string          `json:"symbol"`
@@ -176,11 +183,11 @@ type ReplaceOrderRequest struct {
 	ClientOrderID string           `json:"client_order_id"`
 }
 
-type AccountConfigs struct {
-	NoShorting        bool
-	DtbpCheck         string
-	TradeConfirmEmail string
-	SuspendTrade      bool
+type AccountConfigurationsRequest struct {
+	DtbpCheck            *string `json:"dtbp_check"`
+	NoShorting           *bool   `json:"no_shorting"`
+	TradeConfirmEmail    *string `json:"trade_confirm_email"`
+	TradeSuspendedByUser *bool   `json:"trade_suspended_by_user"`
 }
 
 type Side string
@@ -212,6 +219,21 @@ const (
 	GTX TimeInForce = "gtx"
 	GTD TimeInForce = "gtd"
 	CLS TimeInForce = "cls"
+)
+
+type DtbpCheck string
+
+const (
+	Entry DtbpCheck = "entry"
+	Exit  DtbpCheck = "exit"
+	Both  DtbpCheck = "both"
+)
+
+type TradeConfirmEmail string
+
+const (
+	None TradeConfirmEmail = "none"
+	All  TradeConfirmEmail = "all"
 )
 
 // stream
