@@ -691,6 +691,5 @@ func unmarshal(resp *http.Response, data interface{}) error {
 		return err
 	}
 
-	fmt.Println()
 	return json.Unmarshal(body, data)
 }
