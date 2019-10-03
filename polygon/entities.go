@@ -160,6 +160,7 @@ type PolgyonServerMsg struct {
 type StreamTrade struct {
 	Symbol     string  `json:"sym"`
 	Exchange   int     `json:"x"`
+	TradeID    int64   `json:"i"`
 	Price      float64 `json:"p"`
 	Size       int64   `json:"s"`
 	Timestamp  int64   `json:"t"`
