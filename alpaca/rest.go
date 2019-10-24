@@ -144,6 +144,55 @@ func (c *Client) UpdateAccountConfigurations(newConfigs AccountConfigurationsReq
 	return configs, nil
 }
 
+func (c *Client) GetAccountActivities(activityType *string, opts *AccountActivitiesRequest) ([]AccountActvity, error) {
+	var u *url.URL
+	var err error
+	if activityType == nil {
+		u, err = url.Parse(fmt.Sprintf("%s/%s/account/activities", base, apiVersion))
+	} else {
+		u, err = url.Parse(fmt.Sprintf("%s/%s/account/activities/%s", base, apiVersion, *activityType))
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	q := u.Query()
+	if opts != nil {
+		if opts.ActivityTypes != nil {
+			q.Set("activity_types", strings.Join(*opts.ActivityTypes, ","))
+		}
+		if opts.Date != nil {
+			q.Set("date", opts.Date.String())
+		}
+		if opts.Until != nil {
+			q.Set("until", opts.Until.String())
+		}
+		if opts.After != nil {
+			q.Set("after", opts.After.String())
+		}
+		if opts.Direction != nil {
+			q.Set("direction", *opts.Direction)
+		}
+		if opts.PageSize != nil {
+			q.Set("page_size", string(*opts.PageSize))
+		}
+	}
+
+	u.RawQuery = q.Encode()
+
+	resp, err := c.get(u)
+	if err != nil {
+		return nil, err
+	}
+
+	activities := []AccountActvity{}
+
+	if err = unmarshal(resp, &activities); err != nil {
+		return nil, err
+	}
+	return activities, nil
+}
+
 // ListPositions lists the account's open positions.
 func (c *Client) ListPositions() ([]Position, error) {
 	u, err := url.Parse(fmt.Sprintf("%s/%s/positions", base, apiVersion))
@@ -529,6 +578,10 @@ func GetAccountConfigurations() (*AccountConfigurations, error) {
 // new configs using the default Alpaca client
 func UpdateAccountConfigurations(newConfigs AccountConfigurationsRequest) (*AccountConfigurations, error) {
 	return DefaultClient.UpdateAccountConfigurations(newConfigs)
+}
+
+func GetAccountActivities(activityType *string, opts *AccountActivitiesRequest) ([]AccountActvity, error) {
+	return DefaultClient.GetAccountActivities(activityType, opts)
 }
 
 // ListPositions lists the account's open positions

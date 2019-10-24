@@ -163,6 +163,23 @@ type AccountConfigurations struct {
 	TradeSuspendedByUser bool              `json:"trade_suspended_by_user"`
 }
 
+type AccountActvity struct {
+	ID              string          `json:"id"`
+	ActivityType    string          `json:"activity_type"`
+	TransactionTime time.Time       `json:"transaction_time"`
+	Type            string          `json:"type"`
+	Price           decimal.Decimal `json:"price"`
+	Qty             decimal.Decimal `json:"qty"`
+	Side            string          `json:"side"`
+	Symbol          string          `json:"symbol"`
+	LeavesQty       decimal.Decimal `json:"leaves_qty"`
+	CumQty          decimal.Decimal `json:"cum_qty"`
+	Date            time.Time       `json:"date"`
+	NetAmount       decimal.Decimal `json:"net_amount"`
+	Description     string          `json:"description"`
+	PerShareAmount  decimal.Decimal `json:"per_share_amount"`
+}
+
 type PlaceOrderRequest struct {
 	AccountID     string           `json:"-"`
 	AssetKey      *string          `json:"symbol"`
@@ -188,6 +205,15 @@ type AccountConfigurationsRequest struct {
 	NoShorting           *bool   `json:"no_shorting"`
 	TradeConfirmEmail    *string `json:"trade_confirm_email"`
 	TradeSuspendedByUser *bool   `json:"trade_suspended_by_user"`
+}
+
+type AccountActivitiesRequest struct {
+	ActivityTypes *[]string  `json:"activity_types"`
+	Date          *time.Time `json:"date"`
+	Until         *time.Time `json:"until"`
+	After         *time.Time `json:"after"`
+	Direction     *string    `json:"direction"`
+	PageSize      *int       `json:"page_size"`
 }
 
 type Side string
