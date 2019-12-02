@@ -49,6 +49,38 @@ type TradeTick struct {
 	Condition4 int     `json:"c4"`
 }
 
+type MapItem struct {
+	Name string `json:"name"`
+	Type string `json:"type"`
+}
+
+// HistoricTradesV2 is the structure that defines trade
+// data served through polygon's REST API.
+type HistoricTradesV2 struct {
+	ResultsCount int64              `json:"results_count"`
+	Ticker       string             `json:"ticker"`
+	Results      []TradeTickV2      `json:"results"`
+	Map          map[string]MapItem `json:"map"`
+}
+
+// TradeTickV2 is the structure that contains the actual
+// tick data included in a HistoricTradesV2 response
+type TradeTickV2 struct {
+	SIPTimestamp         *int64   `json:"t"`
+	ParticipantTimestamp *int64   `json:"y"`
+	TRFTimestamp         *int64   `json:"f"`
+	SequenceNumber       *int     `json:"q"`
+	ID                   *string  `json:"i"`
+	OrigID               *string  `json:"I"`
+	Exchange             *int     `json:"x"`
+	TRFID                *int     `json:"r"`
+	Size                 *int     `json:"s"`
+	Conditions           *[]int   `json:"c"`
+	Price                *float64 `json:"p"`
+	Tape                 *int     `json:"z"`
+	Correction           *int     `json:"e"`
+}
+
 // HistoricQuotes is the structure that defines quote
 // data served through polygon's REST API.
 type HistoricQuotes struct {
@@ -83,6 +115,35 @@ type QuoteTick struct {
 	Condition   int     `json:"c"`
 }
 
+// HistoricQuotesV2 is the structure that defines trade
+// data served through polygon's REST API.
+type HistoricQuotesV2 struct {
+	ResultsCount int64              `json:"results_count"`
+	Ticker       string             `json:"ticker"`
+	Results      []QuoteTickV2      `json:"results"`
+	Map          map[string]MapItem `json:"map"`
+}
+
+// QuoteTickV2 is the structure that contains the actual
+// tick data included in a HistoricQuotesV2 response
+type QuoteTickV2 struct {
+	SIPTimestamp         *int64   `json:"t"`
+	ParticipantTimestamp *int64   `json:"y"`
+	TRFTimestamp         *int64   `json:"f"`
+	SequenceNumber       *int     `json:"q"`
+	Indicators           *[]int   `json:"i"`
+	BidExchange          *int     `json:"x"`
+	AskExchange          *int     `json:"X"`
+	TRFID                *int     `json:"r"`
+	Size                 *int     `json:"s"`
+	Conditions           *[]int   `json:"c"`
+	BidPrice             *float64 `json:"p"`
+	AskPrice             *float64 `json:"P"`
+	BidSize              *int     `json:"s"`
+	AskSize              *int     `json:"S"`
+	Tape                 *int     `json:"z"`
+}
+
 // HistoricAggregates is the structure that defines
 // aggregate data served through Polygon's v1 REST API.
 type HistoricAggregates struct {
@@ -112,6 +173,13 @@ type HistoricAggregatesV2 struct {
 type GetHistoricTradesParams struct {
 	Offset int64 `json:"offset"`
 	Limit  int64 `json:"limit"`
+}
+
+type HistoricTicksV2Params struct {
+	Timestamp      int64 `json:"timestamp"`
+	TimestampLimit int64 `json:"timestamp_limit"`
+	Reverse        bool  `json:"reverse"`
+	Limit          int64 `json:"limit"`
 }
 
 // AggTick is the structure that contains the actual
