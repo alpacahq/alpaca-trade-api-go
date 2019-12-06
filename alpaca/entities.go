@@ -246,9 +246,8 @@ const (
 type OrderClass string
 
 const (
-	Bracket OrderClass = "bracket"
-	OTO     OrderClass = "oto"
-	OCO     OrderClass = "oco"
+	Bracket OrderClass = "otoco"
+	Simple  OrderClass = "simple"
 )
 
 type TimeInForce string
