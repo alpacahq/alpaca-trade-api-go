@@ -52,7 +52,7 @@ func init() {
 func main() {
 	// First, cancel any existing orders so they don't impact our buying power.
 	status, until, limit := "open", time.Now(), 100
-	orders, _ := alpacaClient.client.ListOrders(&status, &until, &limit)
+	orders, _ := alpacaClient.client.ListOrders(&status, &until, &limit, nil)
 	for _, order := range orders {
 		_ = alpacaClient.client.CancelOrder(order.ID)
 	}

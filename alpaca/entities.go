@@ -59,6 +59,7 @@ type Order struct {
 	FilledAvgPrice *decimal.Decimal `json:"filled_avg_price"`
 	StopPrice      *decimal.Decimal `json:"stop_price"`
 	Status         string           `json:"status"`
+	Legs           *[]Order         `json:"legs"`
 }
 
 type Position struct {
@@ -181,15 +182,23 @@ type AccountActvity struct {
 }
 
 type PlaceOrderRequest struct {
-	AccountID     string           `json:"-"`
-	AssetKey      *string          `json:"symbol"`
-	Qty           decimal.Decimal  `json:"qty"`
-	Side          Side             `json:"side"`
-	Type          OrderType        `json:"type"`
-	TimeInForce   TimeInForce      `json:"time_in_force"`
-	LimitPrice    *decimal.Decimal `json:"limit_price"`
-	StopPrice     *decimal.Decimal `json:"stop_price"`
-	ClientOrderID string           `json:"client_order_id"`
+	AccountID       string           `json:"-"`
+	AssetKey        *string          `json:"symbol"`
+	Qty             decimal.Decimal  `json:"qty"`
+	Side            Side             `json:"side"`
+	Type            OrderType        `json:"type"`
+	TimeInForce     TimeInForce      `json:"time_in_force"`
+	LimitPrice      *decimal.Decimal `json:"limit_price"`
+	StopPrice       *decimal.Decimal `json:"stop_price"`
+	ClientOrderID   string           `json:"client_order_id"`
+	Class           OrderClass       `json:"class"`
+	OrderAttributes *OrderAttributes `json:"order_attributes,omitempty"`
+}
+
+type OrderAttributes struct {
+	TakeProfitLimitPrice *decimal.Decimal `json:"take_profit_limit_price,omitempty"`
+	StopLossStopPrice    *decimal.Decimal `json:"stop_loss_stop_price,omitempty"`
+	StopLossLimitPrice   *decimal.Decimal `json:"stop_loss_limit_price,omitempty"`
 }
 
 type ReplaceOrderRequest struct {
@@ -232,6 +241,14 @@ const (
 	StopLimit     OrderType = "stop_limit"
 	MarketOnClose OrderType = "market_on_close"
 	LimitOnClose  OrderType = "limit_on_close"
+)
+
+type OrderClass string
+
+const (
+	Bracket OrderClass = "bracket"
+	OTO     OrderClass = "oto"
+	OCO     OrderClass = "oco"
 )
 
 type TimeInForce string
