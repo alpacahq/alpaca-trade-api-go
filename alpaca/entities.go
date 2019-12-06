@@ -191,7 +191,7 @@ type PlaceOrderRequest struct {
 	LimitPrice      *decimal.Decimal `json:"limit_price"`
 	StopPrice       *decimal.Decimal `json:"stop_price"`
 	ClientOrderID   string           `json:"client_order_id"`
-	Class           OrderClass       `json:"class"`
+	OrderClass      OrderClass       `json:"order_class"`
 	OrderAttributes *OrderAttributes `json:"order_attributes,omitempty"`
 }
 
