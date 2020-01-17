@@ -455,7 +455,7 @@ func (s *AlpacaTestSuite) TestAlpaca() {
 		order, err := PlaceOrder(req)
 		assert.Nil(s.T(), err)
 		assert.NotNil(s.T(), order)
-		assert.Equal(s.T(), "otoco", order.Class)
+		assert.Equal(s.T(), "bracket", order.Class)
 	}
 }
 
