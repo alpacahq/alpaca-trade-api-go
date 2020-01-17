@@ -17,22 +17,23 @@ import (
 
 // Copied from Gobroker v4.9.162 to test API conversion to backend struct
 type CreateOrderRequest struct {
-	AccountID       string                     `json:"-"`
-	ClientID        string                     `json:"client_id"`
-	OrderClass      string                     `json:"order_class"`
-	OrderID         *string                    `json:"-"`
-	ClientOrderID   string                     `json:"client_order_id"`
-	AssetKey        string                     `json:"symbol"`
-	AssetID         string                     `json:"-"`
-	Qty             decimal.Decimal            `json:"qty"`
-	Side            string                     `json:"side"`
-	Type            string                     `json:"type"`
-	TimeInForce     string                     `json:"time_in_force"`
-	LimitPrice      *decimal.Decimal           `json:"limit_price"`
-	StopPrice       *decimal.Decimal           `json:"stop_price"`
-	ExtendedHours   bool                       `json:"extended_hours"`
-	Source          *string                    `json:"source"`
-	OrderAttributes map[string]decimal.Decimal `json:"order_attributes"`
+	AccountID     string           `json:"-"`
+	ClientID      string           `json:"client_id"`
+	OrderClass    string           `json:"order_class"`
+	OrderID       *string          `json:"-"`
+	ClientOrderID string           `json:"client_order_id"`
+	AssetKey      string           `json:"symbol"`
+	AssetID       string           `json:"-"`
+	Qty           decimal.Decimal  `json:"qty"`
+	Side          string           `json:"side"`
+	Type          string           `json:"type"`
+	TimeInForce   string           `json:"time_in_force"`
+	LimitPrice    *decimal.Decimal `json:"limit_price"`
+	StopPrice     *decimal.Decimal `json:"stop_price"`
+	ExtendedHours bool             `json:"extended_hours"`
+	Source        *string          `json:"source"`
+	TakeProfit    *TakeProfit      `json:"take_profit"`
+	StopLoss      *StopLoss        `json:"stop_loss"`
 }
 
 type AlpacaTestSuite struct {
@@ -437,19 +438,21 @@ func (s *AlpacaTestSuite) TestAlpaca() {
 			}, nil
 		}
 		tpp := decimal.NewFromFloat(271.)
-		spp :=  decimal.NewFromFloat(269.)
+		spp := decimal.NewFromFloat(269.)
+		tp := &TakeProfit{LimitPrice: &tpp}
+		sl := &StopLoss{
+			LimitPrice: nil,
+			StopPrice:  &spp,
+		}
 		req := PlaceOrderRequest{
 			AccountID:   "some_id",
 			Qty:         decimal.New(1, 0),
 			Side:        Buy,
 			TimeInForce: GTC,
 			Type:        Limit,
-			OrderClass: Bracket,
-			OrderAttributes: &OrderAttributes{
-				TakeProfitLimitPrice: &tpp,
-				StopLossStopPrice:    &spp,
-				StopLossLimitPrice:   nil,
-			},
+			OrderClass:  Bracket,
+			TakeProfit:  tp,
+			StopLoss:    sl,
 		}
 
 		order, err := PlaceOrder(req)
