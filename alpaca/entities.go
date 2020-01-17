@@ -246,7 +246,7 @@ const (
 type OrderClass string
 
 const (
-	Bracket OrderClass = "otoco"
+	Bracket OrderClass = "bracket"
 	Simple  OrderClass = "simple"
 )
 
