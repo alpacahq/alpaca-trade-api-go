@@ -182,17 +182,27 @@ type AccountActvity struct {
 }
 
 type PlaceOrderRequest struct {
-	AccountID       string           `json:"-"`
-	AssetKey        *string          `json:"symbol"`
-	Qty             decimal.Decimal  `json:"qty"`
-	Side            Side             `json:"side"`
-	Type            OrderType        `json:"type"`
-	TimeInForce     TimeInForce      `json:"time_in_force"`
-	LimitPrice      *decimal.Decimal `json:"limit_price"`
-	StopPrice       *decimal.Decimal `json:"stop_price"`
-	ClientOrderID   string           `json:"client_order_id"`
-	OrderClass      OrderClass       `json:"order_class"`
-	OrderAttributes *OrderAttributes `json:"order_attributes,omitempty"`
+	AccountID     string           `json:"-"`
+	AssetKey      *string          `json:"symbol"`
+	Qty           decimal.Decimal  `json:"qty"`
+	Side          Side             `json:"side"`
+	Type          OrderType        `json:"type"`
+	TimeInForce   TimeInForce      `json:"time_in_force"`
+	LimitPrice    *decimal.Decimal `json:"limit_price"`
+	StopPrice     *decimal.Decimal `json:"stop_price"`
+	ClientOrderID string           `json:"client_order_id"`
+	OrderClass    OrderClass       `json:"order_class"`
+	TakeProfit    *TakeProfit      `json:"take_profit"`
+	StopLoss      *StopLoss        `json:"stop_loss"`
+}
+
+type TakeProfit struct {
+	LimitPrice *decimal.Decimal `json:"limit_price"`
+}
+
+type StopLoss struct {
+	LimitPrice *decimal.Decimal `json:"limit_price"`
+	StopPrice  *decimal.Decimal `json:"stop_price"`
 }
 
 type OrderAttributes struct {
