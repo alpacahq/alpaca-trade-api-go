@@ -36,15 +36,6 @@ type CreateOrderRequest struct {
 	StopLoss      *StopLoss        `json:"stop_loss"`
 }
 
-type TakeProfit struct {
-	LimitPrice *decimal.Decimal `json:"limit_price"`
-}
-
-type StopLoss struct {
-	LimitPrice *decimal.Decimal `json:"limit_price"`
-	StopPrice  *decimal.Decimal `json:"stop_price"`
-}
-
 type AlpacaTestSuite struct {
 	suite.Suite
 }
@@ -448,6 +439,11 @@ func (s *AlpacaTestSuite) TestAlpaca() {
 		}
 		tpp := decimal.NewFromFloat(271.)
 		spp := decimal.NewFromFloat(269.)
+		tp := &TakeProfit{LimitPrice: &tpp}
+		sl := &StopLoss{
+			LimitPrice: nil,
+			StopPrice:  &spp,
+		}
 		req := PlaceOrderRequest{
 			AccountID:   "some_id",
 			Qty:         decimal.New(1, 0),
@@ -455,11 +451,8 @@ func (s *AlpacaTestSuite) TestAlpaca() {
 			TimeInForce: GTC,
 			Type:        Limit,
 			OrderClass:  Bracket,
-			OrderAttributes: &OrderAttributes{
-				TakeProfitLimitPrice: &tpp,
-				StopLossStopPrice:    &spp,
-				StopLossLimitPrice:   nil,
-			},
+			TakeProfit:  tp,
+			StopLoss:    sl,
 		}
 
 		order, err := PlaceOrder(req)
