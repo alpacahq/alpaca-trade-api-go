@@ -193,6 +193,32 @@ func (c *Client) GetAccountActivities(activityType *string, opts *AccountActivit
 	return activities, nil
 }
 
+func (c *Client) GetPortfolioHistory(startDate, endDate *time.Time, period *HistoryPeriod, timeframe *RangeFreq, extended bool) (*PortfolioHistory, error) {
+	var u *url.URL
+	var err error
+	u, err = url.Parse(fmt.Sprintf("%s/%s/account/portfolio/history", base, apiVersion))
+	if err != nil {
+		return nil, err
+	}
+
+	q := u.Query()
+	if startDate != nil {
+		q.Set("start_date", startDate.Format(time.RFC3339))
+	}
+	if endDate != nil {
+		q.Set("end_date", endDate.Format(time.RFC3339))
+	}
+	if period != nil {
+		q.Set("period", string(*period))
+	}
+	if timeframe != nil {
+		q.Set("period", string(*timeframe))
+	}
+	q.Set("extended", strconv.FormatBool(extended))
+
+	return &PortfolioHistory{}, nil
+}
+
 // ListPositions lists the account's open positions.
 func (c *Client) ListPositions() ([]Position, error) {
 	u, err := url.Parse(fmt.Sprintf("%s/%s/positions", base, apiVersion))
@@ -586,6 +612,10 @@ func UpdateAccountConfigurations(newConfigs AccountConfigurationsRequest) (*Acco
 
 func GetAccountActivities(activityType *string, opts *AccountActivitiesRequest) ([]AccountActvity, error) {
 	return DefaultClient.GetAccountActivities(activityType, opts)
+}
+
+func GetPortfolioHistory(startDate, endDate *time.Time, period *HistoryPeriod, timeframe *RangeFreq, extended bool) (*PortfolioHistory, error) {
+	return DefaultClient.GetPortfolioHistory(startDate, endDate, period, timeframe, extended)
 }
 
 // ListPositions lists the account's open positions
