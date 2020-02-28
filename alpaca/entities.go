@@ -182,10 +182,12 @@ type AccountActvity struct {
 }
 
 type PortfolioHistory struct {
-	Arrays     []interface{}       `json:"arrays"`
-	Attributes []map[string]string `json:"attributes"`
-	Timeframe  RangeFreq           `json:"timeframe"`
-	BaseValue  float64             `json:"base_value"`
+	BaseValue     decimal.Decimal   `json:"base_value"`
+	Equity        []decimal.Decimal `json:"equity"`
+	ProfitLoss    []decimal.Decimal `json:"profit_loss"`
+	ProfitLossPct []decimal.Decimal `json:"profit_loss_pct"`
+	Timeframe     RangeFreq         `json:"timeframe"`
+	Timestamp     []int64           `json:"timestamp"`
 }
 
 type PlaceOrderRequest struct {

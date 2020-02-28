@@ -216,7 +216,17 @@ func (c *Client) GetPortfolioHistory(startDate, endDate *time.Time, period *Hist
 	}
 	q.Set("extended", strconv.FormatBool(extended))
 
-	return &PortfolioHistory{}, nil
+	resp, err := c.get(u)
+	if err != nil {
+		return nil, err
+	}
+
+	portfolioHistory := PortfolioHistory{}
+	if err = unmarshal(resp, &portfolioHistory); err != nil {
+		return nil, err
+	}
+
+	return &portfolioHistory, nil
 }
 
 // ListPositions lists the account's open positions.
