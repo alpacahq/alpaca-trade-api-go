@@ -181,6 +181,15 @@ type AccountActvity struct {
 	PerShareAmount  decimal.Decimal `json:"per_share_amount"`
 }
 
+type PortfolioHistory struct {
+	BaseValue     decimal.Decimal   `json:"base_value"`
+	Equity        []decimal.Decimal `json:"equity"`
+	ProfitLoss    []decimal.Decimal `json:"profit_loss"`
+	ProfitLossPct []decimal.Decimal `json:"profit_loss_pct"`
+	Timeframe     RangeFreq         `json:"timeframe"`
+	Timestamp     []int64           `json:"timestamp"`
+}
+
 type PlaceOrderRequest struct {
 	AccountID     string           `json:"-"`
 	AssetKey      *string          `json:"symbol"`
@@ -286,6 +295,27 @@ type TradeConfirmEmail string
 const (
 	None TradeConfirmEmail = "none"
 	All  TradeConfirmEmail = "all"
+)
+
+type HistoryPeriod string
+
+const (
+	Month1     HistoryPeriod = "1M"
+	Month3     HistoryPeriod = "3M"
+	Month6     HistoryPeriod = "6M"
+	Year       HistoryPeriod = "1A"
+	AllHistory HistoryPeriod = "all"
+	Intraday   HistoryPeriod = "intraday"
+)
+
+type RangeFreq string
+
+const (
+	Min1  RangeFreq = "1Min"
+	Min5  RangeFreq = "5Min"
+	Min15 RangeFreq = "15Min"
+	Hour1 RangeFreq = "1H"
+	Day1  RangeFreq = "1D"
 )
 
 // stream
