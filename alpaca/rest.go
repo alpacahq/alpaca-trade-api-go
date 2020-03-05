@@ -193,7 +193,7 @@ func (c *Client) GetAccountActivities(activityType *string, opts *AccountActivit
 	return activities, nil
 }
 
-func (c *Client) GetPortfolioHistory(startDate, endDate *time.Time, period *HistoryPeriod, timeframe *RangeFreq, extended bool) (*PortfolioHistory, error) {
+func (c *Client) GetPortfolioHistory(startDate, endDate *time.Time, period *string, timeframe *RangeFreq, extended bool) (*PortfolioHistory, error) {
 	var u *url.URL
 	var err error
 	u, err = url.Parse(fmt.Sprintf("%s/%s/account/portfolio/history", base, apiVersion))
@@ -209,7 +209,7 @@ func (c *Client) GetPortfolioHistory(startDate, endDate *time.Time, period *Hist
 		q.Set("end_date", endDate.Format(time.RFC3339))
 	}
 	if period != nil {
-		q.Set("period", string(*period))
+		q.Set("period", *period)
 	}
 	if timeframe != nil {
 		q.Set("period", string(*timeframe))
@@ -624,7 +624,7 @@ func GetAccountActivities(activityType *string, opts *AccountActivitiesRequest) 
 	return DefaultClient.GetAccountActivities(activityType, opts)
 }
 
-func GetPortfolioHistory(startDate, endDate *time.Time, period *HistoryPeriod, timeframe *RangeFreq, extended bool) (*PortfolioHistory, error) {
+func GetPortfolioHistory(startDate, endDate *time.Time, period *string, timeframe *RangeFreq, extended bool) (*PortfolioHistory, error) {
 	return DefaultClient.GetPortfolioHistory(startDate, endDate, period, timeframe, extended)
 }
 

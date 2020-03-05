@@ -297,17 +297,6 @@ const (
 	All  TradeConfirmEmail = "all"
 )
 
-type HistoryPeriod string
-
-const (
-	Month1     HistoryPeriod = "1M"
-	Month3     HistoryPeriod = "3M"
-	Month6     HistoryPeriod = "6M"
-	Year       HistoryPeriod = "1A"
-	AllHistory HistoryPeriod = "all"
-	Intraday   HistoryPeriod = "intraday"
-)
-
 type RangeFreq string
 
 const (
