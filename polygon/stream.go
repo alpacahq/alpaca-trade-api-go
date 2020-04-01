@@ -196,7 +196,7 @@ func (s *Stream) auth() (err error) {
 
 	authRequest := PolygonClientMsg{
 		Action: "auth",
-		Params: common.Credentials().ID,
+		Params: common.Credentials().PolygonKeyID,
 	}
 
 	if err = s.conn.WriteJSON(authRequest); err != nil {
