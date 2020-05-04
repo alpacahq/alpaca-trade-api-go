@@ -19,8 +19,8 @@ var (
 	// DefaultClient is the default Alpaca client using the
 	// environment variable set credentials
 	DefaultClient = NewClient(common.Credentials())
-	base          = "https://api.alpaca.markets/"
-	dataUrl       = "https://data.alpaca.markets/"
+	base          = "https://api.alpaca.markets"
+	dataUrl       = "https://data.alpaca.markets"
 	apiVersion    = "v2"
 	do            = func(c *Client, req *http.Request) (*http.Response, error) {
 		if c.credentials.OAuth != "" {
