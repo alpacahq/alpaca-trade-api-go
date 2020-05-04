@@ -135,16 +135,59 @@ type ListBarParams struct {
 	Limit     *int       `url:"limit,omitempty"`
 }
 
+type PolygonLastQuote struct {
+	Status string `json:"status"`
+	Symbol string `json:"symbol"`
+
+	Last Quote `json:"last"`
+}
+
 type Quote struct {
-	BidTimestamp  time.Time `json:"bid_timestamp"`
-	Bid           float32   `json:"bid"`
-	AskTimestamp  time.Time `json:"ask_timestamp"`
-	Ask           float32   `json:"ask"`
-	LastTimestamp time.Time `json:"last_timestamp"`
-	Last          float32   `json:"last"`
-	AssetID       string    `json:"asset_id"`
-	Symbol        string    `json:"symbol"`
-	Class         string    `json:"asset_class"`
+	AskPrice    float32 `json:"askprice"`
+	AskSize     int32   `json:"asksize"`
+	AskExchange int32   `json:"askexchange"`
+	BidPrice    float32 `json:"bidprice"`
+	BidSize     int32   `json:"bidsize"`
+	BidExchange int32   `json:"bidexchange"`
+	Timestamp   int64   `json:"timestamp"`
+}
+
+type PolygonLastTrade struct {
+	Status string `json:"status"`
+	Symbol string `json:"symbol"`
+
+	Last Trade `json:"last"`
+}
+
+type Trade struct {
+	Timestamp int64   `json:"timestamp"`
+	Price     float32 `json:"price"`
+	Size      int32   `json:"size"`
+	Exchange  int32   `json:"exchange"`
+	Cond1     int32   `json:"cond1"`
+	Cond2     int32   `json:"cond2"`
+	Cond3     int32   `json:"cond3"`
+	Cond4     int32   `json:"cond4"`
+}
+
+type AggV2 struct {
+	Timestamp     int64   `json:"t"`
+	Ticker        string  `json:"T"`
+	Open          float64 `json:"O"`
+	High          float64 `json:"H"`
+	Low           float64 `json:"L"`
+	Close         float64 `json:"C"`
+	Volume        int64   `json:"V"`
+	NumberOfItems int64   `json:"n"`
+}
+
+type Aggregates struct {
+	Ticker       string  `json:"ticker"`
+	Status       string  `json:"status"`
+	Adjusted     bool    `json:"adjusted"`
+	QueryCount   int     `json:"queryCount"`
+	ResultsCount int     `json:"resultsCount"`
+	Results      []AggV2 `json:"results"`
 }
 
 type CalendarDay struct {
