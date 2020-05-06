@@ -193,40 +193,45 @@ func (c *Client) GetAccountActivities(activityType *string, opts *AccountActivit
 	return activities, nil
 }
 
-func (c *Client) GetPortfolioHistory(startDate, endDate *time.Time, period *string, timeframe *RangeFreq, extended bool) (*PortfolioHistory, error) {
-	var u *url.URL
-	var err error
-	u, err = url.Parse(fmt.Sprintf("%s/%s/account/portfolio/history", base, apiVersion))
+func (c *Client) GetPortfolioHistory(period *string, timeframe *RangeFreq, dateEnd *time.Time, extendedHours bool) (*PortfolioHistory, error) {
+	u, err := url.Parse(fmt.Sprintf("%s/%s/account/portfolio/history", base, apiVersion))
+
 	if err != nil {
 		return nil, err
 	}
 
-	q := u.Query()
-	if startDate != nil {
-		q.Set("start_date", startDate.Format(time.RFC3339))
-	}
-	if endDate != nil {
-		q.Set("end_date", endDate.Format(time.RFC3339))
-	}
+	query := u.Query()
+
 	if period != nil {
-		q.Set("period", *period)
+		query.Set("period", *period)
 	}
+
 	if timeframe != nil {
-		q.Set("period", string(*timeframe))
+		query.Set("timeframe", string(*timeframe))
 	}
-	q.Set("extended", strconv.FormatBool(extended))
+
+	if dateEnd != nil {
+		query.Set("date_end", dateEnd.Format("2006-01-02"))
+	}
+
+	query.Set("extended_hours", strconv.FormatBool(extendedHours))
+
+	// update the rawquery with the encoded params
+	u.RawQuery = query.Encode()
 
 	resp, err := c.get(u)
+
 	if err != nil {
 		return nil, err
 	}
 
-	portfolioHistory := PortfolioHistory{}
-	if err = unmarshal(resp, &portfolioHistory); err != nil {
+	var history PortfolioHistory
+
+	if err = unmarshal(resp, &history); err != nil {
 		return nil, err
 	}
 
-	return &portfolioHistory, nil
+	return &history, nil
 }
 
 // ListPositions lists the account's open positions.
@@ -624,8 +629,8 @@ func GetAccountActivities(activityType *string, opts *AccountActivitiesRequest) 
 	return DefaultClient.GetAccountActivities(activityType, opts)
 }
 
-func GetPortfolioHistory(startDate, endDate *time.Time, period *string, timeframe *RangeFreq, extended bool) (*PortfolioHistory, error) {
-	return DefaultClient.GetPortfolioHistory(startDate, endDate, period, timeframe, extended)
+func GetPortfolioHistory(period *string, timeframe *RangeFreq, dateEnd *time.Time, extendedHours bool) (*PortfolioHistory, error) {
+	return DefaultClient.GetPortfolioHistory(period, timeframe, dateEnd, extendedHours)
 }
 
 // ListPositions lists the account's open positions
