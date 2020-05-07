@@ -26,6 +26,9 @@ const (
 var (
 	once sync.Once
 	str  *Stream
+
+	dataOnce sync.Once
+	dataStr  *Stream
 )
 
 type Stream struct {
@@ -34,34 +37,44 @@ type Stream struct {
 	conn                  *websocket.Conn
 	authenticated, closed atomic.Value
 	handlers              sync.Map
+	base                  string
 }
 
 // Subscribe to the specified Alpaca stream channel.
 func (s *Stream) Subscribe(channel string, handler func(msg interface{})) (err error) {
-	if s.conn == nil {
-		s.conn = openSocket()
-	}
-
-	switch channel {
-	case TradeUpdates:
+	switch {
+	case channel == TradeUpdates:
 		fallthrough
-	case AccountUpdates:
-		if err = s.auth(); err != nil {
-			return
-		}
-
-		s.Do(func() {
-			go s.start()
-		})
-
-		s.handlers.Store(channel, handler)
-
-		if err = s.sub(channel); err != nil {
-			s.handlers.Delete(channel)
-			return
-		}
+	case channel == AccountUpdates:
+		fallthrough
+	case strings.HasPrefix(channel, "Q."):
+		fallthrough
+	case strings.HasPrefix(channel, "T."):
+		fallthrough
+	case strings.HasPrefix(channel, "AM."):
 	default:
 		err = fmt.Errorf("invalid stream (%s)", channel)
+		return
+	}
+	if s.conn == nil {
+		s.conn, err = s.openSocket()
+		if err != nil {
+			return
+		}
+	}
+
+	if err = s.auth(); err != nil {
+		return
+	}
+	s.Do(func() {
+		go s.start()
+	})
+
+	s.handlers.Store(channel, handler)
+
+	if err = s.sub(channel); err != nil {
+		s.handlers.Delete(channel)
+		return
 	}
 	return
 }
@@ -88,17 +101,22 @@ func (s *Stream) Close() error {
 	return s.conn.Close()
 }
 
-func (s *Stream) reconnect() {
+func (s *Stream) reconnect() error {
 	s.authenticated.Store(false)
-	s.conn = openSocket()
+	conn, err := s.openSocket()
+	if err != nil {
+		return err
+	}
+	s.conn = conn
 	if err := s.auth(); err != nil {
-		return
+		return err
 	}
 	s.handlers.Range(func(key, value interface{}) bool {
 		// there should be no errors if we've previously successfully connected
 		s.sub(key.(string))
 		return true
 	})
+	return nil
 }
 
 func (s *Stream) start() {
@@ -129,7 +147,10 @@ func (s *Stream) start() {
 				log.Printf("alpaca stream read error (%v)", err)
 			}
 
-			s.reconnect()
+			err := s.reconnect()
+			if err != nil {
+				panic(err)
+			}
 		}
 	}
 }
@@ -205,6 +226,7 @@ func GetStream() *Stream {
 		str = &Stream{
 			authenticated: atomic.Value{},
 			handlers:      sync.Map{},
+			base:          base,
 		}
 
 		str.authenticated.Store(false)
@@ -214,9 +236,24 @@ func GetStream() *Stream {
 	return str
 }
 
-func openSocket() *websocket.Conn {
+func GetDataStream() *Stream {
+	dataOnce.Do(func() {
+		dataStr = &Stream{
+			authenticated: atomic.Value{},
+			handlers:      sync.Map{},
+			base:          dataUrl,
+		}
+
+		dataStr.authenticated.Store(false)
+		dataStr.closed.Store(false)
+	})
+
+	return dataStr
+}
+
+func (s *Stream) openSocket() (*websocket.Conn, error) {
 	scheme := "wss"
-	ub, _ := url.Parse(base)
+	ub, _ := url.Parse(s.base)
 	if ub.Scheme == "http" {
 		scheme = "ws"
 	}
@@ -226,12 +263,12 @@ func openSocket() *websocket.Conn {
 		connectionAttempts++
 		c, _, err := websocket.DefaultDialer.Dial(u.String(), nil)
 		if err == nil {
-			return c
+			return c, nil
 		}
 		if connectionAttempts == MaxConnectionAttempts {
-			panic(err)
+			return nil, err
 		}
 		time.Sleep(1 * time.Second)
 	}
-	panic(fmt.Errorf("Error: Could not open Alpaca stream (max retries exceeded)."))
+	return nil, fmt.Errorf("Error: Could not open Alpaca stream (max retries exceeded).")
 }
