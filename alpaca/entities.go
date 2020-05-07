@@ -135,50 +135,56 @@ type ListBarParams struct {
 	Limit     *int       `url:"limit,omitempty"`
 }
 
-type PolygonLastQuote struct {
-	Status string `json:"status"`
-	Symbol string `json:"symbol"`
-
-	Last Quote `json:"last"`
-}
-
-type Quote struct {
+type LastQuote struct {
 	AskPrice    float32 `json:"askprice"`
 	AskSize     int32   `json:"asksize"`
-	AskExchange int32   `json:"askexchange"`
+	AskExchange int     `json:"askexchange"`
 	BidPrice    float32 `json:"bidprice"`
 	BidSize     int32   `json:"bidsize"`
-	BidExchange int32   `json:"bidexchange"`
+	BidExchange int     `json:"bidexchange"`
 	Timestamp   int64   `json:"timestamp"`
 }
 
-type PolygonLastTrade struct {
-	Status string `json:"status"`
-	Symbol string `json:"symbol"`
-
-	Last Trade `json:"last"`
+func (l *LastQuote) Time() time.Time {
+	return time.Unix(0, l.Timestamp)
 }
 
-type Trade struct {
-	Timestamp int64   `json:"timestamp"`
+type LastQuoteResponse struct {
+	Status    string `json:"status"`
+	Symbol    string `json:"symbol"`
+	LastQuote `json:"last"`
+}
+
+type LastTrade struct {
 	Price     float32 `json:"price"`
 	Size      int32   `json:"size"`
-	Exchange  int32   `json:"exchange"`
-	Cond1     int32   `json:"cond1"`
-	Cond2     int32   `json:"cond2"`
-	Cond3     int32   `json:"cond3"`
-	Cond4     int32   `json:"cond4"`
+	Exchange  int     `json:"exchange"`
+	Cond1     int     `json:"cond1"`
+	Cond2     int     `json:"cond2"`
+	Cond3     int     `json:"cond3"`
+	Cond4     int     `json:"cond4"`
+	Timestamp int64   `json:"timestamp"`
+}
+
+func (l *LastTrade) Time() time.Time {
+	return time.Unix(0, l.Timestamp)
+}
+
+type LastTradeResponse struct {
+	Status    string `json:"status"`
+	Symbol    string `json:"symbol"`
+	LastTrade `json:"last"`
 }
 
 type AggV2 struct {
 	Timestamp     int64   `json:"t"`
 	Ticker        string  `json:"T"`
-	Open          float64 `json:"O"`
-	High          float64 `json:"H"`
-	Low           float64 `json:"L"`
-	Close         float64 `json:"C"`
-	Volume        int64   `json:"V"`
-	NumberOfItems int64   `json:"n"`
+	Open          float32 `json:"O"`
+	High          float32 `json:"H"`
+	Low           float32 `json:"L"`
+	Close         float32 `json:"C"`
+	Volume        int32   `json:"V"`
+	NumberOfItems int     `json:"n"`
 }
 
 type Aggregates struct {
@@ -371,4 +377,58 @@ type ServerMsg struct {
 type TradeUpdate struct {
 	Event string `json:"event"`
 	Order Order  `json:"order"`
+}
+
+type StreamAgg struct {
+	Event             string  `json:"ev"`
+	Symbol            string  `json:"T"`
+	Open              float32 `json:"o"`
+	High              float32 `json:"h"`
+	Low               float32 `json:"l"`
+	Close             float32 `json:"c"`
+	Volume            int32   `json:"v"`
+	Start             int64   `json:"s"`
+	End               int64   `json:"e"`
+	OpenPrice         float32 `json:"op"`
+	AccumulatedVolume int32   `json:"av"`
+	VWAP              float32 `json:"vw"`
+}
+
+func (s *StreamAgg) Time() time.Time {
+	// milliseconds
+	return time.Unix(0, s.Start*1e6)
+}
+
+type StreamQuote struct {
+	Event       string  `json:"ev"`
+	Symbol      string  `json:"T"`
+	BidPrice    float32 `json:"p"`
+	BidSize     int32   `json:"s"`
+	BidExchange int     `json:"x"`
+	AskPrice    float32 `json:"P"`
+	AskSize     int32   `json:"S"`
+	AskExchange int     `json:"X"`
+	Timestamp   int64   `json:"t"`
+}
+
+func (s *StreamQuote) Time() time.Time {
+	// nanoseconds
+	return time.Unix(0, s.Timestamp)
+}
+
+type StreamTrade struct {
+	Event      string  `json:"ev"`
+	Symbol     string  `json:"T"`
+	TradeID    int     `json:"i"`
+	Exchange   int     `json:"x"`
+	Price      float32 `json:"p"`
+	Size       int32   `json:"s"`
+	Timestamp  int64   `json:"t"`
+	Conditions []int   `json:"c"`
+	TapeID     int     `json:"z"`
+}
+
+func (s *StreamTrade) Time() time.Time {
+	// nanoseconds
+	return time.Unix(0, s.Timestamp)
 }

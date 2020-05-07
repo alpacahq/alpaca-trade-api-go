@@ -125,13 +125,32 @@ func (s *Stream) start() {
 
 		if err := s.conn.ReadJSON(&msg); err == nil {
 			if v, ok := s.handlers.Load(msg.Stream); ok {
-				switch msg.Stream {
-				case TradeUpdates:
+				switch {
+				case msg.Stream == TradeUpdates:
 					bytes, _ := json.Marshal(msg.Data)
 					var tradeupdate TradeUpdate
 					json.Unmarshal(bytes, &tradeupdate)
 					h := v.(func(msg interface{}))
 					h(tradeupdate)
+				case strings.HasPrefix(msg.Stream, "Q."):
+					var agg StreamAgg
+					if err := json.Unmarshal(msgBytes, &agg); err != nil {
+						h := handler.(func(msg interface{}))
+						h(agg)
+					}
+				case strings.HasPrefix(msg.Stream, "T."):
+					var quote StreamQuote
+					if err := json.Unmarshal(msgBytes, &quote); err != nil {
+						h := handler.(func(msg interface{}))
+						h(quote)
+					}
+				case strings.HasPrefix(msg.Stream, "AM."):
+					var trade StreamTrade
+					if err := json.Unmarshal(msgBytes, &trade); err != nil {
+						h := handler.(func(msg interface{}))
+						h(trade)
+					}
+
 				default:
 					h := v.(func(msg interface{}))
 					h(msg.Data)
