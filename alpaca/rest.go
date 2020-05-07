@@ -317,7 +317,7 @@ func (c *Client) GetAggregates(symbol, timespan, from, to string) (*Aggregates, 
 }
 
 // GetLastQuote returns the last quote for the given symbol
-func (c *Client) GetLastQuote(symbol string) (*LastQuote, error) {
+func (c *Client) GetLastQuote(symbol string) (*LastQuoteResponse, error) {
 	u, err := url.Parse(fmt.Sprintf("%s/v1/last_quote/stocks/%s", dataUrl, symbol))
 	if err != nil {
 		return nil, err
@@ -334,7 +334,7 @@ func (c *Client) GetLastQuote(symbol string) (*LastQuote, error) {
 		return nil, err
 	}
 
-	lastQuote := &PolygonLastQuote{}
+	lastQuote := &LastQuoteResponse{}
 
 	if err = unmarshal(resp, &lastQuote); err != nil {
 		return nil, err
@@ -344,7 +344,7 @@ func (c *Client) GetLastQuote(symbol string) (*LastQuote, error) {
 }
 
 // GetLastTrade returns the last trade for the given symbol
-func (c *Client) GetLastTrade(symbol string) (*LastTrade, error) {
+func (c *Client) GetLastTrade(symbol string) (*LastTradeResponse, error) {
 	u, err := url.Parse(fmt.Sprintf("%s/v1/last/stocks/%s", dataUrl, symbol))
 	if err != nil {
 		return nil, err
@@ -361,7 +361,7 @@ func (c *Client) GetLastTrade(symbol string) (*LastTrade, error) {
 		return nil, err
 	}
 
-	lastTrade := &PolygonLastTrade{}
+	lastTrade := &LastTradeResponse{}
 
 	if err = unmarshal(resp, &lastTrade); err != nil {
 		return nil, err
@@ -733,12 +733,12 @@ func GetAggregates(symbol, timespan, from, to string) (*Aggregates, error) {
 }
 
 // GetLastQuote returns the last quote for the given symbol
-func GetLastQuote(symbol string) (*LastQuote, error) {
+func GetLastQuote(symbol string) (*LastQuoteResponse, error) {
 	return DefaultClient.GetLastQuote(symbol)
 }
 
 // GetLastTrade returns the last trade for the given symbol
-func GetLastTrade(symbol string) (*LastTrade, error) {
+func GetLastTrade(symbol string) (*LastTradeResponse, error) {
 	return DefaultClient.GetLastTrade(symbol)
 }
 

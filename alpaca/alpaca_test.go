@@ -179,10 +179,10 @@ func (s *AlpacaTestSuite) TestAlpaca() {
 			}
 		}`
 
-		expectedLastQuote := PolygonLastQuote{
+		expectedLastQuote := LastQuoteResponse{
 			Status: "success",
 			Symbol: "AAPL",
-			Last: Quote{
+			Last: LastQuote{
 				AskPrice:    291.24,
 				AskSize:     1,
 				AskExchange: 2,
@@ -230,10 +230,10 @@ func (s *AlpacaTestSuite) TestAlpaca() {
 				"timestamp":1582756144000
 			}
 		}`
-		expectedLastTrade := PolygonLastTrade{
+		expectedLastTrade := LastTradeResponse{
 			Status: "success",
 			Symbol: "AAPL",
-			Last: Trade{
+			Last: LastTrade{
 				Price:     290.614,
 				Size:      200,
 				Exchange:  2,

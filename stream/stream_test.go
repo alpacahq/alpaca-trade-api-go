@@ -23,8 +23,8 @@ func (s *StreamTestSuite) SetupSuite() {
 	s.alp = &MockStream{}
 	s.poly = &MockStream{}
 	u = &Unified{
-		alpaca:  s.alp,
-		polygon: s.poly,
+		alpaca: s.alp,
+		data:   s.poly,
 	}
 }
 

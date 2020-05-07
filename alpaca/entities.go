@@ -153,9 +153,9 @@ func (l *LastQuote) Time() time.Time {
 }
 
 type LastQuoteResponse struct {
-	Status    string `json:"status"`
-	Symbol    string `json:"symbol"`
-	LastQuote `json:"last"`
+	Status string    `json:"status"`
+	Symbol string    `json:"symbol"`
+	Last   LastQuote `json:"last"`
 }
 
 type LastTrade struct {
@@ -174,9 +174,9 @@ func (l *LastTrade) Time() time.Time {
 }
 
 type LastTradeResponse struct {
-	Status    string `json:"status"`
-	Symbol    string `json:"symbol"`
-	LastTrade `json:"last"`
+	Status string    `json:"status"`
+	Symbol string    `json:"symbol"`
+	Last   LastTrade `json:"last"`
 }
 
 type AggV2 struct {
