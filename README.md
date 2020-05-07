@@ -1,3 +1,4 @@
+
 # alpaca-trade-api-go
 
 [![CircleCI Status](https://circleci.com/gh/alpacahq/alpaca-trade-api-go.svg?style=svg)](https://circleci.com/gh/alpacahq/alpaca-trade-api-go)
@@ -8,7 +9,10 @@
 ## Installation
 
 ```
-$ go get github.com/alpacahq/alpaca-trade-api-go
+$ go get github.com/alpacahq/alpaca-trade-api-go/common
+$ go get github.com/alpacahq/alpaca-trade-api-go/polygon
+$ go get github.com/alpacahq/alpaca-trade-api-go/stream
+$ go get github.com/alpacahq/alpaca-trade-api-go/alpaca
 ```
 
 ## Example
