@@ -7,17 +7,33 @@ import (
 )
 
 type Account struct {
-	ID               string          `json:"id"`
-	CreatedAt        time.Time       `json:"created_at"`
-	UpdatedAt        time.Time       `json:"updated_at"`
-	DeletedAt        *time.Time      `json:"deleted_at"`
-	Status           string          `json:"status"`
-	Currency         string          `json:"currency"`
-	Cash             decimal.Decimal `json:"cash"`
-	CashWithdrawable decimal.Decimal `json:"cash_withdrawable"`
-	TradingBlocked   bool            `json:"trading_blocked"`
-	TransfersBlocked bool            `json:"transfers_blocked"`
-	AccountBlocked   bool            `json:"account_blocked"`
+	ID                    string          `json:"id"`
+	AccountNumber         string          `json:"account_number"`
+	CreatedAt             time.Time       `json:"created_at"`
+	UpdatedAt             time.Time       `json:"updated_at"`
+	DeletedAt             *time.Time      `json:"deleted_at"`
+	Status                string          `json:"status"`
+	Currency              string          `json:"currency"`
+	Cash                  decimal.Decimal `json:"cash"`
+	CashWithdrawable      decimal.Decimal `json:"cash_withdrawable"`
+	TradingBlocked        bool            `json:"trading_blocked"`
+	TransfersBlocked      bool            `json:"transfers_blocked"`
+	AccountBlocked        bool            `json:"account_blocked"`
+	ShortingEnabled       bool            `json:"shorting_enabled"`
+	BuyingPower           decimal.Decimal `json:"buying_power"`
+	PatternDayTrader      bool            `json:"pattern_day_trader"`
+	DaytradeCount         int64           `json:"daytrade_count"`
+	DaytradingBuyingPower decimal.Decimal `json:"daytrading_buying_power"`
+	RegTBuyingPower       decimal.Decimal `json:"regt_buying_power"`
+	Equity                decimal.Decimal `json:"equity"`
+	LastEquity            decimal.Decimal `json:"last_equity"`
+	Multiplier            string          `json:"multiplier"`
+	InitialMargin         decimal.Decimal `json:"initial_margin"`
+	MaintenanceMargin     decimal.Decimal `json:"maintenance_margin"`
+	LastMaintenanceMargin decimal.Decimal `json:"last_maintenance_margin"`
+	LongMarketValue       decimal.Decimal `json:"long_market_value"`
+	ShortMarketValue      decimal.Decimal `json:"short_market_value"`
+	PortfolioValue        decimal.Decimal `json:"portfolio_value"`
 }
 
 type Order struct {
@@ -30,11 +46,14 @@ type Order struct {
 	ExpiredAt      *time.Time       `json:"expired_at"`
 	CanceledAt     *time.Time       `json:"canceled_at"`
 	FailedAt       *time.Time       `json:"failed_at"`
+	ReplacedAt     *time.Time       `json:"replaced_at"`
+	Replaces       *string          `json:"replaces"`
 	AssetID        string           `json:"asset_id"`
 	Symbol         string           `json:"symbol"`
 	Exchange       string           `json:"exchange"`
 	Class          string           `json:"asset_class"`
 	Qty            decimal.Decimal  `json:"qty"`
+	FilledQty      decimal.Decimal  `json:"filled_qty"`
 	Type           OrderType        `json:"order_type"`
 	Side           Side             `json:"side"`
 	TimeInForce    TimeInForce      `json:"time_in_force"`
@@ -42,6 +61,8 @@ type Order struct {
 	FilledAvgPrice *decimal.Decimal `json:"filled_avg_price"`
 	StopPrice      *decimal.Decimal `json:"stop_price"`
 	Status         string           `json:"status"`
+	ExtendedHours  bool             `json:"extended_hours"`
+	Legs           *[]Order         `json:"legs"`
 }
 
 type Position struct {
@@ -63,13 +84,16 @@ type Position struct {
 }
 
 type Asset struct {
-	ID       string `json:"id"`
-	Name     string `json:"name"`
-	Exchange string `json:"exchange"`
-	Class    string `json:"asset_class"`
-	Symbol   string `json:"symbol"`
-	Status   string `json:"status"`
-	Tradable bool   `json:"tradable"`
+	ID           string `json:"id"`
+	Name         string `json:"name"`
+	Exchange     string `json:"exchange"`
+	Class        string `json:"asset_class"`
+	Symbol       string `json:"symbol"`
+	Status       string `json:"status"`
+	Tradable     bool   `json:"tradable"`
+	Marginable   bool   `json:"marginable"`
+	Shortable    bool   `json:"shortable"`
+	EasyToBorrow bool   `json:"easy_to_borrow"`
 }
 
 type Fundamental struct {
@@ -139,6 +163,39 @@ type Clock struct {
 	NextClose time.Time `json:"next_close"`
 }
 
+type AccountConfigurations struct {
+	DtbpCheck            DtbpCheck         `json:"dtbp_check"`
+	NoShorting           bool              `json:"no_shorting"`
+	TradeConfirmEmail    TradeConfirmEmail `json:"trade_confirm_email"`
+	TradeSuspendedByUser bool              `json:"trade_suspended_by_user"`
+}
+
+type AccountActvity struct {
+	ID              string          `json:"id"`
+	ActivityType    string          `json:"activity_type"`
+	TransactionTime time.Time       `json:"transaction_time"`
+	Type            string          `json:"type"`
+	Price           decimal.Decimal `json:"price"`
+	Qty             decimal.Decimal `json:"qty"`
+	Side            string          `json:"side"`
+	Symbol          string          `json:"symbol"`
+	LeavesQty       decimal.Decimal `json:"leaves_qty"`
+	CumQty          decimal.Decimal `json:"cum_qty"`
+	Date            time.Time       `json:"date"`
+	NetAmount       decimal.Decimal `json:"net_amount"`
+	Description     string          `json:"description"`
+	PerShareAmount  decimal.Decimal `json:"per_share_amount"`
+}
+
+type PortfolioHistory struct {
+	BaseValue     decimal.Decimal   `json:"base_value"`
+	Equity        []decimal.Decimal `json:"equity"`
+	ProfitLoss    []decimal.Decimal `json:"profit_loss"`
+	ProfitLossPct []decimal.Decimal `json:"profit_loss_pct"`
+	Timeframe     RangeFreq         `json:"timeframe"`
+	Timestamp     []int64           `json:"timestamp"`
+}
+
 type PlaceOrderRequest struct {
 	AccountID     string           `json:"-"`
 	AssetKey      *string          `json:"symbol"`
@@ -149,6 +206,48 @@ type PlaceOrderRequest struct {
 	LimitPrice    *decimal.Decimal `json:"limit_price"`
 	StopPrice     *decimal.Decimal `json:"stop_price"`
 	ClientOrderID string           `json:"client_order_id"`
+	OrderClass    OrderClass       `json:"order_class"`
+	TakeProfit    *TakeProfit      `json:"take_profit"`
+	StopLoss      *StopLoss        `json:"stop_loss"`
+}
+
+type TakeProfit struct {
+	LimitPrice *decimal.Decimal `json:"limit_price"`
+}
+
+type StopLoss struct {
+	LimitPrice *decimal.Decimal `json:"limit_price"`
+	StopPrice  *decimal.Decimal `json:"stop_price"`
+}
+
+type OrderAttributes struct {
+	TakeProfitLimitPrice *decimal.Decimal `json:"take_profit_limit_price,omitempty"`
+	StopLossStopPrice    *decimal.Decimal `json:"stop_loss_stop_price,omitempty"`
+	StopLossLimitPrice   *decimal.Decimal `json:"stop_loss_limit_price,omitempty"`
+}
+
+type ReplaceOrderRequest struct {
+	Qty           *decimal.Decimal `json:"qty"`
+	LimitPrice    *decimal.Decimal `json:"limit_price"`
+	StopPrice     *decimal.Decimal `json:"stop_price"`
+	TimeInForce   TimeInForce      `json:"time_in_force"`
+	ClientOrderID string           `json:"client_order_id"`
+}
+
+type AccountConfigurationsRequest struct {
+	DtbpCheck            *string `json:"dtbp_check"`
+	NoShorting           *bool   `json:"no_shorting"`
+	TradeConfirmEmail    *string `json:"trade_confirm_email"`
+	TradeSuspendedByUser *bool   `json:"trade_suspended_by_user"`
+}
+
+type AccountActivitiesRequest struct {
+	ActivityTypes *[]string  `json:"activity_types"`
+	Date          *time.Time `json:"date"`
+	Until         *time.Time `json:"until"`
+	After         *time.Time `json:"after"`
+	Direction     *string    `json:"direction"`
+	PageSize      *int       `json:"page_size"`
 }
 
 type Side string
@@ -169,6 +268,13 @@ const (
 	LimitOnClose  OrderType = "limit_on_close"
 )
 
+type OrderClass string
+
+const (
+	Bracket OrderClass = "bracket"
+	Simple  OrderClass = "simple"
+)
+
 type TimeInForce string
 
 const (
@@ -179,6 +285,32 @@ const (
 	FOK TimeInForce = "fok"
 	GTX TimeInForce = "gtx"
 	GTD TimeInForce = "gtd"
+	CLS TimeInForce = "cls"
+)
+
+type DtbpCheck string
+
+const (
+	Entry DtbpCheck = "entry"
+	Exit  DtbpCheck = "exit"
+	Both  DtbpCheck = "both"
+)
+
+type TradeConfirmEmail string
+
+const (
+	None TradeConfirmEmail = "none"
+	All  TradeConfirmEmail = "all"
+)
+
+type RangeFreq string
+
+const (
+	Min1  RangeFreq = "1Min"
+	Min5  RangeFreq = "5Min"
+	Min15 RangeFreq = "15Min"
+	Hour1 RangeFreq = "1H"
+	Day1  RangeFreq = "1D"
 )
 
 // stream
@@ -194,4 +326,9 @@ type ClientMsg struct {
 type ServerMsg struct {
 	Stream string      `json:"stream" msgpack:"stream"`
 	Data   interface{} `json:"data"`
+}
+
+type TradeUpdate struct {
+	Event string `json:"event"`
+	Order Order  `json:"order"`
 }

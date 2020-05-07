@@ -1,6 +1,7 @@
 package alpaca
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/url"
@@ -16,6 +17,10 @@ import (
 const (
 	TradeUpdates   = "trade_updates"
 	AccountUpdates = "account_updates"
+)
+
+const (
+	MaxConnectionAttempts = 3
 )
 
 var (
@@ -52,6 +57,7 @@ func (s *Stream) Subscribe(channel string, handler func(msg interface{})) (err e
 		s.handlers.Store(channel, handler)
 
 		if err = s.sub(channel); err != nil {
+			s.handlers.Delete(channel)
 			return
 		}
 	default:
@@ -82,14 +88,36 @@ func (s *Stream) Close() error {
 	return s.conn.Close()
 }
 
+func (s *Stream) reconnect() {
+	s.authenticated.Store(false)
+	s.conn = openSocket()
+	if err := s.auth(); err != nil {
+		return
+	}
+	s.handlers.Range(func(key, value interface{}) bool {
+		// there should be no errors if we've previously successfully connected
+		s.sub(key.(string))
+		return true
+	})
+}
+
 func (s *Stream) start() {
 	for {
 		msg := ServerMsg{}
 
 		if err := s.conn.ReadJSON(&msg); err == nil {
 			if v, ok := s.handlers.Load(msg.Stream); ok {
-				h := v.(func(msg interface{}))
-				h(msg.Data)
+				switch msg.Stream {
+				case TradeUpdates:
+					bytes, _ := json.Marshal(msg.Data)
+					var tradeupdate TradeUpdate
+					json.Unmarshal(bytes, &tradeupdate)
+					h := v.(func(msg interface{}))
+					h(tradeupdate)
+				default:
+					h := v.(func(msg interface{}))
+					h(msg.Data)
+				}
 			}
 		} else {
 			if websocket.IsCloseError(err) {
@@ -101,7 +129,7 @@ func (s *Stream) start() {
 				log.Printf("alpaca stream read error (%v)", err)
 			}
 
-			s.conn = openSocket()
+			s.reconnect()
 		}
 	}
 }
@@ -166,6 +194,8 @@ func (s *Stream) auth() (err error) {
 		return fmt.Errorf("failed to authorize alpaca stream")
 	}
 
+	s.authenticated.Store(true)
+
 	return
 }
 
@@ -191,9 +221,17 @@ func openSocket() *websocket.Conn {
 		scheme = "ws"
 	}
 	u := url.URL{Scheme: scheme, Host: ub.Host, Path: "/stream"}
-	c, _, err := websocket.DefaultDialer.Dial(u.String(), nil)
-	if err != nil {
-		panic(err)
+	connectionAttempts := 0
+	for connectionAttempts < MaxConnectionAttempts {
+		connectionAttempts++
+		c, _, err := websocket.DefaultDialer.Dial(u.String(), nil)
+		if err == nil {
+			return c
+		}
+		if connectionAttempts == MaxConnectionAttempts {
+			panic(err)
+		}
+		time.Sleep(1 * time.Second)
 	}
-	return c
+	panic(fmt.Errorf("Error: Could not open Alpaca stream (max retries exceeded)."))
 }

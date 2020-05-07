@@ -19,11 +19,16 @@ var (
 	// DefaultClient is the default Alpaca client using the
 	// environment variable set credentials
 	DefaultClient = NewClient(common.Credentials())
-	base          = "https://api.alpaca.markets/"
-	dataUrl       = "https://data.alpaca.markets/"
+	base          = "https://api.alpaca.markets"
+	dataUrl       = "https://data.alpaca.markets"
+	apiVersion    = "v2"
 	do            = func(c *Client, req *http.Request) (*http.Response, error) {
-		req.Header.Set("APCA-API-KEY-ID", c.credentials.ID)
-		req.Header.Set("APCA-API-SECRET-KEY", c.credentials.Secret)
+		if c.credentials.OAuth != "" {
+			req.Header.Set("Authorization", "Bearer "+c.credentials.OAuth)
+		} else {
+			req.Header.Set("APCA-API-KEY-ID", c.credentials.ID)
+			req.Header.Set("APCA-API-SECRET-KEY", c.credentials.Secret)
+		}
 
 		resp, err := http.DefaultClient.Do(req)
 		if err != nil {
@@ -44,6 +49,9 @@ func init() {
 	} else if s := os.Getenv("ALPACA_BASE_URL"); s != "" {
 		// legacy compatibility...
 		base = s
+	}
+	if s := os.Getenv("APCA_API_VERSION"); s != "" {
+		apiVersion = s
 	}
 }
 
@@ -75,7 +83,7 @@ func NewClient(credentials *common.APIKey) *Client {
 
 // GetAccount returns the user's account information.
 func (c *Client) GetAccount() (*Account, error) {
-	u, err := url.Parse(fmt.Sprintf("%s/v1/account", base))
+	u, err := url.Parse(fmt.Sprintf("%s/%s/account", base, apiVersion))
 	if err != nil {
 		return nil, err
 	}
@@ -94,9 +102,141 @@ func (c *Client) GetAccount() (*Account, error) {
 	return account, nil
 }
 
+// GetConfigs returns the current account configurations
+func (c *Client) GetAccountConfigurations() (*AccountConfigurations, error) {
+	u, err := url.Parse(fmt.Sprintf("%s/%s/account/configurations", base, apiVersion))
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := c.get(u)
+	if err != nil {
+		return nil, err
+	}
+
+	configs := &AccountConfigurations{}
+
+	if err = unmarshal(resp, configs); err != nil {
+		return nil, err
+	}
+
+	return configs, nil
+}
+
+// EditConfigs patches the account configs
+func (c *Client) UpdateAccountConfigurations(newConfigs AccountConfigurationsRequest) (*AccountConfigurations, error) {
+	u, err := url.Parse(fmt.Sprintf("%s/%s/account/configurations", base, apiVersion))
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := c.patch(u, newConfigs)
+	if err != nil {
+		return nil, err
+	}
+
+	configs := &AccountConfigurations{}
+
+	if err = unmarshal(resp, configs); err != nil {
+		return nil, err
+	}
+
+	return configs, nil
+}
+
+func (c *Client) GetAccountActivities(activityType *string, opts *AccountActivitiesRequest) ([]AccountActvity, error) {
+	var u *url.URL
+	var err error
+	if activityType == nil {
+		u, err = url.Parse(fmt.Sprintf("%s/%s/account/activities", base, apiVersion))
+	} else {
+		u, err = url.Parse(fmt.Sprintf("%s/%s/account/activities/%s", base, apiVersion, *activityType))
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	q := u.Query()
+	if opts != nil {
+		if opts.ActivityTypes != nil {
+			q.Set("activity_types", strings.Join(*opts.ActivityTypes, ","))
+		}
+		if opts.Date != nil {
+			q.Set("date", opts.Date.String())
+		}
+		if opts.Until != nil {
+			q.Set("until", opts.Until.String())
+		}
+		if opts.After != nil {
+			q.Set("after", opts.After.String())
+		}
+		if opts.Direction != nil {
+			q.Set("direction", *opts.Direction)
+		}
+		if opts.PageSize != nil {
+			q.Set("page_size", string(*opts.PageSize))
+		}
+	}
+
+	u.RawQuery = q.Encode()
+
+	resp, err := c.get(u)
+	if err != nil {
+		return nil, err
+	}
+
+	activities := []AccountActvity{}
+
+	if err = unmarshal(resp, &activities); err != nil {
+		return nil, err
+	}
+	return activities, nil
+}
+
+func (c *Client) GetPortfolioHistory(period *string, timeframe *RangeFreq, dateEnd *time.Time, extendedHours bool) (*PortfolioHistory, error) {
+	u, err := url.Parse(fmt.Sprintf("%s/%s/account/portfolio/history", base, apiVersion))
+
+	if err != nil {
+		return nil, err
+	}
+
+	query := u.Query()
+
+	if period != nil {
+		query.Set("period", *period)
+	}
+
+	if timeframe != nil {
+		query.Set("timeframe", string(*timeframe))
+	}
+
+	if dateEnd != nil {
+		query.Set("date_end", dateEnd.Format("2006-01-02"))
+	}
+
+	query.Set("extended_hours", strconv.FormatBool(extendedHours))
+
+	// update the rawquery with the encoded params
+	u.RawQuery = query.Encode()
+
+	resp, err := c.get(u)
+
+	if err != nil {
+		return nil, err
+	}
+
+	var history PortfolioHistory
+
+	if err = unmarshal(resp, &history); err != nil {
+		return nil, err
+	}
+
+	return &history, nil
+}
+
 // ListPositions lists the account's open positions.
 func (c *Client) ListPositions() ([]Position, error) {
-	u, err := url.Parse(fmt.Sprintf("%s/v1/positions", base))
+	u, err := url.Parse(fmt.Sprintf("%s/%s/positions", base, apiVersion))
 	if err != nil {
 		return nil, err
 	}
@@ -115,10 +255,9 @@ func (c *Client) ListPositions() ([]Position, error) {
 	return positions, nil
 }
 
-// GetPosition returns the account's position for the
-// provided symbol.
+// GetPosition returns the account's position for the provided symbol.
 func (c *Client) GetPosition(symbol string) (*Position, error) {
-	u, err := url.Parse(fmt.Sprintf("%s/v1/positions/%s", base, symbol))
+	u, err := url.Parse(fmt.Sprintf("%s/%s/positions/%s", base, apiVersion, symbol))
 	if err != nil {
 		return nil, err
 	}
@@ -143,9 +282,39 @@ func (c *Client) GetPosition(symbol string) (*Position, error) {
 	return position, nil
 }
 
+// CloseAllPositions liquidates all open positions at market price.
+func (c *Client) CloseAllPositions() error {
+	u, err := url.Parse(fmt.Sprintf("%s/%s/positions", base, apiVersion))
+	if err != nil {
+		return err
+	}
+
+	resp, err := c.delete(u)
+	if err != nil {
+		return err
+	}
+
+	return verify(resp)
+}
+
+// ClosePosition liquidates the position for the given symbol at market price.
+func (c *Client) ClosePosition(symbol string) error {
+	u, err := url.Parse(fmt.Sprintf("%s/%s/positions/%s", base, apiVersion, symbol))
+	if err != nil {
+		return err
+	}
+
+	resp, err := c.delete(u)
+	if err != nil {
+		return err
+	}
+
+	return verify(resp)
+}
+
 // GetClock returns the current market clock.
 func (c *Client) GetClock() (*Clock, error) {
-	u, err := url.Parse(fmt.Sprintf("%s/v1/clock", base))
+	u, err := url.Parse(fmt.Sprintf("%s/%s/clock", base, apiVersion))
 	if err != nil {
 		return nil, err
 	}
@@ -167,7 +336,7 @@ func (c *Client) GetClock() (*Clock, error) {
 // GetCalendar returns the market calendar, sliced by the start
 // and end dates.
 func (c *Client) GetCalendar(start, end *string) ([]CalendarDay, error) {
-	u, err := url.Parse(fmt.Sprintf("%s/v1/calendar", base))
+	u, err := url.Parse(fmt.Sprintf("%s/%s/calendar", base, apiVersion))
 	if err != nil {
 		return nil, err
 	}
@@ -200,8 +369,12 @@ func (c *Client) GetCalendar(start, end *string) ([]CalendarDay, error) {
 
 // ListOrders returns the list of orders for an account,
 // filtered by the input parameters.
-func (c *Client) ListOrders(status *string, until *time.Time, limit *int) ([]Order, error) {
-	u, err := url.Parse(fmt.Sprintf("%s/v1/orders", base))
+func (c *Client) ListOrders(status *string, until *time.Time, limit *int, nested *bool) ([]Order, error) {
+	urlString := fmt.Sprintf("%s/%s/orders", base, apiVersion)
+	if nested != nil {
+		urlString += fmt.Sprintf("?nested=%v", *nested)
+	}
+	u, err := url.Parse(urlString)
 	if err != nil {
 		return nil, err
 	}
@@ -238,7 +411,7 @@ func (c *Client) ListOrders(status *string, until *time.Time, limit *int) ([]Ord
 
 // PlaceOrder submits an order request to buy or sell an asset.
 func (c *Client) PlaceOrder(req PlaceOrderRequest) (*Order, error) {
-	u, err := url.Parse(fmt.Sprintf("%s/v1/orders", base))
+	u, err := url.Parse(fmt.Sprintf("%s/%s/orders", base, apiVersion))
 	if err != nil {
 		return nil, err
 	}
@@ -259,7 +432,7 @@ func (c *Client) PlaceOrder(req PlaceOrderRequest) (*Order, error) {
 
 // GetOrder submits a request to get an order by the order ID.
 func (c *Client) GetOrder(orderID string) (*Order, error) {
-	u, err := url.Parse(fmt.Sprintf("%s/v1/orders/%s", base, orderID))
+	u, err := url.Parse(fmt.Sprintf("%s/%s/orders/%s", base, apiVersion, orderID))
 	if err != nil {
 		return nil, err
 	}
@@ -278,9 +451,45 @@ func (c *Client) GetOrder(orderID string) (*Order, error) {
 	return order, nil
 }
 
+// ReplaceOrder submits a request to replace an order by id
+func (c *Client) ReplaceOrder(orderID string, req ReplaceOrderRequest) (*Order, error) {
+	u, err := url.Parse(fmt.Sprintf("%s/%s/orders/%s", base, apiVersion, orderID))
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := c.patch(u, req)
+	if err != nil {
+		return nil, err
+	}
+
+	order := &Order{}
+
+	if err = unmarshal(resp, order); err != nil {
+		return nil, err
+	}
+
+	return order, nil
+}
+
 // CancelOrder submits a request to cancel an open order.
 func (c *Client) CancelOrder(orderID string) error {
-	u, err := url.Parse(fmt.Sprintf("%s/v1/orders/%s", base, orderID))
+	u, err := url.Parse(fmt.Sprintf("%s/%s/orders/%s", base, apiVersion, orderID))
+	if err != nil {
+		return err
+	}
+
+	resp, err := c.delete(u)
+	if err != nil {
+		return err
+	}
+
+	return verify(resp)
+}
+
+// CancelAllOrders submits a request to cancel an open order.
+func (c *Client) CancelAllOrders() error {
+	u, err := url.Parse(fmt.Sprintf("%s/%s/orders", base, apiVersion))
 	if err != nil {
 		return err
 	}
@@ -297,7 +506,7 @@ func (c *Client) CancelOrder(orderID string) error {
 // the input parameters.
 func (c *Client) ListAssets(status *string) ([]Asset, error) {
 	// TODO: support different asset classes
-	u, err := url.Parse(fmt.Sprintf("%v/v1/assets", base))
+	u, err := url.Parse(fmt.Sprintf("%s/%s/assets", base, apiVersion))
 	if err != nil {
 		return nil, err
 	}
@@ -326,7 +535,7 @@ func (c *Client) ListAssets(status *string) ([]Asset, error) {
 
 // GetAsset returns an asset for the given symbol.
 func (c *Client) GetAsset(symbol string) (*Asset, error) {
-	u, err := url.Parse(fmt.Sprintf("%v/v1/assets/%v", base, symbol))
+	u, err := url.Parse(fmt.Sprintf("%s/%s/assets/%v", base, apiVersion, symbol))
 	if err != nil {
 		return nil, err
 	}
@@ -351,6 +560,10 @@ func (c *Client) ListBars(symbols []string, opts ListBarParams) (map[string][]Ba
 	vals := url.Values{}
 	vals.Add("symbols", strings.Join(symbols, ","))
 
+	if opts.Timeframe == "" {
+		return nil, fmt.Errorf("timeframe is required for the bars endpoint")
+	}
+
 	if opts.StartDt != nil {
 		vals.Set("start_dt", opts.StartDt.Format(time.RFC3339))
 	}
@@ -363,7 +576,7 @@ func (c *Client) ListBars(symbols []string, opts ListBarParams) (map[string][]Ba
 		vals.Set("limit", strconv.FormatInt(int64(*opts.Limit), 10))
 	}
 
-	u, err := url.Parse(fmt.Sprintf("%s/v1/bars/%s?%v", dataUrl, opts.Timeframe, vals.Encode()))
+	u, err := url.Parse(fmt.Sprintf("%sv1/bars/%s?%v", dataUrl, opts.Timeframe, vals.Encode()))
 	if err != nil {
 		return nil, err
 	}
@@ -386,7 +599,7 @@ func (c *Client) ListBars(symbols []string, opts ListBarParams) (map[string][]Ba
 func (c *Client) GetSymbolBars(symbol string, opts ListBarParams) ([]Bar, error) {
 	symbolList := []string{symbol}
 
-	barsMap, err := ListBars(symbolList, opts)
+	barsMap, err := c.ListBars(symbolList, opts)
 	if err != nil {
 		return nil, err
 	}
@@ -394,56 +607,30 @@ func (c *Client) GetSymbolBars(symbol string, opts ListBarParams) ([]Bar, error)
 	return barsMap[symbol], nil
 }
 
-// ListQuotes returns a list of quotes corresponding to the
-// provided list of symbols.
-func (c *Client) ListQuotes(symbols []string) ([]Quote, error) {
-	vals := url.Values{}
-	vals.Add("symbols", strings.Join(symbols, ","))
-
-	u, err := url.Parse(fmt.Sprintf("%v/v1/quotes?%v", base, vals.Encode()))
-	if err != nil {
-		return nil, err
-	}
-
-	resp, err := c.get(u)
-	if err != nil {
-		return nil, err
-	}
-
-	quotes := []Quote{}
-
-	if err = unmarshal(resp, &quotes); err != nil {
-		return nil, err
-	}
-
-	return quotes, nil
-}
-
-// GetQuote returns a quote corresponding to the provided symbol.
-func (c *Client) GetQuote(symbol string) (*Quote, error) {
-	u, err := url.Parse(fmt.Sprintf("%v/v1/assets/%s/quote", base, symbol))
-	if err != nil {
-		return nil, err
-	}
-
-	resp, err := c.get(u)
-	if err != nil {
-		return nil, err
-	}
-
-	quote := &Quote{}
-
-	if err = unmarshal(resp, quote); err != nil {
-		return nil, err
-	}
-
-	return quote, nil
-}
-
 // GetAccount returns the user's account information
 // using the default Alpaca client.
 func GetAccount() (*Account, error) {
 	return DefaultClient.GetAccount()
+}
+
+// GetAccountConfigurations returns the account configs
+// using the default Alpaca client.
+func GetAccountConfigurations() (*AccountConfigurations, error) {
+	return DefaultClient.GetAccountConfigurations()
+}
+
+// UpdateAccountConfigurations changes the account configs and returns the
+// new configs using the default Alpaca client
+func UpdateAccountConfigurations(newConfigs AccountConfigurationsRequest) (*AccountConfigurations, error) {
+	return DefaultClient.UpdateAccountConfigurations(newConfigs)
+}
+
+func GetAccountActivities(activityType *string, opts *AccountActivitiesRequest) ([]AccountActvity, error) {
+	return DefaultClient.GetAccountActivities(activityType, opts)
+}
+
+func GetPortfolioHistory(period *string, timeframe *RangeFreq, dateEnd *time.Time, extendedHours bool) (*PortfolioHistory, error) {
+	return DefaultClient.GetPortfolioHistory(period, timeframe, dateEnd, extendedHours)
 }
 
 // ListPositions lists the account's open positions
@@ -473,8 +660,8 @@ func GetCalendar(start, end *string) ([]CalendarDay, error) {
 // ListOrders returns the list of orders for an account,
 // filtered by the input parameters using the default
 // Alpaca client.
-func ListOrders(status *string, until *time.Time, limit *int) ([]Order, error) {
-	return DefaultClient.ListOrders(status, until, limit)
+func ListOrders(status *string, until *time.Time, limit *int, nested *bool) ([]Order, error) {
+	return DefaultClient.ListOrders(status, until, limit, nested)
 }
 
 // PlaceOrder submits an order request to buy or sell an asset
@@ -487,6 +674,12 @@ func PlaceOrder(req PlaceOrderRequest) (*Order, error) {
 // `orderID` using the default Alpaca client.
 func GetOrder(orderID string) (*Order, error) {
 	return DefaultClient.GetOrder(orderID)
+}
+
+// ReplaceOrder changes an order by order id
+// using the default Alpaca client.
+func ReplaceOrder(orderID string, req ReplaceOrderRequest) (*Order, error) {
+	return DefaultClient.ReplaceOrder(orderID, req)
 }
 
 // CancelOrder submits a request to cancel an open order with
@@ -521,18 +714,6 @@ func GetSymbolBars(symbol string, opts ListBarParams) ([]Bar, error) {
 	return DefaultClient.GetSymbolBars(symbol, opts)
 }
 
-// ListQuotes returns a list of quotes corresponding to the
-// provided list of symbols with the default Alpaca client.
-func ListQuotes(symbols []string) ([]Quote, error) {
-	return DefaultClient.ListQuotes(symbols)
-}
-
-// GetQuote returns a quote corresponding to the provided symbol
-// with the default Alpaca client.
-func GetQuote(symbol string) (*Quote, error) {
-	return DefaultClient.GetQuote(symbol)
-}
-
 func (c *Client) get(u *url.URL) (*http.Response, error) {
 	req, err := http.NewRequest(http.MethodGet, u.String(), nil)
 	if err != nil {
@@ -555,6 +736,21 @@ func (c *Client) post(u *url.URL, data interface{}) (*http.Response, error) {
 
 	return do(c, req)
 }
+
+func (c *Client) patch(u *url.URL, data interface{}) (*http.Response, error) {
+	buf, err := json.Marshal(data)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPatch, u.String(), bytes.NewReader(buf))
+	if err != nil {
+		return nil, err
+	}
+
+	return do(c, req)
+}
+
 func (c *Client) delete(u *url.URL) (*http.Response, error) {
 	req, err := http.NewRequest(http.MethodDelete, u.String(), nil)
 	if err != nil {

@@ -1,6 +1,7 @@
 package polygon
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -16,8 +17,11 @@ import (
 
 const (
 	aggURL      = "%v/v1/historic/agg/%v/%v"
+	aggv2URL    = "%v/v2/aggs/ticker/%v/range/%v/%v/%v/%v"
 	tradesURL   = "%v/v1/historic/trades/%v/%v"
+	tradesv2URL = "%v/v2/ticks/stocks/trades/%v/%v"
 	quotesURL   = "%v/v1/historic/quotes/%v/%v"
+	quotesv2URL = "%v/v2/ticks/stocks/nbbo/%v/%v"
 	exchangeURL = "%v/v1/meta/exchanges"
 )
 
@@ -37,6 +41,17 @@ func init() {
 	}
 }
 
+// APIError wraps the detailed code and message supplied
+// by Polygon's API for debugging purposes
+type APIError struct {
+	Code    string `json:"code"`
+	Message string `json:"message"`
+}
+
+func (e *APIError) Error() string {
+	return e.Message
+}
+
 // Client is a Polygon REST API client
 type Client struct {
 	credentials *common.APIKey
@@ -48,7 +63,7 @@ func NewClient(credentials *common.APIKey) *Client {
 	return &Client{credentials: credentials}
 }
 
-// GetHistoricAggregates requests polygon's REST API for historic aggregates
+// GetHistoricAggregates requests Polygon's v1 REST API for historic aggregates
 // for the provided resolution based on the provided query parameters.
 func (c *Client) GetHistoricAggregates(
 	symbol string,
@@ -62,7 +77,7 @@ func (c *Client) GetHistoricAggregates(
 	}
 
 	q := u.Query()
-	q.Set("apiKey", c.credentials.ID)
+	q.Set("apiKey", c.credentials.PolygonKeyID)
 
 	if from != nil {
 		q.Set("from", from.Format(time.RFC3339))
@@ -96,10 +111,65 @@ func (c *Client) GetHistoricAggregates(
 	return agg, nil
 }
 
+// GetHistoricAggregates requests Polygon's v2 REST API for historic aggregates
+// for the provided resolution based on the provided query parameters.
+func (c *Client) GetHistoricAggregatesV2(
+	symbol string,
+	multiplier int,
+	resolution AggType,
+	from, to *time.Time,
+	unadjusted *bool) (*HistoricAggregatesV2, error) {
+
+	u, err := url.Parse(fmt.Sprintf(aggv2URL, base, symbol, multiplier, resolution, from.Unix()*1000, to.Unix()*1000))
+	if err != nil {
+		return nil, err
+	}
+
+	q := u.Query()
+	q.Set("apiKey", c.credentials.PolygonKeyID)
+
+	if unadjusted != nil {
+		q.Set("unadjusted", strconv.FormatBool(*unadjusted))
+	}
+
+	u.RawQuery = q.Encode()
+
+	resp, err := get(u)
+	if err != nil {
+		return nil, err
+	}
+
+	if resp.StatusCode >= http.StatusMultipleChoices {
+		return nil, fmt.Errorf("status code %v", resp.StatusCode)
+	}
+
+	agg := &HistoricAggregatesV2{}
+
+	if err = unmarshal(resp, agg); err != nil {
+		return nil, err
+	}
+
+	return agg, nil
+}
+
 // GetHistoricTrades requests polygon's REST API for historic trades
-// on the provided date .
-func (c *Client) GetHistoricTrades(symbol, date string) (totalTrades *HistoricTrades, err error) {
+// on the provided date.
+//
+// Deprecated: This v1 endpoint should no longer be used, as it will be removed from the Polygon API
+// in the future. Please use GetHistoricTradesV2 instead.
+func (c *Client) GetHistoricTrades(
+	symbol string,
+	date string,
+	opts *GetHistoricTradesParams) (totalTrades *HistoricTrades, err error) {
+
 	offset := int64(0)
+	limit := int64(10000)
+	if opts != nil {
+		offset = opts.Offset
+		if opts.Limit != 0 {
+			limit = opts.Limit
+		}
+	}
 	for {
 		u, err := url.Parse(fmt.Sprintf(tradesURL, base, symbol, date))
 		if err != nil {
@@ -107,8 +177,8 @@ func (c *Client) GetHistoricTrades(symbol, date string) (totalTrades *HistoricTr
 		}
 
 		q := u.Query()
-		q.Set("apiKey", c.credentials.ID)
-		q.Set("limit", strconv.FormatInt(10000, 10))
+		q.Set("apiKey", c.credentials.PolygonKeyID)
+		q.Set("limit", strconv.FormatInt(limit, 10))
 
 		if offset > 0 {
 			q.Set("offset", strconv.FormatInt(offset, 10))
@@ -151,8 +221,37 @@ func (c *Client) GetHistoricTrades(symbol, date string) (totalTrades *HistoricTr
 	return totalTrades, nil
 }
 
+// GetHistoricTradesV2 requests polygon's REST API for historic trades
+// on the provided date.
+func (c *Client) GetHistoricTradesV2(ticker string, date string, opts *HistoricTicksV2Params) (*HistoricTradesV2, error) {
+	u, err := url.Parse(fmt.Sprintf(tradesv2URL, base, ticker, date))
+	if err != nil {
+		return nil, err
+	}
+
+	q := u.Query()
+	q.Set("apiKey", c.credentials.PolygonKeyID)
+	u.RawQuery = q.Encode()
+
+	resp, err := c.get(u, opts)
+	if err != nil {
+		return nil, err
+	}
+
+	trades := &HistoricTradesV2{}
+
+	if err = unmarshal(resp, trades); err != nil {
+		return nil, err
+	}
+
+	return trades, nil
+}
+
 // GetHistoricQuotes requests polygon's REST API for historic quotes
 // on the provided date.
+//
+// Deprecated: This v1 endpoint should no longer be used, as it will be removed from the Polygon API
+// in the future. Please use GetHistoricQuotesV2 instead.
 func (c *Client) GetHistoricQuotes(symbol, date string) (totalQuotes *HistoricQuotes, err error) {
 	offset := int64(0)
 	for {
@@ -162,7 +261,7 @@ func (c *Client) GetHistoricQuotes(symbol, date string) (totalQuotes *HistoricQu
 		}
 
 		q := u.Query()
-		q.Set("apiKey", c.credentials.ID)
+		q.Set("apiKey", c.credentials.PolygonKeyID)
 		q.Set("limit", strconv.FormatInt(10000, 10))
 
 		if offset > 0 {
@@ -206,6 +305,32 @@ func (c *Client) GetHistoricQuotes(symbol, date string) (totalQuotes *HistoricQu
 	return totalQuotes, nil
 }
 
+// GetHistoricQuotesV2 requests polygon's REST API for historic trades
+// on the provided date.
+func (c *Client) GetHistoricQuotesV2(ticker string, date string, opts *HistoricTicksV2Params) (*HistoricQuotesV2, error) {
+	u, err := url.Parse(fmt.Sprintf(quotesv2URL, base, ticker, date))
+	if err != nil {
+		return nil, err
+	}
+
+	q := u.Query()
+	q.Set("apiKey", c.credentials.PolygonKeyID)
+	u.RawQuery = q.Encode()
+
+	resp, err := c.get(u, opts)
+	if err != nil {
+		return nil, err
+	}
+
+	quotes := &HistoricQuotesV2{}
+
+	if err = unmarshal(resp, quotes); err != nil {
+		return nil, err
+	}
+
+	return quotes, nil
+}
+
 // GetStockExchanges requests available stock and equity exchanges on polygon.io
 func (c *Client) GetStockExchanges() ([]StockExchange, error) {
 	u, err := url.Parse(fmt.Sprintf(exchangeURL, base))
@@ -214,7 +339,7 @@ func (c *Client) GetStockExchanges() ([]StockExchange, error) {
 	}
 
 	q := u.Query()
-	q.Set("apiKey", c.credentials.ID)
+	q.Set("apiKey", c.credentials.PolygonKeyID)
 
 	u.RawQuery = q.Encode()
 
@@ -249,8 +374,11 @@ func GetHistoricAggregates(
 
 // GetHistoricTrades requests polygon's REST API for historic trades
 // on the provided date using the default Polygon client.
-func GetHistoricTrades(symbol, date string) (totalTrades *HistoricTrades, err error) {
-	return DefaultClient.GetHistoricTrades(symbol, date)
+func GetHistoricTrades(
+	symbol string,
+	date string,
+	opts *GetHistoricTradesParams) (totalTrades *HistoricTrades, err error) {
+	return DefaultClient.GetHistoricTrades(symbol, date, opts)
 }
 
 // GetHistoricQuotes requests polygon's REST API for historic quotes
@@ -274,4 +402,50 @@ func unmarshal(resp *http.Response, data interface{}) error {
 	}
 
 	return json.Unmarshal(body, data)
+}
+
+func verify(resp *http.Response) (err error) {
+	if resp.StatusCode >= http.StatusMultipleChoices {
+		var body []byte
+		defer resp.Body.Close()
+
+		body, err = ioutil.ReadAll(resp.Body)
+		if err != nil {
+			return err
+		}
+		fmt.Println(string(body))
+
+		apiErr := APIError{}
+
+		err = json.Unmarshal(body, &apiErr)
+		if err == nil {
+			err = &apiErr
+		}
+	}
+
+	return
+}
+
+// Gets data with request body marshalling
+func (c *Client) get(u *url.URL, data interface{}) (*http.Response, error) {
+	buf, err := json.Marshal(data)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, u.String(), bytes.NewReader(buf))
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+
+	if err = verify(resp); err != nil {
+		return nil, err
+	}
+
+	return resp, nil
 }

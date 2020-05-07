@@ -10,12 +10,31 @@ import (
 	"time"
 
 	"github.com/shopspring/decimal"
-
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
 	"github.com/stretchr/testify/suite"
 )
+
+// Copied from Gobroker v4.9.162 to test API conversion to backend struct
+type CreateOrderRequest struct {
+	AccountID     string           `json:"-"`
+	ClientID      string           `json:"client_id"`
+	OrderClass    string           `json:"order_class"`
+	OrderID       *string          `json:"-"`
+	ClientOrderID string           `json:"client_order_id"`
+	AssetKey      string           `json:"symbol"`
+	AssetID       string           `json:"-"`
+	Qty           decimal.Decimal  `json:"qty"`
+	Side          string           `json:"side"`
+	Type          string           `json:"type"`
+	TimeInForce   string           `json:"time_in_force"`
+	LimitPrice    *decimal.Decimal `json:"limit_price"`
+	StopPrice     *decimal.Decimal `json:"stop_price"`
+	ExtendedHours bool             `json:"extended_hours"`
+	Source        *string          `json:"source"`
+	TakeProfit    *TakeProfit      `json:"take_profit"`
+	StopLoss      *StopLoss        `json:"stop_loss"`
+}
 
 type AlpacaTestSuite struct {
 	suite.Suite
@@ -160,7 +179,7 @@ func (s *AlpacaTestSuite) TestAlpaca() {
 		until := time.Now()
 		limit := 1
 
-		orders, err := ListOrders(&status, &until, &limit)
+		orders, err := ListOrders(&status, &until, &limit, nil)
 		assert.Nil(s.T(), err)
 		require.Len(s.T(), orders, 1)
 		assert.Equal(s.T(), "some_id", orders[0].ID)
@@ -170,7 +189,7 @@ func (s *AlpacaTestSuite) TestAlpaca() {
 			return &http.Response{}, fmt.Errorf("fail")
 		}
 
-		orders, err = ListOrders(&status, &until, &limit)
+		orders, err = ListOrders(&status, &until, &limit, nil)
 		assert.NotNil(s.T(), err)
 		assert.Nil(s.T(), orders)
 	}
@@ -383,55 +402,6 @@ func (s *AlpacaTestSuite) TestAlpaca() {
 		assert.Nil(s.T(), bars)
 	}
 
-	// list quotes
-	{
-		// successful
-		do = func(c *Client, req *http.Request) (*http.Response, error) {
-			quotes := []Quote{{AssetID: "some_id"}}
-			return &http.Response{
-				Body: genBody(quotes),
-			}, nil
-		}
-
-		quotes, err := ListQuotes([]string{"APCA"})
-		assert.Nil(s.T(), err)
-		require.Len(s.T(), quotes, 1)
-		assert.Equal(s.T(), "some_id", quotes[0].AssetID)
-
-		// api failure
-		do = func(c *Client, req *http.Request) (*http.Response, error) {
-			return &http.Response{}, fmt.Errorf("fail")
-		}
-
-		quotes, err = ListQuotes([]string{"APCA"})
-		assert.NotNil(s.T(), err)
-		assert.Nil(s.T(), quotes)
-	}
-
-	// get quote
-	{
-		// successful
-		do = func(c *Client, req *http.Request) (*http.Response, error) {
-			quote := Quote{AssetID: "some_id"}
-			return &http.Response{
-				Body: genBody(quote),
-			}, nil
-		}
-
-		quote, err := GetQuote("APCA")
-		assert.Nil(s.T(), err)
-		assert.NotNil(s.T(), quote)
-
-		// api failure
-		do = func(c *Client, req *http.Request) (*http.Response, error) {
-			return &http.Response{}, fmt.Errorf("fail")
-		}
-
-		quote, err = GetQuote("APCA")
-		assert.NotNil(s.T(), err)
-		assert.Nil(s.T(), quote)
-	}
-
 	// test verify
 	{
 		// 200
@@ -448,6 +418,47 @@ func (s *AlpacaTestSuite) TestAlpaca() {
 		}
 
 		assert.NotNil(s.T(), verify(resp))
+	}
+
+	// test OTOCO Orders
+	{
+		do = func(c *Client, req *http.Request) (*http.Response, error) {
+			or := CreateOrderRequest{}
+			if err := json.NewDecoder(req.Body).Decode(&or); err != nil {
+				return nil, err
+			}
+			return &http.Response{
+				Body: genBody(Order{
+					Qty:         or.Qty,
+					Side:        Side(or.Side),
+					TimeInForce: TimeInForce(or.TimeInForce),
+					Type:        OrderType(or.Type),
+					Class:       string(or.OrderClass),
+				}),
+			}, nil
+		}
+		tpp := decimal.NewFromFloat(271.)
+		spp := decimal.NewFromFloat(269.)
+		tp := &TakeProfit{LimitPrice: &tpp}
+		sl := &StopLoss{
+			LimitPrice: nil,
+			StopPrice:  &spp,
+		}
+		req := PlaceOrderRequest{
+			AccountID:   "some_id",
+			Qty:         decimal.New(1, 0),
+			Side:        Buy,
+			TimeInForce: GTC,
+			Type:        Limit,
+			OrderClass:  Bracket,
+			TakeProfit:  tp,
+			StopLoss:    sl,
+		}
+
+		order, err := PlaceOrder(req)
+		assert.Nil(s.T(), err)
+		assert.NotNil(s.T(), order)
+		assert.Equal(s.T(), "bracket", order.Class)
 	}
 }
 
