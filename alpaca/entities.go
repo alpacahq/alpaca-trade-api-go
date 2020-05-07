@@ -47,7 +47,7 @@ type Order struct {
 	CanceledAt     *time.Time       `json:"canceled_at"`
 	FailedAt       *time.Time       `json:"failed_at"`
 	ReplacedAt     *time.Time       `json:"replaced_at"`
-	Replaces       string           `json:"replaces"`
+	Replaces       *string          `json:"replaces"`
 	AssetID        string           `json:"asset_id"`
 	Symbol         string           `json:"symbol"`
 	Exchange       string           `json:"exchange"`
