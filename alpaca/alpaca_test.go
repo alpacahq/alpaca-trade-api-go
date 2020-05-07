@@ -5,7 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net/http"
+	"strings"
 	"testing"
 	"time"
 
@@ -96,6 +98,171 @@ func (s *AlpacaTestSuite) TestAlpaca() {
 		positions, err = ListPositions()
 		assert.NotNil(s.T(), err)
 		assert.Nil(s.T(), positions)
+	}
+
+	// get aggregates
+	{
+		// successful
+		aggregatesJSON := `{
+			"ticker":"AAPL",
+			"status":"OK",
+			"adjusted":true,
+			"queryCount":2,
+			"resultsCount":2,
+			"results":[
+				{"v":52521891,"o":300.95,"c":288.08,"h":302.53,"l":286.13,"t":1582606800000,"n":1},
+				{"v":46094168,"o":286.53,"c":292.69,"h":297.88,"l":286.5,"t":1582693200000,"n":1}
+			]
+		}`
+
+		expectedAggregates := Aggregates{
+			Ticker:       "AAPL",
+			Status:       "OK",
+			Adjusted:     true,
+			QueryCount:   2,
+			ResultsCount: 2,
+			Results: []AggV2{
+				{
+					Volume:        52521891,
+					Open:          300.95,
+					Close:         288.08,
+					High:          302.53,
+					Low:           286.13,
+					Timestamp:     1582606800000,
+					NumberOfItems: 1,
+				},
+				{
+					Volume:        46094168,
+					Open:          286.53,
+					Close:         292.69,
+					High:          297.88,
+					Low:           286.5,
+					Timestamp:     1582693200000,
+					NumberOfItems: 1,
+				},
+			},
+		}
+		do = func(c *Client, req *http.Request) (*http.Response, error) {
+			return &http.Response{
+				Body: ioutil.NopCloser(strings.NewReader(aggregatesJSON)),
+			}, nil
+		}
+
+		actualAggregates, err := GetAggregates("AAPL", "minute", "2020-02-25", "2020-02-26")
+		assert.NotNil(s.T(), actualAggregates)
+		assert.Nil(s.T(), err)
+		assert.EqualValues(s.T(), &expectedAggregates, actualAggregates)
+
+		// api failure
+		do = func(c *Client, req *http.Request) (*http.Response, error) {
+			return &http.Response{}, fmt.Errorf("fail")
+		}
+
+		actualAggregates, err = GetAggregates("AAPL", "minute", "2020-02-25", "2020-02-26")
+		assert.NotNil(s.T(), err)
+		assert.Nil(s.T(), actualAggregates)
+	}
+	// get last quote
+	{
+		// successful
+		lastQuoteJSON := `{
+			"status": "success",
+			"symbol": "AAPL",
+			"last": {
+				"askprice":291.24,
+				"asksize":1,
+				"askexchange":2,
+				"bidprice":291.76,
+				"bidsize":1,
+				"bidexchange":9,
+				"timestamp":1582754386000
+			}
+		}`
+
+		expectedLastQuote := PolygonLastQuote{
+			Status: "success",
+			Symbol: "AAPL",
+			Last: Quote{
+				AskPrice:    291.24,
+				AskSize:     1,
+				AskExchange: 2,
+				BidPrice:    291.76,
+				BidSize:     1,
+				BidExchange: 9,
+				Timestamp:   1582754386000,
+			},
+		}
+		do = func(c *Client, req *http.Request) (*http.Response, error) {
+			return &http.Response{
+				Body: ioutil.NopCloser(strings.NewReader(lastQuoteJSON)),
+			}, nil
+		}
+
+		actualLastQuote, err := GetLastQuote("AAPL")
+		assert.NotNil(s.T(), actualLastQuote)
+		assert.Nil(s.T(), err)
+		assert.EqualValues(s.T(), &expectedLastQuote, actualLastQuote)
+
+		// api failure
+		do = func(c *Client, req *http.Request) (*http.Response, error) {
+			return &http.Response{}, fmt.Errorf("fail")
+		}
+
+		actualLastQuote, err = GetLastQuote("AAPL")
+		assert.NotNil(s.T(), err)
+		assert.Nil(s.T(), actualLastQuote)
+	}
+
+	// get last trade
+	{
+		// successful
+		lastTradeJSON := `{
+			"status": "success",
+			"symbol": "AAPL",
+			"last": {
+				"price":290.614,
+				"size":200,
+				"exchange":2,
+				"cond1":12,
+				"cond2":1,
+				"cond3":2,
+				"cond4":3,
+				"timestamp":1582756144000
+			}
+		}`
+		expectedLastTrade := PolygonLastTrade{
+			Status: "success",
+			Symbol: "AAPL",
+			Last: Trade{
+				Price:     290.614,
+				Size:      200,
+				Exchange:  2,
+				Cond1:     12,
+				Cond2:     1,
+				Cond3:     2,
+				Cond4:     3,
+				Timestamp: 1582756144000,
+			},
+		}
+		do = func(c *Client, req *http.Request) (*http.Response, error) {
+			return &http.Response{
+				Body: ioutil.NopCloser(strings.NewReader(lastTradeJSON)),
+			}, nil
+		}
+
+		actualLastTrade, err := GetLastTrade("AAPL")
+		assert.NotNil(s.T(), actualLastTrade)
+		assert.Nil(s.T(), err)
+		assert.EqualValues(s.T(), &expectedLastTrade, actualLastTrade)
+
+		// api failure
+		do = func(c *Client, req *http.Request) (*http.Response, error) {
+			return &http.Response{}, fmt.Errorf("fail")
+		}
+
+		actualLastTrade, err = GetLastTrade("AAPL")
+		assert.NotNil(s.T(), err)
+		assert.Nil(s.T(), actualLastTrade)
 	}
 
 	// get clock

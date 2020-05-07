@@ -1,6 +1,8 @@
 package stream
 
 import (
+	"fmt"
+	"os"
 	"sync"
 
 	"github.com/alpacahq/alpaca-trade-api-go/alpaca"
@@ -10,15 +12,34 @@ import (
 var (
 	once sync.Once
 	u    *Unified
+
+	dataStreamName string = "alpaca"
 )
+
+func SetDataStream(streamName string) {
+	switch streamName {
+	case "alpaca":
+	case "polygon":
+		dataStreamName = streamName
+	default:
+		fmt.Fprintf(os.Stderr, "invalid data stream name %s\n", streamName)
+	}
+}
 
 // Register a handler for a given stream, Alpaca or Polygon.
 func Register(stream string, handler func(msg interface{})) (err error) {
 	once.Do(func() {
 		if u == nil {
+
+			var dataStream Stream
+			if dataStreamName == "alpaca" {
+				dataStream = alpaca.GetDataStream()
+			} else if dataStreamName == "polygon" {
+				dataStream = polygon.GetStream()
+			}
 			u = &Unified{
-				alpaca:  alpaca.GetStream(),
-				polygon: polygon.GetStream(),
+				alpaca: alpaca.GetStream(),
+				data:   dataStream,
 			}
 		}
 	})
@@ -29,8 +50,8 @@ func Register(stream string, handler func(msg interface{})) (err error) {
 	case alpaca.AccountUpdates:
 		err = u.alpaca.Subscribe(stream, handler)
 	default:
-		// polygon
-		err = u.polygon.Subscribe(stream, handler)
+		// data stream
+		err = u.data.Subscribe(stream, handler)
 	}
 
 	return
@@ -41,7 +62,7 @@ func Close() error {
 	// close alpaca connection
 	err1 := u.alpaca.Close()
 	// close polygon connection
-	err2 := u.polygon.Close()
+	err2 := u.data.Close()
 
 	if err1 != nil {
 		return err1
@@ -52,7 +73,7 @@ func Close() error {
 // Unified is the unified streaming structure combining the
 // interfaces from polygon and alpaca.
 type Unified struct {
-	alpaca, polygon Stream
+	alpaca, data Stream
 }
 
 // Stream is the generic streaming interface implemented by

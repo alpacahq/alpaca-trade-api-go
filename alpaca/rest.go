@@ -50,6 +50,9 @@ func init() {
 		// legacy compatibility...
 		base = s
 	}
+	if s := os.Getenv("APCA_DATA_URL"); s != "" {
+		dataUrl = s
+	}
 	if s := os.Getenv("APCA_API_VERSION"); s != "" {
 		apiVersion = s
 	}
@@ -280,6 +283,91 @@ func (c *Client) GetPosition(symbol string) (*Position, error) {
 	}
 
 	return position, nil
+}
+
+// GetAggregates returns the bars for the given symbol, timespan and date-range
+func (c *Client) GetAggregates(symbol, timespan, from, to string) (*Aggregates, error) {
+	u, err := url.Parse(fmt.Sprintf("%s/v1/aggs/ticker/%s/range/1/%s/%s/%s",
+		dataUrl, symbol, timespan, from, to))
+	if err != nil {
+		return nil, err
+	}
+
+	q := u.Query()
+
+	q.Set("symbol", symbol)
+	q.Set("timespan", timespan)
+	q.Set("from", from)
+	q.Set("to", to)
+
+	u.RawQuery = q.Encode()
+
+	resp, err := c.get(u)
+	if err != nil {
+		return nil, err
+	}
+
+	aggregate := &Aggregates{}
+
+	if err = unmarshal(resp, &aggregate); err != nil {
+		return nil, err
+	}
+
+	return aggregate, nil
+}
+
+// GetLastQuote returns the last quote for the given symbol
+func (c *Client) GetLastQuote(symbol string) (*LastQuote, error) {
+	u, err := url.Parse(fmt.Sprintf("%s/v1/last_quote/stocks/%s", dataUrl, symbol))
+	if err != nil {
+		return nil, err
+	}
+
+	q := u.Query()
+
+	q.Set("symbol", symbol)
+
+	u.RawQuery = q.Encode()
+
+	resp, err := c.get(u)
+	if err != nil {
+		return nil, err
+	}
+
+	lastQuote := &PolygonLastQuote{}
+
+	if err = unmarshal(resp, &lastQuote); err != nil {
+		return nil, err
+	}
+
+	return lastQuote, nil
+}
+
+// GetLastTrade returns the last trade for the given symbol
+func (c *Client) GetLastTrade(symbol string) (*LastTrade, error) {
+	u, err := url.Parse(fmt.Sprintf("%s/v1/last/stocks/%s", dataUrl, symbol))
+	if err != nil {
+		return nil, err
+	}
+
+	q := u.Query()
+
+	q.Set("symbol", symbol)
+
+	u.RawQuery = q.Encode()
+
+	resp, err := c.get(u)
+	if err != nil {
+		return nil, err
+	}
+
+	lastTrade := &PolygonLastTrade{}
+
+	if err = unmarshal(resp, &lastTrade); err != nil {
+		return nil, err
+	}
+
+	return lastTrade, nil
 }
 
 // CloseAllPositions liquidates all open positions at market price.
@@ -637,6 +725,21 @@ func GetPortfolioHistory(period *string, timeframe *RangeFreq, dateEnd *time.Tim
 // using the default Alpaca client.
 func ListPositions() ([]Position, error) {
 	return DefaultClient.ListPositions()
+}
+
+// GetAggregates returns the bars for the given symbol, timespan and date-range
+func GetAggregates(symbol, timespan, from, to string) (*Aggregates, error) {
+	return DefaultClient.GetAggregates(symbol, timespan, from, to)
+}
+
+// GetLastQuote returns the last quote for the given symbol
+func GetLastQuote(symbol string) (*LastQuote, error) {
+	return DefaultClient.GetLastQuote(symbol)
+}
+
+// GetLastTrade returns the last trade for the given symbol
+func GetLastTrade(symbol string) (*LastTrade, error) {
+	return DefaultClient.GetLastTrade(symbol)
 }
 
 // GetPosition returns the account's position for the
