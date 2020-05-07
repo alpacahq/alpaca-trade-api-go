@@ -52,10 +52,9 @@ func main() {
 
 ### Streaming example
 
-The SDK provides a unified streaming interface for both Polygon data updates, and Alpaca's trade/account updates. The following example subscribes to trade updates, and prints any messages received, and subscribes to live quotes for AAPL, and prints any quotes received. The main function also ends with an empty `select{}` statement which causes the program to run indefinitely.
+The SDK provides a unified streaming interface for both data updates (from Alpaca or Polygon), and Alpaca's trade/account updates. The following example subscribes to trade updates, and prints any messages received, and subscribes to live quotes for AAPL, and prints any quotes received. The main function also ends with an empty `select{}` statement which causes the program to run indefinitely.
 
-Please note that running this example as-is requires that you have a funded Alpaca brokerage account, as that is necessary for access to Polygon's API.
-
+In order to use Polygon streaming, you need to call `stream.SetDataStream("polygon")`. This requires your Alpaca account to be eligible for Polygon integration (for details of the setup, please read Alpaca API document).
 ```go
 package main
 
@@ -65,7 +64,6 @@ import (
 
 	"github.com/alpacahq/alpaca-trade-api-go/alpaca"
 	"github.com/alpacahq/alpaca-trade-api-go/common"
-	"github.com/alpacahq/alpaca-trade-api-go/polygon"
 	"github.com/alpacahq/alpaca-trade-api-go/stream"
 )
 
@@ -90,7 +88,7 @@ func tradeHandler(msg interface{}) {
 }
 
 func quoteHandler(msg interface{}) {
-	quote := msg.(polygon.StreamQuote)
+	quote := msg.(alpaca.StreamQuote)
 
 	fmt.Println(quote.Symbol, quote.BidPrice, quote.BidSize, quote.AskPrice, quote.AskSize)
 }
