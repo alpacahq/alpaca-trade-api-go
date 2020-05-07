@@ -46,6 +46,8 @@ type Order struct {
 	ExpiredAt      *time.Time       `json:"expired_at"`
 	CanceledAt     *time.Time       `json:"canceled_at"`
 	FailedAt       *time.Time       `json:"failed_at"`
+	ReplacedAt     *time.Time       `json:"replaced_at"`
+	Replaces       *string          `json:"replaces"`
 	AssetID        string           `json:"asset_id"`
 	Symbol         string           `json:"symbol"`
 	Exchange       string           `json:"exchange"`
@@ -59,6 +61,7 @@ type Order struct {
 	FilledAvgPrice *decimal.Decimal `json:"filled_avg_price"`
 	StopPrice      *decimal.Decimal `json:"stop_price"`
 	Status         string           `json:"status"`
+	ExtendedHours  bool             `json:"extended_hours"`
 	Legs           *[]Order         `json:"legs"`
 }
 
