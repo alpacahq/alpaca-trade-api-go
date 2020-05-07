@@ -576,7 +576,7 @@ func (c *Client) ListBars(symbols []string, opts ListBarParams) (map[string][]Ba
 		vals.Set("limit", strconv.FormatInt(int64(*opts.Limit), 10))
 	}
 
-	u, err := url.Parse(fmt.Sprintf("%sv1/bars/%s?%v", dataUrl, opts.Timeframe, vals.Encode()))
+	u, err := url.Parse(fmt.Sprintf("%s/v1/bars/%s?%v", dataUrl, opts.Timeframe, vals.Encode()))
 	if err != nil {
 		return nil, err
 	}
