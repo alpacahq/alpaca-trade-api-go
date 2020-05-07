@@ -77,7 +77,7 @@ func (c *Client) GetHistoricAggregates(
 	}
 
 	q := u.Query()
-	q.Set("apiKey", c.credentials.ID)
+	q.Set("apiKey", c.credentials.PolygonKeyID)
 
 	if from != nil {
 		q.Set("from", from.Format(time.RFC3339))
@@ -126,7 +126,7 @@ func (c *Client) GetHistoricAggregatesV2(
 	}
 
 	q := u.Query()
-	q.Set("apiKey", c.credentials.ID)
+	q.Set("apiKey", c.credentials.PolygonKeyID)
 
 	if unadjusted != nil {
 		q.Set("unadjusted", strconv.FormatBool(*unadjusted))
@@ -177,7 +177,7 @@ func (c *Client) GetHistoricTrades(
 		}
 
 		q := u.Query()
-		q.Set("apiKey", c.credentials.ID)
+		q.Set("apiKey", c.credentials.PolygonKeyID)
 		q.Set("limit", strconv.FormatInt(limit, 10))
 
 		if offset > 0 {
@@ -230,7 +230,7 @@ func (c *Client) GetHistoricTradesV2(ticker string, date string, opts *HistoricT
 	}
 
 	q := u.Query()
-	q.Set("apiKey", c.credentials.ID)
+	q.Set("apiKey", c.credentials.PolygonKeyID)
 	u.RawQuery = q.Encode()
 
 	resp, err := c.get(u, opts)
@@ -261,7 +261,7 @@ func (c *Client) GetHistoricQuotes(symbol, date string) (totalQuotes *HistoricQu
 		}
 
 		q := u.Query()
-		q.Set("apiKey", c.credentials.ID)
+		q.Set("apiKey", c.credentials.PolygonKeyID)
 		q.Set("limit", strconv.FormatInt(10000, 10))
 
 		if offset > 0 {
@@ -314,7 +314,7 @@ func (c *Client) GetHistoricQuotesV2(ticker string, date string, opts *HistoricT
 	}
 
 	q := u.Query()
-	q.Set("apiKey", c.credentials.ID)
+	q.Set("apiKey", c.credentials.PolygonKeyID)
 	u.RawQuery = q.Encode()
 
 	resp, err := c.get(u, opts)
@@ -339,7 +339,7 @@ func (c *Client) GetStockExchanges() ([]StockExchange, error) {
 	}
 
 	q := u.Query()
-	q.Set("apiKey", c.credentials.ID)
+	q.Set("apiKey", c.credentials.PolygonKeyID)
 
 	u.RawQuery = q.Encode()
 
