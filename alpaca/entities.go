@@ -257,6 +257,7 @@ type PlaceOrderRequest struct {
 	Type          OrderType        `json:"type"`
 	TimeInForce   TimeInForce      `json:"time_in_force"`
 	LimitPrice    *decimal.Decimal `json:"limit_price"`
+	ExtendedHours bool             `json:"extended_hours"`
 	StopPrice     *decimal.Decimal `json:"stop_price"`
 	ClientOrderID string           `json:"client_order_id"`
 	OrderClass    OrderClass       `json:"order_class"`
