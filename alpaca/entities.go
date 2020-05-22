@@ -245,6 +245,30 @@ type PortfolioHistory struct {
 	Timestamp     []int64           `json:"timestamp"`
 }
 
+type Watchlist struct {
+	AccountID string `json:"account_id"`
+	Assets    []struct {
+		Class        string `json:"class"`
+		EasyToBorrow bool   `json:"easy_to_borrow"`
+		Exchange     string `json:"exchange"`
+		ID           string `json:"id"`
+		Marginable   bool   `json:"marginable"`
+		Shortable    bool   `json:"shortable"`
+		Status       string `json:"status"`
+		Symbol       string `json:"symbol"`
+		Tradable     bool   `json:"tradable"`
+	} `json:"assets"`
+	CreatedAt time.Time `json:"created_at"`
+	ID        string    `json:"id"`
+	Name      string    `json:"name"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
+type CreateWatchlistRequest struct {
+	Name    string   `json:"name"`
+	Symbols []string `json:"symbols"`
+}
+
 type PlaceOrderRequest struct {
 	AccountID     string           `json:"-"`
 	AssetKey      *string          `json:"symbol"`
