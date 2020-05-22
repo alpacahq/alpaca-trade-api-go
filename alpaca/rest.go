@@ -237,6 +237,147 @@ func (c *Client) GetPortfolioHistory(period *string, timeframe *RangeFreq, dateE
 	return &history, nil
 }
 
+// ListWatchlists lists the account's watchlists
+func (c *Client) ListWatchlists() ([]Watchlist, error) {
+	u, err := url.Parse(fmt.Sprintf("%s/%s/watchlists", base, apiVersion))
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := c.get(u)
+	if err != nil {
+		return nil, err
+	}
+
+	watchlists := []Watchlist{}
+
+	if err = unmarshal(resp, &watchlists); err != nil {
+		return nil, err
+	}
+
+	return watchlists, nil
+}
+
+// CreateWatchlist create a new watchlist with initial set of assets
+func (c *Client) CreateWatchlist(req CreateWatchlistRequest) ([]Watchlist, error) {
+	u, err := url.Parse(fmt.Sprintf("%s/%s/watchlists", base, apiVersion))
+
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := c.post(u, req)
+
+	if err != nil {
+		return nil, err
+	}
+
+	watchlists := []Watchlist{}
+
+	if err = unmarshal(resp, watchlists); err != nil {
+		return nil, err
+	}
+
+	return watchlists, nil
+}
+
+// GetWatchlist returns a watchlist identified by the ID
+func (c *Client) GetWatchlist(id string) (*Watchlist, error) {
+	u, err := url.Parse(fmt.Sprintf("%s/%s/watchlists/%s", base, apiVersion, id))
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := c.get(u)
+	if err != nil {
+		return nil, err
+	}
+
+	watchlist := &Watchlist{}
+
+	if err = unmarshal(resp, watchlist); err != nil {
+		return nil, err
+	}
+
+	return watchlist, nil
+}
+
+// UpdateWatchlist update the name and/or content of watchlist
+func (c *Client) UpdateWatchlist(id string, req CreateWatchlistRequest) (*Watchlist, error) {
+	u, err := url.Parse(fmt.Sprintf("%s/%s/watchlists/%s", base, apiVersion, id))
+
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := c.put(u, req)
+
+	if err != nil {
+		return nil, err
+	}
+
+	watchlist := &Watchlist{}
+
+	if err = unmarshal(resp, watchlist); err != nil {
+		return nil, err
+	}
+
+	return watchlist, nil
+}
+
+// AddToWatchlist append an asset for the symbol to the end of watchlist asset list
+func (c *Client) AddToWatchlist(id, symbol string) (*Watchlist, error) {
+	u, err := url.Parse(fmt.Sprintf("%s/%s/watchlists/%s", base, apiVersion, id))
+
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := c.post(u, struct {
+		Symbol string `json:"symbol"`
+	}{
+		Symbol: symbol,
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	watchlist := &Watchlist{}
+
+	if err = unmarshal(resp, watchlist); err != nil {
+		return nil, err
+	}
+
+	return watchlist, nil
+}
+
+// RemoveFromWatchlist remove one entry for an asset by symbol name
+func (c *Client) RemoveFromWatchlist(id, symbol string) error {
+	u, err := url.Parse(fmt.Sprintf("%s/%s/watchlists/%s/%s", base, apiVersion, id, symbol))
+
+	if err != nil {
+		return err
+	}
+
+	_, err = c.delete(u)
+
+	return err
+}
+
+// DeleteWatchlist delete a watchlist, this is a permanent deletion
+func (c *Client) DeleteWatchlist(id string) error {
+	u, err := url.Parse(fmt.Sprintf("%s/%s/watchlists/%s", base, apiVersion, id))
+
+	if err != nil {
+		return err
+	}
+
+	_, err = c.delete(u)
+
+	return err
+}
+
 // ListPositions lists the account's open positions.
 func (c *Client) ListPositions() ([]Position, error) {
 	u, err := url.Parse(fmt.Sprintf("%s/%s/positions", base, apiVersion))
@@ -833,6 +974,20 @@ func (c *Client) post(u *url.URL, data interface{}) (*http.Response, error) {
 	}
 
 	req, err := http.NewRequest(http.MethodPost, u.String(), bytes.NewReader(buf))
+	if err != nil {
+		return nil, err
+	}
+
+	return do(c, req)
+}
+
+func (c *Client) put(u *url.URL, data interface{}) (*http.Response, error) {
+	buf, err := json.Marshal(data)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPut, u.String(), bytes.NewReader(buf))
 	if err != nil {
 		return nil, err
 	}
