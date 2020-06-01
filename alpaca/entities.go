@@ -321,6 +321,8 @@ type OrderClass string
 
 const (
 	Bracket OrderClass = "bracket"
+	Oto OrderClass = "oto"
+	Oco OrderClass = "oco"
 	Simple  OrderClass = "simple"
 )
 
