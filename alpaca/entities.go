@@ -422,7 +422,7 @@ func (s *StreamQuote) Time() time.Time {
 type StreamTrade struct {
 	Event      string  `json:"ev"`
 	Symbol     string  `json:"T"`
-	TradeID    int     `json:"i"`
+	TradeID    string  `json:"i"`
 	Exchange   int     `json:"x"`
 	Price      float32 `json:"p"`
 	Size       int32   `json:"s"`
