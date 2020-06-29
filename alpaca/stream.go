@@ -38,6 +38,7 @@ type Stream struct {
 	authenticated, closed atomic.Value
 	handlers              sync.Map
 	base                  string
+	credentials           *common.APIKey
 }
 
 // Subscribe to the specified Alpaca stream channel.
@@ -248,34 +249,38 @@ func (s *Stream) auth() (err error) {
 }
 
 // GetStream returns the singleton Alpaca stream structure.
-func GetStream() *Stream {
-	once.Do(func() {
-		str = &Stream{
-			authenticated: atomic.Value{},
-			handlers:      sync.Map{},
-			base:          base,
-		}
-
-		str.authenticated.Store(false)
-		str.closed.Store(false)
-	})
+func GetStream(credentials *common.APIKey) *Stream {
+	if credentials != nil {
+		return newStream(credentials, base)
+	} else if str == nil {
+		str = newStream(common.Credentials(), base)
+	}
 
 	return str
 }
 
-func GetDataStream() *Stream {
-	dataOnce.Do(func() {
-		dataStr = &Stream{
-			authenticated: atomic.Value{},
-			handlers:      sync.Map{},
-			base:          dataUrl,
-		}
-
-		dataStr.authenticated.Store(false)
-		dataStr.closed.Store(false)
-	})
+func GetDataStream(credentials *common.APIKey) *Stream {
+	if credentials != nil {
+		return newStream(credentials, dataUrl)
+	} else if dataStr == nil {
+		dataStr = newStream(common.Credentials(), dataUrl)
+	}
 
 	return dataStr
+}
+
+func newStream(credentials *common.APIKey, baseURL string) *Stream {
+	s := &Stream{
+		authenticated: atomic.Value{},
+		handlers:      sync.Map{},
+		base:          baseURL,
+		credentials:   credentials,
+	}
+
+	s.authenticated.Store(false)
+	s.closed.Store(false)
+
+	return s
 }
 
 func (s *Stream) openSocket() (*websocket.Conn, error) {
