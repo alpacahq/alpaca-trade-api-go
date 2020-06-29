@@ -218,8 +218,8 @@ func (s *Stream) auth() (err error) {
 	authRequest := ClientMsg{
 		Action: "authenticate",
 		Data: map[string]interface{}{
-			"key_id":     common.Credentials().ID,
-			"secret_key": common.Credentials().Secret,
+			"key_id":     s.credentials.ID,
+			"secret_key": s.credentials.Secret,
 		},
 	}
 
