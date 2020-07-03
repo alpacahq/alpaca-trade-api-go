@@ -63,6 +63,9 @@ type Order struct {
 	Status         string           `json:"status"`
 	ExtendedHours  bool             `json:"extended_hours"`
 	Legs           *[]Order         `json:"legs"`
+	TrailPercent   *decimal.Decimal `json:"trail_percent"`
+	TrailPrice     *decimal.Decimal `json:"trail_price"`
+	HWM            *decimal.Decimal `json:"hwm"`
 }
 
 type Position struct {
@@ -258,6 +261,8 @@ type PlaceOrderRequest struct {
 	OrderClass    OrderClass       `json:"order_class"`
 	TakeProfit    *TakeProfit      `json:"take_profit"`
 	StopLoss      *StopLoss        `json:"stop_loss"`
+	TrailPercent  *decimal.Decimal `json:"trail_percent"`
+	TrailPrice    *decimal.Decimal `json:"trail_price"`
 }
 
 type TakeProfit struct {
@@ -281,6 +286,7 @@ type ReplaceOrderRequest struct {
 	StopPrice     *decimal.Decimal `json:"stop_price"`
 	TimeInForce   TimeInForce      `json:"time_in_force"`
 	ClientOrderID string           `json:"client_order_id"`
+	Trail         *decimal.Decimal `json:"trail"`
 }
 
 type AccountConfigurationsRequest struct {
