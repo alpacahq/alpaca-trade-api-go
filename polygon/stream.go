@@ -240,7 +240,7 @@ func GetStream() *Stream {
 func openSocket() *websocket.Conn {
 	polygonStreamEndpoint, ok := os.LookupEnv("POLYGON_WS_URL")
 	if !ok {
-		polygonStreamEndpoint = "wss://alpaca.socket.polygon.io/stocks"
+		polygonStreamEndpoint = "wss://socket.polygon.io/stocks"
 	}
 	connectionAttempts := 0
 	for connectionAttempts < MaxConnectionAttempts {
