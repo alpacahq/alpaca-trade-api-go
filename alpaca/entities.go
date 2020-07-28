@@ -219,7 +219,7 @@ type AccountConfigurations struct {
 	TradeSuspendedByUser bool              `json:"trade_suspended_by_user"`
 }
 
-type AccountActvity struct {
+type AccountActivity struct {
 	ID              string          `json:"id"`
 	ActivityType    string          `json:"activity_type"`
 	TransactionTime time.Time       `json:"transaction_time"`
