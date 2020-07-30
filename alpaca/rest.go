@@ -147,7 +147,7 @@ func (c *Client) UpdateAccountConfigurations(newConfigs AccountConfigurationsReq
 	return configs, nil
 }
 
-func (c *Client) GetAccountActivities(activityType *string, opts *AccountActivitiesRequest) ([]AccountActvity, error) {
+func (c *Client) GetAccountActivities(activityType *string, opts *AccountActivitiesRequest) ([]AccountActivity, error) {
 	var u *url.URL
 	var err error
 	if activityType == nil {
@@ -188,7 +188,7 @@ func (c *Client) GetAccountActivities(activityType *string, opts *AccountActivit
 		return nil, err
 	}
 
-	activities := []AccountActvity{}
+	activities := []AccountActivity{}
 
 	if err = unmarshal(resp, &activities); err != nil {
 		return nil, err
@@ -713,7 +713,7 @@ func UpdateAccountConfigurations(newConfigs AccountConfigurationsRequest) (*Acco
 	return DefaultClient.UpdateAccountConfigurations(newConfigs)
 }
 
-func GetAccountActivities(activityType *string, opts *AccountActivitiesRequest) ([]AccountActvity, error) {
+func GetAccountActivities(activityType *string, opts *AccountActivitiesRequest) ([]AccountActivity, error) {
 	return DefaultClient.GetAccountActivities(activityType, opts)
 }
 
