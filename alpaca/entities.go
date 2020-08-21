@@ -60,6 +60,9 @@ type Order struct {
 	LimitPrice     *decimal.Decimal `json:"limit_price"`
 	FilledAvgPrice *decimal.Decimal `json:"filled_avg_price"`
 	StopPrice      *decimal.Decimal `json:"stop_price"`
+	TrailPrice     *decimal.Decimal `json:"trail_price"`
+	TrailPercent   *decimal.Decimal `json:"trail_percent"`
+	Hwm            *decimal.Decimal `json:"hwm"`
 	Status         string           `json:"status"`
 	ExtendedHours  bool             `json:"extended_hours"`
 	Legs           *[]Order         `json:"legs"`
@@ -258,6 +261,8 @@ type PlaceOrderRequest struct {
 	OrderClass    OrderClass       `json:"order_class"`
 	TakeProfit    *TakeProfit      `json:"take_profit"`
 	StopLoss      *StopLoss        `json:"stop_loss"`
+	TrailPrice    *decimal.Decimal `json:"trail_price"`
+	TrailPercent  *decimal.Decimal `json:"trail_percent"`
 }
 
 type TakeProfit struct {
@@ -309,12 +314,11 @@ const (
 type OrderType string
 
 const (
-	Market        OrderType = "market"
-	Limit         OrderType = "limit"
-	Stop          OrderType = "stop"
-	StopLimit     OrderType = "stop_limit"
-	MarketOnClose OrderType = "market_on_close"
-	LimitOnClose  OrderType = "limit_on_close"
+	Market       OrderType = "market"
+	Limit        OrderType = "limit"
+	Stop         OrderType = "stop"
+	StopLimit    OrderType = "stop_limit"
+	TrailingStop OrderType = "trailing_stop"
 )
 
 type OrderClass string
