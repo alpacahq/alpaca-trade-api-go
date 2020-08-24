@@ -284,6 +284,7 @@ type ReplaceOrderRequest struct {
 	Qty           *decimal.Decimal `json:"qty"`
 	LimitPrice    *decimal.Decimal `json:"limit_price"`
 	StopPrice     *decimal.Decimal `json:"stop_price"`
+	Trail         *decimal.Decimal `json:"trail"`
 	TimeInForce   TimeInForce      `json:"time_in_force"`
 	ClientOrderID string           `json:"client_order_id"`
 }
@@ -325,8 +326,8 @@ type OrderClass string
 
 const (
 	Bracket OrderClass = "bracket"
-	Oto OrderClass = "oto"
-	Oco OrderClass = "oco"
+	Oto     OrderClass = "oto"
+	Oco     OrderClass = "oco"
 	Simple  OrderClass = "simple"
 )
 
