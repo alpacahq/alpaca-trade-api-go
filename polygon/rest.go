@@ -3,6 +3,7 @@ package polygon
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -16,13 +17,16 @@ import (
 )
 
 const (
-	aggURL      = "%v/v1/historic/agg/%v/%v"
-	aggv2URL    = "%v/v2/aggs/ticker/%v/range/%v/%v/%v/%v"
-	tradesURL   = "%v/v1/historic/trades/%v/%v"
-	tradesv2URL = "%v/v2/ticks/stocks/trades/%v/%v"
-	quotesURL   = "%v/v1/historic/quotes/%v/%v"
-	quotesv2URL = "%v/v2/ticks/stocks/nbbo/%v/%v"
-	exchangeURL = "%v/v1/meta/exchanges"
+	aggURL       = "%v/v1/historic/agg/%v/%v"
+	aggv2URL     = "%v/v2/aggs/ticker/%v/range/%v/%v/%v/%v"
+	tradesURL    = "%v/v1/historic/trades/%v/%v"
+	tradesv2URL  = "%v/v2/ticks/stocks/trades/%v/%v"
+	quotesURL    = "%v/v1/historic/quotes/%v/%v"
+	quotesv2URL  = "%v/v2/ticks/stocks/nbbo/%v/%v"
+	exchangeURL  = "%v/v1/meta/exchanges"
+	SnapShotAll  = "%v/v2/snapshot/locale/us/markets/stocks/tickers"
+	Top20Gainers = "%v/v2/snapshot/locale/us/markets/stocks/gainers"
+	Top20Losers  = "%v/v2/snapshot/locale/us/markets/stocks/losers"
 )
 
 var (
@@ -391,6 +395,91 @@ func GetHistoricQuotes(symbol, date string) (totalQuotes *HistoricQuotes, err er
 // stock and equities exchanges
 func GetStockExchanges() ([]StockExchange, error) {
 	return DefaultClient.GetStockExchanges()
+}
+
+// GetAllTickers queries Polygon.io REST API for a snapshot of all tickers
+// current minute aggregate, daily aggregate and last trade.
+// As well as previous days aggregate and calculated change for today.
+func GetAllTickers() (map[string]Ticker, error) {
+	u, err := url.Parse(fmt.Sprintf(SnapShotAll, base))
+	if err != nil {
+		return nil, err
+	}
+	q := u.Query()
+	q.Set("apiKey", DefaultClient.credentials.PolygonKeyID)
+	u.RawQuery = q.Encode()
+	resp, err := get(u)
+	if err != nil {
+		return nil, err
+	}
+	if resp.StatusCode >= http.StatusMultipleChoices {
+		return nil, errors.New(fmt.Sprintf("status code %v", resp.StatusCode))
+	}
+	tickers := &Tickers{}
+	if err = unmarshal(resp, tickers); err != nil {
+		return nil, err
+	}
+	returnValue := map[string]Ticker{}
+	for _, ticker := range tickers.Tickers {
+		returnValue[ticker.Ticker] = ticker
+	}
+	return returnValue, nil
+}
+
+// GetTop20Gainers queries Polygon.io REST API for the current snapshot of
+// the top 20 gainers of the day at the moment.
+func GetTop20Gainers() (map[string]Ticker, error) {
+	u, err := url.Parse(fmt.Sprintf(Top20Gainers, base))
+	if err != nil {
+		return nil, err
+	}
+	q := u.Query()
+	q.Set("apiKey", DefaultClient.credentials.PolygonKeyID)
+	u.RawQuery = q.Encode()
+	resp, err := get(u)
+	if err != nil {
+		return nil, err
+	}
+	if resp.StatusCode >= http.StatusMultipleChoices {
+		return nil, errors.New(fmt.Sprintf("status code %v", resp.StatusCode))
+	}
+	tickers := &Tickers{}
+	if err = unmarshal(resp, tickers); err != nil {
+		return nil, err
+	}
+	returnValue := map[string]Ticker{}
+	for _, ticker := range tickers.Tickers {
+		returnValue[ticker.Ticker] = ticker
+	}
+	return returnValue, nil
+}
+
+// GetTop20Losers queries Polygon.io REST API for the current snapshot of
+// the top 20 losers of the day at the moment.
+func GetTop20Losers() (map[string]Ticker, error) {
+	u, err := url.Parse(fmt.Sprintf(Top20Losers, base))
+	if err != nil {
+		return nil, err
+	}
+	q := u.Query()
+	q.Set("apiKey", DefaultClient.credentials.PolygonKeyID)
+	u.RawQuery = q.Encode()
+	resp, err := get(u)
+	if err != nil {
+		return nil, err
+	}
+	if resp.StatusCode >= http.StatusMultipleChoices {
+		return nil, errors.New(fmt.Sprintf("status code %v", resp.StatusCode))
+	}
+	tickers := &Tickers{}
+	if err = unmarshal(resp, tickers); err != nil {
+		return nil, err
+	}
+	returnValue := map[string]Ticker{}
+	for _, ticker := range tickers.Tickers {
+		returnValue[ticker.Ticker] = ticker
+	}
+	return returnValue, nil
 }
 
 func unmarshal(resp *http.Response, data interface{}) error {

@@ -120,6 +120,76 @@ func (s *PolygonTestSuite) TestPolygon() {
 		assert.NotNil(s.T(), err)
 		assert.Nil(s.T(), resp)
 	}
+
+	// get all tickers
+	{
+		// successful
+		get = func(u *url.URL) (*http.Response, error) {
+			return &http.Response{
+				Body: genBody([]byte(allTickersBody)),
+			}, nil
+		}
+
+		resp, err := GetAllTickers()
+		assert.Nil(s.T(), err)
+		assert.NotNil(s.T(), resp)
+
+		// api failure
+		get = func(u *url.URL) (*http.Response, error) {
+			return &http.Response{}, fmt.Errorf("fail")
+		}
+
+		resp, err = GetAllTickers()
+		assert.NotNil(s.T(), err)
+		assert.Nil(s.T(), resp)
+	}
+
+	// get top 20 gainers
+	{
+		// successful
+		get = func(u *url.URL) (*http.Response, error) {
+			return &http.Response{
+				Body: genBody([]byte(top20GainersLosersBody)),
+			}, nil
+		}
+
+		resp, err := GetTop20Gainers()
+		assert.Nil(s.T(), err)
+		assert.NotNil(s.T(), resp)
+
+		// api failure
+		get = func(u *url.URL) (*http.Response, error) {
+			return &http.Response{}, fmt.Errorf("fail")
+		}
+
+		resp, err = GetTop20Gainers()
+		assert.NotNil(s.T(), err)
+		assert.Nil(s.T(), resp)
+	}
+
+	// get top 20 losers
+	{
+		// successful
+		get = func(u *url.URL) (*http.Response, error) {
+			return &http.Response{
+				Body: genBody([]byte(top20GainersLosersBody)),
+			}, nil
+		}
+
+		resp, err := GetTop20Losers()
+		assert.Nil(s.T(), err)
+		assert.NotNil(s.T(), resp)
+
+		// api failure
+		get = func(u *url.URL) (*http.Response, error) {
+			return &http.Response{}, fmt.Errorf("fail")
+		}
+
+		resp, err = GetTop20Losers()
+		assert.NotNil(s.T(), err)
+		assert.Nil(s.T(), resp)
+	}
+
 }
 
 type nopCloser struct {
@@ -247,4 +317,102 @@ const (
 		  "tape": "W"
 		}
 	  ]`
+	allTickersBody = `{
+		  "status": "OK",
+		  "tickers": [
+			{
+			  "ticker": "AAPL",
+			  "day": {
+				"c": 0.2907,
+				"h": 0.2947,
+				"l": 0.2901,
+				"o": 0.2905,
+				"v": 1432
+			  },
+			  "lastTrade": {
+				"c1": 14,
+				"c2": 12,
+				"c3": 0,
+				"c4": 0,
+				"e": 12,
+				"p": 172.17,
+				"s": 50,
+				"t": 1517529601006
+			  },
+			  "lastQuote": {
+				"p": 120,
+				"s": 5,
+				"P": 121,
+				"S": 3,
+				"t": 1547787608999000000
+			  },
+			  "min": {
+				"c": 0.2907,
+				"h": 0.2947,
+				"l": 0.2901,
+				"o": 0.2905,
+				"v": 1432
+			  },
+			  "prevDay": {
+				"c": 0.2907,
+				"h": 0.2947,
+				"l": 0.2901,
+				"o": 0.2905,
+				"v": 1432
+			  },
+			  "todaysChange": 0.001,
+			  "todaysChangePerc": 2.55,
+			  "updated": 1547787608999
+			}
+		  ]
+		}`
+	top20GainersLosersBody = `{
+		  "status": "OK",
+		  "tickers": [
+			{
+			  "ticker": "AAPL",
+			  "day": {
+				"c": 0.2907,
+				"h": 0.2947,
+				"l": 0.2901,
+				"o": 0.2905,
+				"v": 1432
+			  },
+			  "lastTrade": {
+				"c1": 14,
+				"c2": 12,
+				"c3": 0,
+				"c4": 0,
+				"e": 12,
+				"p": 172.17,
+				"s": 50,
+				"t": 1517529601006
+			  },
+			  "lastQuote": {
+				"p": 120,
+				"s": 5,
+				"P": 121,
+				"S": 3,
+				"t": 1547787608999000000
+			  },
+			  "min": {
+				"c": 0.2907,
+				"h": 0.2947,
+				"l": 0.2901,
+				"o": 0.2905,
+				"v": 1432
+			  },
+			  "prevDay": {
+				"c": 0.2907,
+				"h": 0.2947,
+				"l": 0.2901,
+				"o": 0.2905,
+				"v": 1432
+			  },
+			  "todaysChange": 0.001,
+			  "todaysChangePerc": 2.55,
+			  "updated": 1547787608999
+			}
+		  ]
+		}`
 )

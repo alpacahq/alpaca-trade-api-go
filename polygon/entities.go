@@ -276,3 +276,50 @@ type StockExchange struct {
 	Name   string `json:"name"`
 	Tape   string `json:"tape"`
 }
+
+// Tick is the structure that defines single day's Open, High, Low, Close
+// and Volume
+type Tick struct {
+	Close  float64 `json:"c"`
+	High   float64 `json:"h"`
+	Low    float64 `json:"l"`
+	Open   float64 `json:"o"`
+	Volume float64 `json:"v"`
+}
+
+// Ticker is the structure that defines a single day's Ticker information
+// in Tickers
+type Ticker struct {
+	Ticker    string `json:"ticker"`
+	Day       Tick   `json:"day"`
+	LastTrade struct {
+		Cond1     int     `json:"c1"`
+		Cond2     int     `json:"c2"`
+		Cond3     int     `json:"c3"`
+		Cond4     int     `json:"c4"`
+		Exchange  int     `json:"e"`
+		Price     float64 `json:"p"`
+		Size      int     `json:"s"`
+		Timestamp int64   `json:"t"`
+	} `json:"lastTrade"`
+	LastQuote struct {
+		AskPrice  float64 `json:"p"`
+		AskSize   int     `json:"s"`
+		BidPrice  float64 `json:"P"`
+		BidSize   int     `json:"S"`
+		Timestamp int64   `json:"t"`
+	} `json:"lastQuote"`
+	Min              Tick    `json:"min"`
+	PrevDay          Tick    `json:"prevDay"`
+	TodaysChange     float64 `json:"todaysChange"`
+	TodaysChangePerc float64 `json:"todaysChangePerc"`
+	Updated          int64   `json:"updated"`
+}
+
+// Tickers is the structure that defines the Tickers aggregate that
+// polygon transmits via:
+// https://polygon.io/docs/#get_v2_snapshot_locale_us_markets_stocks_tickers_anchor
+type Tickers struct {
+	Status  string   `json:"status"`
+	Tickers []Ticker `json:"tickers"`
+}
