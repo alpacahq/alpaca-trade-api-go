@@ -35,11 +35,17 @@ func (s *StreamTestSuite) TestStream() {
 	assert.Nil(s.T(), Register(alpaca.TradeUpdates, h))
 	assert.Nil(s.T(), Register(alpaca.AccountUpdates, h))
 	assert.Nil(s.T(), Register("T.*", h))
+
+	assert.Nil(s.T(), UnRegister("T.*", h))
+	assert.Nil(s.T(), UnRegister(alpaca.AccountUpdates, h))
+	assert.Nil(s.T(), UnRegister(alpaca.TradeUpdates, h))
+
 	assert.Nil(s.T(), Close())
 
 	// failure
 	s.alp.fail = true
 	assert.NotNil(s.T(), Register(alpaca.TradeUpdates, h))
+	assert.NotNil(s.T(), UnRegister(alpaca.TradeUpdates, h))
 	assert.NotNil(s.T(), Close())
 }
 
@@ -50,6 +56,14 @@ type MockStream struct {
 func (ms *MockStream) Subscribe(key string, handler func(msg interface{})) error {
 	if ms.fail {
 		return fmt.Errorf("failed to subscribe")
+	}
+
+	return nil
+}
+
+func (ms *MockStream) UnSubscribe(key string, handler func(msg interface{})) error {
+	if ms.fail {
+		return fmt.Errorf("failed to unsubscribe")
 	}
 
 	return nil

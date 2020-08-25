@@ -57,6 +57,37 @@ func Register(stream string, handler func(msg interface{})) (err error) {
 	return
 }
 
+// UnRegister a handler for a given stream, Alpaca or Polygon.
+func UnRegister(stream string, handler func(msg interface{})) (err error) {
+	once.Do(func() {
+		if u == nil {
+
+			var dataStream Stream
+			if dataStreamName == "alpaca" {
+				dataStream = alpaca.GetDataStream()
+			} else if dataStreamName == "polygon" {
+				dataStream = polygon.GetStream()
+			}
+			u = &Unified{
+				alpaca: alpaca.GetStream(),
+				data:   dataStream,
+			}
+		}
+	})
+
+	switch stream {
+	case alpaca.TradeUpdates:
+		fallthrough
+	case alpaca.AccountUpdates:
+		err = u.alpaca.UnSubscribe(stream, handler)
+	default:
+		// data stream
+		err = u.data.UnSubscribe(stream, handler)
+	}
+
+	return
+}
+
 // Close gracefully closes all streams
 func Close() error {
 	// close alpaca connection
@@ -80,5 +111,6 @@ type Unified struct {
 // both alpaca and polygon.
 type Stream interface {
 	Subscribe(key string, handler func(msg interface{})) error
+	UnSubscribe(key string, handler func(msg interface{})) error
 	Close() error
 }
