@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/url"
+	"os"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -24,8 +25,9 @@ const (
 )
 
 var (
-	once sync.Once
-	str  *Stream
+	once      sync.Once
+	str       *Stream
+	streamUrl = ""
 
 	dataOnce sync.Once
 	dataStr  *Stream
@@ -265,10 +267,15 @@ func GetStream() *Stream {
 
 func GetDataStream() *Stream {
 	dataOnce.Do(func() {
+		if s := os.Getenv("DATA_PROXY_WS"); s != "" {
+			streamUrl = s
+		} else {
+			streamUrl = dataUrl
+		}
 		dataStr = &Stream{
 			authenticated: atomic.Value{},
 			handlers:      sync.Map{},
-			base:          dataUrl,
+			base:          streamUrl,
 		}
 
 		dataStr.authenticated.Store(false)
