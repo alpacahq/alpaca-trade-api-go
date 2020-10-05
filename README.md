@@ -4,7 +4,9 @@
 [![CircleCI Status](https://circleci.com/gh/alpacahq/alpaca-trade-api-go.svg?style=svg)](https://circleci.com/gh/alpacahq/alpaca-trade-api-go)
 [![Go Report Card](https://goreportcard.com/badge/github.com/alpacahq/alpaca-trade-api-go)](https://goreportcard.com/report/github.com/alpacahq/alpaca-trade-api-go)
 
-`alpaca-trade-api-go` is a Go library for the Alpaca trade API. It allows rapid trading algo development easily, with support for the both REST and streaming interfaces. For details of each API behavior, please see the online API document.
+`alpaca-trade-api-go` is a Go library for the Alpaca trade API. It allows rapid 
+trading algo development easily, with support for the both REST and streaming interfaces.
+ For details of each API behavior, please see the online API document.
 
 ## Installation
 
@@ -17,7 +19,8 @@ $ go get github.com/alpacahq/alpaca-trade-api-go/alpaca
 
 ## Example
 
-In order to call Alpaca's trade API, you need to obtain an API key pair. Replace <key_id> and <secret_key> with what you get from the web console.
+In order to call Alpaca's trade API, you need to obtain an API key pair.
+Replace <key_id> and <secret_key> with what you get from the web console.
 
 ### REST example
 
@@ -52,9 +55,16 @@ func main() {
 
 ### Streaming example
 
-The SDK provides a unified streaming interface for both data updates (from Alpaca or Polygon), and Alpaca's trade/account updates. The following example subscribes to trade updates, and prints any messages received, and subscribes to live quotes for AAPL, and prints any quotes received. The main function also ends with an empty `select{}` statement which causes the program to run indefinitely.
+The SDK provides a unified streaming interface for both data updates 
+(from Alpaca or Polygon), and Alpaca's trade/account updates. 
+The following example subscribes to trade updates, and prints any messages received,
+and subscribes to live quotes for AAPL, and prints any quotes received. 
+The main function also ends with an empty `select{}` statement which causes the
+ program to run indefinitely.
 
-In order to use Polygon streaming, you need to call `stream.SetDataStream("polygon")`. This requires your Alpaca account to be eligible for Polygon integration (for details of the setup, please read Alpaca API document).
+In order to use Polygon streaming, you need to call `stream.SetDataStream("polygon")`.
+ This requires your Alpaca account to be eligible for Polygon integration 
+ (for details of the setup, please read Alpaca API document).
 ```go
 package main
 
@@ -100,7 +110,10 @@ The HTTP API document is located at https://docs.alpaca.markets/
 
 ## Authentication
 
-The Alpaca API requires API key ID and secret key, which you can obtain from the web console after you sign in. This key pair can then be applied to the SDK either by setting environment variables (`APCA_API_KEY_ID=<key_id>` and `APCA_API_SECRET_KEY=<secret_key>`), or hardcoding them into the Go code directly as shown in the examples above.
+The Alpaca API requires API key ID and secret key, which you can obtain from 
+the web console after you sign in. This key pair can then be applied to the SDK
+either by setting environment variables (`APCA_API_KEY_ID=<key_id>` and `APCA_API_SECRET_KEY=<secret_key>`), 
+or hardcoding them into the Go code directly as shown in the examples above.
 
 ```sh
 $ export APCA_API_KEY_ID=xxxxx
@@ -115,8 +128,10 @@ For paper trading, set the environment variable `APCA_API_BASE_URL`.
 $ export APCA_API_BASE_URL=https://paper-api.alpaca.markets
 ```
 
-You can also instead use the function `alpaca.SetBaseUrl("https://paper-api.alpaca.markets")` to configure the endpoint.
+You can also instead use the function `alpaca.SetBaseUrl("https://paper-api.alpaca.markets")` 
+to configure the endpoint.
 
 ## GoDoc
 
-For a more in-depth look at the SDK, see the [GoDoc](https://godoc.org/github.com/alpacahq/alpaca-trade-api-go)
+For a more in-depth look at the SDK, see the 
+[GoDoc](https://godoc.org/github.com/alpacahq/alpaca-trade-api-go)
