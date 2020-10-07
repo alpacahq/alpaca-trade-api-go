@@ -135,8 +135,7 @@ to configure the endpoint.
 ## Running Multiple Strategies
 There's a way to execute more than one algorithm at once.<br>
 The websocket connection is limited to 1 connection per account. <br>
-For that exact purpose this ![project](https://github.com/shlomikushchi/alpaca-proxy-agent)  
-was created<br>
+For that exact purpose this ![project](https://github.com/shlomikushchi/alpaca-proxy-agent) was created<br>
 The steps to execute this are:
 * Run the Alpaca Proxy Agent as described in the project's README
 * Define this env variable: `DATA_PROXY_WS` to be the address of the proxy agent. (e.g: `DATA_PROXY_WS=ws://127.0.0.1:8765`)
