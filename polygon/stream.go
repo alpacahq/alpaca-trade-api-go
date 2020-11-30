@@ -62,6 +62,25 @@ func (s *Stream) Subscribe(channel string, handler func(msg interface{})) (err e
 	return
 }
 
+// Unsubscribe from the specified Polygon stream channel.
+func (s *Stream) Unsubscribe(channel string) (err error) {
+	if s.conn == nil {
+		return nil
+	}
+	handler, ok := s.handlers.Load(channel)
+	if !ok {
+		return nil
+	}
+	s.handlers.Delete(channel)
+
+	if err = s.unsub(channel); err != nil {
+		s.handlers.Store(channel, handler)
+		return
+	}
+
+	return
+}
+
 // Close gracefully closes the Polygon stream.
 func (s *Stream) Close() error {
 	s.Lock()
@@ -172,6 +191,22 @@ func (s *Stream) sub(channel string) (err error) {
 
 	subReq := PolygonClientMsg{
 		Action: "subscribe",
+		Params: channel,
+	}
+
+	if err = s.conn.WriteJSON(subReq); err != nil {
+		return
+	}
+
+	return
+}
+
+func (s *Stream) unsub(channel string) (err error) {
+	s.Lock()
+	defer s.Unlock()
+
+	subReq := PolygonClientMsg{
+		Action: "unsubscribe",
 		Params: channel,
 	}
 

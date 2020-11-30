@@ -81,6 +81,36 @@ func (s *Stream) Subscribe(channel string, handler func(msg interface{})) (err e
 	return
 }
 
+// Unsubscribe from the specified Alpaca stream channel.
+func (s *Stream) Unsubscribe(channel string) (err error) {
+	switch {
+	case channel == TradeUpdates:
+		fallthrough
+	case channel == AccountUpdates:
+		fallthrough
+	case strings.HasPrefix(channel, "Q."):
+		fallthrough
+	case strings.HasPrefix(channel, "T."):
+		fallthrough
+	case strings.HasPrefix(channel, "AM."):
+	default:
+		err = fmt.Errorf("invalid stream (%s)", channel)
+		return
+	}
+	handler, ok := s.handlers.Load(channel)
+	if !ok || s.conn == nil {
+		return nil // nothing to unsubscribe
+	}
+
+	s.handlers.Delete(channel)
+
+	if err = s.unsub(channel); err != nil {
+		s.handlers.Store(channel, handler)
+		return
+	}
+	return
+}
+
 // Close gracefully closes the Alpaca stream.
 func (s *Stream) Close() error {
 	s.Lock()
@@ -198,6 +228,26 @@ func (s *Stream) sub(channel string) (err error) {
 	}
 
 	if err = s.conn.WriteJSON(subReq); err != nil {
+		return
+	}
+
+	return
+}
+
+func (s *Stream) unsub(channel string) (err error) {
+	s.Lock()
+	defer s.Unlock()
+
+	unsubReq := ClientMsg{
+		Action: "unlisten",
+		Data: map[string]interface{}{
+			"streams": []interface{}{
+				channel,
+			},
+		},
+	}
+
+	if err = s.conn.WriteJSON(unsubReq); err != nil {
 		return
 	}
 

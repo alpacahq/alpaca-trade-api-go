@@ -177,7 +177,7 @@ func (c *Client) GetAccountActivities(activityType *string, opts *AccountActivit
 			q.Set("direction", *opts.Direction)
 		}
 		if opts.PageSize != nil {
-			q.Set("page_size", string(*opts.PageSize))
+			q.Set("page_size", fmt.Sprint(*opts.PageSize))
 		}
 	}
 
@@ -457,7 +457,7 @@ func (c *Client) GetCalendar(start, end *string) ([]CalendarDay, error) {
 
 // ListOrders returns the list of orders for an account,
 // filtered by the input parameters.
-func (c *Client) ListOrders(status *string, until *time.Time, limit *int, nested *bool) ([]Order, error) {
+func (c *Client) ListOrders(status *string, after, until *time.Time, limit *int, nested *bool) ([]Order, error) {
 	urlString := fmt.Sprintf("%s/%s/orders", base, apiVersion)
 	if nested != nil {
 		urlString += fmt.Sprintf("?nested=%v", *nested)
@@ -475,6 +475,10 @@ func (c *Client) ListOrders(status *string, until *time.Time, limit *int, nested
 
 	if until != nil {
 		q.Set("until", until.Format(time.RFC3339))
+	}
+
+	if after != nil {
+		q.Set("after", after.Format(time.RFC3339))
 	}
 
 	if limit != nil {
@@ -763,8 +767,8 @@ func GetCalendar(start, end *string) ([]CalendarDay, error) {
 // ListOrders returns the list of orders for an account,
 // filtered by the input parameters using the default
 // Alpaca client.
-func ListOrders(status *string, until *time.Time, limit *int, nested *bool) ([]Order, error) {
-	return DefaultClient.ListOrders(status, until, limit, nested)
+func ListOrders(status *string, after, until *time.Time, limit *int, nested *bool) ([]Order, error) {
+	return DefaultClient.ListOrders(status, after, until, limit, nested)
 }
 
 // PlaceOrder submits an order request to buy or sell an asset

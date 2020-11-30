@@ -57,6 +57,21 @@ func Register(stream string, handler func(msg interface{})) (err error) {
 	return
 }
 
+// Unregister a handler for a given stream, Alpaca or Polygon.
+func Unregister(stream string) (err error) {
+	switch stream {
+	case alpaca.TradeUpdates:
+		fallthrough
+	case alpaca.AccountUpdates:
+		err = u.alpaca.Unsubscribe(stream)
+	default:
+		// data stream
+		err = u.data.Unsubscribe(stream)
+	}
+
+	return
+}
+
 // Close gracefully closes all streams
 func Close() error {
 	// close alpaca connection
@@ -80,5 +95,6 @@ type Unified struct {
 // both alpaca and polygon.
 type Stream interface {
 	Subscribe(key string, handler func(msg interface{})) error
+	Unsubscribe(key string) error
 	Close() error
 }
