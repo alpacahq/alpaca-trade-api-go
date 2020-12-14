@@ -653,11 +653,11 @@ func (c *Client) ListBars(symbols []string, opts ListBarParams) (map[string][]Ba
 	}
 
 	if opts.StartDt != nil {
-		vals.Set("start_dt", opts.StartDt.Format(time.RFC3339))
+		vals.Set("start", opts.StartDt.Format(time.RFC3339))
 	}
 
 	if opts.EndDt != nil {
-		vals.Set("end_dt", opts.EndDt.Format(time.RFC3339))
+		vals.Set("end", opts.EndDt.Format(time.RFC3339))
 	}
 
 	if opts.Limit != nil {
