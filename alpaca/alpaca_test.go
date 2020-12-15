@@ -428,6 +428,32 @@ func (s *AlpacaTestSuite) TestAlpaca() {
 		assert.Nil(s.T(), order)
 	}
 
+	// get order by client_order_id
+	{
+		// successful
+		do = func(c *Client, req *http.Request) (*http.Response, error) {
+			order := Order{
+				ClientOrderID: "some_client_order_id",
+			}
+			return &http.Response{
+				Body: genBody(order),
+			}, nil
+		}
+
+		order, err := GetOrderByClientOrderID("some_client_order_id")
+		assert.Nil(s.T(), err)
+		assert.NotNil(s.T(), order)
+
+		// api failure
+		do = func(c *Client, req *http.Request) (*http.Response, error) {
+			return &http.Response{}, fmt.Errorf("fail")
+		}
+
+		order, err = GetOrderByClientOrderID("some_client_order_id")
+		assert.NotNil(s.T(), err)
+		assert.Nil(s.T(), order)
+	}
+
 	// cancel order
 	{
 		// successful
