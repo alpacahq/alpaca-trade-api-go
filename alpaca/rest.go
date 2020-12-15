@@ -539,6 +539,31 @@ func (c *Client) GetOrder(orderID string) (*Order, error) {
 	return order, nil
 }
 
+// GetOrderByClientOrderID submits a request to get an order by the client order ID.
+func (c *Client) GetOrderByClientOrderID(clientOrderID string) (*Order, error) {
+	u, err := url.Parse(fmt.Sprintf("%s/%s/orders:by_client_order_id", base, apiVersion))
+	if err != nil {
+		return nil, err
+	}
+
+	q := u.Query()
+	q.Set("client_order_id", clientOrderID)
+	u.RawQuery = q.Encode()
+
+	resp, err := c.get(u)
+	if err != nil {
+		return nil, err
+	}
+
+	order := &Order{}
+
+	if err = unmarshal(resp, order); err != nil {
+		return nil, err
+	}
+
+	return order, nil
+}
+
 // ReplaceOrder submits a request to replace an order by id
 func (c *Client) ReplaceOrder(orderID string, req ReplaceOrderRequest) (*Order, error) {
 	u, err := url.Parse(fmt.Sprintf("%s/%s/orders/%s", base, apiVersion, orderID))
@@ -653,11 +678,11 @@ func (c *Client) ListBars(symbols []string, opts ListBarParams) (map[string][]Ba
 	}
 
 	if opts.StartDt != nil {
-		vals.Set("start_dt", opts.StartDt.Format(time.RFC3339))
+		vals.Set("start", opts.StartDt.Format(time.RFC3339))
 	}
 
 	if opts.EndDt != nil {
-		vals.Set("end_dt", opts.EndDt.Format(time.RFC3339))
+		vals.Set("end", opts.EndDt.Format(time.RFC3339))
 	}
 
 	if opts.Limit != nil {
@@ -777,6 +802,12 @@ func PlaceOrder(req PlaceOrderRequest) (*Order, error) {
 // `orderID` using the default Alpaca client.
 func GetOrder(orderID string) (*Order, error) {
 	return DefaultClient.GetOrder(orderID)
+}
+
+// GetOrderByClientOrderID returns a single order for the given
+// `clientOrderID` using the default Alpaca client.
+func GetOrderByClientOrderID(clientOrderID string) (*Order, error) {
+	return DefaultClient.GetOrderByClientOrderID(clientOrderID)
 }
 
 // ReplaceOrder changes an order by order id
