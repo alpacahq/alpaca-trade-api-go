@@ -206,9 +206,13 @@ func (s *Stream) start() {
 				log.Printf("alpaca stream read error (%v)", err)
 			}
 
-			err := s.reconnect()
-			if err != nil {
-				panic(err)
+			for {
+				if err := s.reconnect(); err != nil {
+					log.Printf("alpaca stream reconnect error (%v)", err)
+					time.Sleep(30 * time.Second)
+				} else {
+					break
+				}
 			}
 		}
 	}
