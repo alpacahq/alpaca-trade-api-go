@@ -271,9 +271,17 @@ func GetStream() *Stream {
 }
 
 func openSocket() *websocket.Conn {
+	/*
+	 For backwards compatibility, POLYGON_WS_URL is kept but the proper way should be to use
+	 DATA_PROXY_WS both for the alpaca ws and the polygon ws.
+	*/
 	polygonStreamEndpoint, ok := os.LookupEnv("POLYGON_WS_URL")
 	if !ok {
-		polygonStreamEndpoint = "wss://socket.polygon.io/stocks"
+		if s := os.Getenv("DATA_PROXY_WS"); s != "" {
+			polygonStreamEndpoint = s
+		} else {
+			polygonStreamEndpoint = "wss://socket.polygon.io/stocks"
+		}
 	}
 	connectionAttempts := 0
 	for connectionAttempts < MaxConnectionAttempts {
