@@ -104,6 +104,15 @@ func quoteHandler(msg interface{}) {
 }
 ```
 
+#### Deregister
+You could also deregister from a channel. e.g:
+
+```go
+   if err := stream.Deregister("Q.AAPL"); err != nil {
+        panic(err)
+      }
+```
+
 ## API Document
 
 The HTTP API document is located at https://docs.alpaca.markets/
