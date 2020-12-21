@@ -2,6 +2,7 @@ package polygon
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -58,6 +59,24 @@ func (s *Stream) Subscribe(channel string, handler func(msg interface{})) (err e
 		s.handlers.Delete(channel)
 		return
 	}
+
+	return
+}
+
+// Unsubscribe the specified Polygon stream channel.
+func (s *Stream) Unsubscribe(channel string) (err error) {
+	if s.conn == nil {
+		err = errors.New("not yet subscribed to any channel")
+		return
+	}
+
+	if err = s.auth(); err != nil {
+		return
+	}
+
+	s.handlers.Delete(channel)
+
+	err = s.unsub(channel)
 
 	return
 }
@@ -178,6 +197,20 @@ func (s *Stream) sub(channel string) (err error) {
 	if err = s.conn.WriteJSON(subReq); err != nil {
 		return
 	}
+
+	return
+}
+
+func (s *Stream) unsub(channel string) (err error) {
+	s.Lock()
+	defer s.Unlock()
+
+	subReq := PolygonClientMsg{
+		Action: "unsubscribe",
+		Params: channel,
+	}
+
+	err = s.conn.WriteJSON(subReq)
 
 	return
 }
