@@ -150,7 +150,7 @@ The steps to execute this are:
 * Define this env variable: `DATA_PROXY_WS` to be the address of the proxy agent. (e.g: `DATA_PROXY_WS=http://127.0.0.1:8765`)
 * execute your algorithm. it will connect to the servers through the proxy agent allowing you to execute multiple strategies
 
-
+note: this env variable could be used to proxy the data websocket through a custom server too. 
 
 ## GoDoc
 
