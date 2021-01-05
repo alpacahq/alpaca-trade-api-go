@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/alpacahq/alpaca-trade-api-go/common"
+	v2 "github.com/alpacahq/alpaca-trade-api-go/v2"
 )
 
 const (
@@ -65,6 +66,11 @@ func defaultDo(c *Client, req *http.Request) (*http.Response, error) {
 
 	return resp, nil
 }
+
+const (
+	// v2MaxLimit is the maximum allowed limit parameter for all v2 endpoints
+	v2MaxLimit = 10000
+)
 
 func init() {
 	if s := os.Getenv("APCA_API_BASE_URL"); s != "" {
@@ -402,6 +408,189 @@ func (c *Client) GetLastTrade(symbol string) (*LastTradeResponse, error) {
 	}
 
 	return lastTrade, nil
+}
+
+// GetTrades returns a channel that will be populated with the trades for the given symbol
+// that happened between the given start and end times, limited to the given limit.
+func (c *Client) GetTrades(symbol string, start, end time.Time, limit int) <-chan v2.TradeItem {
+	ch := make(chan v2.TradeItem)
+
+	go func() {
+		defer close(ch)
+
+		u, err := url.Parse(fmt.Sprintf("%s/v2/stocks/%s/trades", dataURL, symbol))
+		if err != nil {
+			ch <- v2.TradeItem{Error: err}
+			return
+		}
+
+		q := u.Query()
+		q.Set("start", start.Format(time.RFC3339))
+		q.Set("end", end.Format(time.RFC3339))
+
+		total := 0
+		pageToken := ""
+		for {
+			actualLimit := limit - total
+			if actualLimit <= 0 {
+				return
+			}
+			if actualLimit > v2MaxLimit {
+				actualLimit = v2MaxLimit
+			}
+			q.Set("limit", fmt.Sprintf("%d", actualLimit))
+			q.Set("page_token", pageToken)
+			u.RawQuery = q.Encode()
+
+			resp, err := c.get(u)
+			if err != nil {
+				ch <- v2.TradeItem{Error: err}
+				return
+			}
+
+			var tradeResp tradeResponse
+			if err = unmarshal(resp, &tradeResp); err != nil {
+				ch <- v2.TradeItem{Error: err}
+				return
+			}
+
+			for _, trade := range tradeResp.Trades {
+				ch <- v2.TradeItem{Trade: trade}
+			}
+			if tradeResp.NextPageToken == nil {
+				return
+			}
+			pageToken = *tradeResp.NextPageToken
+			total += len(tradeResp.Trades)
+		}
+	}()
+
+	return ch
+}
+
+// GetQuotes returns a channel that will be populated with the quotes for the given symbol
+// that happened between the given start and end times, limited to the given limit.
+func (c *Client) GetQuotes(symbol string, start, end time.Time, limit int) <-chan v2.QuoteItem {
+	// NOTE: this method is very similar to GetTrades.
+	// With generics it would be almost trivial to refactor them to use a common base method,
+	// but without them it doesn't seem to be worth it
+	ch := make(chan v2.QuoteItem)
+
+	go func() {
+		defer close(ch)
+
+		u, err := url.Parse(fmt.Sprintf("%s/v2/stocks/%s/quotes", dataURL, symbol))
+		if err != nil {
+			ch <- v2.QuoteItem{Error: err}
+			return
+		}
+
+		q := u.Query()
+		q.Set("start", start.Format(time.RFC3339))
+		q.Set("end", end.Format(time.RFC3339))
+
+		total := 0
+		pageToken := ""
+		for {
+			actualLimit := limit - total
+			if actualLimit <= 0 {
+				return
+			}
+			if actualLimit > v2MaxLimit {
+				actualLimit = v2MaxLimit
+			}
+			q.Set("limit", fmt.Sprintf("%d", actualLimit))
+			q.Set("page_token", pageToken)
+			u.RawQuery = q.Encode()
+
+			resp, err := c.get(u)
+			if err != nil {
+				ch <- v2.QuoteItem{Error: err}
+				return
+			}
+
+			var quoteResp quoteResponse
+			if err = unmarshal(resp, &quoteResp); err != nil {
+				ch <- v2.QuoteItem{Error: err}
+				return
+			}
+
+			for _, quote := range quoteResp.Quotes {
+				ch <- v2.QuoteItem{Quote: quote}
+			}
+			if quoteResp.NextPageToken == nil {
+				return
+			}
+			pageToken = *quoteResp.NextPageToken
+			total += len(quoteResp.Quotes)
+		}
+	}()
+
+	return ch
+}
+
+// GetBars returns a channel that will be populated with the bars for the given symbol
+// between the given start and end times, limited to the given limit,
+// using the given and timeframe and adjustment.
+func (c *Client) GetBars(
+	symbol string, timeFrame v2.TimeFrame, adjustment v2.Adjustment,
+	start, end time.Time, limit int,
+) <-chan v2.BarItem {
+	ch := make(chan v2.BarItem)
+
+	go func() {
+		defer close(ch)
+
+		u, err := url.Parse(fmt.Sprintf("%s/v2/stocks/%s/bars", dataURL, symbol))
+		if err != nil {
+			ch <- v2.BarItem{Error: err}
+			return
+		}
+
+		q := u.Query()
+		q.Set("start", start.Format(time.RFC3339))
+		q.Set("end", end.Format(time.RFC3339))
+		q.Set("adjustment", string(adjustment))
+		q.Set("timeframe", string(timeFrame))
+
+		total := 0
+		pageToken := ""
+		for {
+			actualLimit := limit - total
+			if actualLimit <= 0 {
+				return
+			}
+			if actualLimit > v2MaxLimit {
+				actualLimit = v2MaxLimit
+			}
+			q.Set("limit", fmt.Sprintf("%d", actualLimit))
+			q.Set("page_token", pageToken)
+			u.RawQuery = q.Encode()
+
+			resp, err := c.get(u)
+			if err != nil {
+				ch <- v2.BarItem{Error: err}
+				return
+			}
+
+			var barResp barResponse
+			if err = unmarshal(resp, &barResp); err != nil {
+				ch <- v2.BarItem{Error: err}
+				return
+			}
+
+			for _, bar := range barResp.Bars {
+				ch <- v2.BarItem{Bar: bar}
+			}
+			if barResp.NextPageToken == nil {
+				return
+			}
+			pageToken = *barResp.NextPageToken
+			total += len(barResp.Bars)
+		}
+	}()
+
+	return ch
 }
 
 // CloseAllPositions liquidates all open positions at market price.
@@ -799,6 +988,28 @@ func GetLastQuote(symbol string) (*LastQuoteResponse, error) {
 // GetLastTrade returns the last trade for the given symbol
 func GetLastTrade(symbol string) (*LastTradeResponse, error) {
 	return DefaultClient.GetLastTrade(symbol)
+}
+
+// GetTrades returns a channel that will be populated with the trades for the given symbol
+// that happened between the given start and end times, limited to the given limit.
+func GetTrades(symbol string, start, end time.Time, limit int) <-chan v2.TradeItem {
+	return DefaultClient.GetTrades(symbol, start, end, limit)
+}
+
+// GetQuotes returns a channel that will be populated with the quotes for the given symbol
+// that happened between the given start and end times, limited to the given limit.
+func GetQuotes(symbol string, start, end time.Time, limit int) <-chan v2.QuoteItem {
+	return DefaultClient.GetQuotes(symbol, start, end, limit)
+}
+
+// GetBars returns a channel that will be populated with the bars for the given symbol
+// between the given start and end times, limited to the given limit,
+// using the given and timeframe and adjustment.
+func GetBars(
+	symbol string, timeFrame v2.TimeFrame, adjustment v2.Adjustment,
+	start, end time.Time, limit int,
+) <-chan v2.BarItem {
+	return DefaultClient.GetBars(symbol, timeFrame, adjustment, start, end, limit)
 }
 
 // GetPosition returns the account's position for the
