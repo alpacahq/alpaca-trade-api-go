@@ -177,7 +177,7 @@ func (c *Client) GetAccountActivities(activityType *string, opts *AccountActivit
 			q.Set("direction", *opts.Direction)
 		}
 		if opts.PageSize != nil {
-			q.Set("page_size", string(*opts.PageSize))
+			q.Set("page_size", strconv.Itoa(*opts.PageSize))
 		}
 	}
 
