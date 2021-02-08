@@ -309,7 +309,7 @@ func GetDataStream() *Stream {
 		if s := os.Getenv("DATA_PROXY_WS"); s != "" {
 			streamUrl = s
 		} else {
-			streamUrl = dataUrl
+			streamUrl = dataURL
 		}
 		dataStr = &Stream{
 			authenticated: atomic.Value{},
