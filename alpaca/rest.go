@@ -38,10 +38,13 @@ func defaultDo(c *Client, req *http.Request) (*http.Response, error) {
 		req.Header.Set("APCA-API-SECRET-KEY", c.credentials.Secret)
 	}
 
+	client := &http.Client{
+		Timeout: 10 * time.Second,
+	}
 	var resp *http.Response
 	var err error
 	for i := 0; i < rateLimitRetryCount; i++ {
-		resp, err = http.DefaultClient.Do(req)
+		resp, err = client.Do(req)
 		if err != nil {
 			return nil, err
 		}
