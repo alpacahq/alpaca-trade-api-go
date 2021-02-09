@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"net/url"
 	"os"
@@ -27,6 +28,7 @@ var (
 	base          = "https://api.alpaca.markets"
 	dataURL       = "https://data.alpaca.markets"
 	apiVersion    = "v2"
+	clientTimeout = 10 * time.Second
 	do            = defaultDo
 )
 
@@ -39,7 +41,7 @@ func defaultDo(c *Client, req *http.Request) (*http.Response, error) {
 	}
 
 	client := &http.Client{
-		Timeout: 10 * time.Second,
+		Timeout: clientTimeout,
 	}
 	var resp *http.Response
 	var err error
@@ -51,6 +53,7 @@ func defaultDo(c *Client, req *http.Request) (*http.Response, error) {
 		if resp.StatusCode != http.StatusTooManyRequests {
 			break
 		}
+		time.Sleep(rateLimitRetryDelay)
 	}
 
 	if err = verify(resp); err != nil {
@@ -76,6 +79,13 @@ func init() {
 	}
 	if s := os.Getenv("APCA_API_VERSION"); s != "" {
 		apiVersion = s
+	}
+	if s := os.Getenv("APCA_API_CLIENT_TIMEOUT"); s != "" {
+		d, err := time.ParseDuration(s)
+		if err != nil {
+			log.Fatal("invalid APCA_API_CLIENT_TIMEOUT: " + err.Error())
+		}
+		clientTimeout = d
 	}
 }
 
