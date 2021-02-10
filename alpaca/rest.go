@@ -45,12 +45,15 @@ func defaultDo(c *Client, req *http.Request) (*http.Response, error) {
 	}
 	var resp *http.Response
 	var err error
-	for i := 0; i < rateLimitRetryCount; i++ {
+	for i := 0; ; i++ {
 		resp, err = client.Do(req)
 		if err != nil {
 			return nil, err
 		}
 		if resp.StatusCode != http.StatusTooManyRequests {
+			break
+		}
+		if i >= rateLimitRetryCount {
 			break
 		}
 		time.Sleep(rateLimitRetryDelay)
