@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"net/url"
 	"os"
@@ -15,33 +16,55 @@ import (
 	"github.com/alpacahq/alpaca-trade-api-go/common"
 )
 
+const (
+	rateLimitRetryCount = 3
+	rateLimitRetryDelay = time.Second
+)
+
 var (
 	// DefaultClient is the default Alpaca client using the
 	// environment variable set credentials
 	DefaultClient = NewClient(common.Credentials())
 	base          = "https://api.alpaca.markets"
-	dataUrl       = "https://data.alpaca.markets"
+	dataURL       = "https://data.alpaca.markets"
 	apiVersion    = "v2"
-	do            = func(c *Client, req *http.Request) (*http.Response, error) {
-		if c.credentials.OAuth != "" {
-			req.Header.Set("Authorization", "Bearer "+c.credentials.OAuth)
-		} else {
-			req.Header.Set("APCA-API-KEY-ID", c.credentials.ID)
-			req.Header.Set("APCA-API-SECRET-KEY", c.credentials.Secret)
-		}
+	clientTimeout = 10 * time.Second
+	do            = defaultDo
+)
 
-		resp, err := http.DefaultClient.Do(req)
+func defaultDo(c *Client, req *http.Request) (*http.Response, error) {
+	if c.credentials.OAuth != "" {
+		req.Header.Set("Authorization", "Bearer "+c.credentials.OAuth)
+	} else {
+		req.Header.Set("APCA-API-KEY-ID", c.credentials.ID)
+		req.Header.Set("APCA-API-SECRET-KEY", c.credentials.Secret)
+	}
+
+	client := &http.Client{
+		Timeout: clientTimeout,
+	}
+	var resp *http.Response
+	var err error
+	for i := 0; ; i++ {
+		resp, err = client.Do(req)
 		if err != nil {
 			return nil, err
 		}
-
-		if err = verify(resp); err != nil {
-			return nil, err
+		if resp.StatusCode != http.StatusTooManyRequests {
+			break
 		}
-
-		return resp, nil
+		if i >= rateLimitRetryCount {
+			break
+		}
+		time.Sleep(rateLimitRetryDelay)
 	}
-)
+
+	if err = verify(resp); err != nil {
+		return nil, err
+	}
+
+	return resp, nil
+}
 
 func init() {
 	if s := os.Getenv("APCA_API_BASE_URL"); s != "" {
@@ -51,10 +74,21 @@ func init() {
 		base = s
 	}
 	if s := os.Getenv("APCA_DATA_URL"); s != "" {
-		dataUrl = s
+		dataURL = s
+	}
+	// also allow APCA_API_DATA_URL to be consistent with the python SDK
+	if s := os.Getenv("APCA_API_DATA_URL"); s != "" {
+		dataURL = s
 	}
 	if s := os.Getenv("APCA_API_VERSION"); s != "" {
 		apiVersion = s
+	}
+	if s := os.Getenv("APCA_API_CLIENT_TIMEOUT"); s != "" {
+		d, err := time.ParseDuration(s)
+		if err != nil {
+			log.Fatal("invalid APCA_API_CLIENT_TIMEOUT: " + err.Error())
+		}
+		clientTimeout = d
 	}
 }
 
@@ -288,7 +322,7 @@ func (c *Client) GetPosition(symbol string) (*Position, error) {
 // GetAggregates returns the bars for the given symbol, timespan and date-range
 func (c *Client) GetAggregates(symbol, timespan, from, to string) (*Aggregates, error) {
 	u, err := url.Parse(fmt.Sprintf("%s/v1/aggs/ticker/%s/range/1/%s/%s/%s",
-		dataUrl, symbol, timespan, from, to))
+		dataURL, symbol, timespan, from, to))
 	if err != nil {
 		return nil, err
 	}
@@ -318,7 +352,7 @@ func (c *Client) GetAggregates(symbol, timespan, from, to string) (*Aggregates, 
 
 // GetLastQuote returns the last quote for the given symbol
 func (c *Client) GetLastQuote(symbol string) (*LastQuoteResponse, error) {
-	u, err := url.Parse(fmt.Sprintf("%s/v1/last_quote/stocks/%s", dataUrl, symbol))
+	u, err := url.Parse(fmt.Sprintf("%s/v1/last_quote/stocks/%s", dataURL, symbol))
 	if err != nil {
 		return nil, err
 	}
@@ -345,7 +379,7 @@ func (c *Client) GetLastQuote(symbol string) (*LastQuoteResponse, error) {
 
 // GetLastTrade returns the last trade for the given symbol
 func (c *Client) GetLastTrade(symbol string) (*LastTradeResponse, error) {
-	u, err := url.Parse(fmt.Sprintf("%s/v1/last/stocks/%s", dataUrl, symbol))
+	u, err := url.Parse(fmt.Sprintf("%s/v1/last/stocks/%s", dataURL, symbol))
 	if err != nil {
 		return nil, err
 	}
@@ -689,7 +723,7 @@ func (c *Client) ListBars(symbols []string, opts ListBarParams) (map[string][]Ba
 		vals.Set("limit", strconv.FormatInt(int64(*opts.Limit), 10))
 	}
 
-	u, err := url.Parse(fmt.Sprintf("%s/v1/bars/%s?%v", dataUrl, opts.Timeframe, vals.Encode()))
+	u, err := url.Parse(fmt.Sprintf("%s/v1/bars/%s?%v", dataURL, opts.Timeframe, vals.Encode()))
 	if err != nil {
 		return nil, err
 	}
@@ -911,6 +945,9 @@ func verify(resp *http.Response) (err error) {
 		apiErr := APIError{}
 
 		err = json.Unmarshal(body, &apiErr)
+		if err != nil {
+			return fmt.Errorf("json unmarshal error: %s", err.Error())
+		}
 		if err == nil {
 			err = &apiErr
 		}
