@@ -132,7 +132,7 @@ type Bar struct {
 	High   float32 `json:"h"`
 	Low    float32 `json:"l"`
 	Close  float32 `json:"c"`
-	Volume int32   `json:"v"`
+	Volume int64   `json:"v"`
 }
 
 type ListBarParams struct {
