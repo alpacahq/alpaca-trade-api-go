@@ -91,7 +91,7 @@ type Asset struct {
 	ID           string `json:"id"`
 	Name         string `json:"name"`
 	Exchange     string `json:"exchange"`
-	Class        string `json:"asset_class"`
+	Class        string `json:"class"`
 	Symbol       string `json:"symbol"`
 	Status       string `json:"status"`
 	Tradable     bool   `json:"tradable"`

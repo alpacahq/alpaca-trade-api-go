@@ -524,6 +524,42 @@ func (s *AlpacaTestSuite) TestAlpaca() {
 		assert.Nil(s.T(), asset)
 	}
 
+	// get asset json
+	{
+		assetJSON := `{
+			"id": "904837e3-3b76-47ec-b432-046db621571b",
+			"class": "us_equity",
+			"exchange": "NASDAQ",
+			"symbol": "APCA",
+			"status": "active",
+			"tradable": true,
+			"marginable": true,
+			"shortable": true,
+			"easy_to_borrow": true
+		}`
+		
+		// successful
+		do = func(c *Client, req *http.Request) (*http.Response, error) {
+			return &http.Response{
+				Body: ioutil.NopCloser(strings.NewReader(assetJSON)),
+			}, nil
+		}
+
+		asset, err := GetAsset("APCA")
+		assert.Nil(s.T(), err)
+		assert.Equal(s.T(), "us_equity", asset.Class)
+		assert.NotNil(s.T(), asset)
+
+		// api failure
+		do = func(c *Client, req *http.Request) (*http.Response, error) {
+			return &http.Response{}, fmt.Errorf("fail")
+		}
+
+		asset, err = GetAsset("APCA")
+		assert.NotNil(s.T(), err)
+		assert.Nil(s.T(), asset)
+	}
+
 	// list bar lists
 	{
 		// successful
