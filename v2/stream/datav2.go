@@ -295,15 +295,12 @@ func (s *datav2stream) handleMsg(msg map[string]interface{}) error {
 		if err := mapstructure.Decode(msg, &trade); err != nil {
 			return err
 		}
-
 		s.handlersMutex.RLock()
 		defer s.handlersMutex.RUnlock()
-
 		handler, ok := s.tradeHandlers[symbol]
 		if !ok {
-			handler, ok = s.tradeHandlers["*"]
-			if !ok {
-				return errors.New("trade handler missing for symbol: " + symbol)
+			if handler, ok = s.tradeHandlers["*"]; !ok {
+				return nil
 			}
 		}
 		handler(trade)
@@ -312,14 +309,12 @@ func (s *datav2stream) handleMsg(msg map[string]interface{}) error {
 		if err := mapstructure.Decode(msg, &quote); err != nil {
 			return err
 		}
-
 		s.handlersMutex.RLock()
 		defer s.handlersMutex.RUnlock()
 		handler, ok := s.quoteHandlers[symbol]
 		if !ok {
-			handler, ok = s.quoteHandlers["*"]
-			if !ok {
-				return errors.New("quote handler missing for symbol: " + symbol)
+			if handler, ok = s.quoteHandlers["*"]; !ok {
+				return nil
 			}
 		}
 		handler(quote)
@@ -328,15 +323,12 @@ func (s *datav2stream) handleMsg(msg map[string]interface{}) error {
 		if err := mapstructure.Decode(msg, &bar); err != nil {
 			return err
 		}
-
 		s.handlersMutex.RLock()
 		defer s.handlersMutex.RUnlock()
-
 		handler, ok := s.barHandlers[symbol]
 		if !ok {
-			handler, ok = s.barHandlers["*"]
-			if !ok {
-				return errors.New("bar handler missing for symbol: " + symbol)
+			if handler, ok = s.barHandlers["*"]; !ok {
+				return nil
 			}
 		}
 		handler(bar)
