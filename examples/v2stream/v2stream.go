@@ -21,7 +21,8 @@ func main() {
 		os.Setenv(common.EnvApiSecretKey, apiSecret)
 	}
 
-	stream.UseFeed("sip")
+	// uncomment if you have PRO subscription
+	// stream.UseFeed("sip")
 
 	if err := stream.SubscribeTradeUpdates(tradeUpdateHandler); err != nil {
 		panic(err)
@@ -30,7 +31,6 @@ func main() {
 	if err := stream.SubscribeTrades(tradeHandler, "AAPL"); err != nil {
 		panic(err)
 	}
-
 	if err := stream.SubscribeQuotes(quoteHandler, "MSFT"); err != nil {
 		panic(err)
 	}

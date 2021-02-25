@@ -3,6 +3,7 @@ package stream
 import (
 	"context"
 	"errors"
+	"io"
 	"log"
 	"net/http"
 	"net/url"
@@ -26,7 +27,7 @@ const (
 var (
 	// DataStreamURL is the URL for the data websocket stream.
 	// The DATA_PROXY_WS environment variable overrides it.
-	DataStreamURL = "https://data.alpaca.markets" // TODO: Probably this URL will change.
+	DataStreamURL = "https://stream.data.alpaca.markets"
 )
 
 var (
@@ -83,8 +84,12 @@ func (s *datav2stream) useFeed(feed string) error {
 		return nil
 	}
 	s.feed = feed
-	s.connect()
-	return nil
+	if s.conn == nil {
+		return nil
+	}
+	// we are already connected to the wrong feed
+	// to restart it we close the stream and readForever will do the reconnect
+	return s.close(false)
 }
 
 func (s *datav2stream) subscribeTrades(handler func(trade Trade), symbols ...string) error {
@@ -258,8 +263,8 @@ func (s *datav2stream) readForever() {
 		}
 
 		var messages []map[string]interface{}
-		if err = msgpack.Unmarshal(b, &messages); err != nil {
-			log.Printf("failed to incoming unmarshal message: %v", err)
+		if err = msgpack.Unmarshal(b, &messages); err != nil && err != io.EOF {
+			log.Printf("failed to unmarshal incoming message: %v", err)
 			continue
 		}
 
@@ -418,6 +423,12 @@ func (s *datav2stream) auth() (err error) {
 	if len(resps) < 1 {
 		return errors.New("received empty array")
 	}
+	if resps[0]["T"] == "error" {
+		errString, ok := resps[0]["msg"].(string)
+		if ok {
+			return errors.New("failed to authorize: " + errString)
+		}
+	}
 	if resps[0]["T"] != "success" || resps[0]["msg"] != "authenticated" {
 		return errors.New("failed to authorize alpaca stream")
 	}
@@ -434,7 +445,7 @@ func openSocket(feed string) (*websocket.Conn, error) {
 	case "http", "ws":
 		scheme = "ws"
 	}
-	u := url.URL{Scheme: scheme, Host: ub.Host, Path: "/v2/stream/" + strings.ToLower(feed)}
+	u := url.URL{Scheme: scheme, Host: ub.Host, Path: "/v2/" + strings.ToLower(feed)}
 	for attempts := 1; attempts <= MaxConnectionAttempts; attempts++ {
 		c, _, err := websocket.Dial(context.TODO(), u.String(), &websocket.DialOptions{
 			CompressionMode: websocket.CompressionContextTakeover,
