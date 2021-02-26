@@ -19,15 +19,13 @@ import (
 	"nhooyr.io/websocket"
 )
 
-const (
-	// MaxConnectionAttempts is the maximum number of retries for connecting to the websocket
-	MaxConnectionAttempts = 3
-)
-
 var (
 	// DataStreamURL is the URL for the data websocket stream.
 	// The DATA_PROXY_WS environment variable overrides it.
 	DataStreamURL = "https://stream.data.alpaca.markets"
+
+	// MaxConnectionAttempts is the maximum number of retries for connecting to the websocket
+	MaxConnectionAttempts = 3
 )
 
 var (
