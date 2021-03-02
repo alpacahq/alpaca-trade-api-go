@@ -3,6 +3,7 @@ package alpaca
 import (
 	"time"
 
+	v2 "github.com/alpacahq/alpaca-trade-api-go/v2"
 	"github.com/shopspring/decimal"
 )
 
@@ -201,6 +202,24 @@ type Aggregates struct {
 	QueryCount   int     `json:"queryCount"`
 	ResultsCount int     `json:"resultsCount"`
 	Results      []AggV2 `json:"results"`
+}
+
+type tradeResponse struct {
+	Symbol        string     `json:"symbol"`
+	NextPageToken *string    `json:"next_page_token"`
+	Trades        []v2.Trade `json:"trades"`
+}
+
+type quoteResponse struct {
+	Symbol        string     `json:"symbol"`
+	NextPageToken *string    `json:"next_page_token"`
+	Quotes        []v2.Quote `json:"quotes"`
+}
+
+type barResponse struct {
+	Symbol        string   `json:"symbol"`
+	NextPageToken *string  `json:"next_page_token"`
+	Bars          []v2.Bar `json:"bars"`
 }
 
 type CalendarDay struct {
