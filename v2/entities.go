@@ -43,7 +43,6 @@ type TimeFrame string
 
 // List of time frames
 const (
-	Sec  TimeFrame = "1Sec"
 	Min  TimeFrame = "1Min"
 	Hour TimeFrame = "1Hour"
 	Day  TimeFrame = "1Day"
