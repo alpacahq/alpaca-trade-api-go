@@ -180,16 +180,14 @@ func (s *datav2stream) close(final bool) error {
 	s.wsWriteMutex.Lock()
 	defer s.wsWriteMutex.Unlock()
 
-	if err := s.conn.Close(websocket.StatusNormalClosure, ""); err != nil {
-		return err
-	}
-
 	if final {
 		s.closed.Store(true)
 	}
 
+	if err := s.conn.Close(websocket.StatusNormalClosure, ""); err != nil {
+		return err
+	}
 	s.conn = nil
-
 	return nil
 }
 
