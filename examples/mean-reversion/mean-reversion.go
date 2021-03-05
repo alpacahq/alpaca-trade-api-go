@@ -190,7 +190,7 @@ func (alp alpacaClientContainer) rebalance() {
 			if qtyToSell > positionQty {
 				qtyToSell = positionQty
 			}
-			alp.submitLimitOrder(qtyToSell, alpacaClient.stock, currPrice, "buy")
+			alp.submitLimitOrder(qtyToSell, alpacaClient.stock, currPrice, "sell")
 		}
 	}
 }
