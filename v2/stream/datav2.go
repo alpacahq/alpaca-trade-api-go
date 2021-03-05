@@ -1,9 +1,10 @@
 package stream
 
 import (
+	"bytes"
 	"context"
 	"errors"
-	"io"
+	"fmt"
 	"log"
 	"net/http"
 	"net/url"
@@ -14,7 +15,6 @@ import (
 	"time"
 
 	"github.com/alpacahq/alpaca-trade-api-go/common"
-	"github.com/mitchellh/mapstructure"
 	"github.com/vmihailenco/msgpack/v5"
 	"nhooyr.io/websocket"
 )
@@ -258,82 +258,209 @@ func (s *datav2stream) readForever() {
 			continue
 		}
 
-		var messages []map[string]interface{}
-		if err = msgpack.Unmarshal(b, &messages); err != nil && err != io.EOF {
-			log.Printf("failed to unmarshal incoming message: %v", err)
-			continue
-		}
-
-		for _, msg := range messages {
-			if err := s.handleMsg(msg); err != nil {
-				log.Printf("error handling incoming message: %v", err)
-				continue
-			}
+		if err := s.handleMessages(b); err != nil {
+			log.Printf("error handling incoming message: %v", err)
 		}
 	}
 }
 
-func (s *datav2stream) handleMsg(msg map[string]interface{}) error {
-	T, ok := msg["T"].(string)
+func (s *datav2stream) handleMessages(b []byte) error {
+	d := msgpack.GetDecoder()
+	defer msgpack.PutDecoder(d)
+
+	reader := bytes.NewReader(b)
+	d.Reset(reader)
+
+	arrLen, err := d.DecodeArrayLen()
+	if err != nil || arrLen < 1 {
+		return err
+	}
+
+	for i := 0; i < arrLen; i++ {
+		var n int
+		n, err = d.DecodeMapLen()
+		if err != nil {
+			return err
+		}
+		if n < 1 {
+			continue
+		}
+
+		key, err := d.DecodeString()
+		if err != nil {
+			return err
+		}
+		if key != "T" {
+			return fmt.Errorf("first key is not T but: %s", key)
+		}
+		T, err := d.DecodeString()
+		if err != nil {
+			return err
+		}
+		n-- // T already processed
+
+		switch T {
+		case "t":
+			err = s.handleTrade(d, n)
+		case "q":
+			err = s.handleQuote(d, n)
+		case "b":
+			err = s.handleBar(d, n)
+		default:
+			// TODO!
+		}
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (s *datav2stream) handleTrade(d *msgpack.Decoder, n int) error {
+	trade := Trade{}
+	for i := 0; i < n; i++ {
+		key, err := d.DecodeString()
+		if err != nil {
+			return err
+		}
+		switch key {
+		case "i":
+			trade.ID, err = d.DecodeInt64()
+		case "S":
+			trade.Symbol, err = d.DecodeString()
+		case "x":
+			trade.Exchange, err = d.DecodeString()
+		case "p":
+			trade.Price, err = d.DecodeFloat64()
+		case "s":
+			trade.Size, err = d.DecodeUint32()
+		case "t":
+			trade.Timestamp, err = d.DecodeTime()
+		case "c":
+			var condCount int
+			if condCount, err = d.DecodeArrayLen(); err != nil {
+				return err
+			}
+			trade.Conditions = make([]string, condCount)
+			for c := 0; c < condCount; c++ {
+				if cond, err := d.DecodeString(); err != nil {
+					return err
+				} else {
+					trade.Conditions[c] = cond
+				}
+			}
+		case "z":
+			trade.Tape, err = d.DecodeString()
+		}
+		if err != nil {
+			return err
+		}
+	}
+	s.handlersMutex.RLock()
+	defer s.handlersMutex.RUnlock()
+	handler, ok := s.tradeHandlers[trade.Symbol]
 	if !ok {
-		return errors.New("unexpected message: T missing")
+		if handler, ok = s.tradeHandlers["*"]; !ok {
+			return nil
+		}
 	}
+	handler(trade)
+	return nil
+}
 
-	switch T {
-	case "t", "q", "b":
-	default:
-		return nil
+func (s *datav2stream) handleQuote(d *msgpack.Decoder, n int) error {
+	quote := Quote{}
+	for i := 0; i < n; i++ {
+		key, err := d.DecodeString()
+		if err != nil {
+			return err
+		}
+		switch key {
+		case "S":
+			quote.Symbol, err = d.DecodeString()
+		case "bx":
+			quote.BidExchange, err = d.DecodeString()
+		case "bp":
+			quote.BidPrice, err = d.DecodeFloat64()
+		case "bs":
+			quote.BidSize, err = d.DecodeUint32()
+		case "ax":
+			quote.AskExchange, err = d.DecodeString()
+		case "ap":
+			quote.AskPrice, err = d.DecodeFloat64()
+		case "as":
+			quote.AskSize, err = d.DecodeUint32()
+		case "t":
+			quote.Timestamp, err = d.DecodeTime()
+		case "c":
+			var condCount int
+			if condCount, err = d.DecodeArrayLen(); err != nil {
+				return err
+			}
+			quote.Conditions = make([]string, condCount)
+			for c := 0; c < condCount; c++ {
+				if cond, err := d.DecodeString(); err != nil {
+					return err
+				} else {
+					quote.Conditions[c] = cond
+				}
+			}
+		case "z":
+			quote.Tape, err = d.DecodeString()
+		}
+		if err != nil {
+			return err
+		}
 	}
-
-	symbol, ok := msg["S"].(string)
+	s.handlersMutex.RLock()
+	defer s.handlersMutex.RUnlock()
+	handler, ok := s.quoteHandlers[quote.Symbol]
 	if !ok {
-		return errors.New("unexpected message: S missing")
+		if handler, ok = s.quoteHandlers["*"]; !ok {
+			return nil
+		}
 	}
+	handler(quote)
+	return nil
+}
 
-	switch T {
-	case "t":
-		var trade Trade
-		if err := mapstructure.Decode(msg, &trade); err != nil {
+func (s *datav2stream) handleBar(d *msgpack.Decoder, n int) error {
+	bar := Bar{}
+	for i := 0; i < n; i++ {
+		key, err := d.DecodeString()
+		if err != nil {
 			return err
 		}
-		s.handlersMutex.RLock()
-		defer s.handlersMutex.RUnlock()
-		handler, ok := s.tradeHandlers[symbol]
-		if !ok {
-			if handler, ok = s.tradeHandlers["*"]; !ok {
-				return nil
-			}
+		switch key {
+		case "S":
+			bar.Symbol, err = d.DecodeString()
+		case "o":
+			bar.Open, err = d.DecodeFloat64()
+		case "h":
+			bar.High, err = d.DecodeFloat64()
+		case "l":
+			bar.Low, err = d.DecodeFloat64()
+		case "c":
+			bar.Close, err = d.DecodeFloat64()
+		case "v":
+			bar.Volume, err = d.DecodeUint64()
+		case "t":
+			bar.Timestamp, err = d.DecodeTime()
 		}
-		handler(trade)
-	case "q":
-		var quote Quote
-		if err := mapstructure.Decode(msg, &quote); err != nil {
+		if err != nil {
 			return err
 		}
-		s.handlersMutex.RLock()
-		defer s.handlersMutex.RUnlock()
-		handler, ok := s.quoteHandlers[symbol]
-		if !ok {
-			if handler, ok = s.quoteHandlers["*"]; !ok {
-				return nil
-			}
-		}
-		handler(quote)
-	case "b":
-		var bar Bar
-		if err := mapstructure.Decode(msg, &bar); err != nil {
-			return err
-		}
-		s.handlersMutex.RLock()
-		defer s.handlersMutex.RUnlock()
-		handler, ok := s.barHandlers[symbol]
-		if !ok {
-			if handler, ok = s.barHandlers["*"]; !ok {
-				return nil
-			}
-		}
-		handler(bar)
 	}
+	s.handlersMutex.RLock()
+	defer s.handlersMutex.RUnlock()
+	handler, ok := s.barHandlers[bar.Symbol]
+	if !ok {
+		if handler, ok = s.barHandlers["*"]; !ok {
+			return nil
+		}
+	}
+	handler(bar)
 	return nil
 }
 
