@@ -307,7 +307,7 @@ func (s *datav2stream) handleMessages(b []byte) error {
 		case "b":
 			err = s.handleBar(d, n)
 		default:
-			// TODO!
+			err = s.handleOther(d, n)
 		}
 		if err != nil {
 			return err
@@ -352,6 +352,8 @@ func (s *datav2stream) handleTrade(d *msgpack.Decoder, n int) error {
 			}
 		case "z":
 			trade.Tape, err = d.DecodeString()
+		default:
+			err = d.Skip()
 		}
 		if err != nil {
 			return err
@@ -408,6 +410,8 @@ func (s *datav2stream) handleQuote(d *msgpack.Decoder, n int) error {
 			}
 		case "z":
 			quote.Tape, err = d.DecodeString()
+		default:
+			err = d.Skip()
 		}
 		if err != nil {
 			return err
@@ -447,6 +451,8 @@ func (s *datav2stream) handleBar(d *msgpack.Decoder, n int) error {
 			bar.Volume, err = d.DecodeUint64()
 		case "t":
 			bar.Timestamp, err = d.DecodeTime()
+		default:
+			err = d.Skip()
 		}
 		if err != nil {
 			return err
@@ -461,6 +467,20 @@ func (s *datav2stream) handleBar(d *msgpack.Decoder, n int) error {
 		}
 	}
 	handler(bar)
+	return nil
+}
+
+func (s *datav2stream) handleOther(d *msgpack.Decoder, n int) error {
+	for i := 0; i < n; i++ {
+		// key
+		if err := d.Skip(); err != nil {
+			return err
+		}
+		// value
+		if err := d.Skip(); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 

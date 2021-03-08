@@ -20,6 +20,8 @@ type tradeWithT struct {
 	Timestamp  time.Time `msgpack:"t"`
 	Conditions []string  `msgpack:"c"`
 	Tape       string    `msgpack:"z"`
+	// NewField is for testing correct handling of added fields in the future
+	NewField uint64 `msgpack:"n"`
 }
 
 // quoteWithT is the incoming quote message that also contains the T type key
@@ -35,6 +37,8 @@ type quoteWithT struct {
 	Timestamp   time.Time `msgpack:"t"`
 	Conditions  []string  `msgpack:"c"`
 	Tape        string    `msgpack:"z"`
+	// NewField is for testing correct handling of added fields in the future
+	NewField uint64 `msgpack:"n"`
 }
 
 // barWithT is the incoming bar message that also contains the T type key
@@ -47,6 +51,13 @@ type barWithT struct {
 	Close     float64   `msgpack:"c"`
 	Volume    uint64    `msgpack:"v"`
 	Timestamp time.Time `msgpack:"t"`
+	// NewField is for testing correct handling of added fields in the future
+	NewField uint64 `msgpack:"n"`
+}
+
+type other struct {
+	Type     string `msgpack:"T"`
+	Whatever string `msgpack:"w"`
 }
 
 var testTime = time.Date(2021, 03, 04, 15, 16, 17, 18, time.UTC)
@@ -88,8 +99,13 @@ var testBar = barWithT{
 	Timestamp: time.Date(2021, 03, 05, 16, 0, 0, 0, time.UTC),
 }
 
+var testOther = other{
+	Type:     "o",
+	Whatever: "whatever",
+}
+
 func TestHandleMessages(t *testing.T) {
-	b, err := msgpack.Marshal([]interface{}{testTrade, testQuote, testBar})
+	b, err := msgpack.Marshal([]interface{}{testOther, testTrade, testQuote, testBar})
 	require.NoError(t, err)
 
 	s := &datav2stream{}

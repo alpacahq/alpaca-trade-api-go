@@ -30,11 +30,11 @@ type Quote struct {
 
 // Bar is an aggregate of trades
 type Bar struct {
-	Symbol    string    `msgpack:"S"`
-	Open      float64   `msgpack:"o"`
-	High      float64   `msgpack:"h"`
-	Low       float64   `msgpack:"l"`
-	Close     float64   `msgpack:"c"`
-	Volume    uint64    `msgpack:"v"`
-	Timestamp time.Time `msgpack:"t"`
+	Symbol    string
+	Open      float64
+	High      float64
+	Low       float64
+	Close     float64
+	Volume    uint64
+	Timestamp time.Time
 }
