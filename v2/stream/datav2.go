@@ -26,6 +26,8 @@ var (
 
 	// MaxConnectionAttempts is the maximum number of retries for connecting to the websocket
 	MaxConnectionAttempts = 3
+
+	messageBufferSize = 1000
 )
 
 var (
@@ -234,6 +236,10 @@ func (s *datav2stream) connect() error {
 }
 
 func (s *datav2stream) readForever() {
+	msgs := make(chan []byte, messageBufferSize)
+	defer close(msgs)
+	go s.handleMessages(msgs)
+
 	for {
 		s.wsReadMutex.Lock()
 		msgType, b, err := s.conn.Read(context.TODO())
@@ -257,14 +263,19 @@ func (s *datav2stream) readForever() {
 		if msgType != websocket.MessageBinary {
 			continue
 		}
+		msgs <- b
+	}
+}
 
-		if err := s.handleMessages(b); err != nil {
+func (s *datav2stream) handleMessages(msgs <-chan []byte) {
+	for msg := range msgs {
+		if err := s.handleMessage(msg); err != nil {
 			log.Printf("error handling incoming message: %v", err)
 		}
 	}
 }
 
-func (s *datav2stream) handleMessages(b []byte) error {
+func (s *datav2stream) handleMessage(b []byte) error {
 	d := msgpack.GetDecoder()
 	defer msgpack.PutDecoder(d)
 

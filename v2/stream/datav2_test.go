@@ -128,7 +128,7 @@ func TestHandleMessages(t *testing.T) {
 		},
 	}
 
-	err = s.handleMessages(b)
+	err = s.handleMessage(b)
 	require.NoError(t, err)
 
 	assert.EqualValues(t, 42, trade.ID)
@@ -176,6 +176,6 @@ func BenchmarkHandleMessages(b *testing.B) {
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		s.handleMessages(msgs)
+		s.handleMessage(msgs)
 	}
 }
