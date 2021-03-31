@@ -54,7 +54,8 @@ type Order struct {
 	Symbol         string           `json:"symbol"`
 	Exchange       string           `json:"exchange"`
 	Class          string           `json:"asset_class"`
-	Qty            decimal.Decimal  `json:"qty"`
+	Qty            *decimal.Decimal `json:"qty"`
+	Notional       *decimal.Decimal `json:"notional"`
 	FilledQty      decimal.Decimal  `json:"filled_qty"`
 	Type           OrderType        `json:"order_type"`
 	Side           Side             `json:"side"`
@@ -281,7 +282,8 @@ type PortfolioHistory struct {
 type PlaceOrderRequest struct {
 	AccountID     string           `json:"-"`
 	AssetKey      *string          `json:"symbol"`
-	Qty           decimal.Decimal  `json:"qty"`
+	Qty           *decimal.Decimal `json:"qty,omitempty"`
+	Notional      *decimal.Decimal `json:"notional,omitempty"`
 	Side          Side             `json:"side"`
 	Type          OrderType        `json:"type"`
 	TimeInForce   TimeInForce      `json:"time_in_force"`
