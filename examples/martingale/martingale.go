@@ -327,11 +327,12 @@ func (alp alpacaClientContainer) sendOrder(targetQty int) (string, error) {
 		// [L] Uncomment line below
 		limitPrice := decimal.NewFromFloat(alp.lastPrice)
 
+		qty := decimal.NewFromFloat(qty)
 		alp.currOrder = randomString()
 		alp.client.PlaceOrder(alpaca.PlaceOrderRequest{
 			AccountID: account.ID,
 			AssetKey:  &alp.stock,
-			Qty:       decimal.NewFromFloat(qty),
+			Qty:       &qty,
 			Side:      side,
 			Type:      alpaca.Limit, // [L] Change to alpaca.Limit
 			// [L] Uncomment line below

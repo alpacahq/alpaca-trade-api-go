@@ -464,7 +464,7 @@ func (s *AlpacaTestSuite) TestAlpaca() {
 
 	// place order
 	{
-		// successful
+		// successful (w/ Qty)
 		do = func(c *Client, req *http.Request) (*http.Response, error) {
 			por := PlaceOrderRequest{}
 			if err := json.NewDecoder(req.Body).Decode(&por); err != nil {
@@ -473,6 +473,7 @@ func (s *AlpacaTestSuite) TestAlpaca() {
 			return &http.Response{
 				Body: genBody(Order{
 					Qty:         por.Qty,
+					Notional:    por.Notional,
 					Side:        por.Side,
 					TimeInForce: por.TimeInForce,
 					Type:        por.Type,
@@ -480,9 +481,10 @@ func (s *AlpacaTestSuite) TestAlpaca() {
 			}, nil
 		}
 
+		qty := decimal.New(1, 0)
 		req := PlaceOrderRequest{
 			AccountID:   "some_id",
-			Qty:         decimal.New(1, 0),
+			Qty:         &qty,
 			Side:        Buy,
 			TimeInForce: GTC,
 			Type:        Limit,
@@ -491,6 +493,27 @@ func (s *AlpacaTestSuite) TestAlpaca() {
 		order, err := PlaceOrder(req)
 		assert.NoError(s.T(), err)
 		assert.NotNil(s.T(), order)
+		assert.Equal(s.T(), req.Qty, order.Qty)
+		assert.Nil(s.T(), req.Notional)
+		assert.Equal(s.T(), req.Notional, order.Notional)
+		assert.Equal(s.T(), req.Type, order.Type)
+
+		// successful (w/ Notional)
+		notional := decimal.New(1, 0)
+		req = PlaceOrderRequest{
+			AccountID:   "some_id",
+			Notional:    &notional,
+			Side:        Buy,
+			TimeInForce: GTC,
+			Type:        Limit,
+		}
+
+		order, err = PlaceOrder(req)
+		assert.Nil(s.T(), err)
+		assert.NotNil(s.T(), order)
+		assert.Equal(s.T(), req.Notional, order.Notional)
+		assert.Nil(s.T(), req.Qty)
+		assert.Equal(s.T(), req.Qty, order.Qty)
 		assert.Equal(s.T(), req.Type, order.Type)
 
 		// api failure
@@ -723,7 +746,7 @@ func (s *AlpacaTestSuite) TestAlpaca() {
 			}
 			return &http.Response{
 				Body: genBody(Order{
-					Qty:         or.Qty,
+					Qty:         &or.Qty,
 					Side:        Side(or.Side),
 					TimeInForce: TimeInForce(or.TimeInForce),
 					Type:        OrderType(or.Type),
@@ -738,9 +761,10 @@ func (s *AlpacaTestSuite) TestAlpaca() {
 			LimitPrice: nil,
 			StopPrice:  &spp,
 		}
+		qty := decimal.New(1, 0)
 		req := PlaceOrderRequest{
 			AccountID:   "some_id",
-			Qty:         decimal.New(1, 0),
+			Qty:         &qty,
 			Side:        Buy,
 			TimeInForce: GTC,
 			Type:        Limit,
