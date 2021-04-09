@@ -509,7 +509,7 @@ func (s *AlpacaTestSuite) TestAlpaca() {
 		}
 
 		order, err = PlaceOrder(req)
-		assert.Nil(s.T(), err)
+		assert.NoError(s.T(), err)
 		assert.NotNil(s.T(), order)
 		assert.Equal(s.T(), req.Notional, order.Notional)
 		assert.Nil(s.T(), req.Qty)
