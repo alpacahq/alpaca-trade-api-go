@@ -10,7 +10,7 @@ import (
 )
 
 var initializeTimeout = 3 * time.Second
-var authRetryDelayMultiplier = time.Second
+var authRetryDelayMultiplier = 1
 var authRetryCount = 15
 
 // initialize performs the initial flow:
@@ -36,7 +36,7 @@ func (c *client) initialize(ctx context.Context) error {
 			if n > 10 {
 				n = 10
 			}
-			sleepDuration := authRetryDelayMultiplier * time.Duration(n*n)
+			sleepDuration := time.Second * time.Duration(authRetryDelayMultiplier*n*n)
 			c.logger.Infof("datav2stream: retring auth in %s, attempt %d/%d", sleepDuration, i+1, authRetryCount+1)
 			time.Sleep(sleepDuration)
 		}

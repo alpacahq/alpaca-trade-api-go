@@ -3,7 +3,6 @@ package new
 import (
 	"context"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -128,7 +127,7 @@ func TestInitializeAuthRetrySucceeds(t *testing.T) {
 	defer func() {
 		authRetryDelayMultiplier = ordm
 	}()
-	authRetryDelayMultiplier = 5 * time.Millisecond
+	authRetryDelayMultiplier = 0
 
 	res := make(chan error, 1)
 
@@ -211,7 +210,7 @@ func TestInitializeSubError(t *testing.T) {
 	defer func() {
 		authRetryDelayMultiplier = ordm
 	}()
-	authRetryDelayMultiplier = 5 * time.Millisecond
+	authRetryDelayMultiplier = 0
 
 	res := make(chan error, 1)
 

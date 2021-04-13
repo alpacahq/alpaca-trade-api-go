@@ -37,19 +37,6 @@ func (c *nhooyrWebsocketConn) close() error {
 	return c.conn.Close(websocket.StatusNormalClosure, "")
 }
 
-// isCloseError returns true if the given error represents a standard websocket closure
-func (c *nhooyrWebsocketConn) isCloseError(err error) bool {
-	switch websocket.CloseStatus(err) {
-	case
-		websocket.StatusNormalClosure,
-		websocket.StatusGoingAway,
-		websocket.StatusNoStatusRcvd,
-		websocket.StatusAbnormalClosure:
-		return true
-	}
-	return false
-}
-
 // ping sends a ping to the client
 func (c *nhooyrWebsocketConn) ping(ctx context.Context) error {
 	pingCtx, cancel := context.WithTimeout(ctx, pongWait)

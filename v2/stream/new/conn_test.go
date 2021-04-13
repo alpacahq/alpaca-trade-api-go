@@ -40,10 +40,6 @@ func (c *mockConn) close() error {
 	return nil
 }
 
-func (c *mockConn) isCloseError(err error) bool {
-	return err == errClose
-}
-
 func (c *mockConn) ping(ctx context.Context) error {
 	if c.pingDisabled {
 		return errPingDisabled

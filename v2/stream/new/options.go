@@ -15,6 +15,7 @@ type options struct {
 	reconnectLimit int
 	reconnectDelay time.Duration
 	processorCount int
+	bufferSize     int
 	trades         []string
 	tradeHandler   func(Trade)
 	quotes         []string
@@ -60,9 +61,10 @@ func defaultOptions() *options {
 		host:           host,
 		key:            common.Credentials().ID,
 		secret:         common.Credentials().Secret,
-		reconnectLimit: 15,
-		reconnectDelay: 100 * time.Millisecond,
+		reconnectLimit: 20,
+		reconnectDelay: 150 * time.Millisecond,
 		processorCount: 1,
+		bufferSize:     100000,
 		trades:         []string{},
 		tradeHandler:   func(t Trade) {},
 		quotes:         []string{},
@@ -104,10 +106,19 @@ func WithReconnectSettings(limit int, delay time.Duration) Option {
 }
 
 // WithProcessors configures how many goroutines should process incoming
-// messages
+// messages. Increasing this past 1 means that the order of processing is not
+// necessarily the same as the order of arrival the from server.
 func WithProcessors(count int) Option {
 	return newFuncOption(func(o *options) {
 		o.processorCount = count
+	})
+}
+
+// WithBufferSize sets the size for the buffer that is used for messages received
+// from the server
+func WithBufferSize(size int) Option {
+	return newFuncOption(func(o *options) {
+		o.bufferSize = size
 	})
 }
 

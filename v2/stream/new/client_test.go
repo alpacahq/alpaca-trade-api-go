@@ -57,7 +57,7 @@ func TestContextCancelledBeforeConnect(t *testing.T) {
 
 	err := c.Connect(ctx)
 	assert.Error(t, err)
-	assert.Error(t, <-c.Error())
+	assert.Error(t, <-c.Terminated())
 }
 
 func TestConnectSucceeds(t *testing.T) {
@@ -374,7 +374,7 @@ func TestPingFails(t *testing.T) {
 	// triggering a ping
 	tt.Tick()
 
-	err = <-c.Error()
+	err = <-c.Terminated()
 	assert.Error(t, err)
 	assert.True(t, errors.Is(err, connErr))
 }

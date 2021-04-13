@@ -16,7 +16,7 @@ import (
 // are called. Connect keeps the connection alive and reestablishes it until
 // a configured number of retries has not been exceeded.
 //
-// Error() returns a channel that the client sends an error to when it has terminated.
+// Terminated() returns a channel that the client sends an error to when it has terminated.
 // A client can not be reused once it has terminated!
 //
 // SubscribeTo... and UnsubscribeFrom... can be used to modify subscriptions and
@@ -32,8 +32,8 @@ type StreamV2Client interface {
 	//
 	// **Should only be called once!**
 	Connect(ctx context.Context) error
-	// Error returns a channel that the client sends an error to when it has unexpectedly terminated.
-	Error() <-chan error
+	// Terminated returns a channel that the client sends an error to when it has terminated.
+	Terminated() <-chan error
 	SubscribeToTrades(handler func(trade Trade), symbols ...string) error
 	UnsubscribeFromTrades(symbols ...string) error
 	SubscribeToQuotes(handler func(quote Quote), symbols ...string) error
@@ -53,10 +53,11 @@ type client struct {
 	reconnectLimit int
 	reconnectDelay time.Duration
 	processorCount int
+	bufferSize     int
 	connectOnce    sync.Once
 	connectCalled  bool
 	hasTerminated  bool
-	connErrChan    chan error
+	terminatedChan chan error
 	conn           conn
 	in             chan []byte
 	subChanges     chan []byte
@@ -78,9 +79,9 @@ var _ StreamV2Client = (*client)(nil)
 // and whose default configurations are modified by opts.
 func NewClient(feed string, opts ...Option) StreamV2Client {
 	c := client{
-		feed:        feed,
-		connErrChan: make(chan error, 1),
-		subChanges:  make(chan []byte, 1),
+		feed:           feed,
+		terminatedChan: make(chan error, 1),
+		subChanges:     make(chan []byte, 1),
 	}
 	o := defaultOptions()
 	o.apply(opts...)
@@ -96,6 +97,7 @@ func (c *client) configure(o options) {
 	c.reconnectLimit = o.reconnectLimit
 	c.reconnectDelay = o.reconnectDelay
 	c.processorCount = o.processorCount
+	c.bufferSize = o.bufferSize
 	c.handlerMutex.Lock()
 	defer c.handlerMutex.Unlock()
 	c.trades = o.trades
@@ -132,7 +134,7 @@ func (c *client) Connect(ctx context.Context) error {
 	c.connectOnce.Do(func() {
 		err = c.connect(ctx)
 		if err != nil {
-			c.connErrChan <- err
+			c.terminatedChan <- err
 		}
 		c.connectCalled = true
 	})
@@ -151,8 +153,8 @@ func (c *client) connect(ctx context.Context) error {
 	return <-initialResultCh
 }
 
-func (c *client) Error() <-chan error {
-	return c.connErrChan
+func (c *client) Terminated() <-chan error {
+	return c.terminatedChan
 }
 
 // maintainConnection initializes a connection to u, starts the necessary goroutines
@@ -182,6 +184,8 @@ func (c *client) maintainConnection(ctx context.Context, u url.URL, initialResul
 				c.logger.Warnf("datav2stream: cancelled before connection could be established, last error: %v", connError)
 				err := fmt.Errorf("cancelled before connection could be established, last error: %w", connError)
 				initialResultCh <- err
+			} else {
+				c.terminatedChan <- nil
 			}
 			return
 		default:
@@ -191,7 +195,7 @@ func (c *client) maintainConnection(ctx context.Context, u url.URL, initialResul
 				if !connectedAtLeastOnce {
 					initialResultCh <- e
 				} else {
-					c.connErrChan <- e
+					c.terminatedChan <- e
 				}
 				return
 			}
@@ -221,7 +225,7 @@ func (c *client) maintainConnection(ctx context.Context, u url.URL, initialResul
 			}
 			failedAttemptsInARow = 0
 
-			c.in = make(chan []byte)
+			c.in = make(chan []byte, c.bufferSize)
 			wg := sync.WaitGroup{}
 			wg.Add(c.processorCount + 3)
 			closeCh := make(chan struct{})
@@ -258,7 +262,7 @@ func (c *client) connPinger(ctx context.Context, wg *sync.WaitGroup, closeCh <-c
 			return
 		case <-pingTicker.C():
 			if err := c.conn.ping(ctx); err != nil {
-				if !c.conn.isCloseError(err) && ctx.Err() == nil {
+				if ctx.Err() == nil {
 					c.logger.Errorf("datav2stream: ping failed, error: %v", err)
 				}
 				return
@@ -285,7 +289,7 @@ func (c *client) connReader(
 	for {
 		msg, err := c.conn.readMessage(ctx)
 		if err != nil {
-			if !c.conn.isCloseError(err) && ctx.Err() == nil {
+			if ctx.Err() == nil {
 				c.logger.Errorf("datav2stream: reading from conn failed, error: %v", err)
 			}
 			return
@@ -322,7 +326,7 @@ func (c *client) connWriter(ctx context.Context, wg *sync.WaitGroup, closeCh <-c
 			return
 		case msg := <-c.subChanges:
 			if err := c.conn.writeMessage(ctx, msg); err != nil {
-				if !c.conn.isCloseError(err) && ctx.Err() == nil {
+				if ctx.Err() == nil {
 					c.logger.Errorf("datav2stream: writing to conn failed, error: %v", err)
 				}
 				return
@@ -350,7 +354,7 @@ func (c *client) messageProcessor(
 			}
 			err := c.handleMessage(msg)
 			if err != nil {
-				c.logger.Warnf("datav2stream: could not handle message, error: %v", err)
+				c.logger.Errorf("datav2stream: could not handle message, error: %v", err)
 			}
 		}
 	}

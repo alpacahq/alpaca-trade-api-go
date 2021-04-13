@@ -31,9 +31,10 @@ func TestDefaultOptions(t *testing.T) {
 			assert.EqualValues(t, test.expectedHost, o.host)
 			assert.EqualValues(t, "testkey", o.key)
 			assert.EqualValues(t, "testsecret", o.secret)
-			assert.EqualValues(t, 15, o.reconnectLimit)
-			assert.EqualValues(t, 100*time.Millisecond, o.reconnectDelay)
+			assert.EqualValues(t, 20, o.reconnectLimit)
+			assert.EqualValues(t, 150*time.Millisecond, o.reconnectDelay)
 			assert.EqualValues(t, 1, o.processorCount)
+			assert.EqualValues(t, 100000, o.bufferSize)
 			assert.EqualValues(t, []string{}, o.trades)
 			assert.EqualValues(t, []string{}, o.quotes)
 			assert.EqualValues(t, []string{}, o.bars)
@@ -55,6 +56,7 @@ func TestConfigure(t *testing.T) {
 		WithCredentials("testkey", "testsecret"),
 		WithReconnectSettings(42, 322*time.Nanosecond),
 		WithProcessors(322),
+		WithBufferSize(1000000),
 		WithTrades(func(t Trade) {}, "ALPACA"),
 		WithQuotes(func(q Quote) {}, "AL", "PACA"),
 		WithBars(func(b Bar) {}, "ALP", "ACA"),
@@ -68,6 +70,7 @@ func TestConfigure(t *testing.T) {
 	assert.EqualValues(t, 42, c.reconnectLimit)
 	assert.EqualValues(t, 322*time.Nanosecond, c.reconnectDelay)
 	assert.EqualValues(t, 322, c.processorCount)
+	assert.EqualValues(t, 1000000, c.bufferSize)
 	assert.EqualValues(t, []string{"ALPACA"}, c.trades)
 	assert.EqualValues(t, []string{"AL", "PACA"}, c.quotes)
 	assert.EqualValues(t, []string{"ALP", "ACA"}, c.bars)

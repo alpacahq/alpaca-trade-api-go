@@ -15,12 +15,10 @@ type conn interface {
 	readMessage(ctx context.Context) (data []byte, err error)
 	// writeMessage writes a single message
 	writeMessage(ctx context.Context, data []byte) error
-	// isCloseError returns true if the given error represents a standard websocket closure
-	isCloseError(err error) bool
 }
 
 var (
-	writeWait  = 10 * time.Second    // Time allowed to write a message to the peer
-	pongWait   = 10 * time.Second    // Time allowed to read the next pong message from the peer
-	pingPeriod = (pongWait * 9) / 10 // Send pings to peer with this period. Must be less than pongWait
+	writeWait  = 5 * time.Second  // Time allowed to write a message to the peer
+	pongWait   = 5 * time.Second  // Time allowed to read the next pong message from the peer
+	pingPeriod = 10 * time.Second // Send pings to peer with this period
 )
