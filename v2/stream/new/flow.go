@@ -77,6 +77,8 @@ func (c *client) initialize(ctx context.Context) error {
 	return nil
 }
 
+// ErrNoConnected is returned when the client did not receive the welcome
+// message from the server
 var ErrNoConnected = errors.New("did not receive connected message")
 
 func (c *client) readConnected(ctx context.Context) error {
@@ -113,6 +115,7 @@ func (c *client) writeAuth(ctx context.Context) error {
 	return c.conn.writeMessage(ctx, msg)
 }
 
+//ErrBadAuthResponse is returned when the client could not successfully authenticate
 var ErrBadAuthResponse = errors.New("did not receive authenticated message")
 
 func (c *client) readAuthResponse(ctx context.Context) (canBeRetried bool, err error) {
@@ -157,6 +160,8 @@ func (c *client) writeSub(ctx context.Context) error {
 	return c.conn.writeMessage(ctx, msg)
 }
 
+// ErrSubResponse is returned when the client's subscription request was not
+// acknowledged
 var ErrSubResponse = errors.New("did not receive subscribed message")
 
 func (c *client) readSubResponse(ctx context.Context) error {

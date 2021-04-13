@@ -6,10 +6,21 @@ import (
 	"github.com/vmihailenco/msgpack/v5"
 )
 
-var ErrSubChangeBeforeConnect = errors.New("subscription change attempted before connecting")
-var ErrSubChangeAfterTerminated = errors.New("subscription change after client termination")
-var ErrSubChangeAlreadyInProgress = errors.New("subscription change already in progress")
-var ErrSubChangeInterrupted = errors.New("sub change interrupted by client termination")
+// ErrSubscriptionChangeBeforeConnect is returned when the client attempts to change subscriptions before
+// calling Connect
+var ErrSubscriptionChangeBeforeConnect = errors.New("subscription change attempted before calling Connect")
+
+// ErrSubscriptionChangeAfterTerminated is returned when client attempts to change subscriptions after
+// the client has been terminated
+var ErrSubscriptionChangeAfterTerminated = errors.New("subscription change after client termination")
+
+// ErrSubscriptionChangeAlreadyInProgress is returned when a subscription change is called concurrently
+// with another
+var ErrSubscriptionChangeAlreadyInProgress = errors.New("subscription change already in progress")
+
+// ErrSubscriptionChangeInterrupted is returned when a subscription change was in progress when the client
+// has terminated
+var ErrSubscriptionChangeInterrupted = errors.New("subscription change interrupted by client termination")
 
 type handlerKind int
 
@@ -82,7 +93,7 @@ func (c *client) UnsubscribeFromBars(symbols ...string) error {
 
 func (c *client) handleSubChange(subscribe bool, trades, quotes, bars []string, request subChangeRequest) error {
 	if !c.connectCalled {
-		return ErrSubChangeBeforeConnect
+		return ErrSubscriptionChangeBeforeConnect
 	}
 
 	// Special case: if no symbols are changed we update the handler
@@ -118,10 +129,10 @@ func (c *client) setSubChangeRequest(request *subChangeRequest) error {
 	c.pendingSubChangeMutex.Lock()
 	defer c.pendingSubChangeMutex.Unlock()
 	if c.hasTerminated {
-		return ErrSubChangeAfterTerminated
+		return ErrSubscriptionChangeAfterTerminated
 	}
 	if c.pendingSubChange != nil {
-		return ErrSubChangeAlreadyInProgress
+		return ErrSubscriptionChangeAlreadyInProgress
 	}
 	c.pendingSubChange = request
 	c.subChanges <- request.msg

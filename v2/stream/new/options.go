@@ -72,36 +72,21 @@ func defaultOptions() *options {
 	}
 }
 
-func (c *client) configure(o options) {
-	c.logger = o.logger
-	c.host = o.host
-	c.key = o.key
-	c.secret = o.secret
-	c.reconnectLimit = o.reconnectLimit
-	c.reconnectDelay = o.reconnectDelay
-	c.processorCount = o.processorCount
-	c.handlerMutex.Lock()
-	defer c.handlerMutex.Unlock()
-	c.trades = o.trades
-	c.tradeHandler = o.tradeHandler
-	c.quotes = o.quotes
-	c.quoteHandler = o.quoteHandler
-	c.bars = o.bars
-	c.barHandler = o.barHandler
-}
-
+// WithLogger configures the logger
 func WithLogger(logger Logger) Option {
 	return newFuncOption(func(o *options) {
 		o.logger = logger
 	})
 }
 
+// WithHost configures the host
 func WithHost(host string) Option {
 	return newFuncOption(func(o *options) {
 		o.host = host
 	})
 }
 
+// WithCredentials configures the key and secret to use
 func WithCredentials(key, secret string) Option {
 	return newFuncOption(func(o *options) {
 		o.key = key
@@ -109,6 +94,8 @@ func WithCredentials(key, secret string) Option {
 	})
 }
 
+// WithReconnectSettings configures how many consecutive connection
+// errors should be accepted and the delay between retries
 func WithReconnectSettings(limit int, delay time.Duration) Option {
 	return newFuncOption(func(o *options) {
 		o.reconnectLimit = limit
@@ -116,12 +103,15 @@ func WithReconnectSettings(limit int, delay time.Duration) Option {
 	})
 }
 
+// WithProcessors configures how many goroutines should process incoming
+// messages
 func WithProcessors(count int) Option {
 	return newFuncOption(func(o *options) {
 		o.processorCount = count
 	})
 }
 
+// WithTrades configures inital trade symbols to subscribe to and the handler
 func WithTrades(handler func(Trade), symbols ...string) Option {
 	return newFuncOption(func(o *options) {
 		o.trades = symbols
@@ -129,6 +119,7 @@ func WithTrades(handler func(Trade), symbols ...string) Option {
 	})
 }
 
+// WithQuotes configures inital quote symbols to subscribe to and the handler
 func WithQuotes(handler func(Quote), symbols ...string) Option {
 	return newFuncOption(func(o *options) {
 		o.quotes = symbols
@@ -136,6 +127,7 @@ func WithQuotes(handler func(Quote), symbols ...string) Option {
 	})
 }
 
+// WithBars configures inital bar symbols to subscribe to and the handler
 func WithBars(handler func(Bar), symbols ...string) Option {
 	return newFuncOption(func(o *options) {
 		o.bars = symbols

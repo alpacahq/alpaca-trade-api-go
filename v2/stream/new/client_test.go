@@ -88,17 +88,17 @@ func TestSubscribeBeforeConnect(t *testing.T) {
 	c := NewClient("iex")
 
 	err := c.SubscribeToTrades(func(trade Trade) {})
-	assert.Equal(t, ErrSubChangeBeforeConnect, err)
+	assert.Equal(t, ErrSubscriptionChangeBeforeConnect, err)
 	err = c.SubscribeToQuotes(func(quote Quote) {})
-	assert.Equal(t, ErrSubChangeBeforeConnect, err)
+	assert.Equal(t, ErrSubscriptionChangeBeforeConnect, err)
 	err = c.SubscribeToBars(func(bar Bar) {})
-	assert.Equal(t, ErrSubChangeBeforeConnect, err)
+	assert.Equal(t, ErrSubscriptionChangeBeforeConnect, err)
 	err = c.UnsubscribeFromTrades()
-	assert.Equal(t, ErrSubChangeBeforeConnect, err)
+	assert.Equal(t, ErrSubscriptionChangeBeforeConnect, err)
 	err = c.UnsubscribeFromQuotes()
-	assert.Equal(t, ErrSubChangeBeforeConnect, err)
+	assert.Equal(t, ErrSubscriptionChangeBeforeConnect, err)
 	err = c.UnsubscribeFromBars()
-	assert.Equal(t, ErrSubChangeBeforeConnect, err)
+	assert.Equal(t, ErrSubscriptionChangeBeforeConnect, err)
 }
 
 func TestSubscribeMultipleCalls(t *testing.T) {
@@ -134,7 +134,7 @@ func TestSubscribeMultipleCalls(t *testing.T) {
 
 	err = <-subErrCh
 	assert.Error(t, err)
-	assert.True(t, errors.Is(err, ErrSubChangeAlreadyInProgress))
+	assert.True(t, errors.Is(err, ErrSubscriptionChangeAlreadyInProgress))
 }
 
 func TestSubscribeCalledButClientTerminates(t *testing.T) {
@@ -172,12 +172,12 @@ func TestSubscribeCalledButClientTerminates(t *testing.T) {
 
 	err = <-subErrCh
 	assert.Error(t, err)
-	assert.True(t, errors.Is(err, ErrSubChangeInterrupted))
+	assert.True(t, errors.Is(err, ErrSubscriptionChangeInterrupted))
 
 	// Subscribing after the client has terminated results in an error
 	err = c.SubscribeToQuotes(func(quote Quote) {}, "AL", "PACA")
 	assert.Error(t, err)
-	assert.True(t, errors.Is(err, ErrSubChangeAfterTerminated))
+	assert.True(t, errors.Is(err, ErrSubscriptionChangeAfterTerminated))
 }
 
 func TestSubscripitionAcrossConnectionIssues(t *testing.T) {

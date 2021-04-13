@@ -19,13 +19,20 @@ import (
 // Error() returns a channel that the client sends an error to when it has terminated.
 // A client can not be reused once it has terminated!
 //
-// SubscribeTo... and UbsubscribeFrom... can be used to modify subscriptions and
+// SubscribeTo... and UnsubscribeFrom... can be used to modify subscriptions and
 // the handler used to process incoming trades/quotes/bars. These block until an
 // irrecoverable error occurs or if they succeed.
 //
 // Note that subscription changes can not be called concurrently.
 type StreamV2Client interface {
+	// Connect establishes a connection and **reestablishes it when errors occur**
+	// as long as the configured number of retires has not been exceeded.
+	//
+	// It blocks until the connection has been established for the first time (or it failed to do so).
+	//
+	// **Should only be called once!**
 	Connect(ctx context.Context) error
+	// Error returns a channel that the client sends an error to when it has unexpectedly terminated.
 	Error() <-chan error
 	SubscribeToTrades(handler func(trade Trade), symbols ...string) error
 	UnsubscribeFromTrades(symbols ...string) error
@@ -67,6 +74,8 @@ type client struct {
 
 var _ StreamV2Client = (*client)(nil)
 
+// NewClient returns a new StreamV2Client that will connect to feed data feed
+// and whose default configurations are modified by opts.
 func NewClient(feed string, opts ...Option) StreamV2Client {
 	c := client{
 		feed:        feed,
@@ -77,6 +86,24 @@ func NewClient(feed string, opts ...Option) StreamV2Client {
 	o.apply(opts...)
 	c.configure(*o)
 	return &c
+}
+
+func (c *client) configure(o options) {
+	c.logger = o.logger
+	c.host = o.host
+	c.key = o.key
+	c.secret = o.secret
+	c.reconnectLimit = o.reconnectLimit
+	c.reconnectDelay = o.reconnectDelay
+	c.processorCount = o.processorCount
+	c.handlerMutex.Lock()
+	defer c.handlerMutex.Unlock()
+	c.trades = o.trades
+	c.tradeHandler = o.tradeHandler
+	c.quotes = o.quotes
+	c.quoteHandler = o.quoteHandler
+	c.bars = o.bars
+	c.barHandler = o.barHandler
 }
 
 var connCreator = func(ctx context.Context, u url.URL) (conn, error) {
@@ -97,14 +124,9 @@ func constructURL(host, feed string) (url.URL, error) {
 	return url.URL{Scheme: scheme, Host: ub.Host, Path: "/v2/" + feed}, nil
 }
 
-var ErrConnectCalledMultipleTimes = errors.New("Connect called multiple times")
+// ErrConnectCalledMultipleTimes is returned when Connect has been called multiple times on a single client
+var ErrConnectCalledMultipleTimes = errors.New("tried to call Connect multiple times")
 
-// Connect establishes a connection for c using its configuration and reestablishes it when errors occur.
-// It blocks until the connection has been established for the first time (or it failed to do so).
-// Should only be called once!
-//
-// It returns after the connection was established for the first time or if it couldn't be established
-// after retrying.
 func (c *client) Connect(ctx context.Context) error {
 	err := ErrConnectCalledMultipleTimes
 	c.connectOnce.Do(func() {
@@ -123,15 +145,10 @@ func (c *client) connect(ctx context.Context) error {
 		return err
 	}
 
-	successCh := make(chan struct{})
-	go c.maintainConnection(ctx, u, successCh)
+	initialResultCh := make(chan error)
+	go c.maintainConnection(ctx, u, initialResultCh)
 
-	select {
-	case <-successCh:
-		return nil
-	case err := <-c.connErrChan:
-		return err
-	}
+	return <-initialResultCh
 }
 
 func (c *client) Error() <-chan error {
@@ -140,9 +157,9 @@ func (c *client) Error() <-chan error {
 
 // maintainConnection initializes a connection to u, starts the necessary goroutines
 // and recreates them if there was an error as long as reconnectLimit consecutive
-// connection initialization errors don't occur. It closes successCh upon the first
-// successful connection intialization
-func (c *client) maintainConnection(ctx context.Context, u url.URL, successCh chan<- struct{}) {
+// connection initialization errors don't occur. It sends the first connection
+// initialization's result to initialResultCh.
+func (c *client) maintainConnection(ctx context.Context, u url.URL, initialResultCh chan<- error) {
 	var connError error
 	failedAttemptsInARow := 0
 	connectedAtLeastOnce := false
@@ -152,7 +169,7 @@ func (c *client) maintainConnection(ctx context.Context, u url.URL, successCh ch
 		c.pendingSubChangeMutex.Lock()
 		defer c.pendingSubChangeMutex.Unlock()
 		if c.pendingSubChange != nil {
-			c.pendingSubChange.result <- ErrSubChangeInterrupted
+			c.pendingSubChange.result <- ErrSubscriptionChangeInterrupted
 		}
 		c.pendingSubChange = nil
 		c.hasTerminated = true
@@ -164,13 +181,18 @@ func (c *client) maintainConnection(ctx context.Context, u url.URL, successCh ch
 			if !connectedAtLeastOnce {
 				c.logger.Warnf("datav2stream: cancelled before connection could be established, last error: %v", connError)
 				err := fmt.Errorf("cancelled before connection could be established, last error: %w", connError)
-				c.connErrChan <- err
+				initialResultCh <- err
 			}
 			return
 		default:
 			if c.reconnectLimit != 0 && failedAttemptsInARow >= c.reconnectLimit {
 				c.logger.Errorf("datav2stream: max reconnect limit has been reached, last error: %v", connError)
-				c.connErrChan <- fmt.Errorf("max reconnect limit has been reached, last error: %w", connError)
+				e := fmt.Errorf("max reconnect limit has been reached, last error: %w", connError)
+				if !connectedAtLeastOnce {
+					initialResultCh <- e
+				} else {
+					c.connErrChan <- e
+				}
 				return
 			}
 			time.Sleep(time.Duration(failedAttemptsInARow) * c.reconnectDelay)
@@ -194,9 +216,9 @@ func (c *client) maintainConnection(ctx context.Context, u url.URL, successCh ch
 			c.logger.Infof("datav2stream: finished connection setup")
 			connError = nil
 			if !connectedAtLeastOnce {
-				close(successCh)
+				initialResultCh <- nil
+				connectedAtLeastOnce = true
 			}
-			connectedAtLeastOnce = true
 			failedAttemptsInARow = 0
 
 			c.in = make(chan []byte)
@@ -326,7 +348,6 @@ func (c *client) messageProcessor(
 			if !ok {
 				return
 			}
-			c.logger.Errorf("processing msg: %s", msg)
 			err := c.handleMessage(msg)
 			if err != nil {
 				c.logger.Warnf("datav2stream: could not handle message, error: %v", err)

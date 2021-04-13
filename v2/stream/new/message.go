@@ -181,7 +181,11 @@ func (c *client) handleBar(d *msgpack.Decoder, n int) error {
 	return nil
 }
 
+//ErrSymbolLimitExceeded is returned when the client has subscribed to too many symbols
 var ErrSymbolLimitExceeded = errors.New("symbol limit exceeded")
+
+//ErrSlowClient is returned when the server has detected a slow client. In this case there's no guarantee
+// that all prior messages are sent to the server so a subscription acknowledgement may not arrive
 var ErrSlowClient = errors.New("slow client")
 
 var errMessageHandler = func(c *client, e errorMessage) error {
