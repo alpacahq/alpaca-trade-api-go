@@ -9,16 +9,22 @@ import (
 	"github.com/vmihailenco/msgpack/v5"
 )
 
+type initializeResult struct {
+	err           error
+	irrecoverable bool
+}
+
 func TestInitializeConnectFails(t *testing.T) {
 	conn := newMockConn()
 	defer conn.close()
 	c := client{conn: conn, key: "key", secret: "secret"}
 
-	res := make(chan error, 1)
+	res := make(chan initializeResult, 1)
 
 	go func() {
 		// client connects to the server
-		res <- c.initialize(context.Background())
+		err, irrecoverable := c.initialize(context.Background())
+		res <- initializeResult{err: err, irrecoverable: irrecoverable}
 	}()
 	// server doesn't send proper response
 	conn.readCh <- serializeToMsgpack(t, []map[string]interface{}{
@@ -27,7 +33,9 @@ func TestInitializeConnectFails(t *testing.T) {
 		},
 	})
 
-	assert.Error(t, <-res)
+	r := <-res
+	assert.Error(t, r.err)
+	assert.False(t, r.irrecoverable)
 }
 
 func TestInitializeAuthError(t *testing.T) {
@@ -35,11 +43,12 @@ func TestInitializeAuthError(t *testing.T) {
 	defer conn.close()
 	c := client{conn: conn, key: "key", secret: "secret"}
 
-	res := make(chan error, 1)
+	res := make(chan initializeResult, 1)
 
 	go func() {
 		// client connects to the server
-		res <- c.initialize(context.Background())
+		err, irrecoverable := c.initialize(context.Background())
+		res <- initializeResult{err: err, irrecoverable: irrecoverable}
 	}()
 	// server welcomes the client
 	conn.readCh <- serializeToMsgpack(t, []map[string]interface{}{
@@ -57,7 +66,9 @@ func TestInitializeAuthError(t *testing.T) {
 		},
 	})
 
-	assert.Error(t, <-res)
+	r := <-res
+	assert.Error(t, r.err)
+	assert.True(t, r.irrecoverable)
 }
 
 func TestInitializeAuthRetryFails(t *testing.T) {
@@ -74,11 +85,12 @@ func TestInitializeAuthRetryFails(t *testing.T) {
 	// reducing retry count to simulate what happens after a lot of failures
 	authRetryCount = 1
 
-	res := make(chan error, 1)
+	res := make(chan initializeResult, 1)
 
 	go func() {
 		// client connects to the server
-		res <- c.initialize(context.Background())
+		err, irrecoverable := c.initialize(context.Background())
+		res <- initializeResult{err: err, irrecoverable: irrecoverable}
 	}()
 
 	// server welcomes the client
@@ -105,7 +117,9 @@ func TestInitializeAuthRetryFails(t *testing.T) {
 		},
 	})
 
-	assert.Error(t, <-res)
+	r := <-res
+	assert.Error(t, r.err)
+	assert.False(t, r.irrecoverable)
 }
 
 func TestInitializeAuthRetrySucceeds(t *testing.T) {
@@ -129,11 +143,12 @@ func TestInitializeAuthRetrySucceeds(t *testing.T) {
 	}()
 	authRetryDelayMultiplier = 0
 
-	res := make(chan error, 1)
+	res := make(chan initializeResult, 1)
 
 	go func() {
 		// client connects to the server
-		res <- c.initialize(context.Background())
+		err, irrecoverable := c.initialize(context.Background())
+		res <- initializeResult{err: err, irrecoverable: irrecoverable}
 	}()
 
 	// server welcomes the client
@@ -177,7 +192,9 @@ func TestInitializeAuthRetrySucceeds(t *testing.T) {
 		},
 	})
 
-	assert.NoError(t, <-res)
+	r := <-res
+	assert.NoError(t, r.err)
+	assert.False(t, r.irrecoverable)
 	assert.ElementsMatch(t, trades, c.trades)
 	assert.ElementsMatch(t, quotes, c.quotes)
 	assert.ElementsMatch(t, bars, c.bars)
@@ -212,11 +229,12 @@ func TestInitializeSubError(t *testing.T) {
 	}()
 	authRetryDelayMultiplier = 0
 
-	res := make(chan error, 1)
+	res := make(chan initializeResult, 1)
 
 	go func() {
 		// client connects to the server
-		res <- c.initialize(context.Background())
+		err, irrecoverable := c.initialize(context.Background())
+		res <- initializeResult{err: err, irrecoverable: irrecoverable}
 	}()
 
 	// server welcomes the client
@@ -242,7 +260,9 @@ func TestInitializeSubError(t *testing.T) {
 		},
 	})
 
-	assert.Error(t, <-res)
+	r := <-res
+	assert.Error(t, r.err)
+	assert.False(t, r.irrecoverable)
 }
 
 func TestReadConnectedCancelled(t *testing.T) {

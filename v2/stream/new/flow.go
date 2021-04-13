@@ -19,12 +19,12 @@ var authRetryCount = 15
 // 3. subscribes (and waits for the response)
 //
 // If it runs into retriable issues with authentication it retries for a while
-func (c *client) initialize(ctx context.Context) error {
+func (c *client) initialize(ctx context.Context) (err error, irrecoverable bool) {
 	ctxWithTimeout, cancel := context.WithTimeout(ctx, initializeTimeout)
 	defer cancel()
 
 	if err := c.readConnected(ctxWithTimeout); err != nil {
-		return err
+		return err, false
 	}
 
 	var retryErr error
@@ -43,7 +43,7 @@ func (c *client) initialize(ctx context.Context) error {
 		ctxWithTimeout, cancel := context.WithTimeout(ctx, initializeTimeout)
 		defer cancel()
 		if err := c.writeAuth(ctxWithTimeout); err != nil {
-			return err
+			return err, false
 		}
 
 		ctxWithTimeoutResp, cancelResp := context.WithTimeout(ctx, initializeTimeout)
@@ -53,28 +53,31 @@ func (c *client) initialize(ctx context.Context) error {
 		if err == nil {
 			break
 		}
+		if err == ErrInvalidCredentials {
+			return err, true
+		}
 		if !canBeRetried {
-			return err
+			return err, false
 		}
 	}
 
 	if retryErr != nil {
-		return retryErr
+		return retryErr, false
 	}
 
 	ctxWithTimeoutWriteSub, cancelWriteSub := context.WithTimeout(ctx, initializeTimeout)
 	defer cancelWriteSub()
 	if err := c.writeSub(ctxWithTimeoutWriteSub); err != nil {
-		return err
+		return err, false
 	}
 
 	ctxWithTimeoutReadSub, cancelReadSub := context.WithTimeout(ctx, initializeTimeout)
 	defer cancelReadSub()
 	if err := c.readSubResponse(ctxWithTimeoutReadSub); err != nil {
-		return err
+		return err, false
 	}
 
-	return nil
+	return nil, false
 }
 
 // ErrNoConnected is returned when the client did not receive the welcome
@@ -118,6 +121,9 @@ func (c *client) writeAuth(ctx context.Context) error {
 //ErrBadAuthResponse is returned when the client could not successfully authenticate
 var ErrBadAuthResponse = errors.New("did not receive authenticated message")
 
+// ErrInvalidCredentials is returned when invalid credentials have been sent by the user
+var ErrInvalidCredentials = errors.New("invalid credentials")
+
 func (c *client) readAuthResponse(ctx context.Context) (canBeRetried bool, err error) {
 	b, err := c.conn.readMessage(ctx)
 	if err != nil {
@@ -141,6 +147,11 @@ func (c *client) readAuthResponse(ctx context.Context) (canBeRetried bool, err e
 		err := fmt.Errorf("auth: error from server: %s", resps[0].Msg)
 		if resps[0].Code == 406 {
 			return true, err
+		}
+		// invalid credentials
+		// [{"T":"error","code":402,"msg":"auth failed"}]
+		if resps[0].Code == 402 {
+			return false, ErrInvalidCredentials
 		}
 		return false, err
 	}

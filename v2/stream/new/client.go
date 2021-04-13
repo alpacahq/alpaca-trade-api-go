@@ -177,6 +177,14 @@ func (c *client) maintainConnection(ctx context.Context, u url.URL, initialResul
 		c.hasTerminated = true
 	}()
 
+	sendError := func(err error) {
+		if !connectedAtLeastOnce {
+			initialResultCh <- err
+		} else {
+			c.terminatedChan <- err
+		}
+	}
+
 	for {
 		select {
 		case <-ctx.Done():
@@ -192,11 +200,7 @@ func (c *client) maintainConnection(ctx context.Context, u url.URL, initialResul
 			if c.reconnectLimit != 0 && failedAttemptsInARow >= c.reconnectLimit {
 				c.logger.Errorf("datav2stream: max reconnect limit has been reached, last error: %v", connError)
 				e := fmt.Errorf("max reconnect limit has been reached, last error: %w", connError)
-				if !connectedAtLeastOnce {
-					initialResultCh <- e
-				} else {
-					c.terminatedChan <- e
-				}
+				sendError(e)
 				return
 			}
 			time.Sleep(time.Duration(failedAttemptsInARow) * c.reconnectDelay)
@@ -211,9 +215,15 @@ func (c *client) maintainConnection(ctx context.Context, u url.URL, initialResul
 			c.conn = conn
 
 			c.logger.Infof("datav2stream: established connection")
-			if err := c.initialize(ctx); err != nil {
+			if err, irrecoverable := c.initialize(ctx); err != nil {
 				connError = err
 				c.conn.close()
+				if irrecoverable {
+					c.logger.Errorf("datav2stream: irrecoverable error during connection initialization: %v", err)
+					e := fmt.Errorf("irrecoverable error during connection initialization: %w", err)
+					sendError(e)
+					return
+				}
 				c.logger.Warnf("datav2stream: connection setup failed, error: %v", err)
 				continue
 			}

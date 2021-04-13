@@ -40,6 +40,44 @@ func TestConnectFails(t *testing.T) {
 	assert.True(t, errors.Is(err, ErrNoConnected))
 }
 
+func TestConnectImmediatelyFailsInvalidCredentials(t *testing.T) {
+	connection := newMockConn()
+	defer connection.close()
+	occ := connCreator
+	defer func() {
+		connCreator = occ
+	}()
+	connCreator = func(ctx context.Context, u url.URL) (conn, error) {
+		return connection, nil
+	}
+	c := NewClient(
+		"iex",
+		WithReconnectSettings(20, time.Second),
+	)
+	// server welcomes the client
+	connection.readCh <- serializeToMsgpack(t, []controlWithT{
+		{
+			Type: "success",
+			Msg:  "connected",
+		},
+	})
+	// server rejects the credentials
+	connection.readCh <- serializeToMsgpack(t, []errorWithT{
+		{
+			Type: "error",
+			Code: 402,
+			Msg:  "auth failed",
+		},
+	})
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	err := c.Connect(ctx)
+
+	assert.Error(t, err)
+	assert.True(t, errors.Is(err, ErrInvalidCredentials))
+}
+
 func TestContextCancelledBeforeConnect(t *testing.T) {
 	connection := newMockConn()
 	defer connection.close()
