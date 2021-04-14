@@ -36,7 +36,7 @@ func (c *client) initialize(ctx context.Context) error {
 			if n > 10 {
 				n = 10
 			}
-			sleepDuration := time.Second * time.Duration(authRetryDelayMultiplier*n*n)
+			sleepDuration := 500 * time.Millisecond * time.Duration(authRetryDelayMultiplier*n)
 			c.logger.Infof("datav2stream: retring auth in %s, attempt %d/%d", sleepDuration, i+1, authRetryCount+1)
 			time.Sleep(sleepDuration)
 		}
