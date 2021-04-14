@@ -33,6 +33,7 @@ type StreamV2Client interface {
 	// **Should only be called once!**
 	Connect(ctx context.Context) error
 	// Terminated returns a channel that the client sends an error to when it has terminated.
+	// The channel is also closed upon termination.
 	Terminated() <-chan error
 	SubscribeToTrades(handler func(trade Trade), symbols ...string) error
 	UnsubscribeFromTrades(symbols ...string) error
@@ -135,6 +136,7 @@ func (c *client) Connect(ctx context.Context) error {
 		err = c.connect(ctx)
 		if err != nil {
 			c.terminatedChan <- err
+			close(c.terminatedChan)
 		}
 		c.connectCalled = true
 	})
@@ -175,6 +177,10 @@ func (c *client) maintainConnection(ctx context.Context, u url.URL, initialResul
 		}
 		c.pendingSubChange = nil
 		c.hasTerminated = true
+		// if we haven't connected at least once then Connected should close the channel
+		if connectedAtLeastOnce {
+			close(c.terminatedChan)
+		}
 	}()
 
 	sendError := func(err error) {
