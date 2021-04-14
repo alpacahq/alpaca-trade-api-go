@@ -50,6 +50,9 @@ func TestConnectImmediatelyFailsInvalidCredentials(t *testing.T) {
 	connCreator = func(ctx context.Context, u url.URL) (conn, error) {
 		return connection, nil
 	}
+
+	// if the error weren't irrecoverable then we would be retrying for quite a while
+	// and the test would time out
 	c := NewClient(
 		"iex",
 		WithReconnectSettings(20, time.Second),

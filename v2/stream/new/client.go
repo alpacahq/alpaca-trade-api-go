@@ -215,10 +215,10 @@ func (c *client) maintainConnection(ctx context.Context, u url.URL, initialResul
 			c.conn = conn
 
 			c.logger.Infof("datav2stream: established connection")
-			if err, irrecoverable := c.initialize(ctx); err != nil {
+			if err := c.initialize(ctx); err != nil {
 				connError = err
 				c.conn.close()
-				if irrecoverable {
+				if isErrorIrrecoverable(err) {
 					c.logger.Errorf("datav2stream: irrecoverable error during connection initialization: %v", err)
 					e := fmt.Errorf("irrecoverable error during connection initialization: %w", err)
 					sendError(e)
@@ -249,6 +249,12 @@ func (c *client) maintainConnection(ctx context.Context, u url.URL, initialResul
 			c.logger.Warnf("datav2stream: connection lost")
 		}
 	}
+}
+
+// isErrorIrrecoverable returns whether the error is irrecoverable and further retries should
+// not take place
+func isErrorIrrecoverable(err error) bool {
+	return errors.Is(err, ErrInvalidCredentials)
 }
 
 var newPingTicker = func() ticker {

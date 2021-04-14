@@ -18,13 +18,13 @@ var authRetryCount = 15
 // 2. authenticates (and waits for the response)
 // 3. subscribes (and waits for the response)
 //
-// If it runs into retriable issues with authentication it retries for a while
-func (c *client) initialize(ctx context.Context) (err error, irrecoverable bool) {
+// If it runs into retriable issues during the flow it retries for a while
+func (c *client) initialize(ctx context.Context) error {
 	ctxWithTimeout, cancel := context.WithTimeout(ctx, initializeTimeout)
 	defer cancel()
 
 	if err := c.readConnected(ctxWithTimeout); err != nil {
-		return err, false
+		return err
 	}
 
 	var retryErr error
@@ -43,41 +43,37 @@ func (c *client) initialize(ctx context.Context) (err error, irrecoverable bool)
 		ctxWithTimeout, cancel := context.WithTimeout(ctx, initializeTimeout)
 		defer cancel()
 		if err := c.writeAuth(ctxWithTimeout); err != nil {
-			return err, false
+			return err
 		}
 
 		ctxWithTimeoutResp, cancelResp := context.WithTimeout(ctx, initializeTimeout)
 		defer cancelResp()
-		canBeRetried, err := c.readAuthResponse(ctxWithTimeoutResp)
-		retryErr = err
-		if err == nil {
+		retryErr = c.readAuthResponse(ctxWithTimeoutResp)
+		if retryErr == nil {
 			break
 		}
-		if err == ErrInvalidCredentials {
-			return err, true
-		}
-		if !canBeRetried {
-			return err, false
+		if !isErrorRetriable(retryErr) {
+			return retryErr
 		}
 	}
 
 	if retryErr != nil {
-		return retryErr, false
+		return retryErr
 	}
 
 	ctxWithTimeoutWriteSub, cancelWriteSub := context.WithTimeout(ctx, initializeTimeout)
 	defer cancelWriteSub()
 	if err := c.writeSub(ctxWithTimeoutWriteSub); err != nil {
-		return err, false
+		return err
 	}
 
 	ctxWithTimeoutReadSub, cancelReadSub := context.WithTimeout(ctx, initializeTimeout)
 	defer cancelReadSub()
 	if err := c.readSubResponse(ctxWithTimeoutReadSub); err != nil {
-		return err, false
+		return err
 	}
 
-	return nil, false
+	return nil
 }
 
 // ErrNoConnected is returned when the client did not receive the welcome
@@ -121,13 +117,21 @@ func (c *client) writeAuth(ctx context.Context) error {
 //ErrBadAuthResponse is returned when the client could not successfully authenticate
 var ErrBadAuthResponse = errors.New("did not receive authenticated message")
 
+// ErrConnectionLimitExceeded is returned when the client has exceeded their connection limit
+var ErrConnectionLimitExceeded = errors.New("connection limit exceeded")
+
 // ErrInvalidCredentials is returned when invalid credentials have been sent by the user
 var ErrInvalidCredentials = errors.New("invalid credentials")
 
-func (c *client) readAuthResponse(ctx context.Context) (canBeRetried bool, err error) {
+// isErrorRetriable returns whether the error is considered retriable during the initialization flow
+func isErrorRetriable(err error) bool {
+	return errors.Is(err, ErrConnectionLimitExceeded)
+}
+
+func (c *client) readAuthResponse(ctx context.Context) error {
 	b, err := c.conn.readMessage(ctx)
 	if err != nil {
-		return false, err
+		return err
 	}
 	var resps []struct {
 		T    string `msgpack:"T"`
@@ -135,10 +139,10 @@ func (c *client) readAuthResponse(ctx context.Context) (canBeRetried bool, err e
 		Code int    `msgpack:"code"`
 	}
 	if err := msgpack.Unmarshal(b, &resps); err != nil {
-		return false, err
+		return err
 	}
 	if len(resps) != 1 {
-		return false, ErrBadAuthResponse
+		return ErrBadAuthResponse
 	}
 
 	// A previous connection may be "stuck" on the server so we may run into
@@ -146,20 +150,20 @@ func (c *client) readAuthResponse(ctx context.Context) (canBeRetried bool, err e
 	if resps[0].T == "error" {
 		err := fmt.Errorf("auth: error from server: %s", resps[0].Msg)
 		if resps[0].Code == 406 {
-			return true, err
+			return ErrConnectionLimitExceeded
 		}
 		// invalid credentials
 		// [{"T":"error","code":402,"msg":"auth failed"}]
 		if resps[0].Code == 402 {
-			return false, ErrInvalidCredentials
+			return ErrInvalidCredentials
 		}
-		return false, err
+		return err
 	}
 	if resps[0].T != "success" || resps[0].Msg != "authenticated" {
-		return false, ErrBadAuthResponse
+		return ErrBadAuthResponse
 	}
 
-	return false, nil
+	return nil
 }
 
 func (c *client) writeSub(ctx context.Context) error {
