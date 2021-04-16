@@ -97,7 +97,8 @@ func WithCredentials(key, secret string) Option {
 }
 
 // WithReconnectSettings configures how many consecutive connection
-// errors should be accepted and the delay between retries
+// errors should be accepted and the delay (that is multipled by the number of consecutive errors)
+// between retries
 func WithReconnectSettings(limit int, delay time.Duration) Option {
 	return newFuncOption(func(o *options) {
 		o.reconnectLimit = limit
