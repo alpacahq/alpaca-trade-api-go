@@ -423,7 +423,7 @@ func TestPingFails(t *testing.T) {
 func TestCoreFunctionality(t *testing.T) {
 	connection := newMockConn()
 	defer connection.close()
-	writeInitialFlowMessagesToConn(t, connection, []string{}, []string{}, []string{})
+	writeInitialFlowMessagesToConn(t, connection, []string{"ALPACA"}, []string{"ALPACA"}, []string{"ALPACA"})
 	occ := connCreator
 	defer func() {
 		connCreator = occ
@@ -494,6 +494,11 @@ func writeInitialFlowMessagesToConn(t *testing.T, conn *mockConn, trades, quotes
 			Msg:  "authenticated",
 		},
 	})
+
+	if noSubscribeCallNecessary(trades, quotes, bars) {
+		return
+	}
+
 	// server accepts subscription
 	conn.readCh <- serializeToMsgpack(t, []subWithT{
 		{
@@ -511,6 +516,10 @@ func checkInitialMessagesSentByClient(t *testing.T, m *mockConn, key, secret str
 	require.Equal(t, "auth", auth["action"])
 	require.Equal(t, key, auth["key"])
 	require.Equal(t, secret, auth["secret"])
+
+	if noSubscribeCallNecessary(trades, quotes, bars) {
+		return
+	}
 
 	// subscribe
 	sub := expectWrite(t, m)

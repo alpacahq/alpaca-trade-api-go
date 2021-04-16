@@ -210,7 +210,7 @@ func TestInitializeAuthRetrySucceeds(t *testing.T) {
 func TestInitializeSubError(t *testing.T) {
 	conn := newMockConn()
 	defer conn.close()
-	c := client{conn: conn}
+	c := client{conn: conn, trades: []string{"TEST"}}
 	ordm := authRetryDelayMultiplier
 	defer func() {
 		authRetryDelayMultiplier = ordm
@@ -513,6 +513,27 @@ func TestReadAuthResponseContents(t *testing.T) {
 				assert.NoError(t, err)
 			}
 		})
+	}
+}
+
+func TestNoSubscribeCallNecessary(t *testing.T) {
+	var tests = []struct {
+		trades   []string
+		quotes   []string
+		bars     []string
+		expected bool
+	}{
+		{trades: nil, quotes: nil, bars: nil, expected: true},
+		{trades: []string{"TEST"}, quotes: nil, bars: nil, expected: false},
+		{trades: nil, quotes: []string{"TEST"}, bars: nil, expected: false},
+		{trades: nil, quotes: nil, bars: []string{"TEST"}, expected: false},
+		{trades: []string{"TEST"}, quotes: []string{"TEST"}, bars: []string{"TEST"}, expected: false},
+	}
+
+	for _, test := range tests {
+		c := client{trades: test.trades, quotes: test.quotes, bars: test.bars}
+
+		assert.Equal(t, test.expected, noSubscribeCallNecessary(c.trades, c.quotes, c.bars))
 	}
 }
 

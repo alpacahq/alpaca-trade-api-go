@@ -61,6 +61,10 @@ func (c *client) initialize(ctx context.Context) error {
 		return retryErr
 	}
 
+	if noSubscribeCallNecessary(c.trades, c.quotes, c.bars) {
+		return nil
+	}
+
 	ctxWithTimeoutWriteSub, cancelWriteSub := context.WithTimeout(ctx, initializeTimeout)
 	defer cancelWriteSub()
 	if err := c.writeSub(ctxWithTimeoutWriteSub); err != nil {
@@ -164,6 +168,10 @@ func (c *client) readAuthResponse(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+func noSubscribeCallNecessary(trades, quotes, bars []string) bool {
+	return len(trades) == 0 && len(quotes) == 0 && len(bars) == 0
 }
 
 func (c *client) writeSub(ctx context.Context) error {
