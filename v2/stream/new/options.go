@@ -98,7 +98,8 @@ func WithCredentials(key, secret string) Option {
 
 // WithReconnectSettings configures how many consecutive connection
 // errors should be accepted and the delay (that is multipled by the number of consecutive errors)
-// between retries
+// between retries. limit = 0 means the client will try restarting indefinitely unless it runs into
+// an irrecoverable error (such as invalid credentials).
 func WithReconnectSettings(limit int, delay time.Duration) Option {
 	return newFuncOption(func(o *options) {
 		o.reconnectLimit = limit
