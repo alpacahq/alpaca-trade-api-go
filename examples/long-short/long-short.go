@@ -326,12 +326,11 @@ func (alp alpacaClientContainer) getTotalPrice(arr []string) float64 {
 func (alp alpacaClientContainer) submitOrder(qty int, symbol string, side string) error {
 	account, _ := alpacaClient.client.GetAccount()
 	if qty > 0 {
-		qty := decimal.NewFromFloat(float64(qty))
 		adjSide := alpaca.Side(side)
 		_, err := alpacaClient.client.PlaceOrder(alpaca.PlaceOrderRequest{
 			AccountID:   account.ID,
 			AssetKey:    &symbol,
-			Qty:         &qty,
+			Qty:         decimal.NewFromFloat(float64(qty)),
 			Side:        adjSide,
 			Type:        "market",
 			TimeInForce: "day",

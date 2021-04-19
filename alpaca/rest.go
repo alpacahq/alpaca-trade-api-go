@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"reflect"
 	"strconv"
 	"strings"
 	"time"
@@ -1228,4 +1229,30 @@ func unmarshal(resp *http.Response, data interface{}) error {
 	}
 
 	return json.Unmarshal(body, data)
+}
+
+type localPlaceOrderRequest PlaceOrderRequest
+
+func (req PlaceOrderRequest) MarshalJSON() ([]byte, error) {
+	// marshal original POR
+	buf, err := json.Marshal(localPlaceOrderRequest(req))
+	if err != nil {
+		return nil, err
+	}
+
+	// unmarshal to allow updates
+	data := make(map[string]interface{})
+	if err = json.Unmarshal(buf, &data); err != nil {
+		return nil, err
+	}
+
+	// remove zero-value struct fields related to order size
+	if req.Notional == reflect.Zero(reflect.TypeOf(req.Notional)).Interface() {
+		delete(data, "notional")
+	}
+	if req.Qty == reflect.Zero(reflect.TypeOf(req.Qty)).Interface() {
+		delete(data, "qty")
+	}
+
+	return json.Marshal(data)
 }
