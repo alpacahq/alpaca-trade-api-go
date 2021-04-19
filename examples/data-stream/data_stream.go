@@ -9,19 +9,19 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/alpacahq/alpaca-trade-api-go/v2/stream/new"
+	"github.com/alpacahq/alpaca-trade-api-go/marketdata/stream"
 )
 
 func main() {
 	var tradeCount, quoteCount, barCount int32
 	// modify these according to your needs
-	tradeHandler := func(t new.Trade) {
+	tradeHandler := func(t stream.Trade) {
 		atomic.AddInt32(&tradeCount, 1)
 	}
-	quoteHandler := func(q new.Quote) {
+	quoteHandler := func(q stream.Quote) {
 		atomic.AddInt32(&quoteCount, 1)
 	}
-	barHandler := func(b new.Bar) {
+	barHandler := func(b stream.Bar) {
 		atomic.AddInt32(&barCount, 1)
 	}
 
@@ -37,18 +37,18 @@ func main() {
 	}()
 
 	// Creating a client that connexts to iex
-	c := new.NewClient(
+	c := stream.NewClient(
 		"iex",
 		// configuring initial subscriptions and handlers
-		new.WithTrades(tradeHandler, "SPY"),
-		new.WithQuotes(quoteHandler, "AAPL", "SPY"),
-		new.WithBars(barHandler, "AAPL", "SPY"),
-		// use new.WithCredentials to manually override envvars
-		// use new.WithHost to manually override envvar
-		// use new.WithLogger to use your own logger (i.e. zap, logrus) instead of log
-		// use new.WithProcessors to use multiple processing gourotines
-		// use new.WithBufferSize to change buffer size
-		// use new.WithReconnectSettings to change reconnect settings
+		stream.WithTrades(tradeHandler, "SPY"),
+		stream.WithQuotes(quoteHandler, "AAPL", "SPY"),
+		stream.WithBars(barHandler, "AAPL", "SPY"),
+		// use stream.WithCredentials to manually override envvars
+		// use stream.WithHost to manually override envvar
+		// use stream.WithLogger to use your own logger (i.e. zap, logrus) instead of log
+		// use stream.WithProcessors to use multiple processing gourotines
+		// use stream.WithBufferSize to change buffer size
+		// use stream.WithReconnectSettings to change reconnect settings
 	)
 
 	// periodically displaying number of trades/quotes/bars received so far

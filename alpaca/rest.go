@@ -14,7 +14,7 @@ import (
 	"time"
 
 	"github.com/alpacahq/alpaca-trade-api-go/common"
-	v2 "github.com/alpacahq/alpaca-trade-api-go/v2"
+	"github.com/alpacahq/alpaca-trade-api-go/marketdata"
 )
 
 const (
@@ -412,15 +412,17 @@ func (c *Client) GetLastTrade(symbol string) (*LastTradeResponse, error) {
 
 // GetTrades returns a channel that will be populated with the trades for the given symbol
 // that happened between the given start and end times, limited to the given limit.
-func (c *Client) GetTrades(symbol string, start, end time.Time, limit int) <-chan v2.TradeItem {
-	ch := make(chan v2.TradeItem)
+func (c *Client) GetTrades(
+	symbol string, start, end time.Time, limit int,
+) <-chan marketdata.TradeItem {
+	ch := make(chan marketdata.TradeItem)
 
 	go func() {
 		defer close(ch)
 
 		u, err := url.Parse(fmt.Sprintf("%s/v2/stocks/%s/trades", dataURL, symbol))
 		if err != nil {
-			ch <- v2.TradeItem{Error: err}
+			ch <- marketdata.TradeItem{Error: err}
 			return
 		}
 
@@ -444,18 +446,18 @@ func (c *Client) GetTrades(symbol string, start, end time.Time, limit int) <-cha
 
 			resp, err := c.get(u)
 			if err != nil {
-				ch <- v2.TradeItem{Error: err}
+				ch <- marketdata.TradeItem{Error: err}
 				return
 			}
 
 			var tradeResp tradeResponse
 			if err = unmarshal(resp, &tradeResp); err != nil {
-				ch <- v2.TradeItem{Error: err}
+				ch <- marketdata.TradeItem{Error: err}
 				return
 			}
 
 			for _, trade := range tradeResp.Trades {
-				ch <- v2.TradeItem{Trade: trade}
+				ch <- marketdata.TradeItem{Trade: trade}
 			}
 			if tradeResp.NextPageToken == nil {
 				return
@@ -470,18 +472,20 @@ func (c *Client) GetTrades(symbol string, start, end time.Time, limit int) <-cha
 
 // GetQuotes returns a channel that will be populated with the quotes for the given symbol
 // that happened between the given start and end times, limited to the given limit.
-func (c *Client) GetQuotes(symbol string, start, end time.Time, limit int) <-chan v2.QuoteItem {
+func (c *Client) GetQuotes(
+	symbol string, start, end time.Time, limit int,
+) <-chan marketdata.QuoteItem {
 	// NOTE: this method is very similar to GetTrades.
 	// With generics it would be almost trivial to refactor them to use a common base method,
 	// but without them it doesn't seem to be worth it
-	ch := make(chan v2.QuoteItem)
+	ch := make(chan marketdata.QuoteItem)
 
 	go func() {
 		defer close(ch)
 
 		u, err := url.Parse(fmt.Sprintf("%s/v2/stocks/%s/quotes", dataURL, symbol))
 		if err != nil {
-			ch <- v2.QuoteItem{Error: err}
+			ch <- marketdata.QuoteItem{Error: err}
 			return
 		}
 
@@ -505,18 +509,18 @@ func (c *Client) GetQuotes(symbol string, start, end time.Time, limit int) <-cha
 
 			resp, err := c.get(u)
 			if err != nil {
-				ch <- v2.QuoteItem{Error: err}
+				ch <- marketdata.QuoteItem{Error: err}
 				return
 			}
 
 			var quoteResp quoteResponse
 			if err = unmarshal(resp, &quoteResp); err != nil {
-				ch <- v2.QuoteItem{Error: err}
+				ch <- marketdata.QuoteItem{Error: err}
 				return
 			}
 
 			for _, quote := range quoteResp.Quotes {
-				ch <- v2.QuoteItem{Quote: quote}
+				ch <- marketdata.QuoteItem{Quote: quote}
 			}
 			if quoteResp.NextPageToken == nil {
 				return
@@ -533,17 +537,17 @@ func (c *Client) GetQuotes(symbol string, start, end time.Time, limit int) <-cha
 // between the given start and end times, limited to the given limit,
 // using the given and timeframe and adjustment.
 func (c *Client) GetBars(
-	symbol string, timeFrame v2.TimeFrame, adjustment v2.Adjustment,
+	symbol string, timeFrame marketdata.TimeFrame, adjustment marketdata.Adjustment,
 	start, end time.Time, limit int,
-) <-chan v2.BarItem {
-	ch := make(chan v2.BarItem)
+) <-chan marketdata.BarItem {
+	ch := make(chan marketdata.BarItem)
 
 	go func() {
 		defer close(ch)
 
 		u, err := url.Parse(fmt.Sprintf("%s/v2/stocks/%s/bars", dataURL, symbol))
 		if err != nil {
-			ch <- v2.BarItem{Error: err}
+			ch <- marketdata.BarItem{Error: err}
 			return
 		}
 
@@ -569,18 +573,18 @@ func (c *Client) GetBars(
 
 			resp, err := c.get(u)
 			if err != nil {
-				ch <- v2.BarItem{Error: err}
+				ch <- marketdata.BarItem{Error: err}
 				return
 			}
 
 			var barResp barResponse
 			if err = unmarshal(resp, &barResp); err != nil {
-				ch <- v2.BarItem{Error: err}
+				ch <- marketdata.BarItem{Error: err}
 				return
 			}
 
 			for _, bar := range barResp.Bars {
-				ch <- v2.BarItem{Bar: bar}
+				ch <- marketdata.BarItem{Bar: bar}
 			}
 			if barResp.NextPageToken == nil {
 				return
@@ -992,13 +996,13 @@ func GetLastTrade(symbol string) (*LastTradeResponse, error) {
 
 // GetTrades returns a channel that will be populated with the trades for the given symbol
 // that happened between the given start and end times, limited to the given limit.
-func GetTrades(symbol string, start, end time.Time, limit int) <-chan v2.TradeItem {
+func GetTrades(symbol string, start, end time.Time, limit int) <-chan marketdata.TradeItem {
 	return DefaultClient.GetTrades(symbol, start, end, limit)
 }
 
 // GetQuotes returns a channel that will be populated with the quotes for the given symbol
 // that happened between the given start and end times, limited to the given limit.
-func GetQuotes(symbol string, start, end time.Time, limit int) <-chan v2.QuoteItem {
+func GetQuotes(symbol string, start, end time.Time, limit int) <-chan marketdata.QuoteItem {
 	return DefaultClient.GetQuotes(symbol, start, end, limit)
 }
 
@@ -1006,9 +1010,9 @@ func GetQuotes(symbol string, start, end time.Time, limit int) <-chan v2.QuoteIt
 // between the given start and end times, limited to the given limit,
 // using the given and timeframe and adjustment.
 func GetBars(
-	symbol string, timeFrame v2.TimeFrame, adjustment v2.Adjustment,
+	symbol string, timeFrame marketdata.TimeFrame, adjustment marketdata.Adjustment,
 	start, end time.Time, limit int,
-) <-chan v2.BarItem {
+) <-chan marketdata.BarItem {
 	return DefaultClient.GetBars(symbol, timeFrame, adjustment, start, end, limit)
 }
 

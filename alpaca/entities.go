@@ -3,7 +3,7 @@ package alpaca
 import (
 	"time"
 
-	v2 "github.com/alpacahq/alpaca-trade-api-go/v2"
+	"github.com/alpacahq/alpaca-trade-api-go/marketdata"
 	"github.com/shopspring/decimal"
 )
 
@@ -205,21 +205,21 @@ type Aggregates struct {
 }
 
 type tradeResponse struct {
-	Symbol        string     `json:"symbol"`
-	NextPageToken *string    `json:"next_page_token"`
-	Trades        []v2.Trade `json:"trades"`
+	Symbol        string             `json:"symbol"`
+	NextPageToken *string            `json:"next_page_token"`
+	Trades        []marketdata.Trade `json:"trades"`
 }
 
 type quoteResponse struct {
-	Symbol        string     `json:"symbol"`
-	NextPageToken *string    `json:"next_page_token"`
-	Quotes        []v2.Quote `json:"quotes"`
+	Symbol        string             `json:"symbol"`
+	NextPageToken *string            `json:"next_page_token"`
+	Quotes        []marketdata.Quote `json:"quotes"`
 }
 
 type barResponse struct {
-	Symbol        string   `json:"symbol"`
-	NextPageToken *string  `json:"next_page_token"`
-	Bars          []v2.Bar `json:"bars"`
+	Symbol        string           `json:"symbol"`
+	NextPageToken *string          `json:"next_page_token"`
+	Bars          []marketdata.Bar `json:"bars"`
 }
 
 type CalendarDay struct {
