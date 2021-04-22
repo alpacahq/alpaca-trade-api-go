@@ -593,6 +593,48 @@ func (c *Client) GetBars(
 	return ch
 }
 
+// GetLatestTrade returns the latest trade for a given symbol
+func (c *Client) GetLatestTrade(symbol string) (*v2.Trade, error) {
+	u, err := url.Parse(fmt.Sprintf("%s/v2/stocks/%s/trades/latest", dataURL, symbol))
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := c.get(u)
+	if err != nil {
+		return nil, err
+	}
+
+	var latestTradeResp latestTradeResponse
+
+	if err = unmarshal(resp, &latestTradeResp); err != nil {
+		return nil, err
+	}
+
+	return &latestTradeResp.Trade, nil
+}
+
+// GetLatestQuote returns the latest quote for a given symbol
+func (c *Client) GetLatestQuote(symbol string) (*v2.Quote, error) {
+	u, err := url.Parse(fmt.Sprintf("%s/v2/stocks/%s/quotes/latest", dataURL, symbol))
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := c.get(u)
+	if err != nil {
+		return nil, err
+	}
+
+	var latestQuoteResp latestQuoteResponse
+
+	if err = unmarshal(resp, &latestQuoteResp); err != nil {
+		return nil, err
+	}
+
+	return &latestQuoteResp.Quote, nil
+}
+
 // CloseAllPositions liquidates all open positions at market price.
 func (c *Client) CloseAllPositions() error {
 	u, err := url.Parse(fmt.Sprintf("%s/%s/positions", base, apiVersion))
@@ -1010,6 +1052,16 @@ func GetBars(
 	start, end time.Time, limit int,
 ) <-chan v2.BarItem {
 	return DefaultClient.GetBars(symbol, timeFrame, adjustment, start, end, limit)
+}
+
+// GetLatestTrade returns the latest trade for a given symbol
+func GetLatestTrade(symbol string) (*v2.Trade, error) {
+	return DefaultClient.GetLatestTrade(symbol)
+}
+
+// GetLatestTrade returns the latest quote for a given symbol
+func GetLatestQuote(symbol string) (*v2.Quote, error) {
+	return DefaultClient.GetLatestQuote(symbol)
 }
 
 // GetPosition returns the account's position for the

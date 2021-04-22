@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	v2 "github.com/alpacahq/alpaca-trade-api-go/v2"
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -60,7 +61,7 @@ func (s *AlpacaTestSuite) TestAlpaca() {
 		}
 
 		acct, err := GetAccount()
-		assert.Nil(s.T(), err)
+		assert.NoError(s.T(), err)
 		assert.NotNil(s.T(), acct)
 		assert.Equal(s.T(), "some_id", acct.ID)
 
@@ -70,7 +71,7 @@ func (s *AlpacaTestSuite) TestAlpaca() {
 		}
 
 		acct, err = GetAccount()
-		assert.NotNil(s.T(), err)
+		assert.Error(s.T(), err)
 		assert.Nil(s.T(), acct)
 	}
 
@@ -87,7 +88,7 @@ func (s *AlpacaTestSuite) TestAlpaca() {
 		}
 
 		positions, err := ListPositions()
-		assert.Nil(s.T(), err)
+		assert.NoError(s.T(), err)
 		assert.Len(s.T(), positions, 1)
 
 		// api failure
@@ -96,7 +97,7 @@ func (s *AlpacaTestSuite) TestAlpaca() {
 		}
 
 		positions, err = ListPositions()
-		assert.NotNil(s.T(), err)
+		assert.Error(s.T(), err)
 		assert.Nil(s.T(), positions)
 	}
 
@@ -150,7 +151,7 @@ func (s *AlpacaTestSuite) TestAlpaca() {
 
 		actualAggregates, err := GetAggregates("AAPL", "minute", "2020-02-25", "2020-02-26")
 		assert.NotNil(s.T(), actualAggregates)
-		assert.Nil(s.T(), err)
+		assert.NoError(s.T(), err)
 		assert.EqualValues(s.T(), &expectedAggregates, actualAggregates)
 
 		// api failure
@@ -159,7 +160,7 @@ func (s *AlpacaTestSuite) TestAlpaca() {
 		}
 
 		actualAggregates, err = GetAggregates("AAPL", "minute", "2020-02-25", "2020-02-26")
-		assert.NotNil(s.T(), err)
+		assert.Error(s.T(), err)
 		assert.Nil(s.T(), actualAggregates)
 	}
 	// get last quote
@@ -200,7 +201,7 @@ func (s *AlpacaTestSuite) TestAlpaca() {
 
 		actualLastQuote, err := GetLastQuote("AAPL")
 		assert.NotNil(s.T(), actualLastQuote)
-		assert.Nil(s.T(), err)
+		assert.NoError(s.T(), err)
 		assert.EqualValues(s.T(), &expectedLastQuote, actualLastQuote)
 
 		// api failure
@@ -209,7 +210,7 @@ func (s *AlpacaTestSuite) TestAlpaca() {
 		}
 
 		actualLastQuote, err = GetLastQuote("AAPL")
-		assert.NotNil(s.T(), err)
+		assert.Error(s.T(), err)
 		assert.Nil(s.T(), actualLastQuote)
 	}
 
@@ -252,7 +253,7 @@ func (s *AlpacaTestSuite) TestAlpaca() {
 
 		actualLastTrade, err := GetLastTrade("AAPL")
 		assert.NotNil(s.T(), actualLastTrade)
-		assert.Nil(s.T(), err)
+		assert.NoError(s.T(), err)
 		assert.EqualValues(s.T(), &expectedLastTrade, actualLastTrade)
 
 		// api failure
@@ -261,8 +262,108 @@ func (s *AlpacaTestSuite) TestAlpaca() {
 		}
 
 		actualLastTrade, err = GetLastTrade("AAPL")
-		assert.NotNil(s.T(), err)
+		assert.Error(s.T(), err)
 		assert.Nil(s.T(), actualLastTrade)
+	}
+
+	// get latest trade
+	{
+		// successful
+		latestTradeJSON := `{
+			"symbol": "AAPL",
+			"trade": {
+				"t": "2021-04-20T12:40:34.484136Z",
+				"x": "J",
+				"p": 134.7,
+				"s": 20,
+				"c": [
+					"@",
+					"T",
+					"I"
+				],
+				"i": 32,
+				"z": "C"
+			}
+		}`
+		expectedLatestTrade := v2.Trade{
+			ID:         32,
+			Exchange:   "J",
+			Price:      134.7,
+			Size:       20,
+			Timestamp:  time.Unix(0, 1618922434484136000),
+			Conditions: []string{"@", "T", "I"},
+			Tape:       "C",
+		}
+		do = func(c *Client, req *http.Request) (*http.Response, error) {
+			return &http.Response{
+				Body: ioutil.NopCloser(strings.NewReader(latestTradeJSON)),
+			}, nil
+		}
+
+		actualLatestTrade, err := GetLatestTrade("AAPL")
+		assert.NotNil(s.T(), actualLatestTrade)
+		assert.NoError(s.T(), err)
+		checkV2TradeEquals(s.T(), &expectedLatestTrade, actualLatestTrade)
+
+		// api failure
+		do = func(c *Client, req *http.Request) (*http.Response, error) {
+			return &http.Response{}, fmt.Errorf("fail")
+		}
+
+		actualLatestTrade, err = GetLatestTrade("AAPL")
+		assert.Error(s.T(), err)
+		assert.Nil(s.T(), actualLatestTrade)
+	}
+
+	// get latest quote
+	{
+		// successful
+		latestQuoteJSON := `{
+				"symbol": "AAPL",
+				"quote": {
+					"t": "2021-04-20T13:01:57.822745906Z",
+					"ax": "Q",
+					"ap": 134.68,
+					"as": 1,
+					"bx": "K",
+					"bp": 134.66,
+					"bs": 29,
+					"c": [
+						"R"
+					],
+					"z": "C"
+				}
+			}`
+		expectedLatestQuote := v2.Quote{
+			BidExchange: "K",
+			BidPrice:    134.66,
+			BidSize:     29,
+			AskExchange: "Q",
+			AskPrice:    134.68,
+			AskSize:     1,
+			Timestamp:   time.Unix(0, 1618923717822745906),
+			Conditions:  []string{"R"},
+			Tape:        "C",
+		}
+		do = func(c *Client, req *http.Request) (*http.Response, error) {
+			return &http.Response{
+				Body: ioutil.NopCloser(strings.NewReader(latestQuoteJSON)),
+			}, nil
+		}
+
+		actualLatestQuote, err := GetLatestQuote("AAPL")
+		assert.NotNil(s.T(), actualLatestQuote)
+		assert.NoError(s.T(), err)
+		checkV2QuoteEquals(s.T(), &expectedLatestQuote, actualLatestQuote)
+
+		// api failure
+		do = func(c *Client, req *http.Request) (*http.Response, error) {
+			return &http.Response{}, fmt.Errorf("fail")
+		}
+
+		actualLatestQuote, err = GetLatestQuote("AAPL")
+		assert.Error(s.T(), err)
+		assert.Nil(s.T(), actualLatestQuote)
 	}
 
 	// get clock
@@ -281,7 +382,7 @@ func (s *AlpacaTestSuite) TestAlpaca() {
 		}
 
 		clock, err := GetClock()
-		assert.Nil(s.T(), err)
+		assert.NoError(s.T(), err)
 		assert.NotNil(s.T(), clock)
 		assert.True(s.T(), clock.IsOpen)
 
@@ -291,7 +392,7 @@ func (s *AlpacaTestSuite) TestAlpaca() {
 		}
 
 		clock, err = GetClock()
-		assert.NotNil(s.T(), err)
+		assert.Error(s.T(), err)
 		assert.Nil(s.T(), clock)
 	}
 
@@ -315,7 +416,7 @@ func (s *AlpacaTestSuite) TestAlpaca() {
 		end := "2018-01-02"
 
 		calendar, err := GetCalendar(&start, &end)
-		assert.Nil(s.T(), err)
+		assert.NoError(s.T(), err)
 		assert.Len(s.T(), calendar, 1)
 
 		// api failure
@@ -324,7 +425,7 @@ func (s *AlpacaTestSuite) TestAlpaca() {
 		}
 
 		calendar, err = GetCalendar(&start, &end)
-		assert.NotNil(s.T(), err)
+		assert.Error(s.T(), err)
 		assert.Nil(s.T(), calendar)
 	}
 
@@ -347,7 +448,7 @@ func (s *AlpacaTestSuite) TestAlpaca() {
 		limit := 1
 
 		orders, err := ListOrders(&status, &until, &limit, nil)
-		assert.Nil(s.T(), err)
+		assert.NoError(s.T(), err)
 		require.Len(s.T(), orders, 1)
 		assert.Equal(s.T(), "some_id", orders[0].ID)
 
@@ -357,7 +458,7 @@ func (s *AlpacaTestSuite) TestAlpaca() {
 		}
 
 		orders, err = ListOrders(&status, &until, &limit, nil)
-		assert.NotNil(s.T(), err)
+		assert.Error(s.T(), err)
 		assert.Nil(s.T(), orders)
 	}
 
@@ -388,7 +489,7 @@ func (s *AlpacaTestSuite) TestAlpaca() {
 		}
 
 		order, err := PlaceOrder(req)
-		assert.Nil(s.T(), err)
+		assert.NoError(s.T(), err)
 		assert.NotNil(s.T(), order)
 		assert.Equal(s.T(), req.Type, order.Type)
 
@@ -398,7 +499,7 @@ func (s *AlpacaTestSuite) TestAlpaca() {
 		}
 
 		order, err = PlaceOrder(req)
-		assert.NotNil(s.T(), err)
+		assert.Error(s.T(), err)
 		assert.Nil(s.T(), order)
 	}
 
@@ -415,7 +516,7 @@ func (s *AlpacaTestSuite) TestAlpaca() {
 		}
 
 		order, err := GetOrder("some_order_id")
-		assert.Nil(s.T(), err)
+		assert.NoError(s.T(), err)
 		assert.NotNil(s.T(), order)
 
 		// api failure
@@ -424,7 +525,7 @@ func (s *AlpacaTestSuite) TestAlpaca() {
 		}
 
 		order, err = GetOrder("some_order_id")
-		assert.NotNil(s.T(), err)
+		assert.Error(s.T(), err)
 		assert.Nil(s.T(), order)
 	}
 
@@ -441,7 +542,7 @@ func (s *AlpacaTestSuite) TestAlpaca() {
 		}
 
 		order, err := GetOrderByClientOrderID("some_client_order_id")
-		assert.Nil(s.T(), err)
+		assert.NoError(s.T(), err)
 		assert.NotNil(s.T(), order)
 
 		// api failure
@@ -450,7 +551,7 @@ func (s *AlpacaTestSuite) TestAlpaca() {
 		}
 
 		order, err = GetOrderByClientOrderID("some_client_order_id")
-		assert.NotNil(s.T(), err)
+		assert.Error(s.T(), err)
 		assert.Nil(s.T(), order)
 	}
 
@@ -486,7 +587,7 @@ func (s *AlpacaTestSuite) TestAlpaca() {
 		status := "active"
 
 		assets, err := ListAssets(&status)
-		assert.Nil(s.T(), err)
+		assert.NoError(s.T(), err)
 		require.Len(s.T(), assets, 1)
 		assert.Equal(s.T(), "some_id", assets[0].ID)
 
@@ -496,7 +597,7 @@ func (s *AlpacaTestSuite) TestAlpaca() {
 		}
 
 		assets, err = ListAssets(&status)
-		assert.NotNil(s.T(), err)
+		assert.Error(s.T(), err)
 		assert.Nil(s.T(), assets)
 	}
 
@@ -511,7 +612,7 @@ func (s *AlpacaTestSuite) TestAlpaca() {
 		}
 
 		asset, err := GetAsset("APCA")
-		assert.Nil(s.T(), err)
+		assert.NoError(s.T(), err)
 		assert.NotNil(s.T(), asset)
 
 		// api failure
@@ -520,7 +621,7 @@ func (s *AlpacaTestSuite) TestAlpaca() {
 		}
 
 		asset, err = GetAsset("APCA")
-		assert.NotNil(s.T(), err)
+		assert.Error(s.T(), err)
 		assert.Nil(s.T(), asset)
 	}
 
@@ -546,7 +647,7 @@ func (s *AlpacaTestSuite) TestAlpaca() {
 		}
 
 		bars, err := ListBars([]string{"APCA"}, ListBarParams{Timeframe: "1D"})
-		assert.Nil(s.T(), err)
+		assert.NoError(s.T(), err)
 		require.Len(s.T(), bars, 1)
 		assert.Equal(s.T(), int64(1551157200), bars["APCA"][0].Time)
 
@@ -556,7 +657,7 @@ func (s *AlpacaTestSuite) TestAlpaca() {
 		}
 
 		bars, err = ListBars([]string{"APCA"}, ListBarParams{Timeframe: "1D"})
-		assert.NotNil(s.T(), err)
+		assert.Error(s.T(), err)
 		assert.Nil(s.T(), bars)
 	}
 
@@ -582,7 +683,7 @@ func (s *AlpacaTestSuite) TestAlpaca() {
 		}
 
 		bars, err := GetSymbolBars("APCA", ListBarParams{Timeframe: "1D"})
-		assert.Nil(s.T(), err)
+		assert.NoError(s.T(), err)
 		assert.NotNil(s.T(), bars)
 
 		// api failure
@@ -591,7 +692,7 @@ func (s *AlpacaTestSuite) TestAlpaca() {
 		}
 
 		bars, err = GetSymbolBars("APCA", ListBarParams{Timeframe: "1D"})
-		assert.NotNil(s.T(), err)
+		assert.Error(s.T(), err)
 		assert.Nil(s.T(), bars)
 	}
 
@@ -649,10 +750,40 @@ func (s *AlpacaTestSuite) TestAlpaca() {
 		}
 
 		order, err := PlaceOrder(req)
-		assert.Nil(s.T(), err)
+		assert.NoError(s.T(), err)
 		assert.NotNil(s.T(), order)
 		assert.Equal(s.T(), "bracket", order.Class)
 	}
+}
+
+func checkV2TradeEquals(t *testing.T, expected, got *v2.Trade) {
+	if expected == nil || got == nil {
+		assert.True(t, expected == got)
+		return
+	}
+	assert.EqualValues(t, expected.Conditions, got.Conditions)
+	assert.EqualValues(t, expected.Exchange, got.Exchange)
+	assert.EqualValues(t, expected.ID, got.ID)
+	assert.EqualValues(t, expected.Price, got.Price)
+	assert.EqualValues(t, expected.Size, got.Size)
+	assert.EqualValues(t, expected.Tape, got.Tape)
+	assert.True(t, expected.Timestamp.Equal(got.Timestamp))
+}
+
+func checkV2QuoteEquals(t *testing.T, expected, got *v2.Quote) {
+	if expected == nil || got == nil {
+		assert.True(t, expected == got)
+		return
+	}
+	assert.EqualValues(t, expected.AskExchange, got.AskExchange)
+	assert.EqualValues(t, expected.AskPrice, got.AskPrice)
+	assert.EqualValues(t, expected.AskSize, got.AskSize)
+	assert.EqualValues(t, expected.BidExchange, got.BidExchange)
+	assert.EqualValues(t, expected.BidPrice, got.BidPrice)
+	assert.EqualValues(t, expected.BidSize, got.BidSize)
+	assert.EqualValues(t, expected.Conditions, got.Conditions)
+	assert.EqualValues(t, expected.Tape, got.Tape)
+	assert.True(t, expected.Timestamp.Equal(got.Timestamp))
 }
 
 type nopCloser struct {
