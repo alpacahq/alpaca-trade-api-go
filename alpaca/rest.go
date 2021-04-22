@@ -1230,6 +1230,7 @@ func unmarshal(resp *http.Response, data interface{}) error {
 	return json.Unmarshal(body, data)
 }
 
+// alias POR to avoid entering an infinite loop when MarshalJSON is called
 type localPlaceOrderRequest PlaceOrderRequest
 
 func (req PlaceOrderRequest) MarshalJSON() ([]byte, error) {
