@@ -211,7 +211,7 @@ func (c *client) maintainConnection(ctx context.Context, u url.URL, initialResul
 			}
 			time.Sleep(time.Duration(failedAttemptsInARow) * c.reconnectDelay)
 			failedAttemptsInARow++
-			c.logger.Infof("datav2stream: connecting to %s, attempt %d/%d ...", u, failedAttemptsInARow, c.reconnectLimit)
+			c.logger.Infof("datav2stream: connecting to %s, attempt %d/%d ...", u.String(), failedAttemptsInARow, c.reconnectLimit)
 			conn, err := connCreator(ctx, u)
 			if err != nil {
 				connError = err
