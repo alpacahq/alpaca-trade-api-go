@@ -61,7 +61,7 @@ func (s *AlpacaTestSuite) TestAlpaca() {
 		}
 
 		acct, err := GetAccount()
-		assert.Nil(s.T(), err)
+		assert.NoError(s.T(), err)
 		assert.NotNil(s.T(), acct)
 		assert.Equal(s.T(), "some_id", acct.ID)
 
@@ -71,7 +71,7 @@ func (s *AlpacaTestSuite) TestAlpaca() {
 		}
 
 		acct, err = GetAccount()
-		assert.NotNil(s.T(), err)
+		assert.Error(s.T(), err)
 		assert.Nil(s.T(), acct)
 	}
 
@@ -88,7 +88,7 @@ func (s *AlpacaTestSuite) TestAlpaca() {
 		}
 
 		positions, err := ListPositions()
-		assert.Nil(s.T(), err)
+		assert.NoError(s.T(), err)
 		assert.Len(s.T(), positions, 1)
 
 		// api failure
@@ -97,7 +97,7 @@ func (s *AlpacaTestSuite) TestAlpaca() {
 		}
 
 		positions, err = ListPositions()
-		assert.NotNil(s.T(), err)
+		assert.Error(s.T(), err)
 		assert.Nil(s.T(), positions)
 	}
 
@@ -151,7 +151,7 @@ func (s *AlpacaTestSuite) TestAlpaca() {
 
 		actualAggregates, err := GetAggregates("AAPL", "minute", "2020-02-25", "2020-02-26")
 		assert.NotNil(s.T(), actualAggregates)
-		assert.Nil(s.T(), err)
+		assert.NoError(s.T(), err)
 		assert.EqualValues(s.T(), &expectedAggregates, actualAggregates)
 
 		// api failure
@@ -160,7 +160,7 @@ func (s *AlpacaTestSuite) TestAlpaca() {
 		}
 
 		actualAggregates, err = GetAggregates("AAPL", "minute", "2020-02-25", "2020-02-26")
-		assert.NotNil(s.T(), err)
+		assert.Error(s.T(), err)
 		assert.Nil(s.T(), actualAggregates)
 	}
 	// get last quote
@@ -201,7 +201,7 @@ func (s *AlpacaTestSuite) TestAlpaca() {
 
 		actualLastQuote, err := GetLastQuote("AAPL")
 		assert.NotNil(s.T(), actualLastQuote)
-		assert.Nil(s.T(), err)
+		assert.NoError(s.T(), err)
 		assert.EqualValues(s.T(), &expectedLastQuote, actualLastQuote)
 
 		// api failure
@@ -210,7 +210,7 @@ func (s *AlpacaTestSuite) TestAlpaca() {
 		}
 
 		actualLastQuote, err = GetLastQuote("AAPL")
-		assert.NotNil(s.T(), err)
+		assert.Error(s.T(), err)
 		assert.Nil(s.T(), actualLastQuote)
 	}
 
@@ -253,7 +253,7 @@ func (s *AlpacaTestSuite) TestAlpaca() {
 
 		actualLastTrade, err := GetLastTrade("AAPL")
 		assert.NotNil(s.T(), actualLastTrade)
-		assert.Nil(s.T(), err)
+		assert.NoError(s.T(), err)
 		assert.EqualValues(s.T(), &expectedLastTrade, actualLastTrade)
 
 		// api failure
@@ -262,7 +262,7 @@ func (s *AlpacaTestSuite) TestAlpaca() {
 		}
 
 		actualLastTrade, err = GetLastTrade("AAPL")
-		assert.NotNil(s.T(), err)
+		assert.Error(s.T(), err)
 		assert.Nil(s.T(), actualLastTrade)
 	}
 
@@ -302,7 +302,7 @@ func (s *AlpacaTestSuite) TestAlpaca() {
 
 		actualLatestTrade, err := GetLatestTrade("AAPL")
 		assert.NotNil(s.T(), actualLatestTrade)
-		assert.Nil(s.T(), err)
+		assert.NoError(s.T(), err)
 		checkV2TradeEquals(s.T(), &expectedLatestTrade, actualLatestTrade)
 
 		// api failure
@@ -311,7 +311,7 @@ func (s *AlpacaTestSuite) TestAlpaca() {
 		}
 
 		actualLatestTrade, err = GetLatestTrade("AAPL")
-		assert.NotNil(s.T(), err)
+		assert.Error(s.T(), err)
 		assert.Nil(s.T(), actualLatestTrade)
 	}
 
@@ -353,7 +353,7 @@ func (s *AlpacaTestSuite) TestAlpaca() {
 
 		actualLatestQuote, err := GetLatestQuote("AAPL")
 		assert.NotNil(s.T(), actualLatestQuote)
-		assert.Nil(s.T(), err)
+		assert.NoError(s.T(), err)
 		checkV2QuoteEquals(s.T(), &expectedLatestQuote, actualLatestQuote)
 
 		// api failure
@@ -362,7 +362,7 @@ func (s *AlpacaTestSuite) TestAlpaca() {
 		}
 
 		actualLatestQuote, err = GetLatestQuote("AAPL")
-		assert.NotNil(s.T(), err)
+		assert.Error(s.T(), err)
 		assert.Nil(s.T(), actualLatestQuote)
 	}
 
@@ -382,7 +382,7 @@ func (s *AlpacaTestSuite) TestAlpaca() {
 		}
 
 		clock, err := GetClock()
-		assert.Nil(s.T(), err)
+		assert.NoError(s.T(), err)
 		assert.NotNil(s.T(), clock)
 		assert.True(s.T(), clock.IsOpen)
 
@@ -392,7 +392,7 @@ func (s *AlpacaTestSuite) TestAlpaca() {
 		}
 
 		clock, err = GetClock()
-		assert.NotNil(s.T(), err)
+		assert.Error(s.T(), err)
 		assert.Nil(s.T(), clock)
 	}
 
@@ -416,7 +416,7 @@ func (s *AlpacaTestSuite) TestAlpaca() {
 		end := "2018-01-02"
 
 		calendar, err := GetCalendar(&start, &end)
-		assert.Nil(s.T(), err)
+		assert.NoError(s.T(), err)
 		assert.Len(s.T(), calendar, 1)
 
 		// api failure
@@ -425,7 +425,7 @@ func (s *AlpacaTestSuite) TestAlpaca() {
 		}
 
 		calendar, err = GetCalendar(&start, &end)
-		assert.NotNil(s.T(), err)
+		assert.Error(s.T(), err)
 		assert.Nil(s.T(), calendar)
 	}
 
@@ -448,7 +448,7 @@ func (s *AlpacaTestSuite) TestAlpaca() {
 		limit := 1
 
 		orders, err := ListOrders(&status, &until, &limit, nil)
-		assert.Nil(s.T(), err)
+		assert.NoError(s.T(), err)
 		require.Len(s.T(), orders, 1)
 		assert.Equal(s.T(), "some_id", orders[0].ID)
 
@@ -458,7 +458,7 @@ func (s *AlpacaTestSuite) TestAlpaca() {
 		}
 
 		orders, err = ListOrders(&status, &until, &limit, nil)
-		assert.NotNil(s.T(), err)
+		assert.Error(s.T(), err)
 		assert.Nil(s.T(), orders)
 	}
 
@@ -489,7 +489,7 @@ func (s *AlpacaTestSuite) TestAlpaca() {
 		}
 
 		order, err := PlaceOrder(req)
-		assert.Nil(s.T(), err)
+		assert.NoError(s.T(), err)
 		assert.NotNil(s.T(), order)
 		assert.Equal(s.T(), req.Type, order.Type)
 
@@ -499,7 +499,7 @@ func (s *AlpacaTestSuite) TestAlpaca() {
 		}
 
 		order, err = PlaceOrder(req)
-		assert.NotNil(s.T(), err)
+		assert.Error(s.T(), err)
 		assert.Nil(s.T(), order)
 	}
 
@@ -516,7 +516,7 @@ func (s *AlpacaTestSuite) TestAlpaca() {
 		}
 
 		order, err := GetOrder("some_order_id")
-		assert.Nil(s.T(), err)
+		assert.NoError(s.T(), err)
 		assert.NotNil(s.T(), order)
 
 		// api failure
@@ -525,7 +525,7 @@ func (s *AlpacaTestSuite) TestAlpaca() {
 		}
 
 		order, err = GetOrder("some_order_id")
-		assert.NotNil(s.T(), err)
+		assert.Error(s.T(), err)
 		assert.Nil(s.T(), order)
 	}
 
@@ -542,7 +542,7 @@ func (s *AlpacaTestSuite) TestAlpaca() {
 		}
 
 		order, err := GetOrderByClientOrderID("some_client_order_id")
-		assert.Nil(s.T(), err)
+		assert.NoError(s.T(), err)
 		assert.NotNil(s.T(), order)
 
 		// api failure
@@ -551,7 +551,7 @@ func (s *AlpacaTestSuite) TestAlpaca() {
 		}
 
 		order, err = GetOrderByClientOrderID("some_client_order_id")
-		assert.NotNil(s.T(), err)
+		assert.Error(s.T(), err)
 		assert.Nil(s.T(), order)
 	}
 
@@ -587,7 +587,7 @@ func (s *AlpacaTestSuite) TestAlpaca() {
 		status := "active"
 
 		assets, err := ListAssets(&status)
-		assert.Nil(s.T(), err)
+		assert.NoError(s.T(), err)
 		require.Len(s.T(), assets, 1)
 		assert.Equal(s.T(), "some_id", assets[0].ID)
 
@@ -597,7 +597,7 @@ func (s *AlpacaTestSuite) TestAlpaca() {
 		}
 
 		assets, err = ListAssets(&status)
-		assert.NotNil(s.T(), err)
+		assert.Error(s.T(), err)
 		assert.Nil(s.T(), assets)
 	}
 
@@ -612,7 +612,7 @@ func (s *AlpacaTestSuite) TestAlpaca() {
 		}
 
 		asset, err := GetAsset("APCA")
-		assert.Nil(s.T(), err)
+		assert.NoError(s.T(), err)
 		assert.NotNil(s.T(), asset)
 
 		// api failure
@@ -621,7 +621,7 @@ func (s *AlpacaTestSuite) TestAlpaca() {
 		}
 
 		asset, err = GetAsset("APCA")
-		assert.NotNil(s.T(), err)
+		assert.Error(s.T(), err)
 		assert.Nil(s.T(), asset)
 	}
 
@@ -647,7 +647,7 @@ func (s *AlpacaTestSuite) TestAlpaca() {
 		}
 
 		bars, err := ListBars([]string{"APCA"}, ListBarParams{Timeframe: "1D"})
-		assert.Nil(s.T(), err)
+		assert.NoError(s.T(), err)
 		require.Len(s.T(), bars, 1)
 		assert.Equal(s.T(), int64(1551157200), bars["APCA"][0].Time)
 
@@ -657,7 +657,7 @@ func (s *AlpacaTestSuite) TestAlpaca() {
 		}
 
 		bars, err = ListBars([]string{"APCA"}, ListBarParams{Timeframe: "1D"})
-		assert.NotNil(s.T(), err)
+		assert.Error(s.T(), err)
 		assert.Nil(s.T(), bars)
 	}
 
@@ -683,7 +683,7 @@ func (s *AlpacaTestSuite) TestAlpaca() {
 		}
 
 		bars, err := GetSymbolBars("APCA", ListBarParams{Timeframe: "1D"})
-		assert.Nil(s.T(), err)
+		assert.NoError(s.T(), err)
 		assert.NotNil(s.T(), bars)
 
 		// api failure
@@ -692,7 +692,7 @@ func (s *AlpacaTestSuite) TestAlpaca() {
 		}
 
 		bars, err = GetSymbolBars("APCA", ListBarParams{Timeframe: "1D"})
-		assert.NotNil(s.T(), err)
+		assert.Error(s.T(), err)
 		assert.Nil(s.T(), bars)
 	}
 
@@ -750,7 +750,7 @@ func (s *AlpacaTestSuite) TestAlpaca() {
 		}
 
 		order, err := PlaceOrder(req)
-		assert.Nil(s.T(), err)
+		assert.NoError(s.T(), err)
 		assert.NotNil(s.T(), order)
 		assert.Equal(s.T(), "bracket", order.Class)
 	}
