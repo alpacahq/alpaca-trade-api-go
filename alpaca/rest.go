@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"reflect"
 	"strconv"
 	"strings"
 	"time"
@@ -1247,10 +1246,10 @@ func (req PlaceOrderRequest) MarshalJSON() ([]byte, error) {
 	}
 
 	// remove zero-value struct fields related to order size
-	if req.Notional == reflect.Zero(reflect.TypeOf(req.Notional)).Interface() {
+	if req.Notional.IsZero() {
 		delete(data, "notional")
 	}
-	if req.Qty == reflect.Zero(reflect.TypeOf(req.Qty)).Interface() {
+	if req.Qty.IsZero() {
 		delete(data, "qty")
 	}
 
