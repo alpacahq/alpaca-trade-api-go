@@ -222,6 +222,16 @@ type barResponse struct {
 	Bars          []marketdata.Bar `json:"bars"`
 }
 
+type latestTradeResponse struct {
+	Symbol string           `json:"symbol"`
+	Trade  marketdata.Trade `json:"trade"`
+}
+
+type latestQuoteResponse struct {
+	Symbol string           `json:"symbol"`
+	Quote  marketdata.Quote `json:"quote"`
+}
+
 type CalendarDay struct {
 	Date  string `json:"date"`
 	Open  string `json:"open"`
