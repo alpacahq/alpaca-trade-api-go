@@ -9,7 +9,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/alpacahq/alpaca-trade-api-go/marketdata/stream"
+	"github.com/alpacahq/alpaca-trade-api-go/v2/marketdata/stream"
 )
 
 func main() {

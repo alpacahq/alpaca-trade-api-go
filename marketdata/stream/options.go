@@ -4,7 +4,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/alpacahq/alpaca-trade-api-go/common"
+	"github.com/alpacahq/alpaca-trade-api-go/v2/common"
 )
 
 type options struct {

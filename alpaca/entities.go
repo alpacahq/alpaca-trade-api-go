@@ -3,7 +3,7 @@ package alpaca
 import (
 	"time"
 
-	"github.com/alpacahq/alpaca-trade-api-go/marketdata"
+	"github.com/alpacahq/alpaca-trade-api-go/v2/marketdata"
 	"github.com/shopspring/decimal"
 )
 

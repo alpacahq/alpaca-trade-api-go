@@ -13,8 +13,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/alpacahq/alpaca-trade-api-go/common"
-	"github.com/alpacahq/alpaca-trade-api-go/marketdata"
+	"github.com/alpacahq/alpaca-trade-api-go/v2/common"
+	"github.com/alpacahq/alpaca-trade-api-go/v2/marketdata"
 )
 
 const (
