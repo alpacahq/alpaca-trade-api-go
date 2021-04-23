@@ -199,13 +199,12 @@ func (alp alpacaClientContainer) rebalance() {
 func (alp alpacaClientContainer) submitLimitOrder(qty int, symbol string, price float64, side string) error {
 	account, _ := alp.client.GetAccount()
 	if qty > 0 {
-		qty := decimal.NewFromFloat(float64(qty))
 		adjSide := alpaca.Side(side)
 		limPrice := decimal.NewFromFloat(price)
 		order, err := alp.client.PlaceOrder(alpaca.PlaceOrderRequest{
 			AccountID:   account.ID,
 			AssetKey:    &symbol,
-			Qty:         qty,
+			Qty:         decimal.NewFromInt(int64(qty)),
 			Side:        adjSide,
 			Type:        "limit",
 			LimitPrice:  &limPrice,
@@ -231,7 +230,7 @@ func (alp alpacaClientContainer) submitMarketOrder(qty int, symbol string, side 
 		lastOrder, err := alp.client.PlaceOrder(alpaca.PlaceOrderRequest{
 			AccountID:   account.ID,
 			AssetKey:    &symbol,
-			Qty:         decimal.NewFromFloat(float64(qty)),
+			Qty:         decimal.NewFromInt(int64(qty)),
 			Side:        adjSide,
 			Type:        "market",
 			TimeInForce: "day",
