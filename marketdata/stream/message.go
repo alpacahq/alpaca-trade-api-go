@@ -50,6 +50,8 @@ func (c *client) handleMessage(b []byte) error {
 			err = c.handleQuote(d, n)
 		case "b":
 			err = c.handleBar(d, n)
+		case "d":
+			err = c.handleDailyBar(d, n)
 		case "subscription":
 			err = c.handleSubscriptionMessage(d, n)
 		case "error":
@@ -145,12 +147,12 @@ func (c *client) handleQuote(d *msgpack.Decoder, n int) error {
 	return nil
 }
 
-func (c *client) handleBar(d *msgpack.Decoder, n int) error {
+func (c *client) decodeBar(d *msgpack.Decoder, n int) (Bar, error) {
 	bar := Bar{}
 	for i := 0; i < n; i++ {
 		key, err := d.DecodeString()
 		if err != nil {
-			return err
+			return bar, err
 		}
 		switch key {
 		case "S":
@@ -171,13 +173,33 @@ func (c *client) handleBar(d *msgpack.Decoder, n int) error {
 			err = d.Skip()
 		}
 		if err != nil {
-			return err
+			return bar, err
 		}
+	}
+	return bar, nil
+}
+
+func (c *client) handleBar(d *msgpack.Decoder, n int) error {
+	bar, err := c.decodeBar(d, n)
+	if err != nil {
+		return err
 	}
 	c.handlerMutex.RLock()
 	barHandler := c.barHandler
-	defer c.handlerMutex.RUnlock()
+	c.handlerMutex.RUnlock()
 	barHandler(bar)
+	return nil
+}
+
+func (c *client) handleDailyBar(d *msgpack.Decoder, n int) error {
+	bar, err := c.decodeBar(d, n)
+	if err != nil {
+		return err
+	}
+	c.handlerMutex.RLock()
+	dailyBarHandler := c.dailyBarHandler
+	c.handlerMutex.RUnlock()
+	dailyBarHandler(bar)
 	return nil
 }
 
@@ -239,6 +261,7 @@ var subMessageHandler = func(c *client, s subscriptionMessage) error {
 	c.trades = s.trades
 	c.quotes = s.quotes
 	c.bars = s.bars
+	c.dailyBars = s.dailyBars
 	if c.pendingSubChange != nil {
 		c.handlerMutex.Lock()
 		defer c.handlerMutex.Unlock()
@@ -250,6 +273,8 @@ var subMessageHandler = func(c *client, s subscriptionMessage) error {
 			c.quoteHandler = *psc.quoteHandler
 		case barHandler:
 			c.barHandler = *psc.barHandler
+		case dailyBarHandler:
+			c.dailyBarHandler = *psc.dailyBarHandler
 		}
 		psc.result <- nil
 		c.pendingSubChange = nil
@@ -272,6 +297,8 @@ func (c *client) handleSubscriptionMessage(d *msgpack.Decoder, n int) error {
 			s.quotes, err = decodeStringSlice(d)
 		case "bars":
 			s.bars, err = decodeStringSlice(d)
+		case "dailyBars":
+			s.dailyBars, err = decodeStringSlice(d)
 		default:
 			err = d.Skip()
 		}

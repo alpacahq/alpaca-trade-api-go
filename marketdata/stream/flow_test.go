@@ -518,22 +518,28 @@ func TestReadAuthResponseContents(t *testing.T) {
 
 func TestNoSubscribeCallNecessary(t *testing.T) {
 	var tests = []struct {
-		trades   []string
-		quotes   []string
-		bars     []string
-		expected bool
+		trades    []string
+		quotes    []string
+		bars      []string
+		dailyBars []string
+		expected  bool
 	}{
 		{trades: nil, quotes: nil, bars: nil, expected: true},
 		{trades: []string{"TEST"}, quotes: nil, bars: nil, expected: false},
 		{trades: nil, quotes: []string{"TEST"}, bars: nil, expected: false},
 		{trades: nil, quotes: nil, bars: []string{"TEST"}, expected: false},
 		{trades: []string{"TEST"}, quotes: []string{"TEST"}, bars: []string{"TEST"}, expected: false},
+		{dailyBars: []string{"TEST"}, expected: false},
 	}
 
 	for _, test := range tests {
-		c := client{trades: test.trades, quotes: test.quotes, bars: test.bars}
-
-		assert.Equal(t, test.expected, noSubscribeCallNecessary(c.trades, c.quotes, c.bars))
+		c := client{
+			trades:    test.trades,
+			quotes:    test.quotes,
+			bars:      test.bars,
+			dailyBars: test.dailyBars,
+		}
+		assert.Equal(t, test.expected, noSubscribeCallNecessary(c.trades, c.quotes, c.bars, c.dailyBars))
 	}
 }
 
@@ -550,17 +556,19 @@ func TestWriteSubCancelled(t *testing.T) {
 
 func TestWriteSubContents(t *testing.T) {
 	var tests = []struct {
-		name   string
-		trades []string
-		quotes []string
-		bars   []string
+		name      string
+		trades    []string
+		quotes    []string
+		bars      []string
+		dailyBars []string
 	}{
-		{"empty", []string{}, []string{}, []string{}},
-		{"trades_only", []string{"ALPACA"}, []string{}, []string{}},
-		{"quotes_only", []string{}, []string{"AL", "PACA"}, []string{}},
-		{"bars_only", []string{}, []string{}, []string{"A", "L", "PACA"}},
-		{"mix", []string{"ALPACA"}, []string{"A", "L", "PACA"}, []string{}},
-		{"complete", []string{"ALPACA"}, []string{"ALPACA"}, []string{"ALPACA"}},
+		{"empty", []string{}, []string{}, []string{}, []string{}},
+		{"trades_only", []string{"ALPACA"}, []string{}, []string{}, []string{}},
+		{"quotes_only", []string{}, []string{"AL", "PACA"}, []string{}, []string{}},
+		{"bars_only", []string{}, []string{}, []string{"A", "L", "PACA"}, []string{}},
+		{"daily_bars_only", []string{}, []string{}, []string{}, []string{"LPACA"}},
+		{"mix", []string{"ALPACA"}, []string{"A", "L", "PACA"}, []string{}, []string{}},
+		{"complete", []string{"ALPACA"}, []string{"ALPACA"}, []string{"ALPACA"}, []string{"ALPACA"}},
 	}
 
 	for _, test := range tests {
@@ -568,10 +576,11 @@ func TestWriteSubContents(t *testing.T) {
 			conn := newMockConn()
 			defer conn.close()
 			c := client{
-				conn:   conn,
-				trades: test.trades,
-				quotes: test.quotes,
-				bars:   test.bars,
+				conn:      conn,
+				trades:    test.trades,
+				quotes:    test.quotes,
+				bars:      test.bars,
+				dailyBars: test.dailyBars,
 			}
 
 			err := c.writeSub(context.Background())
@@ -579,10 +588,11 @@ func TestWriteSubContents(t *testing.T) {
 			require.NoError(t, err)
 			msg := <-conn.writeCh
 			var got struct {
-				Action string   `msgpack:"action"`
-				Trades []string `msgpack:"trades"`
-				Quotes []string `msgpack:"quotes"`
-				Bars   []string `msgpack:"bars"`
+				Action    string   `msgpack:"action"`
+				Trades    []string `msgpack:"trades"`
+				Quotes    []string `msgpack:"quotes"`
+				Bars      []string `msgpack:"bars"`
+				DailyBars []string `msgpack:"dailyBars"`
 			}
 			err = msgpack.Unmarshal(msg, &got)
 			require.NoError(t, err)
@@ -590,6 +600,7 @@ func TestWriteSubContents(t *testing.T) {
 			assert.ElementsMatch(t, test.trades, got.Trades)
 			assert.ElementsMatch(t, test.quotes, got.Quotes)
 			assert.ElementsMatch(t, test.bars, got.Bars)
+			assert.ElementsMatch(t, test.dailyBars, got.DailyBars)
 		})
 	}
 }
@@ -613,6 +624,7 @@ func TestReadSubResponseContents(t *testing.T) {
 		trades      []string
 		quotes      []string
 		bars        []string
+		dailyBars   []string
 	}{
 		{
 			name: "not_array",
@@ -684,16 +696,18 @@ func TestReadSubResponseContents(t *testing.T) {
 			name: "success",
 			message: serializeToMsgpack(t, []map[string]interface{}{
 				{
-					"T":      "subscription",
-					"trades": []string{"ALPACA"},
-					"quotes": []string{"AL", "PACA"},
-					"bars":   []string{"AL", "PA", "CA"},
+					"T":         "subscription",
+					"trades":    []string{"ALPACA"},
+					"quotes":    []string{"AL", "PACA"},
+					"bars":      []string{"AL", "PA", "CA"},
+					"dailyBars": []string{"LPACA"},
 				},
 			}),
 			expectError: false,
 			trades:      []string{"ALPACA"},
 			quotes:      []string{"AL", "PACA"},
 			bars:        []string{"AL", "PA", "CA"},
+			dailyBars:   []string{"LPACA"},
 		},
 	}
 
@@ -713,6 +727,7 @@ func TestReadSubResponseContents(t *testing.T) {
 				assert.ElementsMatch(t, test.trades, c.trades)
 				assert.ElementsMatch(t, test.quotes, c.quotes)
 				assert.ElementsMatch(t, test.bars, c.bars)
+				assert.ElementsMatch(t, test.dailyBars, c.dailyBars)
 			}
 		})
 	}

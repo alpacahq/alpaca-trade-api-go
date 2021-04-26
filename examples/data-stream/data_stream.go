@@ -43,6 +43,7 @@ func main() {
 		stream.WithTrades(tradeHandler, "SPY"),
 		stream.WithQuotes(quoteHandler, "AAPL", "SPY"),
 		stream.WithBars(barHandler, "AAPL", "SPY"),
+		// use stream.WithDailyBars to subscribe to daily bars too
 		// use stream.WithCredentials to manually override envvars
 		// use stream.WithHost to manually override envvar
 		// use stream.WithLogger to use your own logger (i.e. zap, logrus) instead of log

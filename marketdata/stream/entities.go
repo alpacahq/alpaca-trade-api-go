@@ -47,7 +47,8 @@ type errorMessage struct {
 
 // subscriptionMessage is a subscription confirmation received from the server
 type subscriptionMessage struct {
-	trades []string
-	quotes []string
-	bars   []string
+	trades    []string
+	quotes    []string
+	bars      []string
+	dailyBars []string
 }

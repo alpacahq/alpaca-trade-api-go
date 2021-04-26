@@ -41,6 +41,8 @@ type StreamV2Client interface {
 	UnsubscribeFromQuotes(symbols ...string) error
 	SubscribeToBars(handler func(bar Bar), symbols ...string) error
 	UnsubscribeFromBars(symbols ...string) error
+	SubscribeToDailyBars(handler func(bar Bar), symbols ...string) error
+	UnsubscribeFromDailyBars(symbols ...string) error
 }
 
 type client struct {
@@ -70,6 +72,8 @@ type client struct {
 	quoteHandler          func(quote Quote)
 	bars                  []string
 	barHandler            func(bar Bar)
+	dailyBars             []string
+	dailyBarHandler       func(bar Bar)
 	pendingSubChangeMutex sync.Mutex
 	pendingSubChange      *subChangeRequest
 }
@@ -107,6 +111,8 @@ func (c *client) configure(o options) {
 	c.quoteHandler = o.quoteHandler
 	c.bars = o.bars
 	c.barHandler = o.barHandler
+	c.dailyBars = o.dailyBars
+	c.dailyBarHandler = o.dailyBarHandler
 }
 
 var connCreator = func(ctx context.Context, u url.URL) (conn, error) {
