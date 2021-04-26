@@ -29,6 +29,7 @@ const (
 	tradeHandler
 	quoteHandler
 	barHandler
+	dailyBarHandler
 )
 
 type subChangeRequest struct {
@@ -38,6 +39,7 @@ type subChangeRequest struct {
 	tradeHandler    *func(trade Trade)
 	quoteHandler    *func(quote Quote)
 	barHandler      *func(bar Bar)
+	dailyBarHandler *func(bar Bar)
 }
 
 func (c *client) SubscribeToTrades(handler func(Trade), symbols ...string) error {
@@ -46,7 +48,7 @@ func (c *client) SubscribeToTrades(handler func(Trade), symbols ...string) error
 		handlerToChange: tradeHandler,
 		tradeHandler:    &handler,
 	}
-	return c.handleSubChange(true, symbols, []string{}, []string{}, req)
+	return c.handleSubChange(true, symbols, []string{}, []string{}, []string{}, req)
 }
 
 func (c *client) SubscribeToQuotes(handler func(Quote), symbols ...string) error {
@@ -55,7 +57,7 @@ func (c *client) SubscribeToQuotes(handler func(Quote), symbols ...string) error
 		handlerToChange: quoteHandler,
 		quoteHandler:    &handler,
 	}
-	return c.handleSubChange(true, []string{}, symbols, []string{}, req)
+	return c.handleSubChange(true, []string{}, symbols, []string{}, []string{}, req)
 }
 
 func (c *client) SubscribeToBars(handler func(Bar), symbols ...string) error {
@@ -64,7 +66,16 @@ func (c *client) SubscribeToBars(handler func(Bar), symbols ...string) error {
 		handlerToChange: barHandler,
 		barHandler:      &handler,
 	}
-	return c.handleSubChange(true, []string{}, []string{}, symbols, req)
+	return c.handleSubChange(true, []string{}, []string{}, symbols, []string{}, req)
+}
+
+func (c *client) SubscribeToDailyBars(handler func(Bar), symbols ...string) error {
+	req := subChangeRequest{
+		result:          make(chan error),
+		handlerToChange: dailyBarHandler,
+		dailyBarHandler: &handler,
+	}
+	return c.handleSubChange(true, []string{}, []string{}, []string{}, symbols, req)
 }
 
 func (c *client) UnsubscribeFromTrades(symbols ...string) error {
@@ -72,7 +83,7 @@ func (c *client) UnsubscribeFromTrades(symbols ...string) error {
 		handlerToChange: noHandler,
 		result:          make(chan error),
 	}
-	return c.handleSubChange(false, symbols, []string{}, []string{}, req)
+	return c.handleSubChange(false, symbols, []string{}, []string{}, []string{}, req)
 }
 
 func (c *client) UnsubscribeFromQuotes(symbols ...string) error {
@@ -80,7 +91,7 @@ func (c *client) UnsubscribeFromQuotes(symbols ...string) error {
 		handlerToChange: noHandler,
 		result:          make(chan error),
 	}
-	return c.handleSubChange(false, []string{}, symbols, []string{}, req)
+	return c.handleSubChange(false, []string{}, symbols, []string{}, []string{}, req)
 }
 
 func (c *client) UnsubscribeFromBars(symbols ...string) error {
@@ -88,16 +99,26 @@ func (c *client) UnsubscribeFromBars(symbols ...string) error {
 		handlerToChange: noHandler,
 		result:          make(chan error),
 	}
-	return c.handleSubChange(false, []string{}, []string{}, symbols, req)
+	return c.handleSubChange(false, []string{}, []string{}, symbols, []string{}, req)
 }
 
-func (c *client) handleSubChange(subscribe bool, trades, quotes, bars []string, request subChangeRequest) error {
+func (c *client) UnsubscribeFromDailyBars(symbols ...string) error {
+	req := subChangeRequest{
+		handlerToChange: noHandler,
+		result:          make(chan error),
+	}
+	return c.handleSubChange(false, []string{}, []string{}, []string{}, symbols, req)
+}
+
+func (c *client) handleSubChange(
+	subscribe bool, trades, quotes, bars, dailyBars []string, request subChangeRequest,
+) error {
 	if !c.connectCalled {
 		return ErrSubscriptionChangeBeforeConnect
 	}
 
 	// Special case: if no symbols are changed we update the handler
-	if len(trades) == 0 && len(quotes) == 0 && len(bars) == 0 {
+	if len(trades) == 0 && len(quotes) == 0 && len(bars) == 0 && len(dailyBars) == 0 {
 		if subscribe {
 			c.handlerMutex.Lock()
 			defer c.handlerMutex.Unlock()
@@ -108,11 +129,13 @@ func (c *client) handleSubChange(subscribe bool, trades, quotes, bars []string, 
 				c.quoteHandler = *request.quoteHandler
 			case barHandler:
 				c.barHandler = *request.barHandler
+			case dailyBarHandler:
+				c.dailyBarHandler = *request.dailyBarHandler
 			}
 		}
 		return nil
 	}
-	msg, err := getSubChangeMessage(subscribe, trades, quotes, bars)
+	msg, err := getSubChangeMessage(subscribe, trades, quotes, bars, dailyBars)
 	if err != nil {
 		return err
 	}
@@ -139,15 +162,16 @@ func (c *client) setSubChangeRequest(request *subChangeRequest) error {
 	return nil
 }
 
-func getSubChangeMessage(subscribe bool, trades, quotes, bars []string) ([]byte, error) {
+func getSubChangeMessage(subscribe bool, trades, quotes, bars, dailyBars []string) ([]byte, error) {
 	action := "subscribe"
 	if !subscribe {
 		action = "unsubscribe"
 	}
 	return msgpack.Marshal(map[string]interface{}{
-		"action": action,
-		"trades": trades,
-		"quotes": quotes,
-		"bars":   bars,
+		"action":    action,
+		"trades":    trades,
+		"quotes":    quotes,
+		"bars":      bars,
+		"dailyBars": dailyBars,
 	})
 }

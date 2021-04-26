@@ -239,6 +239,7 @@ var subMessageHandler = func(c *client, s subscriptionMessage) error {
 	c.trades = s.trades
 	c.quotes = s.quotes
 	c.bars = s.bars
+	c.dailyBars = s.dailyBars
 	if c.pendingSubChange != nil {
 		c.handlerMutex.Lock()
 		defer c.handlerMutex.Unlock()
@@ -250,6 +251,8 @@ var subMessageHandler = func(c *client, s subscriptionMessage) error {
 			c.quoteHandler = *psc.quoteHandler
 		case barHandler:
 			c.barHandler = *psc.barHandler
+		case dailyBarHandler:
+			c.dailyBarHandler = *psc.dailyBarHandler
 		}
 		psc.result <- nil
 		c.pendingSubChange = nil
@@ -272,6 +275,8 @@ func (c *client) handleSubscriptionMessage(d *msgpack.Decoder, n int) error {
 			s.quotes, err = decodeStringSlice(d)
 		case "bars":
 			s.bars, err = decodeStringSlice(d)
+		case "dailyBars":
+			s.dailyBars, err = decodeStringSlice(d)
 		default:
 			err = d.Skip()
 		}

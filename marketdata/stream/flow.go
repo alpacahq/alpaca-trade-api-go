@@ -175,7 +175,7 @@ func noSubscribeCallNecessary(trades, quotes, bars []string) bool {
 }
 
 func (c *client) writeSub(ctx context.Context) error {
-	msg, err := getSubChangeMessage(true, c.trades, c.quotes, c.bars)
+	msg, err := getSubChangeMessage(true, c.trades, c.quotes, c.bars, c.dailyBars)
 	if err != nil {
 		return err
 	}

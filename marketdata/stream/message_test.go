@@ -78,10 +78,11 @@ type errorWithT struct {
 
 // subWithT is the incoming error message that also contains the T type key
 type subWithT struct {
-	Type   string   `msgpack:"T"`
-	Trades []string `msgpack:"trades"`
-	Quotes []string `msgpack:"quotes"`
-	Bars   []string `msgpack:"bars"`
+	Type      string   `msgpack:"T"`
+	Trades    []string `msgpack:"trades"`
+	Quotes    []string `msgpack:"quotes"`
+	Bars      []string `msgpack:"bars"`
+	DailyBars []string `msgpack:"dailyBars"`
 	// NewField is for testing correct handling of added fields in the future
 	NewField uint64 `msgpack:"N"`
 }
@@ -144,10 +145,11 @@ var testSubMessage1 = subWithT{
 }
 
 var testSubMessage2 = subWithT{
-	Type:   "subscription",
-	Trades: []string{"ALPACA"},
-	Quotes: []string{"AL", "PACA"},
-	Bars:   []string{"ALP", "ACA"},
+	Type:      "subscription",
+	Trades:    []string{"ALPACA"},
+	Quotes:    []string{"AL", "PACA"},
+	Bars:      []string{"ALP", "ACA"},
+	DailyBars: []string{"LPACA"},
 }
 
 func TestHandleMessages(t *testing.T) {
@@ -228,6 +230,7 @@ func TestHandleMessages(t *testing.T) {
 	assert.EqualValues(t, testSubMessage2.Trades, subscriptionMessages[1].trades)
 	assert.EqualValues(t, testSubMessage2.Quotes, subscriptionMessages[1].quotes)
 	assert.EqualValues(t, testSubMessage2.Bars, subscriptionMessages[1].bars)
+	assert.EqualValues(t, testSubMessage2.DailyBars, subscriptionMessages[1].dailyBars)
 }
 
 func BenchmarkHandleMessages(b *testing.B) {

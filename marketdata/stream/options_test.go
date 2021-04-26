@@ -38,6 +38,7 @@ func TestDefaultOptions(t *testing.T) {
 			assert.EqualValues(t, []string{}, o.trades)
 			assert.EqualValues(t, []string{}, o.quotes)
 			assert.EqualValues(t, []string{}, o.bars)
+			assert.EqualValues(t, []string{}, o.dailyBars)
 			// NOTE: function equality can not be tested well
 		})
 	}
@@ -60,6 +61,7 @@ func TestConfigure(t *testing.T) {
 		WithTrades(func(t Trade) {}, "ALPACA"),
 		WithQuotes(func(q Quote) {}, "AL", "PACA"),
 		WithBars(func(b Bar) {}, "ALP", "ACA"),
+		WithDailyBars(func(b Bar) {}, "LPACA"),
 	)
 	c.configure(o)
 
@@ -74,5 +76,6 @@ func TestConfigure(t *testing.T) {
 	assert.EqualValues(t, []string{"ALPACA"}, c.trades)
 	assert.EqualValues(t, []string{"AL", "PACA"}, c.quotes)
 	assert.EqualValues(t, []string{"ALP", "ACA"}, c.bars)
+	assert.EqualValues(t, []string{"LPACA"}, c.dailyBars)
 	// NOTE: function equality can not be tested well
 }

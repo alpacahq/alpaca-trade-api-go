@@ -8,20 +8,22 @@ import (
 )
 
 type options struct {
-	logger         Logger
-	host           string
-	key            string
-	secret         string
-	reconnectLimit int
-	reconnectDelay time.Duration
-	processorCount int
-	bufferSize     int
-	trades         []string
-	tradeHandler   func(Trade)
-	quotes         []string
-	quoteHandler   func(Quote)
-	bars           []string
-	barHandler     func(Bar)
+	logger          Logger
+	host            string
+	key             string
+	secret          string
+	reconnectLimit  int
+	reconnectDelay  time.Duration
+	processorCount  int
+	bufferSize      int
+	trades          []string
+	tradeHandler    func(Trade)
+	quotes          []string
+	quoteHandler    func(Quote)
+	bars            []string
+	barHandler      func(Bar)
+	dailyBars       []string
+	dailyBarHandler func(Bar)
 }
 
 func (o *options) apply(opts ...Option) {
@@ -57,20 +59,22 @@ func defaultOptions() *options {
 	}
 
 	return &options{
-		logger:         newStdLog(),
-		host:           host,
-		key:            common.Credentials().ID,
-		secret:         common.Credentials().Secret,
-		reconnectLimit: 20,
-		reconnectDelay: 150 * time.Millisecond,
-		processorCount: 1,
-		bufferSize:     100000,
-		trades:         []string{},
-		tradeHandler:   func(t Trade) {},
-		quotes:         []string{},
-		quoteHandler:   func(q Quote) {},
-		bars:           []string{},
-		barHandler:     func(b Bar) {},
+		logger:          newStdLog(),
+		host:            host,
+		key:             common.Credentials().ID,
+		secret:          common.Credentials().Secret,
+		reconnectLimit:  20,
+		reconnectDelay:  150 * time.Millisecond,
+		processorCount:  1,
+		bufferSize:      100000,
+		trades:          []string{},
+		tradeHandler:    func(t Trade) {},
+		quotes:          []string{},
+		quoteHandler:    func(q Quote) {},
+		bars:            []string{},
+		barHandler:      func(b Bar) {},
+		dailyBars:       []string{},
+		dailyBarHandler: func(b Bar) {},
 	}
 }
 
@@ -145,5 +149,13 @@ func WithBars(handler func(Bar), symbols ...string) Option {
 	return newFuncOption(func(o *options) {
 		o.bars = symbols
 		o.barHandler = handler
+	})
+}
+
+// WithDailyBars configures inital daily bar symbols to subscribe to and the handler
+func WithDailyBars(handler func(Bar), symbols ...string) Option {
+	return newFuncOption(func(o *options) {
+		o.dailyBars = symbols
+		o.dailyBarHandler = handler
 	})
 }
