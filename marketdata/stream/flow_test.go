@@ -533,7 +533,7 @@ func TestNoSubscribeCallNecessary(t *testing.T) {
 	for _, test := range tests {
 		c := client{trades: test.trades, quotes: test.quotes, bars: test.bars}
 
-		assert.Equal(t, test.expected, noSubscribeCallNecessary(c.trades, c.quotes, c.bars))
+		assert.Equal(t, test.expected, noSubscribeCallNecessary(c.trades, c.quotes, c.bars, c.dailyBars))
 	}
 }
 
@@ -613,6 +613,7 @@ func TestReadSubResponseContents(t *testing.T) {
 		trades      []string
 		quotes      []string
 		bars        []string
+		dailyBars   []string
 	}{
 		{
 			name: "not_array",
@@ -684,16 +685,18 @@ func TestReadSubResponseContents(t *testing.T) {
 			name: "success",
 			message: serializeToMsgpack(t, []map[string]interface{}{
 				{
-					"T":      "subscription",
-					"trades": []string{"ALPACA"},
-					"quotes": []string{"AL", "PACA"},
-					"bars":   []string{"AL", "PA", "CA"},
+					"T":         "subscription",
+					"trades":    []string{"ALPACA"},
+					"quotes":    []string{"AL", "PACA"},
+					"bars":      []string{"AL", "PA", "CA"},
+					"dailyBars": []string{"LPACA"},
 				},
 			}),
 			expectError: false,
 			trades:      []string{"ALPACA"},
 			quotes:      []string{"AL", "PACA"},
 			bars:        []string{"AL", "PA", "CA"},
+			dailyBars:   []string{"LPACA"},
 		},
 	}
 
@@ -713,6 +716,7 @@ func TestReadSubResponseContents(t *testing.T) {
 				assert.ElementsMatch(t, test.trades, c.trades)
 				assert.ElementsMatch(t, test.quotes, c.quotes)
 				assert.ElementsMatch(t, test.bars, c.bars)
+				assert.ElementsMatch(t, test.dailyBars, c.dailyBars)
 			}
 		})
 	}

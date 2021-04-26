@@ -104,7 +104,7 @@ func TestContextCancelledBeforeConnect(t *testing.T) {
 func TestConnectSucceeds(t *testing.T) {
 	connection := newMockConn()
 	defer connection.close()
-	writeInitialFlowMessagesToConn(t, connection, []string{}, []string{}, []string{})
+	writeInitialFlowMessagesToConn(t, connection, []string{}, []string{}, []string{}, []string{})
 	occ := connCreator
 	defer func() {
 		connCreator = occ
@@ -149,7 +149,7 @@ func TestSubscribeBeforeConnect(t *testing.T) {
 func TestSubscribeMultipleCalls(t *testing.T) {
 	connection := newMockConn()
 	defer connection.close()
-	writeInitialFlowMessagesToConn(t, connection, []string{}, []string{}, []string{})
+	writeInitialFlowMessagesToConn(t, connection, []string{}, []string{}, []string{}, []string{})
 	occ := connCreator
 	defer func() {
 		connCreator = occ
@@ -185,7 +185,7 @@ func TestSubscribeMultipleCalls(t *testing.T) {
 func TestSubscribeCalledButClientTerminates(t *testing.T) {
 	connection := newMockConn()
 	defer connection.close()
-	writeInitialFlowMessagesToConn(t, connection, []string{}, []string{}, []string{})
+	writeInitialFlowMessagesToConn(t, connection, []string{}, []string{}, []string{}, []string{})
 	occ := connCreator
 	defer func() {
 		connCreator = occ
@@ -200,7 +200,7 @@ func TestSubscribeCalledButClientTerminates(t *testing.T) {
 	err := c.Connect(ctx)
 	require.NoError(t, err)
 
-	checkInitialMessagesSentByClient(t, connection, "", "", []string{}, []string{}, []string{})
+	checkInitialMessagesSentByClient(t, connection, "", "", []string{}, []string{}, []string{}, []string{})
 	subErrCh := make(chan error, 1)
 	subFunc := func() {
 		subErrCh <- c.SubscribeToTrades(func(trade Trade) {}, "ALPACA")
@@ -227,7 +227,7 @@ func TestSubscribeCalledButClientTerminates(t *testing.T) {
 
 func TestSubscripitionAcrossConnectionIssues(t *testing.T) {
 	conn1 := newMockConn()
-	writeInitialFlowMessagesToConn(t, conn1, []string{}, []string{}, []string{})
+	writeInitialFlowMessagesToConn(t, conn1, []string{}, []string{}, []string{}, []string{})
 	occ := connCreator
 	defer func() {
 		connCreator = occ
@@ -243,7 +243,7 @@ func TestSubscripitionAcrossConnectionIssues(t *testing.T) {
 	// connect
 	err := c.Connect(ctx)
 	require.NoError(t, err)
-	checkInitialMessagesSentByClient(t, conn1, key, secret, []string{}, []string{}, []string{})
+	checkInitialMessagesSentByClient(t, conn1, key, secret, []string{}, []string{}, []string{}, []string{})
 
 	// subscribing to something
 	trades1 := []string{"AL", "PACA"}
@@ -257,12 +257,12 @@ func TestSubscripitionAcrossConnectionIssues(t *testing.T) {
 
 	// shutting down the first connection
 	conn2 := newMockConn()
-	writeInitialFlowMessagesToConn(t, conn2, []string{}, []string{}, []string{})
+	writeInitialFlowMessagesToConn(t, conn2, []string{}, []string{}, []string{}, []string{})
 	connCreator = func(ctx context.Context, u url.URL) (conn, error) { return conn2, nil }
 	conn1.close()
 
 	// checking whether the client sent what we wanted it to (auth,sub1,sub2)
-	checkInitialMessagesSentByClient(t, conn2, key, secret, []string{}, []string{}, []string{})
+	checkInitialMessagesSentByClient(t, conn2, key, secret, []string{}, []string{}, []string{}, []string{})
 	sub = expectWrite(t, conn2)
 	require.Equal(t, "subscribe", sub["action"])
 	require.ElementsMatch(t, trades1, sub["trades"])
@@ -284,7 +284,7 @@ func TestSubscripitionAcrossConnectionIssues(t *testing.T) {
 	defer conn3.close()
 	connCreator = func(ctx context.Context, u url.URL) (conn, error) {
 		time.Sleep(100 * time.Millisecond)
-		writeInitialFlowMessagesToConn(t, conn3, trades1, []string{}, []string{})
+		writeInitialFlowMessagesToConn(t, conn3, trades1, []string{}, []string{}, []string{})
 		return conn3, nil
 	}
 	conn2.close()
@@ -294,7 +294,7 @@ func TestSubscripitionAcrossConnectionIssues(t *testing.T) {
 	go func() { unsubRes <- c.UnsubscribeFromTrades("AL") }()
 
 	// connection starts up, proper messages (auth,sub,unsub)
-	checkInitialMessagesSentByClient(t, conn3, key, secret, trades1, []string{}, []string{})
+	checkInitialMessagesSentByClient(t, conn3, key, secret, trades1, []string{}, []string{}, []string{})
 	unsub := expectWrite(t, conn3)
 	require.Equal(t, "unsubscribe", unsub["action"])
 	require.ElementsMatch(t, []string{"AL"}, unsub["trades"])
@@ -317,7 +317,7 @@ func TestSubscripitionAcrossConnectionIssues(t *testing.T) {
 func TestSubscribeFailsDueToError(t *testing.T) {
 	connection := newMockConn()
 	defer connection.close()
-	writeInitialFlowMessagesToConn(t, connection, []string{}, []string{}, []string{})
+	writeInitialFlowMessagesToConn(t, connection, []string{}, []string{}, []string{}, []string{})
 	occ := connCreator
 	defer func() {
 		connCreator = occ
@@ -331,7 +331,7 @@ func TestSubscribeFailsDueToError(t *testing.T) {
 	// connect
 	err := c.Connect(ctx)
 	require.NoError(t, err)
-	checkInitialMessagesSentByClient(t, connection, "", "", []string{}, []string{}, []string{})
+	checkInitialMessagesSentByClient(t, connection, "", "", []string{}, []string{}, []string{}, []string{})
 
 	// attempting sub change
 	subRes := make(chan error)
@@ -383,7 +383,7 @@ func TestSubscribeFailsDueToError(t *testing.T) {
 func TestPingFails(t *testing.T) {
 	connection := newMockConn()
 	defer connection.close()
-	writeInitialFlowMessagesToConn(t, connection, []string{}, []string{}, []string{})
+	writeInitialFlowMessagesToConn(t, connection, []string{}, []string{}, []string{}, []string{})
 	occ := connCreator
 	onpt := newPingTicker
 	defer func() {
@@ -427,7 +427,8 @@ func TestPingFails(t *testing.T) {
 func TestCoreFunctionality(t *testing.T) {
 	connection := newMockConn()
 	defer connection.close()
-	writeInitialFlowMessagesToConn(t, connection, []string{"ALPACA"}, []string{"ALPACA"}, []string{"ALPACA"})
+	writeInitialFlowMessagesToConn(t, connection,
+		[]string{"ALPACA"}, []string{"ALPACA"}, []string{"ALPACA"}, []string{"LPACA"})
 	occ := connCreator
 	defer func() {
 		connCreator = occ
@@ -438,12 +439,13 @@ func TestCoreFunctionality(t *testing.T) {
 
 	var trade Trade
 	var quote Quote
-	var bar Bar
+	var bar, dailyBar Bar
 	c := NewClient(
 		"iex",
 		WithTrades(func(t Trade) { trade = t }, "ALPACA"),
 		WithQuotes(func(q Quote) { quote = q }, "ALPCA"),
 		WithBars(func(b Bar) { bar = b }, "ALPACA"),
+		WithDailyBars(func(b Bar) { dailyBar = b }, "LPACA"),
 	)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -452,12 +454,18 @@ func TestCoreFunctionality(t *testing.T) {
 	err := c.Connect(ctx)
 	require.NoError(t, err)
 
-	// sending a bar and a quote
+	// sending two bars and a quote
 	connection.readCh <- serializeToMsgpack(t, []interface{}{
 		barWithT{
 			Type:   "b",
 			Symbol: "ALPACA",
 			Volume: 322,
+		},
+		barWithT{
+			Type:   "d",
+			Symbol: "LPACA",
+			Open:   35.1,
+			High:   36.2,
 		},
 		quoteWithT{
 			Type:    "q",
@@ -479,11 +487,15 @@ func TestCoreFunctionality(t *testing.T) {
 
 	// checking contents
 	assert.EqualValues(t, 322, bar.Volume)
+	assert.EqualValues(t, 35.1, dailyBar.Open)
+	assert.EqualValues(t, 36.2, dailyBar.High)
 	assert.EqualValues(t, 42, quote.BidSize)
 	assert.EqualValues(t, 123, trade.ID)
 }
 
-func writeInitialFlowMessagesToConn(t *testing.T, conn *mockConn, trades, quotes, bars []string) {
+func writeInitialFlowMessagesToConn(
+	t *testing.T, conn *mockConn, trades, quotes, bars, dailyBars []string,
+) {
 	// server welcomes the client
 	conn.readCh <- serializeToMsgpack(t, []controlWithT{
 		{
@@ -499,7 +511,7 @@ func writeInitialFlowMessagesToConn(t *testing.T, conn *mockConn, trades, quotes
 		},
 	})
 
-	if noSubscribeCallNecessary(trades, quotes, bars) {
+	if noSubscribeCallNecessary(trades, quotes, bars, dailyBars) {
 		return
 	}
 
@@ -514,14 +526,16 @@ func writeInitialFlowMessagesToConn(t *testing.T, conn *mockConn, trades, quotes
 	})
 }
 
-func checkInitialMessagesSentByClient(t *testing.T, m *mockConn, key, secret string, trades, quotes, bars []string) {
+func checkInitialMessagesSentByClient(
+	t *testing.T, m *mockConn, key, secret string, trades, quotes, bars, dailyBars []string,
+) {
 	// auth
 	auth := expectWrite(t, m)
 	require.Equal(t, "auth", auth["action"])
 	require.Equal(t, key, auth["key"])
 	require.Equal(t, secret, auth["secret"])
 
-	if noSubscribeCallNecessary(trades, quotes, bars) {
+	if noSubscribeCallNecessary(trades, quotes, bars, dailyBars) {
 		return
 	}
 

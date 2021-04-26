@@ -61,7 +61,7 @@ func (c *client) initialize(ctx context.Context) error {
 		return retryErr
 	}
 
-	if noSubscribeCallNecessary(c.trades, c.quotes, c.bars) {
+	if noSubscribeCallNecessary(c.trades, c.quotes, c.bars, c.dailyBars) {
 		return nil
 	}
 
@@ -170,8 +170,8 @@ func (c *client) readAuthResponse(ctx context.Context) error {
 	return nil
 }
 
-func noSubscribeCallNecessary(trades, quotes, bars []string) bool {
-	return len(trades) == 0 && len(quotes) == 0 && len(bars) == 0
+func noSubscribeCallNecessary(trades, quotes, bars, dailyBars []string) bool {
+	return len(trades) == 0 && len(quotes) == 0 && len(bars) == 0 && len(dailyBars) == 0
 }
 
 func (c *client) writeSub(ctx context.Context) error {
@@ -193,12 +193,13 @@ func (c *client) readSubResponse(ctx context.Context) error {
 		return err
 	}
 	var resps []struct {
-		T      string   `msgpack:"T"`
-		Msg    string   `msgpack:"msg"`
-		Code   int      `msgpack:"code"`
-		Trades []string `msgpack:"trades"`
-		Quotes []string `msgpack:"quotes"`
-		Bars   []string `msgpack:"bars"`
+		T         string   `msgpack:"T"`
+		Msg       string   `msgpack:"msg"`
+		Code      int      `msgpack:"code"`
+		Trades    []string `msgpack:"trades"`
+		Quotes    []string `msgpack:"quotes"`
+		Bars      []string `msgpack:"bars"`
+		DailyBars []string `msgpack:"dailyBars"`
 	}
 	if err := msgpack.Unmarshal(b, &resps); err != nil {
 		return err
@@ -217,5 +218,6 @@ func (c *client) readSubResponse(ctx context.Context) error {
 	c.trades = resps[0].Trades
 	c.quotes = resps[0].Quotes
 	c.bars = resps[0].Bars
+	c.dailyBars = resps[0].DailyBars
 	return nil
 }
