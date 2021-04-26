@@ -518,10 +518,11 @@ func writeInitialFlowMessagesToConn(
 	// server accepts subscription
 	conn.readCh <- serializeToMsgpack(t, []subWithT{
 		{
-			Type:   "subscription",
-			Trades: trades,
-			Quotes: quotes,
-			Bars:   bars,
+			Type:      "subscription",
+			Trades:    trades,
+			Quotes:    quotes,
+			Bars:      bars,
+			DailyBars: dailyBars,
 		},
 	})
 }
@@ -545,4 +546,5 @@ func checkInitialMessagesSentByClient(
 	require.ElementsMatch(t, trades, sub["trades"])
 	require.ElementsMatch(t, quotes, sub["quotes"])
 	require.ElementsMatch(t, bars, sub["bars"])
+	require.ElementsMatch(t, dailyBars, sub["dailyBars"])
 }
