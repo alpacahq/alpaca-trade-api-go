@@ -1,12 +1,12 @@
 package alpaca
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
 	"net/url"
-	"os"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -16,25 +16,41 @@ import (
 	"github.com/gorilla/websocket"
 )
 
+// StreamTradeUpdates listens to trade updates as long as the given context is not cancelled
+// and calls the given handler for each update.
+func StreamTradeUpdates(ctx context.Context, handler func(TradeUpdate)) error {
+	s := getStream()
+	if err := s.Subscribe("trade_updates", func(msg interface{}) {
+		handler(msg.(TradeUpdate))
+	}); err != nil {
+		return err
+	}
+	go func() {
+		<-ctx.Done()
+		s.Close()
+	}()
+	return nil
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// This implementation is no longer exported!
+// TODO: Replace it with a much easier SSE one
+
 const (
-	TradeUpdates   = "trade_updates"
-	AccountUpdates = "account_updates"
+	tradeUpdates   = "trade_updates"
+	accountUpdates = "account_updates"
 )
 
 const (
-	MaxConnectionAttempts = 3
+	maxConnectionAttempts = 3
 )
 
 var (
-	once      sync.Once
-	str       *Stream
-	streamUrl = ""
-
-	dataOnce sync.Once
-	dataStr  *Stream
+	once sync.Once
+	str  *wsStream
 )
 
-type Stream struct {
+type wsStream struct {
 	sync.Mutex
 	sync.Once
 	conn                  *websocket.Conn
@@ -44,11 +60,11 @@ type Stream struct {
 }
 
 // Subscribe to the specified Alpaca stream channel.
-func (s *Stream) Subscribe(channel string, handler func(msg interface{})) (err error) {
+func (s *wsStream) Subscribe(channel string, handler func(msg interface{})) (err error) {
 	switch {
-	case channel == TradeUpdates:
+	case channel == tradeUpdates:
 		fallthrough
-	case channel == AccountUpdates:
+	case channel == accountUpdates:
 		fallthrough
 	case strings.HasPrefix(channel, "Q."):
 		fallthrough
@@ -83,7 +99,7 @@ func (s *Stream) Subscribe(channel string, handler func(msg interface{})) (err e
 }
 
 // Unsubscribe the specified Polygon stream channel.
-func (s *Stream) Unsubscribe(channel string) (err error) {
+func (s *wsStream) Unsubscribe(channel string) (err error) {
 	if s.conn == nil {
 		err = errors.New("not yet subscribed to any channel")
 		return
@@ -101,7 +117,7 @@ func (s *Stream) Unsubscribe(channel string) (err error) {
 }
 
 // Close gracefully closes the Alpaca stream.
-func (s *Stream) Close() error {
+func (s *wsStream) Close() error {
 	s.Lock()
 	defer s.Unlock()
 
@@ -122,7 +138,7 @@ func (s *Stream) Close() error {
 	return s.conn.Close()
 }
 
-func (s *Stream) reconnect() error {
+func (s *wsStream) reconnect() error {
 	s.authenticated.Store(false)
 	conn, err := s.openSocket()
 	if err != nil {
@@ -140,7 +156,7 @@ func (s *Stream) reconnect() error {
 	return nil
 }
 
-func (s *Stream) findHandler(stream string) func(interface{}) {
+func (s *wsStream) findHandler(stream string) func(interface{}) {
 	if v, ok := s.handlers.Load(stream); ok {
 		return v.(func(interface{}))
 	}
@@ -155,7 +171,7 @@ func (s *Stream) findHandler(stream string) func(interface{}) {
 	return nil
 }
 
-func (s *Stream) start() {
+func (s *wsStream) start() {
 	for {
 		msg := ServerMsg{}
 
@@ -164,7 +180,7 @@ func (s *Stream) start() {
 			if handler != nil {
 				msgBytes, _ := json.Marshal(msg.Data)
 				switch {
-				case msg.Stream == TradeUpdates:
+				case msg.Stream == tradeUpdates:
 					var tradeupdate TradeUpdate
 					json.Unmarshal(msgBytes, &tradeupdate)
 					handler(tradeupdate)
@@ -203,7 +219,7 @@ func (s *Stream) start() {
 	}
 }
 
-func (s *Stream) sub(channel string) (err error) {
+func (s *wsStream) sub(channel string) (err error) {
 	s.Lock()
 	defer s.Unlock()
 
@@ -223,7 +239,7 @@ func (s *Stream) sub(channel string) (err error) {
 	return
 }
 
-func (s *Stream) unsub(channel string) (err error) {
+func (s *wsStream) unsub(channel string) (err error) {
 	s.Lock()
 	defer s.Unlock()
 
@@ -243,11 +259,11 @@ func (s *Stream) unsub(channel string) (err error) {
 	return
 }
 
-func (s *Stream) isAuthenticated() bool {
+func (s *wsStream) isAuthenticated() bool {
 	return s.authenticated.Load().(bool)
 }
 
-func (s *Stream) auth() (err error) {
+func (s *wsStream) auth() (err error) {
 	s.Lock()
 	defer s.Unlock()
 
@@ -288,10 +304,9 @@ func (s *Stream) auth() (err error) {
 	return
 }
 
-// GetStream returns the singleton Alpaca stream structure.
-func GetStream() *Stream {
+func getStream() *wsStream {
 	once.Do(func() {
-		str = &Stream{
+		str = &wsStream{
 			authenticated: atomic.Value{},
 			handlers:      sync.Map{},
 			base:          base,
@@ -304,27 +319,7 @@ func GetStream() *Stream {
 	return str
 }
 
-func GetDataStream() *Stream {
-	dataOnce.Do(func() {
-		if s := os.Getenv("DATA_PROXY_WS"); s != "" {
-			streamUrl = s
-		} else {
-			streamUrl = dataURL
-		}
-		dataStr = &Stream{
-			authenticated: atomic.Value{},
-			handlers:      sync.Map{},
-			base:          streamUrl,
-		}
-
-		dataStr.authenticated.Store(false)
-		dataStr.closed.Store(false)
-	})
-
-	return dataStr
-}
-
-func (s *Stream) openSocket() (*websocket.Conn, error) {
+func (s *wsStream) openSocket() (*websocket.Conn, error) {
 	scheme := "wss"
 	ub, _ := url.Parse(s.base)
 	if ub.Scheme == "http" {
@@ -332,16 +327,16 @@ func (s *Stream) openSocket() (*websocket.Conn, error) {
 	}
 	u := url.URL{Scheme: scheme, Host: ub.Host, Path: "/stream"}
 	connectionAttempts := 0
-	for connectionAttempts < MaxConnectionAttempts {
+	for connectionAttempts < maxConnectionAttempts {
 		connectionAttempts++
 		c, _, err := websocket.DefaultDialer.Dial(u.String(), nil)
 		if err == nil {
 			return c, nil
 		}
-		if connectionAttempts == MaxConnectionAttempts {
+		if connectionAttempts == maxConnectionAttempts {
 			return nil, err
 		}
 		time.Sleep(1 * time.Second)
 	}
-	return nil, fmt.Errorf("Error: Could not open Alpaca stream (max retries exceeded).")
+	return nil, fmt.Errorf("could not open Alpaca stream (max retries exceeded)")
 }

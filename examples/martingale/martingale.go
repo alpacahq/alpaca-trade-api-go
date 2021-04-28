@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"math"
@@ -12,8 +13,7 @@ import (
 
 	"github.com/alpacahq/alpaca-trade-api-go/v2/alpaca"
 	"github.com/alpacahq/alpaca-trade-api-go/v2/common"
-	"github.com/alpacahq/alpaca-trade-api-go/v2/polygon"
-	"github.com/alpacahq/alpaca-trade-api-go/v2/stream"
+	"github.com/alpacahq/alpaca-trade-api-go/v2/marketdata/stream"
 	"github.com/shopspring/decimal"
 )
 
@@ -58,7 +58,7 @@ func init() {
 	// os.Setenv("APCA_API_VERSION", "v1")
 	alpaca.SetBaseUrl(BASE_URL)
 
-	// Check if user input a stock, default is SPY
+	// Check if user input a stock
 	stock := "AAPL"
 	if len(os.Args[1:]) == 1 {
 		stock = os.Args[1]
@@ -114,8 +114,6 @@ func init() {
 }
 
 func main() {
-	USE_POLYGON := false
-
 	// First, cancel any existing orders so they don't impact our buying power.
 	status, until, limit := "open", time.Now(), 100
 	orders, _ := alpacaClient.client.ListOrders(&status, &until, &limit, nil)
@@ -123,50 +121,26 @@ func main() {
 		_ = alpacaClient.client.CancelOrder(order.ID)
 	}
 
-	if USE_POLYGON {
-		stream.SetDataStream("polygon")
-		if err := stream.Register(fmt.Sprintf("A.%s", alpacaClient.stock), handleAggs); err != nil {
-			panic(err)
-		}
-	} else {
-		if err := stream.Register(fmt.Sprintf("T.%s", alpacaClient.stock), handleAlpacaAggs); err != nil {
-			panic(err)
-		}
-	}
-
-	if err := stream.Register("trade_updates", handleTrades); err != nil {
+	feed := "iex" // Use sip if you have proper subscription
+	c := stream.NewClient(feed)
+	if err := c.Connect(context.TODO()); err != nil {
 		panic(err)
 	}
+	c.SubscribeToTrades(handleTrades, alpacaClient.stock)
 
-	select {}
-}
+	alpaca.StreamTradeUpdates(context.TODO(), handleTradeUpdates)
 
-// Listen for second aggregates and perform trading logic
-func handleAggs(msg interface{}) {
-	data := msg.(polygon.StreamAggregate)
-
-	if data.Symbol != alpacaClient.stock {
-		return
-	}
-
-	alpacaClient.tickIndex = (alpacaClient.tickIndex + 1) % alpacaClient.tickSize
-	if alpacaClient.tickIndex == 0 {
-		// It's time to update
-
-		// Update price info
-		tickOpen := alpacaClient.lastPrice
-		tickClose := float64(data.ClosePrice)
-		alpacaClient.lastPrice = tickClose
-
-		alpacaClient.processTick(tickOpen, tickClose)
+	select {
+	case err := <-c.Terminated():
+		if err != nil {
+			panic(err)
+		}
 	}
 }
 
-// Listen for quote data and perform trading logic
-func handleAlpacaAggs(msg interface{}) {
-	data := msg.(alpaca.StreamTrade)
-
-	if data.Symbol != alpacaClient.stock {
+// Listen for trade data and perform trading logic
+func handleTrades(trade stream.Trade) {
+	if trade.Symbol != alpacaClient.stock {
 		return
 	}
 
@@ -183,7 +157,7 @@ func handleAlpacaAggs(msg interface{}) {
 
 		// Update price info
 		tickOpen := alpacaClient.lastPrice
-		tickClose := float64(data.Price)
+		tickClose := trade.Price
 		alpacaClient.lastPrice = tickClose
 
 		alpacaClient.processTick(tickOpen, tickClose)
@@ -191,17 +165,16 @@ func handleAlpacaAggs(msg interface{}) {
 }
 
 // Listen for updates to our orders
-func handleTrades(msg interface{}) {
-	data := msg.(alpaca.TradeUpdate)
-	fmt.Printf("%s event received for order %s.\n", data.Event, data.Order.ID)
+func handleTradeUpdates(tu alpaca.TradeUpdate) {
+	fmt.Printf("%s event received for order %s.\n", tu.Event, tu.Order.ID)
 
-	if data.Order.Symbol != alpacaClient.stock {
+	if tu.Order.Symbol != alpacaClient.stock {
 		// The order was for a position unrelated to this script
 		return
 	}
 
-	eventType := data.Event
-	oid := data.Order.ID
+	eventType := tu.Event
+	oid := tu.Order.ID
 
 	if eventType == "fill" || eventType == "partial_fill" {
 		// Our position size has changed
