@@ -464,7 +464,7 @@ func (s *AlpacaTestSuite) TestAlpaca() {
 
 	// place order
 	{
-		// successful
+		// successful (w/ Qty)
 		do = func(c *Client, req *http.Request) (*http.Response, error) {
 			por := PlaceOrderRequest{}
 			if err := json.NewDecoder(req.Body).Decode(&por); err != nil {
@@ -473,6 +473,7 @@ func (s *AlpacaTestSuite) TestAlpaca() {
 			return &http.Response{
 				Body: genBody(Order{
 					Qty:         por.Qty,
+					Notional:    por.Notional,
 					Side:        por.Side,
 					TimeInForce: por.TimeInForce,
 					Type:        por.Type,
@@ -491,6 +492,26 @@ func (s *AlpacaTestSuite) TestAlpaca() {
 		order, err := PlaceOrder(req)
 		assert.NoError(s.T(), err)
 		assert.NotNil(s.T(), order)
+		assert.Equal(s.T(), req.Qty, order.Qty)
+		assert.True(s.T(), req.Notional.IsZero())
+		assert.True(s.T(), order.Notional.IsZero())
+		assert.Equal(s.T(), req.Type, order.Type)
+
+		// successful (w/ Notional)
+		req = PlaceOrderRequest{
+			AccountID:   "some_id",
+			Notional:    decimal.New(1, 0),
+			Side:        Buy,
+			TimeInForce: GTC,
+			Type:        Limit,
+		}
+
+		order, err = PlaceOrder(req)
+		assert.NoError(s.T(), err)
+		assert.NotNil(s.T(), order)
+		assert.Equal(s.T(), req.Notional, order.Notional)
+		assert.True(s.T(), req.Qty.IsZero())
+		assert.True(s.T(), order.Qty.IsZero())
 		assert.Equal(s.T(), req.Type, order.Type)
 
 		// api failure
