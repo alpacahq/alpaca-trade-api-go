@@ -67,6 +67,7 @@ func defaultDo(c *Client, req *http.Request) (*http.Response, error) {
 	return resp, nil
 }
 
+// TODO: Move to the marketdata package
 const (
 	// v2MaxLimit is the maximum allowed limit parameter for all v2 endpoints
 	v2MaxLimit = 10000
@@ -326,6 +327,7 @@ func (c *Client) GetPosition(symbol string) (*Position, error) {
 }
 
 // GetAggregates returns the bars for the given symbol, timespan and date-range
+// Deprecated: all v1 endpoints will be removed!
 func (c *Client) GetAggregates(symbol, timespan, from, to string) (*Aggregates, error) {
 	u, err := url.Parse(fmt.Sprintf("%s/v1/aggs/ticker/%s/range/1/%s/%s/%s",
 		dataURL, symbol, timespan, from, to))
@@ -357,6 +359,7 @@ func (c *Client) GetAggregates(symbol, timespan, from, to string) (*Aggregates, 
 }
 
 // GetLastQuote returns the last quote for the given symbol
+// Deprecated: all v1 endpoints will be removed!
 func (c *Client) GetLastQuote(symbol string) (*LastQuoteResponse, error) {
 	u, err := url.Parse(fmt.Sprintf("%s/v1/last_quote/stocks/%s", dataURL, symbol))
 	if err != nil {
@@ -384,6 +387,7 @@ func (c *Client) GetLastQuote(symbol string) (*LastQuoteResponse, error) {
 }
 
 // GetLastTrade returns the last trade for the given symbol
+// Deprecated: all v1 endpoints will be removed!
 func (c *Client) GetLastTrade(symbol string) (*LastTradeResponse, error) {
 	u, err := url.Parse(fmt.Sprintf("%s/v1/last/stocks/%s", dataURL, symbol))
 	if err != nil {
@@ -412,6 +416,7 @@ func (c *Client) GetLastTrade(symbol string) (*LastTradeResponse, error) {
 
 // GetTrades returns a channel that will be populated with the trades for the given symbol
 // that happened between the given start and end times, limited to the given limit.
+// Deprecated: will be moved to the marketdata package!
 func (c *Client) GetTrades(
 	symbol string, start, end time.Time, limit int,
 ) <-chan marketdata.TradeItem {
@@ -472,6 +477,7 @@ func (c *Client) GetTrades(
 
 // GetQuotes returns a channel that will be populated with the quotes for the given symbol
 // that happened between the given start and end times, limited to the given limit.
+// Deprecated: will be moved to the marketdata package!
 func (c *Client) GetQuotes(
 	symbol string, start, end time.Time, limit int,
 ) <-chan marketdata.QuoteItem {
@@ -536,6 +542,7 @@ func (c *Client) GetQuotes(
 // GetBars returns a channel that will be populated with the bars for the given symbol
 // between the given start and end times, limited to the given limit,
 // using the given and timeframe and adjustment.
+// Deprecated: will be moved to the marketdata package!
 func (c *Client) GetBars(
 	symbol string, timeFrame marketdata.TimeFrame, adjustment marketdata.Adjustment,
 	start, end time.Time, limit int,
@@ -598,6 +605,7 @@ func (c *Client) GetBars(
 }
 
 // GetLatestTrade returns the latest trade for a given symbol
+// Deprecated: will be moved to the marketdata package!
 func (c *Client) GetLatestTrade(symbol string) (*marketdata.Trade, error) {
 	u, err := url.Parse(fmt.Sprintf("%s/v2/stocks/%s/trades/latest", dataURL, symbol))
 	if err != nil {
@@ -619,6 +627,7 @@ func (c *Client) GetLatestTrade(symbol string) (*marketdata.Trade, error) {
 }
 
 // GetLatestQuote returns the latest quote for a given symbol
+// Deprecated: will be moved to the marketdata package!
 func (c *Client) GetLatestQuote(symbol string) (*marketdata.Quote, error) {
 	u, err := url.Parse(fmt.Sprintf("%s/v2/stocks/%s/quotes/latest", dataURL, symbol))
 	if err != nil {
@@ -938,6 +947,7 @@ func (c *Client) GetAsset(symbol string) (*Asset, error) {
 
 // ListBars returns a list of bar lists corresponding to the provided
 // symbol list, and filtered by the provided parameters.
+// Deprecated: all v1 endpoints will be removed!
 func (c *Client) ListBars(symbols []string, opts ListBarParams) (map[string][]Bar, error) {
 	vals := url.Values{}
 	vals.Add("symbols", strings.Join(symbols, ","))
@@ -978,6 +988,7 @@ func (c *Client) ListBars(symbols []string, opts ListBarParams) (map[string][]Ba
 
 // GetSymbolBars is a convenience method for getting the market
 // data for one symbol
+// Deprecated: all v1 endpoints will be removed!
 func (c *Client) GetSymbolBars(symbol string, opts ListBarParams) ([]Bar, error) {
 	symbolList := []string{symbol}
 
