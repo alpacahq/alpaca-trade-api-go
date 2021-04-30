@@ -481,9 +481,10 @@ func (s *AlpacaTestSuite) TestAlpaca() {
 			}, nil
 		}
 
+		one := decimal.NewFromInt(1)
 		req := PlaceOrderRequest{
 			AccountID:   "some_id",
-			Qty:         decimal.New(1, 0),
+			Qty:         &one,
 			Side:        Buy,
 			TimeInForce: GTC,
 			Type:        Limit,
@@ -493,14 +494,14 @@ func (s *AlpacaTestSuite) TestAlpaca() {
 		assert.NoError(s.T(), err)
 		assert.NotNil(s.T(), order)
 		assert.Equal(s.T(), req.Qty, order.Qty)
-		assert.True(s.T(), req.Notional.IsZero())
-		assert.True(s.T(), order.Notional.IsZero())
+		assert.Nil(s.T(), req.Notional)
+		assert.Nil(s.T(), order.Notional)
 		assert.Equal(s.T(), req.Type, order.Type)
 
 		// successful (w/ Notional)
 		req = PlaceOrderRequest{
 			AccountID:   "some_id",
-			Notional:    decimal.New(1, 0),
+			Notional:    &one,
 			Side:        Buy,
 			TimeInForce: GTC,
 			Type:        Limit,
@@ -510,8 +511,8 @@ func (s *AlpacaTestSuite) TestAlpaca() {
 		assert.NoError(s.T(), err)
 		assert.NotNil(s.T(), order)
 		assert.Equal(s.T(), req.Notional, order.Notional)
-		assert.True(s.T(), req.Qty.IsZero())
-		assert.True(s.T(), order.Qty.IsZero())
+		assert.Nil(s.T(), req.Qty)
+		assert.Nil(s.T(), order.Qty)
 		assert.Equal(s.T(), req.Type, order.Type)
 
 		// api failure
@@ -744,7 +745,7 @@ func (s *AlpacaTestSuite) TestAlpaca() {
 			}
 			return &http.Response{
 				Body: genBody(Order{
-					Qty:         or.Qty,
+					Qty:         &or.Qty,
 					Side:        Side(or.Side),
 					TimeInForce: TimeInForce(or.TimeInForce),
 					Type:        OrderType(or.Type),
@@ -759,9 +760,10 @@ func (s *AlpacaTestSuite) TestAlpaca() {
 			LimitPrice: nil,
 			StopPrice:  &spp,
 		}
+		one := decimal.NewFromInt(0)
 		req := PlaceOrderRequest{
 			AccountID:   "some_id",
-			Qty:         decimal.New(1, 0),
+			Qty:         &one,
 			Side:        Buy,
 			TimeInForce: GTC,
 			Type:        Limit,
