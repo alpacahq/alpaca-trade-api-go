@@ -327,10 +327,11 @@ func (alp alpacaClientContainer) submitOrder(qty int, symbol string, side string
 	account, _ := alpacaClient.client.GetAccount()
 	if qty > 0 {
 		adjSide := alpaca.Side(side)
+		decimalQty := decimal.NewFromInt(int64(qty))
 		_, err := alpacaClient.client.PlaceOrder(alpaca.PlaceOrderRequest{
 			AccountID:   account.ID,
 			AssetKey:    &symbol,
-			Qty:         decimal.NewFromFloat(float64(qty)),
+			Qty:         &decimalQty,
 			Side:        adjSide,
 			Type:        "market",
 			TimeInForce: "day",
