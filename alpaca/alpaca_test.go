@@ -290,7 +290,7 @@ func (s *AlpacaTestSuite) TestAlpaca() {
 			Exchange:   "J",
 			Price:      134.7,
 			Size:       20,
-			Timestamp:  time.Unix(0, 1618922434484136000),
+			Timestamp:  time.Date(2021, 4, 20, 12, 40, 34, 484136000, time.UTC),
 			Conditions: []string{"@", "T", "I"},
 			Tape:       "C",
 		}
@@ -301,9 +301,9 @@ func (s *AlpacaTestSuite) TestAlpaca() {
 		}
 
 		actualLatestTrade, err := GetLatestTrade("AAPL")
-		assert.NotNil(s.T(), actualLatestTrade)
-		assert.NoError(s.T(), err)
-		checkV2TradeEquals(s.T(), &expectedLatestTrade, actualLatestTrade)
+		require.NoError(s.T(), err)
+		require.NotNil(s.T(), actualLatestTrade)
+		assert.Equal(s.T(), expectedLatestTrade, *actualLatestTrade)
 
 		// api failure
 		do = func(c *Client, req *http.Request) (*http.Response, error) {
@@ -330,8 +330,7 @@ func (s *AlpacaTestSuite) TestAlpaca() {
 					"bs": 29,
 					"c": [
 						"R"
-					],
-					"z": "C"
+					]
 				}
 			}`
 		expectedLatestQuote := v2.Quote{
@@ -341,9 +340,8 @@ func (s *AlpacaTestSuite) TestAlpaca() {
 			AskExchange: "Q",
 			AskPrice:    134.68,
 			AskSize:     1,
-			Timestamp:   time.Unix(0, 1618923717822745906),
+			Timestamp:   time.Date(2021, 04, 20, 13, 1, 57, 822745906, time.UTC),
 			Conditions:  []string{"R"},
-			Tape:        "C",
 		}
 		do = func(c *Client, req *http.Request) (*http.Response, error) {
 			return &http.Response{
@@ -352,9 +350,9 @@ func (s *AlpacaTestSuite) TestAlpaca() {
 		}
 
 		actualLatestQuote, err := GetLatestQuote("AAPL")
-		assert.NotNil(s.T(), actualLatestQuote)
-		assert.NoError(s.T(), err)
-		checkV2QuoteEquals(s.T(), &expectedLatestQuote, actualLatestQuote)
+		require.NoError(s.T(), err)
+		require.NotNil(s.T(), actualLatestQuote)
+		assert.Equal(s.T(), expectedLatestQuote, *actualLatestQuote)
 
 		// api failure
 		do = func(c *Client, req *http.Request) (*http.Response, error) {
@@ -364,6 +362,247 @@ func (s *AlpacaTestSuite) TestAlpaca() {
 		actualLatestQuote, err = GetLatestQuote("AAPL")
 		assert.Error(s.T(), err)
 		assert.Nil(s.T(), actualLatestQuote)
+	}
+
+	// get snapshot
+	{
+		// successful
+		snapshotJSON := `{
+			"symbol": "AAPL",
+			"latestTrade": {
+				"t": "2021-05-03T14:45:50.456Z",
+				"x": "D",
+				"p": 133.55,
+				"s": 200,
+				"c": [
+					"@"
+				],
+				"i": 61462,
+				"z": "C"
+			},
+			"latestQuote": {
+				"t": "2021-05-03T14:45:50.532316972Z",
+				"ax": "P",
+				"ap": 133.55,
+				"as": 7,
+				"bx": "Q",
+				"bp": 133.54,
+				"bs": 9,
+				"c": [
+					"R"
+				]
+			},
+			"minuteBar": {
+				"t": "2021-05-03T14:44:00Z",
+				"o": 133.485,
+				"h": 133.4939,
+				"l": 133.42,
+				"c": 133.445,
+				"v": 182818
+			},
+			"dailyBar": {
+				"t": "2021-05-03T04:00:00Z",
+				"o": 132.04,
+				"h": 134.07,
+				"l": 131.83,
+				"c": 133.445,
+				"v": 25094213
+			},
+			"prevDailyBar": {
+				"t": "2021-04-30T04:00:00Z",
+				"o": 131.82,
+				"h": 133.56,
+				"l": 131.065,
+				"c": 131.46,
+				"v": 109506363
+			}
+		}`
+		expected := v2.Snapshot{
+			LatestTrade: &v2.Trade{
+				ID:         61462,
+				Exchange:   "D",
+				Price:      133.55,
+				Size:       200,
+				Timestamp:  time.Date(2021, 5, 3, 14, 45, 50, 456000000, time.UTC),
+				Conditions: []string{"@"},
+				Tape:       "C",
+			},
+			LatestQuote: &v2.Quote{
+				BidExchange: "Q",
+				BidPrice:    133.54,
+				BidSize:     9,
+				AskExchange: "P",
+				AskPrice:    133.55,
+				AskSize:     7,
+				Timestamp:   time.Date(2021, 5, 3, 14, 45, 50, 532316972, time.UTC),
+				Conditions:  []string{"R"},
+			},
+			MinuteBar: &v2.Bar{
+				Open:      133.485,
+				High:      133.4939,
+				Low:       133.42,
+				Close:     133.445,
+				Volume:    182818,
+				Timestamp: time.Date(2021, 5, 3, 14, 44, 0, 0, time.UTC),
+			},
+			DailyBar: &v2.Bar{
+				Open:      132.04,
+				High:      134.07,
+				Low:       131.83,
+				Close:     133.445,
+				Volume:    25094213,
+				Timestamp: time.Date(2021, 5, 3, 4, 0, 0, 0, time.UTC),
+			},
+			PrevDailyBar: &v2.Bar{
+				Open:      131.82,
+				High:      133.56,
+				Low:       131.065,
+				Close:     131.46,
+				Volume:    109506363,
+				Timestamp: time.Date(2021, 4, 30, 4, 0, 0, 0, time.UTC),
+			},
+		}
+		do = func(c *Client, req *http.Request) (*http.Response, error) {
+			return &http.Response{
+				Body: ioutil.NopCloser(strings.NewReader(snapshotJSON)),
+			}, nil
+		}
+
+		got, err := GetSnapshot("AAPL")
+		require.NoError(s.T(), err)
+		require.NotNil(s.T(), got)
+		assert.Equal(s.T(), expected, *got)
+
+		// api failure
+		do = func(c *Client, req *http.Request) (*http.Response, error) {
+			return &http.Response{}, fmt.Errorf("fail")
+		}
+
+		got, err = GetSnapshot("AAPL")
+		assert.Error(s.T(), err)
+		assert.Nil(s.T(), got)
+	}
+
+	// get snapshots
+	{
+		// successful
+		snapshotsJSON := `{
+			"AAPL": {
+				"latestTrade": {
+					"t": "2021-05-03T14:48:06.563Z",
+					"x": "D",
+					"p": 133.4201,
+					"s": 145,
+					"c": [
+						"@"
+					],
+					"i": 62700,
+					"z": "C"
+				},
+				"latestQuote": {
+					"t": "2021-05-03T14:48:07.257820915Z",
+					"ax": "Q",
+					"ap": 133.43,
+					"as": 7,
+					"bx": "Q",
+					"bp": 133.42,
+					"bs": 15,
+					"c": [
+						"R"
+					]
+				},
+				"minuteBar": {
+					"t": "2021-05-03T14:47:00Z",
+					"o": 133.4401,
+					"h": 133.48,
+					"l": 133.37,
+					"c": 133.42,
+					"v": 207020
+				},
+				"dailyBar": {
+					"t": "2021-05-03T04:00:00Z",
+					"o": 132.04,
+					"h": 134.07,
+					"l": 131.83,
+					"c": 133.42,
+					"v": 25846800
+				},
+				"prevDailyBar": {
+					"t": "2021-04-30T04:00:00Z",
+					"o": 131.82,
+					"h": 133.56,
+					"l": 131.065,
+					"c": 131.46,
+					"v": 109506363
+				}
+			},
+			"MSFT": {
+				"latestTrade": {
+					"t": "2021-05-03T14:48:06.36Z",
+					"x": "D",
+					"p": 253.8738,
+					"s": 100,
+					"c": [
+						"@"
+					],
+					"i": 22973,
+					"z": "C"
+				},
+				"latestQuote": {
+					"t": "2021-05-03T14:48:07.243353456Z",
+					"ax": "N",
+					"ap": 253.89,
+					"as": 2,
+					"bx": "Q",
+					"bp": 253.87,
+					"bs": 2,
+					"c": [
+						"R"
+					]
+				},
+				"minuteBar": {
+					"t": "2021-05-03T14:47:00Z",
+					"o": 253.78,
+					"h": 253.869,
+					"l": 253.78,
+					"c": 253.855,
+					"v": 25717
+				},
+				"dailyBar": {
+					"t": "2021-05-03T04:00:00Z",
+					"o": 253.34,
+					"h": 254.35,
+					"l": 251.8,
+					"c": 253.855,
+					"v": 6100459
+				},
+				"prevDailyBar": null
+			},
+			"INVALID": null
+		}`
+		do = func(c *Client, req *http.Request) (*http.Response, error) {
+			return &http.Response{
+				Body: ioutil.NopCloser(strings.NewReader(snapshotsJSON)),
+			}, nil
+		}
+
+		got, err := GetSnapshots([]string{"AAPL", "MSFT", "INVALID"})
+		require.NoError(s.T(), err)
+		require.NotNil(s.T(), got)
+		assert.Len(s.T(), got, 3)
+		assert.Nil(s.T(), got["INVALID"])
+		assert.EqualValues(s.T(), 7, got["AAPL"].LatestQuote.AskSize)
+		assert.EqualValues(s.T(), 6100459, got["MSFT"].DailyBar.Volume)
+		assert.Nil(s.T(), got["MSFT"].PrevDailyBar)
+
+		// api failure
+		do = func(c *Client, req *http.Request) (*http.Response, error) {
+			return &http.Response{}, fmt.Errorf("fail")
+		}
+
+		got, err = GetSnapshots([]string{"AAPL", "CLDR"})
+		assert.Error(s.T(), err)
+		assert.Nil(s.T(), got)
 	}
 
 	// get clock
@@ -775,36 +1014,6 @@ func (s *AlpacaTestSuite) TestAlpaca() {
 		assert.NotNil(s.T(), order)
 		assert.Equal(s.T(), "bracket", order.Class)
 	}
-}
-
-func checkV2TradeEquals(t *testing.T, expected, got *v2.Trade) {
-	if expected == nil || got == nil {
-		assert.True(t, expected == got)
-		return
-	}
-	assert.EqualValues(t, expected.Conditions, got.Conditions)
-	assert.EqualValues(t, expected.Exchange, got.Exchange)
-	assert.EqualValues(t, expected.ID, got.ID)
-	assert.EqualValues(t, expected.Price, got.Price)
-	assert.EqualValues(t, expected.Size, got.Size)
-	assert.EqualValues(t, expected.Tape, got.Tape)
-	assert.True(t, expected.Timestamp.Equal(got.Timestamp))
-}
-
-func checkV2QuoteEquals(t *testing.T, expected, got *v2.Quote) {
-	if expected == nil || got == nil {
-		assert.True(t, expected == got)
-		return
-	}
-	assert.EqualValues(t, expected.AskExchange, got.AskExchange)
-	assert.EqualValues(t, expected.AskPrice, got.AskPrice)
-	assert.EqualValues(t, expected.AskSize, got.AskSize)
-	assert.EqualValues(t, expected.BidExchange, got.BidExchange)
-	assert.EqualValues(t, expected.BidPrice, got.BidPrice)
-	assert.EqualValues(t, expected.BidSize, got.BidSize)
-	assert.EqualValues(t, expected.Conditions, got.Conditions)
-	assert.EqualValues(t, expected.Tape, got.Tape)
-	assert.True(t, expected.Timestamp.Equal(got.Timestamp))
 }
 
 type nopCloser struct {

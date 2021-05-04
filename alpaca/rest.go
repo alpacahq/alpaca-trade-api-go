@@ -635,6 +635,49 @@ func (c *Client) GetLatestQuote(symbol string) (*v2.Quote, error) {
 	return &latestQuoteResp.Quote, nil
 }
 
+// GetSnapshot returns the snapshot for a given symbol
+func (c *Client) GetSnapshot(symbol string) (*v2.Snapshot, error) {
+	u, err := url.Parse(fmt.Sprintf("%s/v2/stocks/%s/snapshot", dataURL, symbol))
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := c.get(u)
+	if err != nil {
+		return nil, err
+	}
+
+	var snapshot v2.Snapshot
+
+	if err = unmarshal(resp, &snapshot); err != nil {
+		return nil, err
+	}
+
+	return &snapshot, nil
+}
+
+// GetSnapshots returns the snapshots for multiple symbol
+func (c *Client) GetSnapshots(symbols []string) (map[string]*v2.Snapshot, error) {
+	u, err := url.Parse(fmt.Sprintf("%s/v2/stocks/snapshots?symbols=%s",
+		dataURL, strings.Join(symbols, ",")))
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := c.get(u)
+	if err != nil {
+		return nil, err
+	}
+
+	var snapshots map[string]*v2.Snapshot
+
+	if err = unmarshal(resp, &snapshots); err != nil {
+		return nil, err
+	}
+
+	return snapshots, nil
+}
+
 // CloseAllPositions liquidates all open positions at market price.
 func (c *Client) CloseAllPositions() error {
 	u, err := url.Parse(fmt.Sprintf("%s/%s/positions", base, apiVersion))
@@ -1062,6 +1105,16 @@ func GetLatestTrade(symbol string) (*v2.Trade, error) {
 // GetLatestTrade returns the latest quote for a given symbol
 func GetLatestQuote(symbol string) (*v2.Quote, error) {
 	return DefaultClient.GetLatestQuote(symbol)
+}
+
+// GetSnapshot returns the snapshot for a given symbol
+func GetSnapshot(symbol string) (*v2.Snapshot, error) {
+	return DefaultClient.GetSnapshot(symbol)
+}
+
+// GetSnapshots returns the snapshots for a multiple symbols
+func GetSnapshots(symbols []string) (map[string]*v2.Snapshot, error) {
+	return DefaultClient.GetSnapshots(symbols)
 }
 
 // GetPosition returns the account's position for the
