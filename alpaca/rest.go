@@ -611,6 +611,7 @@ func (c *Client) GetBars(
 }
 
 // GetLatestTrade returns the latest trade for a given symbol
+//
 // Deprecated: will be moved to the marketdata package!
 func (c *Client) GetLatestTrade(symbol string) (*marketdata.Trade, error) {
 	u, err := url.Parse(fmt.Sprintf("%s/v2/stocks/%s/trades/latest", dataURL, symbol))
@@ -633,6 +634,7 @@ func (c *Client) GetLatestTrade(symbol string) (*marketdata.Trade, error) {
 }
 
 // GetLatestQuote returns the latest quote for a given symbol
+//
 // Deprecated: will be moved to the marketdata package!
 func (c *Client) GetLatestQuote(symbol string) (*marketdata.Quote, error) {
 	u, err := url.Parse(fmt.Sprintf("%s/v2/stocks/%s/quotes/latest", dataURL, symbol))
@@ -652,6 +654,53 @@ func (c *Client) GetLatestQuote(symbol string) (*marketdata.Quote, error) {
 	}
 
 	return &latestQuoteResp.Quote, nil
+}
+
+// GetSnapshot returns the snapshot for a given symbol
+//
+// Deprecated: will be moved to the marketdata package!
+func (c *Client) GetSnapshot(symbol string) (*marketdata.Snapshot, error) {
+	u, err := url.Parse(fmt.Sprintf("%s/v2/stocks/%s/snapshot", dataURL, symbol))
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := c.get(u)
+	if err != nil {
+		return nil, err
+	}
+
+	var snapshot marketdata.Snapshot
+
+	if err = unmarshal(resp, &snapshot); err != nil {
+		return nil, err
+	}
+
+	return &snapshot, nil
+}
+
+// GetSnapshots returns the snapshots for multiple symbol
+//
+// Deprecated: will be moved to the marketdata package!
+func (c *Client) GetSnapshots(symbols []string) (map[string]*marketdata.Snapshot, error) {
+	u, err := url.Parse(fmt.Sprintf("%s/v2/stocks/snapshots?symbols=%s",
+		dataURL, strings.Join(symbols, ",")))
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := c.get(u)
+	if err != nil {
+		return nil, err
+	}
+
+	var snapshots map[string]*marketdata.Snapshot
+
+	if err = unmarshal(resp, &snapshots); err != nil {
+		return nil, err
+	}
+
+	return snapshots, nil
 }
 
 // CloseAllPositions liquidates all open positions at market price.
@@ -1101,6 +1150,20 @@ func GetLatestTrade(symbol string) (*marketdata.Trade, error) {
 // Deprecated: will be moved to the marketdata package!
 func GetLatestQuote(symbol string) (*marketdata.Quote, error) {
 	return DefaultClient.GetLatestQuote(symbol)
+}
+
+// GetSnapshot returns the snapshot for a given symbol
+//
+// Deprecated: will be moved to the marketdata package!
+func GetSnapshot(symbol string) (*marketdata.Snapshot, error) {
+	return DefaultClient.GetSnapshot(symbol)
+}
+
+// GetSnapshots returns the snapshots for a multiple symbols
+//
+// Deprecated: will be moved to the marketdata package!
+func GetSnapshots(symbols []string) (map[string]*marketdata.Snapshot, error) {
+	return DefaultClient.GetSnapshots(symbols)
 }
 
 // GetPosition returns the account's position for the

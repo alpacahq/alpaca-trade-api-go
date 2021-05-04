@@ -75,3 +75,12 @@ type BarItem struct {
 	Bar   Bar
 	Error error
 }
+
+// Snapshot is a snapshot of a symbol
+type Snapshot struct {
+	LatestTrade  *Trade `json:"latestTrade"`
+	LatestQuote  *Quote `json:"latestQuote"`
+	MinuteBar    *Bar   `json:"minuteBar"`
+	DailyBar     *Bar   `json:"dailyBar"`
+	PrevDailyBar *Bar   `json:"prevDailyBar"`
+}
