@@ -53,7 +53,6 @@ type Adjustment string
 
 // List of adjustments
 const (
-	None     Adjustment = "--"
 	Raw      Adjustment = "raw"
 	Split    Adjustment = "split"
 	Dividend Adjustment = "dividend"
