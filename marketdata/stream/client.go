@@ -258,7 +258,11 @@ func (c *client) maintainConnection(ctx context.Context, u url.URL, initialResul
 			go c.connReader(ctx, &wg, closeCh)
 			go c.connWriter(ctx, &wg, closeCh)
 			wg.Wait()
-			c.logger.Warnf("datav2stream: connection lost")
+			if ctx.Err() != nil {
+				c.logger.Infof("datav2stream: disconnected")
+			} else {
+				c.logger.Warnf("datav2stream: connection lost")
+			}
 		}
 	}
 }
