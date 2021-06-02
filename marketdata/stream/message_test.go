@@ -55,6 +55,42 @@ type barWithT struct {
 	NewField uint64 `msgpack:"n"`
 }
 
+// cryptoTradeWithT is the incoming crypto trade message that also contains the T type key
+type cryptoTradeWithT struct {
+	Type      string    `msgpack:"T"`
+	Symbol    string    `msgpack:"S"`
+	Price     float64   `msgpack:"p"`
+	Size      float64   `msgpack:"s"`
+	Timestamp time.Time `msgpack:"t"`
+	// NewField is for testing correct handling of added fields in the future
+	NewField uint64 `msgpack:"n"`
+}
+
+// cryptoQuoteWithT is the incoming crypto quote message that also contains the T type key
+type cryptoQuoteWithT struct {
+	Type      string    `msgpack:"T"`
+	Symbol    string    `msgpack:"S"`
+	BidPrice  float64   `msgpack:"bp"`
+	AskPrice  float64   `msgpack:"ap"`
+	Timestamp time.Time `msgpack:"t"`
+	// NewField is for testing correct handling of added fields in the future
+	NewField uint64 `msgpack:"n"`
+}
+
+// cryptoBarWithT is the incoming crypto bar message that also contains the T type key
+type cryptoBarWithT struct {
+	Type      string    `msgpack:"T"`
+	Symbol    string    `msgpack:"S"`
+	Open      float64   `msgpack:"o"`
+	High      float64   `msgpack:"h"`
+	Low       float64   `msgpack:"l"`
+	Close     float64   `msgpack:"c"`
+	Volume    float64   `msgpack:"v"`
+	Timestamp time.Time `msgpack:"t"`
+	// NewField is for testing correct handling of added fields in the future
+	NewField uint64 `msgpack:"n"`
+}
+
 type other struct {
 	Type     string `msgpack:"T"`
 	Whatever string `msgpack:"w"`
@@ -126,6 +162,33 @@ var testBar = barWithT{
 	Timestamp: time.Date(2021, 03, 05, 16, 0, 0, 0, time.UTC),
 }
 
+var testCryptoTrade = cryptoTradeWithT{
+	Type:      "t",
+	Symbol:    "A",
+	Price:     100,
+	Size:      10,
+	Timestamp: testTime,
+}
+
+var testCryptoQuote = cryptoQuoteWithT{
+	Type:      "q",
+	Symbol:    "TEST",
+	BidPrice:  99.9,
+	AskPrice:  100.1,
+	Timestamp: testTime,
+}
+
+var testCryptoBar = cryptoBarWithT{
+	Type:      "b",
+	Symbol:    "TEST",
+	Open:      100,
+	High:      101.2,
+	Low:       98.67,
+	Close:     101.1,
+	Volume:    2560,
+	Timestamp: time.Date(2021, 03, 05, 16, 0, 0, 0, time.UTC),
+}
+
 var testOther = other{
 	Type:     "o",
 	Whatever: "whatever",
@@ -152,7 +215,7 @@ var testSubMessage2 = subWithT{
 	DailyBars: []string{"LPACA"},
 }
 
-func TestHandleMessages(t *testing.T) {
+func TestHandleMessagesStocks(t *testing.T) {
 	b, err := msgpack.Marshal([]interface{}{testOther, testTrade, testQuote, testBar, testError, testSubMessage1, testSubMessage2})
 	require.NoError(t, err)
 
@@ -175,18 +238,20 @@ func TestHandleMessages(t *testing.T) {
 		return nil
 	}
 
-	c := &client{}
+	h := &stocksMsgHandler{}
+	c := &client{
+		handler: h,
+	}
 	var trade Trade
-	c.tradeHandler = func(t Trade) {
+	h.tradeHandler = func(t Trade) {
 		trade = t
 	}
-
 	var quote Quote
-	c.quoteHandler = func(q Quote) {
+	h.quoteHandler = func(q Quote) {
 		quote = q
 	}
 	var bar Bar
-	c.barHandler = func(b Bar) {
+	h.barHandler = func(b Bar) {
 		bar = b
 	}
 
@@ -233,12 +298,95 @@ func TestHandleMessages(t *testing.T) {
 	assert.EqualValues(t, testSubMessage2.DailyBars, subscriptionMessages[1].dailyBars)
 }
 
+func TestHandleMessagesCrypto(t *testing.T) {
+	b, err := msgpack.Marshal([]interface{}{
+		testOther,
+		testCryptoTrade,
+		testCryptoQuote,
+		testCryptoBar,
+		testError,
+		testSubMessage1,
+		testSubMessage2,
+	})
+	require.NoError(t, err)
+
+	emh := errMessageHandler
+	smh := subMessageHandler
+	defer func() {
+		errMessageHandler = emh
+		subMessageHandler = smh
+	}()
+
+	subscriptionMessages := make([]subscriptionMessage, 0)
+
+	var em errorMessage
+	errMessageHandler = func(c *client, e errorMessage) error {
+		em = e
+		return nil
+	}
+	subMessageHandler = func(c *client, s subscriptionMessage) error {
+		subscriptionMessages = append(subscriptionMessages, s)
+		return nil
+	}
+
+	h := &cryptoMsgHandler{}
+	c := &client{
+		handler: h,
+	}
+	var trade CryptoTrade
+	h.tradeHandler = func(t CryptoTrade) {
+		trade = t
+	}
+	var quote CryptoQuote
+	h.quoteHandler = func(q CryptoQuote) {
+		quote = q
+	}
+	var bar CryptoBar
+	h.barHandler = func(b CryptoBar) {
+		bar = b
+	}
+
+	err = c.handleMessage(b)
+	require.NoError(t, err)
+
+	assert.EqualValues(t, testCryptoTrade.Symbol, trade.Symbol)
+	assert.EqualValues(t, testCryptoTrade.Price, trade.Price)
+	assert.EqualValues(t, testCryptoTrade.Size, trade.Size)
+	assert.True(t, trade.Timestamp.Equal(testTime))
+
+	assert.EqualValues(t, testCryptoQuote.Symbol, quote.Symbol)
+	assert.EqualValues(t, testCryptoQuote.BidPrice, quote.BidPrice)
+	assert.EqualValues(t, testCryptoQuote.AskPrice, quote.AskPrice)
+	assert.True(t, quote.Timestamp.Equal(testTime))
+
+	assert.EqualValues(t, testCryptoBar.Symbol, bar.Symbol)
+	assert.EqualValues(t, testCryptoBar.Open, bar.Open)
+	assert.EqualValues(t, testCryptoBar.High, bar.High)
+	assert.EqualValues(t, testCryptoBar.Low, bar.Low)
+	assert.EqualValues(t, testCryptoBar.Close, bar.Close)
+	assert.EqualValues(t, testCryptoBar.Volume, bar.Volume)
+
+	assert.EqualValues(t, testError.Code, em.code)
+	assert.EqualValues(t, testError.Msg, em.msg)
+
+	require.Len(t, subscriptionMessages, 2)
+	assert.EqualValues(t, testSubMessage1.Trades, subscriptionMessages[0].trades)
+	assert.EqualValues(t, testSubMessage1.Quotes, subscriptionMessages[0].quotes)
+	assert.EqualValues(t, testSubMessage1.Bars, subscriptionMessages[0].bars)
+	assert.EqualValues(t, testSubMessage2.Trades, subscriptionMessages[1].trades)
+	assert.EqualValues(t, testSubMessage2.Quotes, subscriptionMessages[1].quotes)
+	assert.EqualValues(t, testSubMessage2.Bars, subscriptionMessages[1].bars)
+	assert.EqualValues(t, testSubMessage2.DailyBars, subscriptionMessages[1].dailyBars)
+}
+
 func BenchmarkHandleMessages(b *testing.B) {
 	msgs, _ := msgpack.Marshal([]interface{}{testTrade, testQuote, testBar})
 	c := &client{
-		tradeHandler: func(trade Trade) {},
-		quoteHandler: func(quote Quote) {},
-		barHandler:   func(bar Bar) {},
+		handler: &stocksMsgHandler{
+			tradeHandler: func(trade Trade) {},
+			quoteHandler: func(quote Quote) {},
+			barHandler:   func(bar Bar) {},
+		},
 	}
 
 	b.ResetTimer()

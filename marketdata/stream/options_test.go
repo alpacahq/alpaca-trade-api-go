@@ -11,12 +11,13 @@ import (
 
 func TestDefaultOptions(t *testing.T) {
 	var tests = []struct {
-		name           string
-		dataProxyWSVal string
-		expectedHost   string
+		name            string
+		dataProxyWSVal  string
+		expectedBaseURL string
 	}{
-		{name: "no_data_ws_proxy", dataProxyWSVal: "", expectedHost: "https://stream.data.alpaca.markets"},
-		{name: "data_ws_proxy", dataProxyWSVal: "test", expectedHost: "test"},
+		{name: "no_data_ws_proxy", dataProxyWSVal: "",
+			expectedBaseURL: "https://stream.data.alpaca.markets/v2"},
+		{name: "data_ws_proxy", dataProxyWSVal: "test", expectedBaseURL: "test"},
 	}
 
 	for _, test := range tests {
@@ -25,10 +26,10 @@ func TestDefaultOptions(t *testing.T) {
 			os.Setenv("APCA_API_SECRET_KEY", "testsecret")
 			os.Setenv("DATA_PROXY_WS", test.dataProxyWSVal)
 
-			o := defaultOptions()
+			o := defaultStockOptions()
 
 			assert.EqualValues(t, newStdLog(), o.logger)
-			assert.EqualValues(t, test.expectedHost, o.host)
+			assert.EqualValues(t, test.expectedBaseURL, o.baseURL)
 			assert.EqualValues(t, "testkey", o.key)
 			assert.EqualValues(t, "testsecret", o.secret)
 			assert.EqualValues(t, 20, o.reconnectLimit)
@@ -44,16 +45,14 @@ func TestDefaultOptions(t *testing.T) {
 	}
 }
 
-func TestConfigure(t *testing.T) {
+func TestConfigureStocks(t *testing.T) {
 	// NOTE: we are also testing the various options and their apply
 	// even though the test is testing multiple things they're closely related
 
-	c := client{}
-	o := options{}
 	logger := &stdLog{logger: log.New(os.Stdout, "TEST", log.LUTC)}
-	o.apply(
+	c := NewStocksClient("iex",
 		WithLogger(logger),
-		WithHost("testhost"),
+		WithBaseURL("testhost"),
 		WithCredentials("testkey", "testsecret"),
 		WithReconnectSettings(42, 322*time.Nanosecond),
 		WithProcessors(322),
@@ -62,11 +61,10 @@ func TestConfigure(t *testing.T) {
 		WithQuotes(func(q Quote) {}, "AL", "PACA"),
 		WithBars(func(b Bar) {}, "ALP", "ACA"),
 		WithDailyBars(func(b Bar) {}, "LPACA"),
-	)
-	c.configure(o)
+	).(*stocksClient)
 
 	assert.EqualValues(t, logger, c.logger)
-	assert.EqualValues(t, "testhost", c.host)
+	assert.EqualValues(t, "testhost", c.baseURL)
 	assert.EqualValues(t, "testkey", c.key)
 	assert.EqualValues(t, "testsecret", c.secret)
 	assert.EqualValues(t, 42, c.reconnectLimit)

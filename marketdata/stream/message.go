@@ -4,9 +4,17 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"sync"
 
 	"github.com/vmihailenco/msgpack/v5"
 )
+
+type msgHandler interface {
+	handleTrade(d *msgpack.Decoder, n int) error
+	handleQuote(d *msgpack.Decoder, n int) error
+	handleBar(d *msgpack.Decoder, n int) error
+	handleDailyBar(d *msgpack.Decoder, n int) error
+}
 
 func (c *client) handleMessage(b []byte) error {
 	d := msgpack.GetDecoder()
@@ -45,13 +53,13 @@ func (c *client) handleMessage(b []byte) error {
 
 		switch T {
 		case "t":
-			err = c.handleTrade(d, n)
+			err = c.handler.handleTrade(d, n)
 		case "q":
-			err = c.handleQuote(d, n)
+			err = c.handler.handleQuote(d, n)
 		case "b":
-			err = c.handleBar(d, n)
+			err = c.handler.handleBar(d, n)
 		case "d":
-			err = c.handleDailyBar(d, n)
+			err = c.handler.handleDailyBar(d, n)
 		case "subscription":
 			err = c.handleSubscriptionMessage(d, n)
 		case "error":
@@ -67,7 +75,15 @@ func (c *client) handleMessage(b []byte) error {
 	return nil
 }
 
-func (c *client) handleTrade(d *msgpack.Decoder, n int) error {
+type stocksMsgHandler struct {
+	mu              sync.RWMutex
+	tradeHandler    func(trade Trade)
+	quoteHandler    func(quote Quote)
+	barHandler      func(bar Bar)
+	dailyBarHandler func(bar Bar)
+}
+
+func (h *stocksMsgHandler) handleTrade(d *msgpack.Decoder, n int) error {
 	trade := Trade{}
 	for i := 0; i < n; i++ {
 		key, err := d.DecodeString()
@@ -98,14 +114,14 @@ func (c *client) handleTrade(d *msgpack.Decoder, n int) error {
 			return err
 		}
 	}
-	c.handlerMutex.RLock()
-	tradeHandler := c.tradeHandler
-	c.handlerMutex.RUnlock()
+	h.mu.RLock()
+	tradeHandler := h.tradeHandler
+	h.mu.RUnlock()
 	tradeHandler(trade)
 	return nil
 }
 
-func (c *client) handleQuote(d *msgpack.Decoder, n int) error {
+func (h *stocksMsgHandler) handleQuote(d *msgpack.Decoder, n int) error {
 	quote := Quote{}
 	for i := 0; i < n; i++ {
 		key, err := d.DecodeString()
@@ -140,14 +156,14 @@ func (c *client) handleQuote(d *msgpack.Decoder, n int) error {
 			return err
 		}
 	}
-	c.handlerMutex.RLock()
-	quoteHandler := c.quoteHandler
-	c.handlerMutex.RUnlock()
+	h.mu.RLock()
+	quoteHandler := h.quoteHandler
+	h.mu.RUnlock()
 	quoteHandler(quote)
 	return nil
 }
 
-func (c *client) decodeBar(d *msgpack.Decoder, n int) (Bar, error) {
+func (h *stocksMsgHandler) decodeBar(d *msgpack.Decoder, n int) (Bar, error) {
 	bar := Bar{}
 	for i := 0; i < n; i++ {
 		key, err := d.DecodeString()
@@ -179,26 +195,150 @@ func (c *client) decodeBar(d *msgpack.Decoder, n int) (Bar, error) {
 	return bar, nil
 }
 
-func (c *client) handleBar(d *msgpack.Decoder, n int) error {
-	bar, err := c.decodeBar(d, n)
+func (h *stocksMsgHandler) handleBar(d *msgpack.Decoder, n int) error {
+	bar, err := h.decodeBar(d, n)
 	if err != nil {
 		return err
 	}
-	c.handlerMutex.RLock()
-	barHandler := c.barHandler
-	c.handlerMutex.RUnlock()
+	h.mu.RLock()
+	barHandler := h.barHandler
+	h.mu.RUnlock()
 	barHandler(bar)
 	return nil
 }
 
-func (c *client) handleDailyBar(d *msgpack.Decoder, n int) error {
-	bar, err := c.decodeBar(d, n)
+func (h *stocksMsgHandler) handleDailyBar(d *msgpack.Decoder, n int) error {
+	bar, err := h.decodeBar(d, n)
 	if err != nil {
 		return err
 	}
-	c.handlerMutex.RLock()
-	dailyBarHandler := c.dailyBarHandler
-	c.handlerMutex.RUnlock()
+	h.mu.RLock()
+	dailyBarHandler := h.dailyBarHandler
+	h.mu.RUnlock()
+	dailyBarHandler(bar)
+	return nil
+}
+
+type cryptoMsgHandler struct {
+	mu              sync.RWMutex
+	tradeHandler    func(trade CryptoTrade)
+	quoteHandler    func(quote CryptoQuote)
+	barHandler      func(bar CryptoBar)
+	dailyBarHandler func(bar CryptoBar)
+}
+
+func (h *cryptoMsgHandler) handleTrade(d *msgpack.Decoder, n int) error {
+	trade := CryptoTrade{}
+	for i := 0; i < n; i++ {
+		key, err := d.DecodeString()
+		if err != nil {
+			return err
+		}
+		switch key {
+		case "S":
+			trade.Symbol, err = d.DecodeString()
+		case "p":
+			trade.Price, err = d.DecodeFloat64()
+		case "s":
+			trade.Size, err = d.DecodeFloat64()
+		case "t":
+			trade.Timestamp, err = d.DecodeTime()
+		default:
+			err = d.Skip()
+		}
+		if err != nil {
+			return err
+		}
+	}
+	h.mu.RLock()
+	tradeHandler := h.tradeHandler
+	h.mu.RUnlock()
+	tradeHandler(trade)
+	return nil
+}
+
+func (h *cryptoMsgHandler) handleQuote(d *msgpack.Decoder, n int) error {
+	quote := CryptoQuote{}
+	for i := 0; i < n; i++ {
+		key, err := d.DecodeString()
+		if err != nil {
+			return err
+		}
+		switch key {
+		case "S":
+			quote.Symbol, err = d.DecodeString()
+		case "bp":
+			quote.BidPrice, err = d.DecodeFloat64()
+		case "ap":
+			quote.AskPrice, err = d.DecodeFloat64()
+		case "t":
+			quote.Timestamp, err = d.DecodeTime()
+		default:
+			err = d.Skip()
+		}
+		if err != nil {
+			return err
+		}
+	}
+	h.mu.RLock()
+	quoteHandler := h.quoteHandler
+	h.mu.RUnlock()
+	quoteHandler(quote)
+	return nil
+}
+
+func (h *cryptoMsgHandler) decodeBar(d *msgpack.Decoder, n int) (CryptoBar, error) {
+	bar := CryptoBar{}
+	for i := 0; i < n; i++ {
+		key, err := d.DecodeString()
+		if err != nil {
+			return bar, err
+		}
+		switch key {
+		case "S":
+			bar.Symbol, err = d.DecodeString()
+		case "o":
+			bar.Open, err = d.DecodeFloat64()
+		case "h":
+			bar.High, err = d.DecodeFloat64()
+		case "l":
+			bar.Low, err = d.DecodeFloat64()
+		case "c":
+			bar.Close, err = d.DecodeFloat64()
+		case "v":
+			bar.Volume, err = d.DecodeFloat64()
+		case "t":
+			bar.Timestamp, err = d.DecodeTime()
+		default:
+			err = d.Skip()
+		}
+		if err != nil {
+			return bar, err
+		}
+	}
+	return bar, nil
+}
+
+func (h *cryptoMsgHandler) handleBar(d *msgpack.Decoder, n int) error {
+	bar, err := h.decodeBar(d, n)
+	if err != nil {
+		return err
+	}
+	h.mu.RLock()
+	barHandler := h.barHandler
+	h.mu.RUnlock()
+	barHandler(bar)
+	return nil
+}
+
+func (h *cryptoMsgHandler) handleDailyBar(d *msgpack.Decoder, n int) error {
+	bar, err := h.decodeBar(d, n)
+	if err != nil {
+		return err
+	}
+	h.mu.RLock()
+	dailyBarHandler := h.dailyBarHandler
+	h.mu.RUnlock()
 	dailyBarHandler(bar)
 	return nil
 }
@@ -263,19 +403,7 @@ var subMessageHandler = func(c *client, s subscriptionMessage) error {
 	c.bars = s.bars
 	c.dailyBars = s.dailyBars
 	if c.pendingSubChange != nil {
-		c.handlerMutex.Lock()
-		defer c.handlerMutex.Unlock()
 		psc := c.pendingSubChange
-		switch psc.handlerToChange {
-		case tradeHandler:
-			c.tradeHandler = *psc.tradeHandler
-		case quoteHandler:
-			c.quoteHandler = *psc.quoteHandler
-		case barHandler:
-			c.barHandler = *psc.barHandler
-		case dailyBarHandler:
-			c.dailyBarHandler = *psc.dailyBarHandler
-		}
 		psc.result <- nil
 		c.pendingSubChange = nil
 	}
