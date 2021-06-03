@@ -166,7 +166,7 @@ var testCryptoTrade = cryptoTradeWithT{
 	Type:      "t",
 	Symbol:    "A",
 	Price:     100,
-	Size:      10,
+	Size:      10.1,
 	Timestamp: testTime,
 }
 

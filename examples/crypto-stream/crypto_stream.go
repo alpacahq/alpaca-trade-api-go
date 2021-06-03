@@ -15,15 +15,13 @@ func main() {
 	// Creating a client that connexts to iex
 	c := stream.NewCryptoClient(
 		stream.WithLogger(&logger{}),
-		// TODO: REPLACE!
-		stream.WithBaseURL("http://localhost:8080/v1alpha1/crypto"),
 		// configuring initial subscriptions and handlers
 		stream.WithCryptoTrades(func(ct stream.CryptoTrade) {
 			fmt.Printf("TRADE %s %g of $%g at %s\n", ct.Symbol, ct.Size, ct.Price, ct.Timestamp)
 		}, "*"),
 		stream.WithCryptoQuotes(func(cq stream.CryptoQuote) {
 			fmt.Printf("QUOTE %s bid: $%g ask: $%g at %s\n", cq.Symbol, cq.BidPrice, cq.AskPrice, cq.Timestamp)
-		}, "AAPL", "BTCUSD"),
+		}, "BTCUSD"),
 	)
 	if err := c.Connect(ctx); err != nil {
 		panic(err)

@@ -301,7 +301,7 @@ func TestSubscribeCalledButClientTerminatesCrypto(t *testing.T) {
 	assert.True(t, errors.Is(err, ErrSubscriptionChangeInterrupted))
 
 	// Subscribing after the client has terminated results in an error
-	err = c.SubscribeToQuotes(func(quote CryptoQuote) {}, "AL", "PACA")
+	err = c.SubscribeToQuotes(func(quote CryptoQuote) {}, "BTCUSD", "ETCUSD")
 	assert.Error(t, err)
 	assert.True(t, errors.Is(err, ErrSubscriptionChangeAfterTerminated))
 }
@@ -416,13 +416,13 @@ func TestSubscribeFailsDueToError(t *testing.T) {
 	// attempting sub change
 	subRes := make(chan error)
 	subFunc := func() {
-		subRes <- c.SubscribeToTrades(func(trade CryptoTrade) {}, "ALPACA")
+		subRes <- c.SubscribeToTrades(func(trade CryptoTrade) {}, "PACOIN")
 	}
 	go subFunc()
 	// wait for message to be written
 	subMsg := expectWrite(t, connection)
 	require.Equal(t, "subscribe", subMsg["action"])
-	require.ElementsMatch(t, []string{"ALPACA"}, subMsg["trades"])
+	require.ElementsMatch(t, []string{"PACOIN"}, subMsg["trades"])
 
 	// sub change request fails
 	connection.readCh <- serializeToMsgpack(t, []errorWithT{
@@ -443,7 +443,7 @@ func TestSubscribeFailsDueToError(t *testing.T) {
 	// wait for message to be written
 	subMsg = expectWrite(t, connection)
 	require.Equal(t, "subscribe", subMsg["action"])
-	require.ElementsMatch(t, []string{"ALPACA"}, subMsg["trades"])
+	require.ElementsMatch(t, []string{"PACOIN"}, subMsg["trades"])
 
 	// sub change request interrupted by slow client
 	connection.readCh <- serializeToMsgpack(t, []errorWithT{
