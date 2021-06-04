@@ -83,6 +83,8 @@ type stocksMsgHandler struct {
 	dailyBarHandler func(bar Bar)
 }
 
+var _ msgHandler = (*stocksMsgHandler)(nil)
+
 func (h *stocksMsgHandler) handleTrade(d *msgpack.Decoder, n int) error {
 	trade := Trade{}
 	for i := 0; i < n; i++ {
@@ -226,6 +228,8 @@ type cryptoMsgHandler struct {
 	barHandler      func(bar CryptoBar)
 	dailyBarHandler func(bar CryptoBar)
 }
+
+var _ msgHandler = (*cryptoMsgHandler)(nil)
 
 func (h *cryptoMsgHandler) handleTrade(d *msgpack.Decoder, n int) error {
 	trade := CryptoTrade{}
