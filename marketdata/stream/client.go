@@ -9,7 +9,20 @@ import (
 	"time"
 )
 
-// StreamV2Client is a client that connects to an Alpaca Data V2 stream server
+type StreamClient interface {
+	// Connect establishes a connection and **reestablishes it when errors occur**
+	// as long as the configured number of retires has not been exceeded.
+	//
+	// It blocks until the connection has been established for the first time (or it failed to do so).
+	//
+	// **Should only be called once!**
+	Connect(ctx context.Context) error
+	// Terminated returns a channel that the client sends an error to when it has terminated.
+	// The channel is also closed upon termination.
+	Terminated() <-chan error
+}
+
+// StocksClient is a client that connects to an Alpaca Data V2 stream server
 // and handles communication both ways.
 //
 // After constructing, Connect() must be called before any subscription changes
@@ -24,17 +37,8 @@ import (
 // irrecoverable error occurs or if they succeed.
 //
 // Note that subscription changes can not be called concurrently.
-type StreamV2Client interface {
-	// Connect establishes a connection and **reestablishes it when errors occur**
-	// as long as the configured number of retires has not been exceeded.
-	//
-	// It blocks until the connection has been established for the first time (or it failed to do so).
-	//
-	// **Should only be called once!**
-	Connect(ctx context.Context) error
-	// Terminated returns a channel that the client sends an error to when it has terminated.
-	// The channel is also closed upon termination.
-	Terminated() <-chan error
+type StocksClient interface {
+	StreamClient
 	SubscribeToTrades(handler func(trade Trade), symbols ...string) error
 	UnsubscribeFromTrades(symbols ...string) error
 	SubscribeToQuotes(handler func(quote Quote), symbols ...string) error
@@ -45,13 +49,39 @@ type StreamV2Client interface {
 	UnsubscribeFromDailyBars(symbols ...string) error
 }
 
+// CryptoClient is a client that connects to an Alpaca Data V2 stream server
+// and handles communication both ways.
+//
+// After constructing, Connect() must be called before any subscription changes
+// are called. Connect keeps the connection alive and reestablishes it until
+// a configured number of retries has not been exceeded.
+//
+// Terminated() returns a channel that the client sends an error to when it has terminated.
+// A client can not be reused once it has terminated!
+//
+// SubscribeTo... and UnsubscribeFrom... can be used to modify subscriptions and
+// the handler used to process incoming trades/quotes/bars. These block until an
+// irrecoverable error occurs or if they succeed.
+//
+// Note that subscription changes can not be called concurrently.
+type CryptoClient interface {
+	StreamClient
+	SubscribeToTrades(handler func(trade CryptoTrade), symbols ...string) error
+	UnsubscribeFromTrades(symbols ...string) error
+	SubscribeToQuotes(handler func(quote CryptoQuote), symbols ...string) error
+	UnsubscribeFromQuotes(symbols ...string) error
+	SubscribeToBars(handler func(bar CryptoBar), symbols ...string) error
+	UnsubscribeFromBars(symbols ...string) error
+	SubscribeToDailyBars(handler func(bar CryptoBar), symbols ...string) error
+	UnsubscribeFromDailyBars(symbols ...string) error
+}
+
 type client struct {
 	logger Logger
 
-	feed   string
-	host   string
-	key    string
-	secret string
+	baseURL string
+	key     string
+	secret  string
 
 	reconnectLimit int
 	reconnectDelay time.Duration
@@ -65,63 +95,85 @@ type client struct {
 	in             chan []byte
 	subChanges     chan []byte
 
-	handlerMutex          sync.RWMutex
-	trades                []string
-	tradeHandler          func(trade Trade)
-	quotes                []string
-	quoteHandler          func(quote Quote)
-	bars                  []string
-	barHandler            func(bar Bar)
-	dailyBars             []string
-	dailyBarHandler       func(bar Bar)
+	trades    []string
+	quotes    []string
+	bars      []string
+	dailyBars []string
+
+	handler msgHandler
+
 	pendingSubChangeMutex sync.Mutex
 	pendingSubChange      *subChangeRequest
+
+	connCreator func(ctx context.Context, u url.URL) (conn, error)
 }
 
-var _ StreamV2Client = (*client)(nil)
-
-// NewClient returns a new StreamV2Client that will connect to feed data feed
-// and whose default configurations are modified by opts.
-func NewClient(feed string, opts ...Option) StreamV2Client {
-	c := client{
-		feed:           feed,
+func newClient() *client {
+	return &client{
 		terminatedChan: make(chan error, 1),
 		subChanges:     make(chan []byte, 1),
 	}
-	o := defaultOptions()
-	o.apply(opts...)
-	c.configure(*o)
-	return &c
 }
 
 func (c *client) configure(o options) {
 	c.logger = o.logger
-	c.host = o.host
+	c.baseURL = o.baseURL
 	c.key = o.key
 	c.secret = o.secret
 	c.reconnectLimit = o.reconnectLimit
 	c.reconnectDelay = o.reconnectDelay
 	c.processorCount = o.processorCount
 	c.bufferSize = o.bufferSize
-	c.handlerMutex.Lock()
-	defer c.handlerMutex.Unlock()
 	c.trades = o.trades
-	c.tradeHandler = o.tradeHandler
 	c.quotes = o.quotes
-	c.quoteHandler = o.quoteHandler
 	c.bars = o.bars
-	c.barHandler = o.barHandler
 	c.dailyBars = o.dailyBars
-	c.dailyBarHandler = o.dailyBarHandler
+	c.connCreator = o.connCreator
 }
 
-var connCreator = func(ctx context.Context, u url.URL) (conn, error) {
-	return newNhooyrWebsocketConn(ctx, u)
+type stocksClient struct {
+	*client
+
+	feed    string
+	handler *stocksMsgHandler
 }
 
-func constructURL(host, feed string) (url.URL, error) {
+var _ StocksClient = (*stocksClient)(nil)
+
+// NewStocksClient returns a new StocksClient that will connect to feed data feed
+// and whose default configurations are modified by opts.
+func NewStocksClient(feed string, opts ...StockOption) StocksClient {
+	sc := stocksClient{
+		client:  newClient(),
+		feed:    feed,
+		handler: &stocksMsgHandler{},
+	}
+	sc.client.handler = sc.handler
+	o := defaultStockOptions()
+	o.applyStock(opts...)
+	sc.configure(*o)
+	return &sc
+}
+
+func (sc *stocksClient) configure(o stockOptions) {
+	sc.client.configure(o.options)
+	sc.handler.tradeHandler = o.tradeHandler
+	sc.handler.quoteHandler = o.quoteHandler
+	sc.handler.barHandler = o.barHandler
+	sc.handler.dailyBarHandler = o.dailyBarHandler
+}
+
+func (sc *stocksClient) Connect(ctx context.Context) error {
+	u, err := sc.constructURL()
+	if err != nil {
+		return err
+	}
+	return sc.connect(ctx, u)
+}
+
+func (sc *stocksClient) constructURL() (url.URL, error) {
 	scheme := "wss"
-	ub, err := url.Parse(host)
+	ub, err := url.Parse(sc.baseURL)
 	if err != nil {
 		return url.URL{}, err
 	}
@@ -130,16 +182,68 @@ func constructURL(host, feed string) (url.URL, error) {
 		scheme = "ws"
 	}
 
-	return url.URL{Scheme: scheme, Host: ub.Host, Path: "/v2/" + feed}, nil
+	return url.URL{Scheme: scheme, Host: ub.Host, Path: ub.Path + "/" + sc.feed}, nil
+}
+
+type cryptoClient struct {
+	*client
+
+	handler *cryptoMsgHandler
+}
+
+var _ CryptoClient = (*cryptoClient)(nil)
+
+// NewCryptoClient returns a new CryptoClient that will connect to the crypto feed
+// and whose default configurations are modified by opts.
+func NewCryptoClient(opts ...CryptoOption) CryptoClient {
+	cc := cryptoClient{
+		client:  newClient(),
+		handler: &cryptoMsgHandler{},
+	}
+	cc.client.handler = cc.handler
+	o := defaultCryptoOptions()
+	o.applyCrypto(opts...)
+	cc.configure(*o)
+	return &cc
+}
+
+func (cc *cryptoClient) configure(o cryptoOptions) {
+	cc.client.configure(o.options)
+	cc.handler.tradeHandler = o.tradeHandler
+	cc.handler.quoteHandler = o.quoteHandler
+	cc.handler.barHandler = o.barHandler
+	cc.handler.dailyBarHandler = o.dailyBarHandler
+}
+
+func (sc *cryptoClient) Connect(ctx context.Context) error {
+	u, err := sc.constructURL()
+	if err != nil {
+		return err
+	}
+	return sc.connect(ctx, u)
+}
+
+func (cc *cryptoClient) constructURL() (url.URL, error) {
+	scheme := "wss"
+	ub, err := url.Parse(cc.baseURL)
+	if err != nil {
+		return url.URL{}, err
+	}
+	switch ub.Scheme {
+	case "http", "ws":
+		scheme = "ws"
+	}
+
+	return url.URL{Scheme: scheme, Host: ub.Host, Path: ub.Path}, nil
 }
 
 // ErrConnectCalledMultipleTimes is returned when Connect has been called multiple times on a single client
 var ErrConnectCalledMultipleTimes = errors.New("tried to call Connect multiple times")
 
-func (c *client) Connect(ctx context.Context) error {
+func (c *client) connect(ctx context.Context, u url.URL) error {
 	err := ErrConnectCalledMultipleTimes
 	c.connectOnce.Do(func() {
-		err = c.connect(ctx)
+		err = c.connectAndMaintainConnection(ctx, u)
 		if err != nil {
 			c.terminatedChan <- err
 			close(c.terminatedChan)
@@ -149,15 +253,9 @@ func (c *client) Connect(ctx context.Context) error {
 	return err
 }
 
-func (c *client) connect(ctx context.Context) error {
-	u, err := constructURL(c.host, c.feed)
-	if err != nil {
-		return err
-	}
-
+func (c *client) connectAndMaintainConnection(ctx context.Context, u url.URL) error {
 	initialResultCh := make(chan error)
 	go c.maintainConnection(ctx, u, initialResultCh)
-
 	return <-initialResultCh
 }
 
@@ -218,7 +316,7 @@ func (c *client) maintainConnection(ctx context.Context, u url.URL, initialResul
 			time.Sleep(time.Duration(failedAttemptsInARow) * c.reconnectDelay)
 			failedAttemptsInARow++
 			c.logger.Infof("datav2stream: connecting to %s, attempt %d/%d ...", u.String(), failedAttemptsInARow, c.reconnectLimit)
-			conn, err := connCreator(ctx, u)
+			conn, err := c.connCreator(ctx, u)
 			if err != nil {
 				connError = err
 				c.logger.Warnf("datav2stream: failed to connect, error: %v", err)

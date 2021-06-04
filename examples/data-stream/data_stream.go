@@ -37,7 +37,7 @@ func main() {
 	}()
 
 	// Creating a client that connexts to iex
-	c := stream.NewClient(
+	c := stream.NewStocksClient(
 		"iex",
 		// configuring initial subscriptions and handlers
 		stream.WithTrades(tradeHandler, "SPY"),

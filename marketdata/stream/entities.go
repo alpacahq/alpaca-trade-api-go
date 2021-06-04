@@ -39,6 +39,30 @@ type Bar struct {
 	Timestamp time.Time
 }
 
+type CryptoTrade struct {
+	Symbol    string
+	Price     float64
+	Size      float64
+	Timestamp time.Time
+}
+
+type CryptoQuote struct {
+	Symbol    string
+	BidPrice  float64
+	AskPrice  float64
+	Timestamp time.Time
+}
+
+type CryptoBar struct {
+	Symbol    string
+	Open      float64
+	High      float64
+	Low       float64
+	Close     float64
+	Volume    float64
+	Timestamp time.Time
+}
+
 // errorMessage is an error received from the server
 type errorMessage struct {
 	msg  string

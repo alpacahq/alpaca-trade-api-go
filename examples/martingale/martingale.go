@@ -122,7 +122,7 @@ func main() {
 	}
 
 	feed := "iex" // Use sip if you have proper subscription
-	c := stream.NewClient(feed)
+	c := stream.NewStocksClient(feed)
 	if err := c.Connect(context.TODO()); err != nil {
 		panic(err)
 	}

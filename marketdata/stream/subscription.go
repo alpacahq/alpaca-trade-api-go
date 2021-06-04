@@ -22,117 +22,130 @@ var ErrSubscriptionChangeAlreadyInProgress = errors.New("subscription change alr
 // has terminated
 var ErrSubscriptionChangeInterrupted = errors.New("subscription change interrupted by client termination")
 
-type handlerKind int
-
-const (
-	noHandler handlerKind = -1 + iota
-	tradeHandler
-	quoteHandler
-	barHandler
-	dailyBarHandler
-)
-
 type subChangeRequest struct {
-	msg             []byte
-	result          chan error
-	handlerToChange handlerKind
-	tradeHandler    *func(trade Trade)
-	quoteHandler    *func(quote Quote)
-	barHandler      *func(bar Bar)
-	dailyBarHandler *func(bar Bar)
+	msg    []byte
+	result chan error
 }
 
-func (c *client) SubscribeToTrades(handler func(Trade), symbols ...string) error {
-	req := subChangeRequest{
-		result:          make(chan error),
-		handlerToChange: tradeHandler,
-		tradeHandler:    &handler,
+func newSubChangeRequest() subChangeRequest {
+	return subChangeRequest{
+		result: make(chan error),
 	}
-	return c.handleSubChange(true, symbols, []string{}, []string{}, []string{}, req)
 }
 
-func (c *client) SubscribeToQuotes(handler func(Quote), symbols ...string) error {
-	req := subChangeRequest{
-		result:          make(chan error),
-		handlerToChange: quoteHandler,
-		quoteHandler:    &handler,
-	}
-	return c.handleSubChange(true, []string{}, symbols, []string{}, []string{}, req)
+func (sc *stocksClient) SubscribeToTrades(handler func(Trade), symbols ...string) error {
+	sc.handler.mu.Lock()
+	sc.handler.tradeHandler = handler
+	sc.handler.mu.Unlock()
+	return sc.client.handleSubChange(true, newSubChangeRequest(),
+		symbols, []string{}, []string{}, []string{})
 }
 
-func (c *client) SubscribeToBars(handler func(Bar), symbols ...string) error {
-	req := subChangeRequest{
-		result:          make(chan error),
-		handlerToChange: barHandler,
-		barHandler:      &handler,
-	}
-	return c.handleSubChange(true, []string{}, []string{}, symbols, []string{}, req)
+func (sc *stocksClient) SubscribeToQuotes(handler func(Quote), symbols ...string) error {
+	sc.handler.mu.Lock()
+	sc.handler.quoteHandler = handler
+	sc.handler.mu.Unlock()
+	return sc.client.handleSubChange(true, newSubChangeRequest(),
+		[]string{}, symbols, []string{}, []string{})
 }
 
-func (c *client) SubscribeToDailyBars(handler func(Bar), symbols ...string) error {
-	req := subChangeRequest{
-		result:          make(chan error),
-		handlerToChange: dailyBarHandler,
-		dailyBarHandler: &handler,
-	}
-	return c.handleSubChange(true, []string{}, []string{}, []string{}, symbols, req)
+func (sc *stocksClient) SubscribeToBars(handler func(Bar), symbols ...string) error {
+	sc.handler.mu.Lock()
+	sc.handler.barHandler = handler
+	sc.handler.mu.Unlock()
+	return sc.client.handleSubChange(true, newSubChangeRequest(),
+		[]string{}, []string{}, symbols, []string{})
 }
 
-func (c *client) UnsubscribeFromTrades(symbols ...string) error {
-	req := subChangeRequest{
-		handlerToChange: noHandler,
-		result:          make(chan error),
-	}
-	return c.handleSubChange(false, symbols, []string{}, []string{}, []string{}, req)
+func (sc *stocksClient) SubscribeToDailyBars(handler func(Bar), symbols ...string) error {
+	sc.handler.mu.Lock()
+	sc.handler.dailyBarHandler = handler
+	sc.handler.mu.Unlock()
+	return sc.client.handleSubChange(true, newSubChangeRequest(),
+		[]string{}, []string{}, []string{}, symbols)
 }
 
-func (c *client) UnsubscribeFromQuotes(symbols ...string) error {
-	req := subChangeRequest{
-		handlerToChange: noHandler,
-		result:          make(chan error),
-	}
-	return c.handleSubChange(false, []string{}, symbols, []string{}, []string{}, req)
+func (sc *stocksClient) UnsubscribeFromTrades(symbols ...string) error {
+	return sc.handleSubChange(false, newSubChangeRequest(),
+		symbols, []string{}, []string{}, []string{})
 }
 
-func (c *client) UnsubscribeFromBars(symbols ...string) error {
-	req := subChangeRequest{
-		handlerToChange: noHandler,
-		result:          make(chan error),
-	}
-	return c.handleSubChange(false, []string{}, []string{}, symbols, []string{}, req)
+func (sc *stocksClient) UnsubscribeFromQuotes(symbols ...string) error {
+	return sc.handleSubChange(false, newSubChangeRequest(),
+		[]string{}, symbols, []string{}, []string{})
 }
 
-func (c *client) UnsubscribeFromDailyBars(symbols ...string) error {
-	req := subChangeRequest{
-		handlerToChange: noHandler,
-		result:          make(chan error),
-	}
-	return c.handleSubChange(false, []string{}, []string{}, []string{}, symbols, req)
+func (sc *stocksClient) UnsubscribeFromBars(symbols ...string) error {
+	return sc.handleSubChange(false, newSubChangeRequest(),
+		[]string{}, []string{}, symbols, []string{})
+}
+
+func (sc *stocksClient) UnsubscribeFromDailyBars(symbols ...string) error {
+	return sc.handleSubChange(false, newSubChangeRequest(),
+		[]string{}, []string{}, []string{}, symbols)
+}
+
+func (cc *cryptoClient) SubscribeToTrades(handler func(CryptoTrade), symbols ...string) error {
+	cc.handler.mu.Lock()
+	cc.handler.tradeHandler = handler
+	cc.handler.mu.Unlock()
+	return cc.client.handleSubChange(true, newSubChangeRequest(),
+		symbols, []string{}, []string{}, []string{})
+}
+
+func (cc *cryptoClient) SubscribeToQuotes(handler func(CryptoQuote), symbols ...string) error {
+	cc.handler.mu.Lock()
+	cc.handler.quoteHandler = handler
+	cc.handler.mu.Unlock()
+	return cc.client.handleSubChange(true, newSubChangeRequest(),
+		[]string{}, symbols, []string{}, []string{})
+}
+
+func (cc *cryptoClient) SubscribeToBars(handler func(CryptoBar), symbols ...string) error {
+	cc.handler.mu.Lock()
+	cc.handler.barHandler = handler
+	cc.handler.mu.Unlock()
+	return cc.client.handleSubChange(true, newSubChangeRequest(),
+		[]string{}, []string{}, symbols, []string{})
+}
+
+func (cc *cryptoClient) SubscribeToDailyBars(handler func(CryptoBar), symbols ...string) error {
+	cc.handler.mu.Lock()
+	cc.handler.dailyBarHandler = handler
+	cc.handler.mu.Unlock()
+	return cc.client.handleSubChange(true, newSubChangeRequest(),
+		[]string{}, []string{}, []string{}, symbols)
+}
+
+func (cc *cryptoClient) UnsubscribeFromTrades(symbols ...string) error {
+	return cc.handleSubChange(false, newSubChangeRequest(),
+		symbols, []string{}, []string{}, []string{})
+}
+
+func (cc *cryptoClient) UnsubscribeFromQuotes(symbols ...string) error {
+	return cc.handleSubChange(false, newSubChangeRequest(),
+		[]string{}, symbols, []string{}, []string{})
+}
+
+func (cc *cryptoClient) UnsubscribeFromBars(symbols ...string) error {
+	return cc.handleSubChange(false, newSubChangeRequest(),
+		[]string{}, []string{}, symbols, []string{})
+}
+
+func (cc *cryptoClient) UnsubscribeFromDailyBars(symbols ...string) error {
+	return cc.handleSubChange(false, newSubChangeRequest(),
+		[]string{}, []string{}, []string{}, symbols)
 }
 
 func (c *client) handleSubChange(
-	subscribe bool, trades, quotes, bars, dailyBars []string, request subChangeRequest,
+	subscribe bool, request subChangeRequest,
+	trades, quotes, bars, dailyBars []string,
 ) error {
 	if !c.connectCalled {
 		return ErrSubscriptionChangeBeforeConnect
 	}
 
-	// Special case: if no symbols are changed we update the handler
 	if len(trades) == 0 && len(quotes) == 0 && len(bars) == 0 && len(dailyBars) == 0 {
-		if subscribe {
-			c.handlerMutex.Lock()
-			defer c.handlerMutex.Unlock()
-			switch request.handlerToChange {
-			case tradeHandler:
-				c.tradeHandler = *request.tradeHandler
-			case quoteHandler:
-				c.quoteHandler = *request.quoteHandler
-			case barHandler:
-				c.barHandler = *request.barHandler
-			case dailyBarHandler:
-				c.dailyBarHandler = *request.dailyBarHandler
-			}
-		}
 		return nil
 	}
 	msg, err := getSubChangeMessage(subscribe, trades, quotes, bars, dailyBars)

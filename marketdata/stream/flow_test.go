@@ -120,13 +120,13 @@ func TestInitializeAuthRetrySucceeds(t *testing.T) {
 	trades := []string{"AL", "PACA"}
 	quotes := []string{"ALPACA"}
 	bars := []string{"ALP", "ACA"}
-	c := NewClient(
+	c := NewStocksClient(
 		"sip",
 		WithCredentials("testkey", "testsecret"),
 		WithTrades(func(t Trade) {}, trades...),
 		WithQuotes(func(q Quote) {}, quotes...),
 		WithBars(func(b Bar) {}, bars...),
-	).(*client)
+	).(*stocksClient)
 	c.conn = conn
 	ordm := authRetryDelayMultiplier
 	defer func() {
