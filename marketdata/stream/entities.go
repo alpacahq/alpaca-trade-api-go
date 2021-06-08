@@ -39,6 +39,15 @@ type Bar struct {
 	Timestamp time.Time
 }
 
+// TradingStatus is a halt or resume status for a security
+type TradingStatus struct {
+	Symbol string
+	Status string
+	Code   string
+	Reason string
+	Tape   string
+}
+
 type CryptoTrade struct {
 	Symbol    string
 	Price     float64

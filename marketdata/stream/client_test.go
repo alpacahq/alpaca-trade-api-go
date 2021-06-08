@@ -525,11 +525,13 @@ func TestCoreFunctionalityStocks(t *testing.T) {
 	quotes := make(chan Quote, 10)
 	bars := make(chan Bar, 10)
 	dailyBars := make(chan Bar, 10)
+	tradingStatuses := make(chan TradingStatus, 10)
 	c := NewStocksClient("iex",
 		WithTrades(func(t Trade) { trades <- t }, "ALPACA"),
 		WithQuotes(func(q Quote) { quotes <- q }, "ALPCA"),
 		WithBars(func(b Bar) { bars <- b }, "ALPACA"),
 		WithDailyBars(func(b Bar) { dailyBars <- b }, "LPACA"),
+		WithTradingStatusHandler(func(ts TradingStatus) { tradingStatuses <- ts }),
 		withConnCreator(func(ctx context.Context, u url.URL) (conn, error) {
 			return connection, nil
 		}))
@@ -567,6 +569,17 @@ func TestCoreFunctionalityStocks(t *testing.T) {
 			ID:     123,
 		},
 	})
+	// sending a trading status
+	connection.readCh <- serializeToMsgpack(t, []interface{}{
+		tradingStatusWithT{
+			Type:   "s",
+			Symbol: "ALPACA",
+			Status: "halt",
+			Code:   "T12",
+			Reason: "Trading Halted; For information requested by NASDAQ",
+			Tape:   "C",
+		},
+	})
 
 	// checking contents
 	select {
@@ -596,6 +609,13 @@ func TestCoreFunctionalityStocks(t *testing.T) {
 		assert.EqualValues(t, 123, trade.ID)
 	case <-time.After(time.Second):
 		require.Fail(t, "no trade received in time")
+	}
+
+	select {
+	case ts := <-tradingStatuses:
+		assert.Equal(t, "T12", ts.Code)
+	case <-time.After(time.Second):
+		require.Fail(t, "no trading status received in time")
 	}
 }
 

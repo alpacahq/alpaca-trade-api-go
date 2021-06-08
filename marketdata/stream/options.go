@@ -119,10 +119,11 @@ func withConnCreator(connCreator func(ctx context.Context, u url.URL) (conn, err
 
 type stockOptions struct {
 	options
-	tradeHandler    func(Trade)
-	quoteHandler    func(Quote)
-	barHandler      func(Bar)
-	dailyBarHandler func(Bar)
+	tradeHandler         func(Trade)
+	quoteHandler         func(Quote)
+	barHandler           func(Bar)
+	dailyBarHandler      func(Bar)
+	tradingStatusHandler func(TradingStatus)
 }
 
 // defaultStockOptions are the default options for a client.
@@ -151,10 +152,11 @@ func defaultStockOptions() *stockOptions {
 				return newNhooyrWebsocketConn(ctx, u)
 			},
 		},
-		tradeHandler:    func(t Trade) {},
-		quoteHandler:    func(q Quote) {},
-		barHandler:      func(b Bar) {},
-		dailyBarHandler: func(b Bar) {},
+		tradeHandler:         func(t Trade) {},
+		quoteHandler:         func(q Quote) {},
+		barHandler:           func(b Bar) {},
+		dailyBarHandler:      func(b Bar) {},
+		tradingStatusHandler: func(ts TradingStatus) {},
 	}
 }
 
@@ -207,6 +209,13 @@ func WithDailyBars(handler func(Bar), symbols ...string) StockOption {
 	return newFuncStockOption(func(o *stockOptions) {
 		o.dailyBars = symbols
 		o.dailyBarHandler = handler
+	})
+}
+
+// WithTradingStatusHandler configures the trading status handler
+func WithTradingStatusHandler(handler func(TradingStatus)) StockOption {
+	return newFuncStockOption(func(o *stockOptions) {
+		o.tradingStatusHandler = handler
 	})
 }
 

@@ -55,6 +55,18 @@ type barWithT struct {
 	NewField uint64 `msgpack:"n"`
 }
 
+// tradingStatusWithT is the incoming trading status message that also contains the T type key
+type tradingStatusWithT struct {
+	Type   string `msgpack:"T"`
+	Symbol string `msgpack:"S"`
+	Status string `msgpack:"status"`
+	Code   string `msgpack:"code"`
+	Reason string `msgpack:"reason"`
+	Tape   string `msgpack:"z"`
+	// NewField is for testing correct handling of added fields in the future
+	NewField uint64 `msgpack:"n"`
+}
+
 // cryptoTradeWithT is the incoming crypto trade message that also contains the T type key
 type cryptoTradeWithT struct {
 	Type      string    `msgpack:"T"`
@@ -162,6 +174,15 @@ var testBar = barWithT{
 	Timestamp: time.Date(2021, 03, 05, 16, 0, 0, 0, time.UTC),
 }
 
+var testTradingStatus = tradingStatusWithT{
+	Type:   "s",
+	Symbol: "BIIB",
+	Status: "resume",
+	Code:   "",
+	Reason: "",
+	Tape:   "C",
+}
+
 var testCryptoTrade = cryptoTradeWithT{
 	Type:      "t",
 	Symbol:    "A",
@@ -216,7 +237,16 @@ var testSubMessage2 = subWithT{
 }
 
 func TestHandleMessagesStocks(t *testing.T) {
-	b, err := msgpack.Marshal([]interface{}{testOther, testTrade, testQuote, testBar, testError, testSubMessage1, testSubMessage2})
+	b, err := msgpack.Marshal([]interface{}{
+		testOther,
+		testTrade,
+		testTradingStatus,
+		testQuote,
+		testBar,
+		testError,
+		testSubMessage1,
+		testSubMessage2,
+	})
 	require.NoError(t, err)
 
 	emh := errMessageHandler
@@ -254,6 +284,10 @@ func TestHandleMessagesStocks(t *testing.T) {
 	h.barHandler = func(b Bar) {
 		bar = b
 	}
+	var tradingStatus TradingStatus
+	h.tradingStatusHandler = func(ts TradingStatus) {
+		tradingStatus = ts
+	}
 
 	err = c.handleMessage(b)
 	require.NoError(t, err)
@@ -266,6 +300,12 @@ func TestHandleMessagesStocks(t *testing.T) {
 	assert.True(t, trade.Timestamp.Equal(testTime))
 	assert.EqualValues(t, testTrade.Conditions, trade.Conditions)
 	assert.EqualValues(t, testTrade.Tape, trade.Tape)
+
+	assert.Equal(t, testTradingStatus.Symbol, tradingStatus.Symbol)
+	assert.Equal(t, testTradingStatus.Status, tradingStatus.Status)
+	assert.Equal(t, testTradingStatus.Code, tradingStatus.Code)
+	assert.Equal(t, testTradingStatus.Reason, tradingStatus.Reason)
+	assert.Equal(t, testTradingStatus.Tape, tradingStatus.Tape)
 
 	assert.EqualValues(t, testQuote.Symbol, quote.Symbol)
 	assert.EqualValues(t, testQuote.BidExchange, quote.BidExchange)

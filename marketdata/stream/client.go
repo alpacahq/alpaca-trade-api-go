@@ -161,6 +161,7 @@ func (sc *stocksClient) configure(o stockOptions) {
 	sc.handler.quoteHandler = o.quoteHandler
 	sc.handler.barHandler = o.barHandler
 	sc.handler.dailyBarHandler = o.dailyBarHandler
+	sc.handler.tradingStatusHandler = o.tradingStatusHandler
 }
 
 func (sc *stocksClient) Connect(ctx context.Context) error {
