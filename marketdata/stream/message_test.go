@@ -57,12 +57,13 @@ type barWithT struct {
 
 // tradingStatusWithT is the incoming trading status message that also contains the T type key
 type tradingStatusWithT struct {
-	Type   string `msgpack:"T"`
-	Symbol string `msgpack:"S"`
-	Status string `msgpack:"status"`
-	Code   string `msgpack:"code"`
-	Reason string `msgpack:"reason"`
-	Tape   string `msgpack:"z"`
+	Type      string    `msgpack:"T"`
+	Symbol    string    `msgpack:"S"`
+	Status    string    `msgpack:"status"`
+	Code      string    `msgpack:"code"`
+	Reason    string    `msgpack:"reason"`
+	Timestamp time.Time `msgpack:"t"`
+	Tape      string    `msgpack:"z"`
 	// NewField is for testing correct handling of added fields in the future
 	NewField uint64 `msgpack:"n"`
 }
@@ -175,12 +176,13 @@ var testBar = barWithT{
 }
 
 var testTradingStatus = tradingStatusWithT{
-	Type:   "s",
-	Symbol: "BIIB",
-	Status: "resume",
-	Code:   "",
-	Reason: "",
-	Tape:   "C",
+	Type:      "s",
+	Symbol:    "BIIB",
+	Status:    "resume",
+	Code:      "",
+	Reason:    "",
+	Timestamp: time.Date(2021, 03, 05, 16, 0, 0, 0, time.UTC),
+	Tape:      "C",
 }
 
 var testCryptoTrade = cryptoTradeWithT{
@@ -305,6 +307,7 @@ func TestHandleMessagesStocks(t *testing.T) {
 	assert.Equal(t, testTradingStatus.Status, tradingStatus.Status)
 	assert.Equal(t, testTradingStatus.Code, tradingStatus.Code)
 	assert.Equal(t, testTradingStatus.Reason, tradingStatus.Reason)
+	assert.True(t, testTradingStatus.Timestamp.Equal(tradingStatus.Timestamp))
 	assert.Equal(t, testTradingStatus.Tape, tradingStatus.Tape)
 
 	assert.EqualValues(t, testQuote.Symbol, quote.Symbol)

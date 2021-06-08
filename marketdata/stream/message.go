@@ -241,6 +241,8 @@ func (h *stocksMsgHandler) handleTradingStatus(d *msgpack.Decoder, n int) error 
 			ts.Code, err = d.DecodeString()
 		case "reason":
 			ts.Reason, err = d.DecodeString()
+		case "t":
+			ts.Timestamp, err = d.DecodeTime()
 		case "z":
 			ts.Tape, err = d.DecodeString()
 		default:

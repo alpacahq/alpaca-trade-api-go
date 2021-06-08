@@ -41,11 +41,12 @@ type Bar struct {
 
 // TradingStatus is a halt or resume status for a security
 type TradingStatus struct {
-	Symbol string
-	Status string
-	Code   string
-	Reason string
-	Tape   string
+	Symbol    string
+	Status    string
+	Code      string
+	Reason    string
+	Timestamp time.Time
+	Tape      string
 }
 
 type CryptoTrade struct {
