@@ -237,8 +237,12 @@ func (h *stocksMsgHandler) handleTradingStatus(d *msgpack.Decoder, n int) error 
 			ts.Symbol, err = d.DecodeString()
 		case "sc":
 			ts.StatusCode, err = d.DecodeString()
+		case "sm":
+			ts.StatusMsg, err = d.DecodeString()
 		case "rc":
 			ts.ReasonCode, err = d.DecodeString()
+		case "rm":
+			ts.ReasonMsg, err = d.DecodeString()
 		case "t":
 			ts.Timestamp, err = d.DecodeTime()
 		case "z":

@@ -60,7 +60,9 @@ type tradingStatusWithT struct {
 	Type       string    `msgpack:"T"`
 	Symbol     string    `msgpack:"S"`
 	StatusCode string    `msgpack:"sc"`
+	StatusMsg  string    `msgpack:"sm"`
 	ReasonCode string    `msgpack:"rc"`
+	ReasonMsg  string    `msgpack:"rm"`
 	Timestamp  time.Time `msgpack:"t"`
 	Tape       string    `msgpack:"z"`
 	// NewField is for testing correct handling of added fields in the future
@@ -179,6 +181,7 @@ var testTradingStatus = tradingStatusWithT{
 	Type:       "s",
 	Symbol:     "BIIB",
 	StatusCode: "T",
+	StatusMsg:  "Trading Resumption",
 	ReasonCode: "",
 	Timestamp:  time.Date(2021, 03, 05, 16, 0, 0, 0, time.UTC),
 	Tape:       "C",
@@ -304,7 +307,9 @@ func TestHandleMessagesStocks(t *testing.T) {
 
 	assert.Equal(t, testTradingStatus.Symbol, tradingStatus.Symbol)
 	assert.Equal(t, testTradingStatus.StatusCode, tradingStatus.StatusCode)
+	assert.Equal(t, testTradingStatus.StatusMsg, tradingStatus.StatusMsg)
 	assert.Equal(t, testTradingStatus.ReasonCode, tradingStatus.ReasonCode)
+	assert.Equal(t, testTradingStatus.ReasonMsg, tradingStatus.ReasonMsg)
 	assert.True(t, testTradingStatus.Timestamp.Equal(tradingStatus.Timestamp))
 	assert.Equal(t, testTradingStatus.Tape, tradingStatus.Tape)
 
