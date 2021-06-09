@@ -34,10 +34,7 @@ type options struct {
 	reconnectDelay time.Duration
 	processorCount int
 	bufferSize     int
-	trades         []string
-	quotes         []string
-	bars           []string
-	dailyBars      []string
+	sub            subscriptions
 
 	// for testing only
 	connCreator func(ctx context.Context, u url.URL) (conn, error)
@@ -144,10 +141,13 @@ func defaultStockOptions() *stockOptions {
 			reconnectDelay: 150 * time.Millisecond,
 			processorCount: 1,
 			bufferSize:     100000,
-			trades:         []string{},
-			quotes:         []string{},
-			bars:           []string{},
-			dailyBars:      []string{},
+			sub: subscriptions{
+				trades:    []string{},
+				quotes:    []string{},
+				bars:      []string{},
+				dailyBars: []string{},
+				statuses:  []string{},
+			},
 			connCreator: func(ctx context.Context, u url.URL) (conn, error) {
 				return newNhooyrWebsocketConn(ctx, u)
 			},
@@ -183,7 +183,7 @@ func newFuncStockOption(f func(*stockOptions)) StockOption {
 // WithTrades configures inital trade symbols to subscribe to and the handler
 func WithTrades(handler func(Trade), symbols ...string) StockOption {
 	return newFuncStockOption(func(o *stockOptions) {
-		o.trades = symbols
+		o.sub.trades = symbols
 		o.tradeHandler = handler
 	})
 }
@@ -191,7 +191,7 @@ func WithTrades(handler func(Trade), symbols ...string) StockOption {
 // WithQuotes configures inital quote symbols to subscribe to and the handler
 func WithQuotes(handler func(Quote), symbols ...string) StockOption {
 	return newFuncStockOption(func(o *stockOptions) {
-		o.quotes = symbols
+		o.sub.quotes = symbols
 		o.quoteHandler = handler
 	})
 }
@@ -199,7 +199,7 @@ func WithQuotes(handler func(Quote), symbols ...string) StockOption {
 // WithBars configures inital bar symbols to subscribe to and the handler
 func WithBars(handler func(Bar), symbols ...string) StockOption {
 	return newFuncStockOption(func(o *stockOptions) {
-		o.bars = symbols
+		o.sub.bars = symbols
 		o.barHandler = handler
 	})
 }
@@ -207,14 +207,15 @@ func WithBars(handler func(Bar), symbols ...string) StockOption {
 // WithDailyBars configures inital daily bar symbols to subscribe to and the handler
 func WithDailyBars(handler func(Bar), symbols ...string) StockOption {
 	return newFuncStockOption(func(o *stockOptions) {
-		o.dailyBars = symbols
+		o.sub.dailyBars = symbols
 		o.dailyBarHandler = handler
 	})
 }
 
-// WithTradingStatusHandler configures the trading status handler
-func WithTradingStatusHandler(handler func(TradingStatus)) StockOption {
+// WithStatuses configures inital trading status symbols to subscribe to and the handler
+func WithStatuses(handler func(TradingStatus), symbols ...string) StockOption {
 	return newFuncStockOption(func(o *stockOptions) {
+		o.sub.statuses = symbols
 		o.tradingStatusHandler = handler
 	})
 }
@@ -245,10 +246,12 @@ func defaultCryptoOptions() *cryptoOptions {
 			reconnectDelay: 150 * time.Millisecond,
 			processorCount: 1,
 			bufferSize:     100000,
-			trades:         []string{},
-			quotes:         []string{},
-			bars:           []string{},
-			dailyBars:      []string{},
+			sub: subscriptions{
+				trades:    []string{},
+				quotes:    []string{},
+				bars:      []string{},
+				dailyBars: []string{},
+			},
 			connCreator: func(ctx context.Context, u url.URL) (conn, error) {
 				return newNhooyrWebsocketConn(ctx, u)
 			},
@@ -283,7 +286,7 @@ func newFuncCryptoOption(f func(*cryptoOptions)) *funcCryptoOption {
 // WithCryptoTrades configures inital trade symbols to subscribe to and the handler
 func WithCryptoTrades(handler func(CryptoTrade), symbols ...string) CryptoOption {
 	return newFuncCryptoOption(func(o *cryptoOptions) {
-		o.trades = symbols
+		o.sub.trades = symbols
 		o.tradeHandler = handler
 	})
 }
@@ -291,7 +294,7 @@ func WithCryptoTrades(handler func(CryptoTrade), symbols ...string) CryptoOption
 // WithCryptoQuotes configures inital quote symbols to subscribe to and the handler
 func WithCryptoQuotes(handler func(CryptoQuote), symbols ...string) CryptoOption {
 	return newFuncCryptoOption(func(o *cryptoOptions) {
-		o.quotes = symbols
+		o.sub.quotes = symbols
 		o.quoteHandler = handler
 	})
 }
@@ -299,7 +302,7 @@ func WithCryptoQuotes(handler func(CryptoQuote), symbols ...string) CryptoOption
 // WithCryptoBars configures inital bar symbols to subscribe to and the handler
 func WithCryptoBars(handler func(CryptoBar), symbols ...string) CryptoOption {
 	return newFuncCryptoOption(func(o *cryptoOptions) {
-		o.bars = symbols
+		o.sub.bars = symbols
 		o.barHandler = handler
 	})
 }
@@ -307,7 +310,7 @@ func WithCryptoBars(handler func(CryptoBar), symbols ...string) CryptoOption {
 // WithCryptoDailyBars configures inital daily bar symbols to subscribe to and the handler
 func WithCryptoDailyBars(handler func(CryptoBar), symbols ...string) CryptoOption {
 	return newFuncCryptoOption(func(o *cryptoOptions) {
-		o.dailyBars = symbols
+		o.sub.dailyBars = symbols
 		o.dailyBarHandler = handler
 	})
 }

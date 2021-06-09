@@ -131,6 +131,7 @@ type subWithT struct {
 	Quotes    []string `msgpack:"quotes"`
 	Bars      []string `msgpack:"bars"`
 	DailyBars []string `msgpack:"dailyBars"`
+	Statuses  []string `msgpack:"statuses"`
 	// NewField is for testing correct handling of added fields in the future
 	NewField uint64 `msgpack:"N"`
 }
@@ -256,14 +257,14 @@ func TestHandleMessagesStocks(t *testing.T) {
 		subMessageHandler = smh
 	}()
 
-	subscriptionMessages := make([]subscriptionMessage, 0)
+	subscriptionMessages := make([]subscriptions, 0)
 
 	var em errorMessage
 	errMessageHandler = func(c *client, e errorMessage) error {
 		em = e
 		return nil
 	}
-	subMessageHandler = func(c *client, s subscriptionMessage) error {
+	subMessageHandler = func(c *client, s subscriptions) error {
 		subscriptionMessages = append(subscriptionMessages, s)
 		return nil
 	}
@@ -357,14 +358,14 @@ func TestHandleMessagesCrypto(t *testing.T) {
 		subMessageHandler = smh
 	}()
 
-	subscriptionMessages := make([]subscriptionMessage, 0)
+	subscriptionMessages := make([]subscriptions, 0)
 
 	var em errorMessage
 	errMessageHandler = func(c *client, e errorMessage) error {
 		em = e
 		return nil
 	}
-	subMessageHandler = func(c *client, s subscriptionMessage) error {
+	subMessageHandler = func(c *client, s subscriptions) error {
 		subscriptionMessages = append(subscriptionMessages, s)
 		return nil
 	}

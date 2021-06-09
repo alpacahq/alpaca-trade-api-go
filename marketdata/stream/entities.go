@@ -84,4 +84,5 @@ type subscriptionMessage struct {
 	quotes    []string
 	bars      []string
 	dailyBars []string
+	statuses  []string
 }

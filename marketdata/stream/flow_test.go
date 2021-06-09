@@ -183,9 +183,9 @@ func TestInitializeAuthRetrySucceeds(t *testing.T) {
 	})
 
 	assert.NoError(t, <-res)
-	assert.ElementsMatch(t, trades, c.trades)
-	assert.ElementsMatch(t, quotes, c.quotes)
-	assert.ElementsMatch(t, bars, c.bars)
+	assert.ElementsMatch(t, trades, c.sub.trades)
+	assert.ElementsMatch(t, quotes, c.sub.quotes)
+	assert.ElementsMatch(t, bars, c.sub.bars)
 
 	// checking whether the client sent the proper messages
 	// First auth
@@ -210,7 +210,10 @@ func TestInitializeAuthRetrySucceeds(t *testing.T) {
 func TestInitializeSubError(t *testing.T) {
 	conn := newMockConn()
 	defer conn.close()
-	c := client{conn: conn, trades: []string{"TEST"}}
+	c := client{
+		conn: conn,
+		sub: subscriptions{
+			trades: []string{"TEST"}}}
 	ordm := authRetryDelayMultiplier
 	defer func() {
 		authRetryDelayMultiplier = ordm
@@ -516,33 +519,6 @@ func TestReadAuthResponseContents(t *testing.T) {
 	}
 }
 
-func TestNoSubscribeCallNecessary(t *testing.T) {
-	var tests = []struct {
-		trades    []string
-		quotes    []string
-		bars      []string
-		dailyBars []string
-		expected  bool
-	}{
-		{trades: nil, quotes: nil, bars: nil, expected: true},
-		{trades: []string{"TEST"}, quotes: nil, bars: nil, expected: false},
-		{trades: nil, quotes: []string{"TEST"}, bars: nil, expected: false},
-		{trades: nil, quotes: nil, bars: []string{"TEST"}, expected: false},
-		{trades: []string{"TEST"}, quotes: []string{"TEST"}, bars: []string{"TEST"}, expected: false},
-		{dailyBars: []string{"TEST"}, expected: false},
-	}
-
-	for _, test := range tests {
-		c := client{
-			trades:    test.trades,
-			quotes:    test.quotes,
-			bars:      test.bars,
-			dailyBars: test.dailyBars,
-		}
-		assert.Equal(t, test.expected, noSubscribeCallNecessary(c.trades, c.quotes, c.bars, c.dailyBars))
-	}
-}
-
 func TestWriteSubCancelled(t *testing.T) {
 	conn := newMockConn()
 	// We want to close it so that the write fails
@@ -576,11 +552,13 @@ func TestWriteSubContents(t *testing.T) {
 			conn := newMockConn()
 			defer conn.close()
 			c := client{
-				conn:      conn,
-				trades:    test.trades,
-				quotes:    test.quotes,
-				bars:      test.bars,
-				dailyBars: test.dailyBars,
+				conn: conn,
+				sub: subscriptions{
+					trades:    test.trades,
+					quotes:    test.quotes,
+					bars:      test.bars,
+					dailyBars: test.dailyBars,
+				},
 			}
 
 			err := c.writeSub(context.Background())
@@ -724,10 +702,10 @@ func TestReadSubResponseContents(t *testing.T) {
 				assert.Error(t, err)
 			} else {
 				assert.NoError(t, err)
-				assert.ElementsMatch(t, test.trades, c.trades)
-				assert.ElementsMatch(t, test.quotes, c.quotes)
-				assert.ElementsMatch(t, test.bars, c.bars)
-				assert.ElementsMatch(t, test.dailyBars, c.dailyBars)
+				assert.ElementsMatch(t, test.trades, c.sub.trades)
+				assert.ElementsMatch(t, test.quotes, c.sub.quotes)
+				assert.ElementsMatch(t, test.bars, c.sub.bars)
+				assert.ElementsMatch(t, test.dailyBars, c.sub.dailyBars)
 			}
 		})
 	}
