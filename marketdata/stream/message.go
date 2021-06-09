@@ -235,12 +235,10 @@ func (h *stocksMsgHandler) handleTradingStatus(d *msgpack.Decoder, n int) error 
 		switch key {
 		case "S":
 			ts.Symbol, err = d.DecodeString()
-		case "status":
-			ts.Status, err = d.DecodeString()
-		case "code":
-			ts.Code, err = d.DecodeString()
-		case "reason":
-			ts.Reason, err = d.DecodeString()
+		case "sc":
+			ts.StatusCode, err = d.DecodeString()
+		case "rc":
+			ts.ReasonCode, err = d.DecodeString()
 		case "t":
 			ts.Timestamp, err = d.DecodeTime()
 		case "z":

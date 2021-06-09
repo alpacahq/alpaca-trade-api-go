@@ -572,12 +572,11 @@ func TestCoreFunctionalityStocks(t *testing.T) {
 	// sending a trading status
 	connection.readCh <- serializeToMsgpack(t, []interface{}{
 		tradingStatusWithT{
-			Type:   "s",
-			Symbol: "ALPACA",
-			Status: "halt",
-			Code:   "T12",
-			Reason: "Trading Halted; For information requested by NASDAQ",
-			Tape:   "C",
+			Type:       "s",
+			Symbol:     "ALPACA",
+			StatusCode: "H",
+			ReasonCode: "T12",
+			Tape:       "C",
 		},
 	})
 
@@ -613,7 +612,7 @@ func TestCoreFunctionalityStocks(t *testing.T) {
 
 	select {
 	case ts := <-tradingStatuses:
-		assert.Equal(t, "T12", ts.Code)
+		assert.Equal(t, "T12", ts.ReasonCode)
 	case <-time.After(time.Second):
 		require.Fail(t, "no trading status received in time")
 	}
