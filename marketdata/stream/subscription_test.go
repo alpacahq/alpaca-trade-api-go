@@ -8,28 +8,22 @@ import (
 
 func TestNoSubscribeCallNecessary(t *testing.T) {
 	var tests = []struct {
-		trades    []string
-		quotes    []string
-		bars      []string
-		dailyBars []string
-		expected  bool
+		sub      subscriptions
+		expected bool
 	}{
-		{trades: nil, quotes: nil, bars: nil, expected: true},
-		{trades: []string{"TEST"}, quotes: nil, bars: nil, expected: false},
-		{trades: nil, quotes: []string{"TEST"}, bars: nil, expected: false},
-		{trades: nil, quotes: nil, bars: []string{"TEST"}, expected: false},
-		{trades: []string{"TEST"}, quotes: []string{"TEST"}, bars: []string{"TEST"}, expected: false},
-		{dailyBars: []string{"TEST"}, expected: false},
+		{sub: subscriptions{}, expected: true},
+		{sub: subscriptions{trades: []string{}}, expected: true},
+		{sub: subscriptions{trades: []string{"TEST"}}, expected: false},
+		{sub: subscriptions{quotes: []string{"TEST"}}, expected: false},
+		{sub: subscriptions{bars: []string{"TEST"}}, expected: false},
+		{sub: subscriptions{dailyBars: []string{"TEST"}}, expected: false},
+		{sub: subscriptions{statuses: []string{"TEST"}}, expected: false},
+		{sub: subscriptions{
+			trades: []string{"TEST"}, quotes: []string{"TEST"}, bars: []string{"TEST"},
+		}, expected: false},
 	}
 
-	for _, test := range tests {
-
-		sub := subscriptions{
-			trades:    test.trades,
-			quotes:    test.quotes,
-			bars:      test.bars,
-			dailyBars: test.dailyBars,
-		}
-		assert.Equal(t, test.expected, sub.noSubscribeCallNecessary())
+	for _, tt := range tests {
+		assert.Equal(t, tt.expected, tt.sub.noSubscribeCallNecessary())
 	}
 }

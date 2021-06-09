@@ -743,6 +743,7 @@ func writeInitialFlowMessagesToConn(
 			Quotes:    sub.quotes,
 			Bars:      sub.bars,
 			DailyBars: sub.dailyBars,
+			Statuses:  sub.statuses,
 		},
 	})
 }
