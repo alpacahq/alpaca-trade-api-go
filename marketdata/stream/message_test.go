@@ -182,7 +182,8 @@ var testTradingStatus = tradingStatusWithT{
 	Symbol:     "BIIB",
 	StatusCode: "T",
 	StatusMsg:  "Trading Resumption",
-	ReasonCode: "",
+	ReasonCode: "LUDP",
+	ReasonMsg:  "Volatility Trading Pause",
 	Timestamp:  time.Date(2021, 03, 05, 16, 0, 0, 0, time.UTC),
 	Tape:       "C",
 }
