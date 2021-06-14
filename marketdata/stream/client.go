@@ -47,6 +47,8 @@ type StocksClient interface {
 	UnsubscribeFromBars(symbols ...string) error
 	SubscribeToDailyBars(handler func(bar Bar), symbols ...string) error
 	UnsubscribeFromDailyBars(symbols ...string) error
+	SubscribeToStatuses(handler func(ts TradingStatus), symbols ...string) error
+	UnsubscribeFromStatuses(symbols ...string) error
 }
 
 // CryptoClient is a client that connects to an Alpaca Data V2 stream server
@@ -95,10 +97,7 @@ type client struct {
 	in             chan []byte
 	subChanges     chan []byte
 
-	trades    []string
-	quotes    []string
-	bars      []string
-	dailyBars []string
+	sub subscriptions
 
 	handler msgHandler
 
@@ -124,10 +123,7 @@ func (c *client) configure(o options) {
 	c.reconnectDelay = o.reconnectDelay
 	c.processorCount = o.processorCount
 	c.bufferSize = o.bufferSize
-	c.trades = o.trades
-	c.quotes = o.quotes
-	c.bars = o.bars
-	c.dailyBars = o.dailyBars
+	c.sub = o.sub
 	c.connCreator = o.connCreator
 }
 
@@ -161,6 +157,7 @@ func (sc *stocksClient) configure(o stockOptions) {
 	sc.handler.quoteHandler = o.quoteHandler
 	sc.handler.barHandler = o.barHandler
 	sc.handler.dailyBarHandler = o.dailyBarHandler
+	sc.handler.tradingStatusHandler = o.tradingStatusHandler
 }
 
 func (sc *stocksClient) Connect(ctx context.Context) error {

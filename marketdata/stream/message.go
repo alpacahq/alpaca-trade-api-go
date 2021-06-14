@@ -14,6 +14,7 @@ type msgHandler interface {
 	handleQuote(d *msgpack.Decoder, n int) error
 	handleBar(d *msgpack.Decoder, n int) error
 	handleDailyBar(d *msgpack.Decoder, n int) error
+	handleTradingStatus(d *msgpack.Decoder, n int) error
 }
 
 func (c *client) handleMessage(b []byte) error {
@@ -60,6 +61,8 @@ func (c *client) handleMessage(b []byte) error {
 			err = c.handler.handleBar(d, n)
 		case "d":
 			err = c.handler.handleDailyBar(d, n)
+		case "s":
+			err = c.handler.handleTradingStatus(d, n)
 		case "subscription":
 			err = c.handleSubscriptionMessage(d, n)
 		case "error":
@@ -76,11 +79,12 @@ func (c *client) handleMessage(b []byte) error {
 }
 
 type stocksMsgHandler struct {
-	mu              sync.RWMutex
-	tradeHandler    func(trade Trade)
-	quoteHandler    func(quote Quote)
-	barHandler      func(bar Bar)
-	dailyBarHandler func(bar Bar)
+	mu                   sync.RWMutex
+	tradeHandler         func(trade Trade)
+	quoteHandler         func(quote Quote)
+	barHandler           func(bar Bar)
+	dailyBarHandler      func(bar Bar)
+	tradingStatusHandler func(ts TradingStatus)
 }
 
 var _ msgHandler = (*stocksMsgHandler)(nil)
@@ -221,6 +225,42 @@ func (h *stocksMsgHandler) handleDailyBar(d *msgpack.Decoder, n int) error {
 	return nil
 }
 
+func (h *stocksMsgHandler) handleTradingStatus(d *msgpack.Decoder, n int) error {
+	ts := TradingStatus{}
+	for i := 0; i < n; i++ {
+		key, err := d.DecodeString()
+		if err != nil {
+			return err
+		}
+		switch key {
+		case "S":
+			ts.Symbol, err = d.DecodeString()
+		case "sc":
+			ts.StatusCode, err = d.DecodeString()
+		case "sm":
+			ts.StatusMsg, err = d.DecodeString()
+		case "rc":
+			ts.ReasonCode, err = d.DecodeString()
+		case "rm":
+			ts.ReasonMsg, err = d.DecodeString()
+		case "t":
+			ts.Timestamp, err = d.DecodeTime()
+		case "z":
+			ts.Tape, err = d.DecodeString()
+		default:
+			err = d.Skip()
+		}
+		if err != nil {
+			return err
+		}
+	}
+	h.mu.RLock()
+	handler := h.tradingStatusHandler
+	h.mu.RUnlock()
+	handler(ts)
+	return nil
+}
+
 type cryptoMsgHandler struct {
 	mu              sync.RWMutex
 	tradeHandler    func(trade CryptoTrade)
@@ -347,6 +387,21 @@ func (h *cryptoMsgHandler) handleDailyBar(d *msgpack.Decoder, n int) error {
 	return nil
 }
 
+func (h *cryptoMsgHandler) handleTradingStatus(d *msgpack.Decoder, n int) error {
+	// should not happen!
+	for i := 0; i < n; i++ {
+		// key
+		if _, err := d.DecodeString(); err != nil {
+			return err
+		}
+		// value
+		if err := d.Skip(); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 //ErrSymbolLimitExceeded is returned when the client has subscribed to too many symbols
 var ErrSymbolLimitExceeded = errors.New("symbol limit exceeded")
 
@@ -399,13 +454,14 @@ func (c *client) handleErrorMessage(d *msgpack.Decoder, n int) error {
 	return errMessageHandler(c, e)
 }
 
-var subMessageHandler = func(c *client, s subscriptionMessage) error {
+var subMessageHandler = func(c *client, s subscriptions) error {
 	c.pendingSubChangeMutex.Lock()
 	defer c.pendingSubChangeMutex.Unlock()
-	c.trades = s.trades
-	c.quotes = s.quotes
-	c.bars = s.bars
-	c.dailyBars = s.dailyBars
+	c.sub.trades = s.trades
+	c.sub.quotes = s.quotes
+	c.sub.bars = s.bars
+	c.sub.dailyBars = s.dailyBars
+	c.sub.statuses = s.statuses
 	if c.pendingSubChange != nil {
 		psc := c.pendingSubChange
 		psc.result <- nil
@@ -416,7 +472,7 @@ var subMessageHandler = func(c *client, s subscriptionMessage) error {
 }
 
 func (c *client) handleSubscriptionMessage(d *msgpack.Decoder, n int) error {
-	s := subscriptionMessage{}
+	s := subscriptions{}
 	for i := 0; i < n; i++ {
 		key, err := d.DecodeString()
 		if err != nil {
@@ -431,6 +487,8 @@ func (c *client) handleSubscriptionMessage(d *msgpack.Decoder, n int) error {
 			s.bars, err = decodeStringSlice(d)
 		case "dailyBars":
 			s.dailyBars, err = decodeStringSlice(d)
+		case "statuses":
+			s.statuses, err = decodeStringSlice(d)
 		default:
 			err = d.Skip()
 		}

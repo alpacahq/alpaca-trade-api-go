@@ -36,10 +36,11 @@ func TestDefaultOptions(t *testing.T) {
 			assert.EqualValues(t, 150*time.Millisecond, o.reconnectDelay)
 			assert.EqualValues(t, 1, o.processorCount)
 			assert.EqualValues(t, 100000, o.bufferSize)
-			assert.EqualValues(t, []string{}, o.trades)
-			assert.EqualValues(t, []string{}, o.quotes)
-			assert.EqualValues(t, []string{}, o.bars)
-			assert.EqualValues(t, []string{}, o.dailyBars)
+			assert.EqualValues(t, []string{}, o.sub.trades)
+			assert.EqualValues(t, []string{}, o.sub.quotes)
+			assert.EqualValues(t, []string{}, o.sub.bars)
+			assert.EqualValues(t, []string{}, o.sub.dailyBars)
+			assert.EqualValues(t, []string{}, o.sub.statuses)
 			// NOTE: function equality can not be tested well
 		})
 	}
@@ -61,6 +62,7 @@ func TestConfigureStocks(t *testing.T) {
 		WithQuotes(func(q Quote) {}, "AL", "PACA"),
 		WithBars(func(b Bar) {}, "ALP", "ACA"),
 		WithDailyBars(func(b Bar) {}, "LPACA"),
+		WithStatuses(func(ts TradingStatus) {}, "ALPACA"),
 	).(*stocksClient)
 
 	assert.EqualValues(t, logger, c.logger)
@@ -71,9 +73,10 @@ func TestConfigureStocks(t *testing.T) {
 	assert.EqualValues(t, 322*time.Nanosecond, c.reconnectDelay)
 	assert.EqualValues(t, 322, c.processorCount)
 	assert.EqualValues(t, 1000000, c.bufferSize)
-	assert.EqualValues(t, []string{"ALPACA"}, c.trades)
-	assert.EqualValues(t, []string{"AL", "PACA"}, c.quotes)
-	assert.EqualValues(t, []string{"ALP", "ACA"}, c.bars)
-	assert.EqualValues(t, []string{"LPACA"}, c.dailyBars)
+	assert.EqualValues(t, []string{"ALPACA"}, c.sub.trades)
+	assert.EqualValues(t, []string{"AL", "PACA"}, c.sub.quotes)
+	assert.EqualValues(t, []string{"ALP", "ACA"}, c.sub.bars)
+	assert.EqualValues(t, []string{"LPACA"}, c.sub.dailyBars)
+	assert.EqualValues(t, []string{"ALPACA"}, c.sub.statuses)
 	// NOTE: function equality can not be tested well
 }

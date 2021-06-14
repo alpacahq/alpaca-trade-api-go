@@ -39,6 +39,17 @@ type Bar struct {
 	Timestamp time.Time
 }
 
+// TradingStatus is a halt or resume status for a security
+type TradingStatus struct {
+	Symbol     string
+	StatusCode string
+	StatusMsg  string
+	ReasonCode string
+	ReasonMsg  string
+	Timestamp  time.Time
+	Tape       string
+}
+
 type CryptoTrade struct {
 	Symbol    string
 	Price     float64
@@ -67,12 +78,4 @@ type CryptoBar struct {
 type errorMessage struct {
 	msg  string
 	code int
-}
-
-// subscriptionMessage is a subscription confirmation received from the server
-type subscriptionMessage struct {
-	trades    []string
-	quotes    []string
-	bars      []string
-	dailyBars []string
 }

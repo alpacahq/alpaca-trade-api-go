@@ -172,7 +172,7 @@ func TestConnectSucceeds(t *testing.T) {
 				return connection, nil
 			}
 
-			writeInitialFlowMessagesToConn(t, connection, []string{}, []string{}, []string{}, []string{})
+			writeInitialFlowMessagesToConn(t, connection, subscriptions{})
 
 			var c StreamClient
 			switch tt.name {
@@ -240,7 +240,7 @@ func TestSubscribeBeforeConnectCrypto(t *testing.T) {
 func TestSubscribeMultipleCallsStocks(t *testing.T) {
 	connection := newMockConn()
 	defer connection.close()
-	writeInitialFlowMessagesToConn(t, connection, []string{}, []string{}, []string{}, []string{})
+	writeInitialFlowMessagesToConn(t, connection, subscriptions{})
 
 	c := NewStocksClient("iex", withConnCreator(func(ctx context.Context, u url.URL) (conn, error) {
 		return connection, nil
@@ -271,7 +271,7 @@ func TestSubscribeMultipleCallsStocks(t *testing.T) {
 func TestSubscribeCalledButClientTerminatesCrypto(t *testing.T) {
 	connection := newMockConn()
 	defer connection.close()
-	writeInitialFlowMessagesToConn(t, connection, []string{}, []string{}, []string{}, []string{})
+	writeInitialFlowMessagesToConn(t, connection, subscriptions{})
 
 	c := NewCryptoClient(withConnCreator(func(ctx context.Context, u url.URL) (conn, error) {
 		return connection, nil
@@ -281,7 +281,7 @@ func TestSubscribeCalledButClientTerminatesCrypto(t *testing.T) {
 	err := c.Connect(ctx)
 	require.NoError(t, err)
 
-	checkInitialMessagesSentByClient(t, connection, "", "", []string{}, []string{}, []string{}, []string{})
+	checkInitialMessagesSentByClient(t, connection, "", "", c.(*cryptoClient).sub)
 	subErrCh := make(chan error, 1)
 	subFunc := func() {
 		subErrCh <- c.SubscribeToTrades(func(trade CryptoTrade) {}, "PACOIN")
@@ -308,7 +308,7 @@ func TestSubscribeCalledButClientTerminatesCrypto(t *testing.T) {
 
 func TestSubscripitionAcrossConnectionIssues(t *testing.T) {
 	conn1 := newMockConn()
-	writeInitialFlowMessagesToConn(t, conn1, []string{}, []string{}, []string{}, []string{})
+	writeInitialFlowMessagesToConn(t, conn1, subscriptions{})
 
 	key := "testkey"
 	secret := "testsecret"
@@ -323,7 +323,7 @@ func TestSubscripitionAcrossConnectionIssues(t *testing.T) {
 	// connect
 	err := c.Connect(ctx)
 	require.NoError(t, err)
-	checkInitialMessagesSentByClient(t, conn1, key, secret, []string{}, []string{}, []string{}, []string{})
+	checkInitialMessagesSentByClient(t, conn1, key, secret, subscriptions{})
 
 	// subscribing to something
 	trades1 := []string{"AL", "PACA"}
@@ -337,14 +337,14 @@ func TestSubscripitionAcrossConnectionIssues(t *testing.T) {
 
 	// shutting down the first connection
 	conn2 := newMockConn()
-	writeInitialFlowMessagesToConn(t, conn2, []string{}, []string{}, []string{}, []string{})
+	writeInitialFlowMessagesToConn(t, conn2, subscriptions{})
 	c.(*stocksClient).connCreator = func(ctx context.Context, u url.URL) (conn, error) {
 		return conn2, nil
 	}
 	conn1.close()
 
 	// checking whether the client sent what we wanted it to (auth,sub1,sub2)
-	checkInitialMessagesSentByClient(t, conn2, key, secret, []string{}, []string{}, []string{}, []string{})
+	checkInitialMessagesSentByClient(t, conn2, key, secret, subscriptions{})
 	sub = expectWrite(t, conn2)
 	require.Equal(t, "subscribe", sub["action"])
 	require.ElementsMatch(t, trades1, sub["trades"])
@@ -359,14 +359,14 @@ func TestSubscripitionAcrossConnectionIssues(t *testing.T) {
 		},
 	})
 	require.NoError(t, <-subRes)
-	require.ElementsMatch(t, trades1, c.(*stocksClient).trades)
+	require.ElementsMatch(t, trades1, c.(*stocksClient).sub.trades)
 
 	// the connection is shut down and the new one isn't established for a while
 	conn3 := newMockConn()
 	defer conn3.close()
 	c.(*stocksClient).connCreator = func(ctx context.Context, u url.URL) (conn, error) {
 		time.Sleep(100 * time.Millisecond)
-		writeInitialFlowMessagesToConn(t, conn3, trades1, []string{}, []string{}, []string{})
+		writeInitialFlowMessagesToConn(t, conn3, subscriptions{trades: trades1})
 		return conn3, nil
 	}
 	conn2.close()
@@ -376,7 +376,7 @@ func TestSubscripitionAcrossConnectionIssues(t *testing.T) {
 	go func() { unsubRes <- c.UnsubscribeFromTrades("AL") }()
 
 	// connection starts up, proper messages (auth,sub,unsub)
-	checkInitialMessagesSentByClient(t, conn3, key, secret, trades1, []string{}, []string{}, []string{})
+	checkInitialMessagesSentByClient(t, conn3, key, secret, subscriptions{trades: trades1})
 	unsub := expectWrite(t, conn3)
 	require.Equal(t, "unsubscribe", unsub["action"])
 	require.ElementsMatch(t, []string{"AL"}, unsub["trades"])
@@ -393,13 +393,13 @@ func TestSubscripitionAcrossConnectionIssues(t *testing.T) {
 
 	// make sure the sub has returned by now (client changed)
 	require.NoError(t, <-unsubRes)
-	require.ElementsMatch(t, []string{"PACA"}, c.(*stocksClient).trades)
+	require.ElementsMatch(t, []string{"PACA"}, c.(*stocksClient).sub.trades)
 }
 
 func TestSubscribeFailsDueToError(t *testing.T) {
 	connection := newMockConn()
 	defer connection.close()
-	writeInitialFlowMessagesToConn(t, connection, []string{}, []string{}, []string{}, []string{})
+	writeInitialFlowMessagesToConn(t, connection, subscriptions{})
 
 	c := NewCryptoClient(withConnCreator(func(ctx context.Context, u url.URL) (conn, error) {
 		return connection, nil
@@ -411,7 +411,7 @@ func TestSubscribeFailsDueToError(t *testing.T) {
 	// connect
 	err := c.Connect(ctx)
 	require.NoError(t, err)
-	checkInitialMessagesSentByClient(t, connection, "", "", []string{}, []string{}, []string{}, []string{})
+	checkInitialMessagesSentByClient(t, connection, "", "", subscriptions{})
 
 	// attempting sub change
 	subRes := make(chan error)
@@ -469,7 +469,7 @@ func TestPingFails(t *testing.T) {
 				return connection, nil
 			}
 
-			writeInitialFlowMessagesToConn(t, connection, []string{}, []string{}, []string{}, []string{})
+			writeInitialFlowMessagesToConn(t, connection, subscriptions{})
 
 			testTicker := newTestTicker()
 			newPingTicker = func() ticker {
@@ -518,18 +518,25 @@ func TestPingFails(t *testing.T) {
 func TestCoreFunctionalityStocks(t *testing.T) {
 	connection := newMockConn()
 	defer connection.close()
-	writeInitialFlowMessagesToConn(t, connection,
-		[]string{"ALPACA"}, []string{"ALPACA"}, []string{"ALPACA"}, []string{"LPACA"})
+	writeInitialFlowMessagesToConn(t, connection, subscriptions{
+		trades:    []string{"ALPACA"},
+		quotes:    []string{"ALPACA"},
+		bars:      []string{"ALPACA"},
+		dailyBars: []string{"LPACA"},
+		statuses:  []string{"ALPACA"},
+	})
 
 	trades := make(chan Trade, 10)
 	quotes := make(chan Quote, 10)
 	bars := make(chan Bar, 10)
 	dailyBars := make(chan Bar, 10)
+	tradingStatuses := make(chan TradingStatus, 10)
 	c := NewStocksClient("iex",
 		WithTrades(func(t Trade) { trades <- t }, "ALPACA"),
 		WithQuotes(func(q Quote) { quotes <- q }, "ALPCA"),
 		WithBars(func(b Bar) { bars <- b }, "ALPACA"),
 		WithDailyBars(func(b Bar) { dailyBars <- b }, "LPACA"),
+		WithStatuses(func(ts TradingStatus) { tradingStatuses <- ts }, "ALPACA"),
 		withConnCreator(func(ctx context.Context, u url.URL) (conn, error) {
 			return connection, nil
 		}))
@@ -567,6 +574,16 @@ func TestCoreFunctionalityStocks(t *testing.T) {
 			ID:     123,
 		},
 	})
+	// sending a trading status
+	connection.readCh <- serializeToMsgpack(t, []interface{}{
+		tradingStatusWithT{
+			Type:       "s",
+			Symbol:     "ALPACA",
+			StatusCode: "H",
+			ReasonCode: "T12",
+			Tape:       "C",
+		},
+	})
 
 	// checking contents
 	select {
@@ -597,13 +614,24 @@ func TestCoreFunctionalityStocks(t *testing.T) {
 	case <-time.After(time.Second):
 		require.Fail(t, "no trade received in time")
 	}
+
+	select {
+	case ts := <-tradingStatuses:
+		assert.Equal(t, "T12", ts.ReasonCode)
+	case <-time.After(time.Second):
+		require.Fail(t, "no trading status received in time")
+	}
 }
 
 func TestCoreFunctionalityCrypto(t *testing.T) {
 	connection := newMockConn()
 	defer connection.close()
-	writeInitialFlowMessagesToConn(t, connection,
-		[]string{"BTCUSD"}, []string{"ETHUSD"}, []string{"LTCUSD"}, []string{"BCHUSD"})
+	writeInitialFlowMessagesToConn(t, connection, subscriptions{
+		trades:    []string{"BTCUSD"},
+		quotes:    []string{"ETHUSD"},
+		bars:      []string{"LTCUSD"},
+		dailyBars: []string{"BCHUSD"},
+	})
 
 	trades := make(chan CryptoTrade, 10)
 	quotes := make(chan CryptoQuote, 10)
@@ -686,7 +714,7 @@ func TestCoreFunctionalityCrypto(t *testing.T) {
 }
 
 func writeInitialFlowMessagesToConn(
-	t *testing.T, conn *mockConn, trades, quotes, bars, dailyBars []string,
+	t *testing.T, conn *mockConn, sub subscriptions,
 ) {
 	// server welcomes the client
 	conn.readCh <- serializeToMsgpack(t, []controlWithT{
@@ -703,7 +731,7 @@ func writeInitialFlowMessagesToConn(
 		},
 	})
 
-	if noSubscribeCallNecessary(trades, quotes, bars, dailyBars) {
+	if sub.noSubscribeCallNecessary() {
 		return
 	}
 
@@ -711,16 +739,17 @@ func writeInitialFlowMessagesToConn(
 	conn.readCh <- serializeToMsgpack(t, []subWithT{
 		{
 			Type:      "subscription",
-			Trades:    trades,
-			Quotes:    quotes,
-			Bars:      bars,
-			DailyBars: dailyBars,
+			Trades:    sub.trades,
+			Quotes:    sub.quotes,
+			Bars:      sub.bars,
+			DailyBars: sub.dailyBars,
+			Statuses:  sub.statuses,
 		},
 	})
 }
 
 func checkInitialMessagesSentByClient(
-	t *testing.T, m *mockConn, key, secret string, trades, quotes, bars, dailyBars []string,
+	t *testing.T, m *mockConn, key, secret string, sub subscriptions,
 ) {
 	// auth
 	auth := expectWrite(t, m)
@@ -728,15 +757,16 @@ func checkInitialMessagesSentByClient(
 	require.Equal(t, key, auth["key"])
 	require.Equal(t, secret, auth["secret"])
 
-	if noSubscribeCallNecessary(trades, quotes, bars, dailyBars) {
+	if sub.noSubscribeCallNecessary() {
 		return
 	}
 
 	// subscribe
-	sub := expectWrite(t, m)
-	require.Equal(t, "subscribe", sub["action"])
-	require.ElementsMatch(t, trades, sub["trades"])
-	require.ElementsMatch(t, quotes, sub["quotes"])
-	require.ElementsMatch(t, bars, sub["bars"])
-	require.ElementsMatch(t, dailyBars, sub["dailyBars"])
+	s := expectWrite(t, m)
+	require.Equal(t, "subscribe", s["action"])
+	require.ElementsMatch(t, sub.trades, s["trades"])
+	require.ElementsMatch(t, sub.quotes, s["quotes"])
+	require.ElementsMatch(t, sub.bars, s["bars"])
+	require.ElementsMatch(t, sub.dailyBars, s["dailyBars"])
+	require.ElementsMatch(t, sub.statuses, s["statuses"])
 }

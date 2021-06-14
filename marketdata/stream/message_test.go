@@ -55,6 +55,20 @@ type barWithT struct {
 	NewField uint64 `msgpack:"n"`
 }
 
+// tradingStatusWithT is the incoming trading status message that also contains the T type key
+type tradingStatusWithT struct {
+	Type       string    `msgpack:"T"`
+	Symbol     string    `msgpack:"S"`
+	StatusCode string    `msgpack:"sc"`
+	StatusMsg  string    `msgpack:"sm"`
+	ReasonCode string    `msgpack:"rc"`
+	ReasonMsg  string    `msgpack:"rm"`
+	Timestamp  time.Time `msgpack:"t"`
+	Tape       string    `msgpack:"z"`
+	// NewField is for testing correct handling of added fields in the future
+	NewField uint64 `msgpack:"n"`
+}
+
 // cryptoTradeWithT is the incoming crypto trade message that also contains the T type key
 type cryptoTradeWithT struct {
 	Type      string    `msgpack:"T"`
@@ -119,6 +133,7 @@ type subWithT struct {
 	Quotes    []string `msgpack:"quotes"`
 	Bars      []string `msgpack:"bars"`
 	DailyBars []string `msgpack:"dailyBars"`
+	Statuses  []string `msgpack:"statuses"`
 	// NewField is for testing correct handling of added fields in the future
 	NewField uint64 `msgpack:"N"`
 }
@@ -160,6 +175,17 @@ var testBar = barWithT{
 	Close:     101.1,
 	Volume:    2560,
 	Timestamp: time.Date(2021, 03, 05, 16, 0, 0, 0, time.UTC),
+}
+
+var testTradingStatus = tradingStatusWithT{
+	Type:       "s",
+	Symbol:     "BIIB",
+	StatusCode: "T",
+	StatusMsg:  "Trading Resumption",
+	ReasonCode: "LUDP",
+	ReasonMsg:  "Volatility Trading Pause",
+	Timestamp:  time.Date(2021, 03, 05, 16, 0, 0, 0, time.UTC),
+	Tape:       "C",
 }
 
 var testCryptoTrade = cryptoTradeWithT{
@@ -216,7 +242,16 @@ var testSubMessage2 = subWithT{
 }
 
 func TestHandleMessagesStocks(t *testing.T) {
-	b, err := msgpack.Marshal([]interface{}{testOther, testTrade, testQuote, testBar, testError, testSubMessage1, testSubMessage2})
+	b, err := msgpack.Marshal([]interface{}{
+		testOther,
+		testTrade,
+		testTradingStatus,
+		testQuote,
+		testBar,
+		testError,
+		testSubMessage1,
+		testSubMessage2,
+	})
 	require.NoError(t, err)
 
 	emh := errMessageHandler
@@ -226,14 +261,14 @@ func TestHandleMessagesStocks(t *testing.T) {
 		subMessageHandler = smh
 	}()
 
-	subscriptionMessages := make([]subscriptionMessage, 0)
+	subscriptionMessages := make([]subscriptions, 0)
 
 	var em errorMessage
 	errMessageHandler = func(c *client, e errorMessage) error {
 		em = e
 		return nil
 	}
-	subMessageHandler = func(c *client, s subscriptionMessage) error {
+	subMessageHandler = func(c *client, s subscriptions) error {
 		subscriptionMessages = append(subscriptionMessages, s)
 		return nil
 	}
@@ -254,6 +289,10 @@ func TestHandleMessagesStocks(t *testing.T) {
 	h.barHandler = func(b Bar) {
 		bar = b
 	}
+	var tradingStatus TradingStatus
+	h.tradingStatusHandler = func(ts TradingStatus) {
+		tradingStatus = ts
+	}
 
 	err = c.handleMessage(b)
 	require.NoError(t, err)
@@ -266,6 +305,14 @@ func TestHandleMessagesStocks(t *testing.T) {
 	assert.True(t, trade.Timestamp.Equal(testTime))
 	assert.EqualValues(t, testTrade.Conditions, trade.Conditions)
 	assert.EqualValues(t, testTrade.Tape, trade.Tape)
+
+	assert.Equal(t, testTradingStatus.Symbol, tradingStatus.Symbol)
+	assert.Equal(t, testTradingStatus.StatusCode, tradingStatus.StatusCode)
+	assert.Equal(t, testTradingStatus.StatusMsg, tradingStatus.StatusMsg)
+	assert.Equal(t, testTradingStatus.ReasonCode, tradingStatus.ReasonCode)
+	assert.Equal(t, testTradingStatus.ReasonMsg, tradingStatus.ReasonMsg)
+	assert.True(t, testTradingStatus.Timestamp.Equal(tradingStatus.Timestamp))
+	assert.Equal(t, testTradingStatus.Tape, tradingStatus.Tape)
 
 	assert.EqualValues(t, testQuote.Symbol, quote.Symbol)
 	assert.EqualValues(t, testQuote.BidExchange, quote.BidExchange)
@@ -317,14 +364,14 @@ func TestHandleMessagesCrypto(t *testing.T) {
 		subMessageHandler = smh
 	}()
 
-	subscriptionMessages := make([]subscriptionMessage, 0)
+	subscriptionMessages := make([]subscriptions, 0)
 
 	var em errorMessage
 	errMessageHandler = func(c *client, e errorMessage) error {
 		em = e
 		return nil
 	}
-	subMessageHandler = func(c *client, s subscriptionMessage) error {
+	subMessageHandler = func(c *client, s subscriptions) error {
 		subscriptionMessages = append(subscriptionMessages, s)
 		return nil
 	}

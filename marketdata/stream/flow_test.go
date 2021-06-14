@@ -120,12 +120,16 @@ func TestInitializeAuthRetrySucceeds(t *testing.T) {
 	trades := []string{"AL", "PACA"}
 	quotes := []string{"ALPACA"}
 	bars := []string{"ALP", "ACA"}
+	dailyBars := []string{"CLDR"}
+	statuses := []string{"*"}
 	c := NewStocksClient(
 		"sip",
 		WithCredentials("testkey", "testsecret"),
 		WithTrades(func(t Trade) {}, trades...),
 		WithQuotes(func(q Quote) {}, quotes...),
 		WithBars(func(b Bar) {}, bars...),
+		WithDailyBars(func(db Bar) {}, dailyBars...),
+		WithStatuses(func(ts TradingStatus) {}, statuses...),
 	).(*stocksClient)
 	c.conn = conn
 	ordm := authRetryDelayMultiplier
@@ -175,17 +179,21 @@ func TestInitializeAuthRetrySucceeds(t *testing.T) {
 
 	conn.readCh <- serializeToMsgpack(t, []map[string]interface{}{
 		{
-			"T":      "subscription",
-			"trades": trades,
-			"quotes": quotes,
-			"bars":   bars,
+			"T":         "subscription",
+			"trades":    trades,
+			"quotes":    quotes,
+			"bars":      bars,
+			"dailyBars": dailyBars,
+			"statuses":  statuses,
 		},
 	})
 
 	assert.NoError(t, <-res)
-	assert.ElementsMatch(t, trades, c.trades)
-	assert.ElementsMatch(t, quotes, c.quotes)
-	assert.ElementsMatch(t, bars, c.bars)
+	assert.ElementsMatch(t, trades, c.sub.trades)
+	assert.ElementsMatch(t, quotes, c.sub.quotes)
+	assert.ElementsMatch(t, bars, c.sub.bars)
+	assert.ElementsMatch(t, dailyBars, c.sub.dailyBars)
+	assert.ElementsMatch(t, statuses, c.sub.statuses)
 
 	// checking whether the client sent the proper messages
 	// First auth
@@ -205,12 +213,17 @@ func TestInitializeAuthRetrySucceeds(t *testing.T) {
 	assert.ElementsMatch(t, trades, sub["trades"])
 	assert.ElementsMatch(t, quotes, sub["quotes"])
 	assert.ElementsMatch(t, bars, sub["bars"])
+	assert.ElementsMatch(t, dailyBars, sub["dailyBars"])
+	assert.ElementsMatch(t, statuses, sub["statuses"])
 }
 
 func TestInitializeSubError(t *testing.T) {
 	conn := newMockConn()
 	defer conn.close()
-	c := client{conn: conn, trades: []string{"TEST"}}
+	c := client{
+		conn: conn,
+		sub: subscriptions{
+			trades: []string{"TEST"}}}
 	ordm := authRetryDelayMultiplier
 	defer func() {
 		authRetryDelayMultiplier = ordm
@@ -516,33 +529,6 @@ func TestReadAuthResponseContents(t *testing.T) {
 	}
 }
 
-func TestNoSubscribeCallNecessary(t *testing.T) {
-	var tests = []struct {
-		trades    []string
-		quotes    []string
-		bars      []string
-		dailyBars []string
-		expected  bool
-	}{
-		{trades: nil, quotes: nil, bars: nil, expected: true},
-		{trades: []string{"TEST"}, quotes: nil, bars: nil, expected: false},
-		{trades: nil, quotes: []string{"TEST"}, bars: nil, expected: false},
-		{trades: nil, quotes: nil, bars: []string{"TEST"}, expected: false},
-		{trades: []string{"TEST"}, quotes: []string{"TEST"}, bars: []string{"TEST"}, expected: false},
-		{dailyBars: []string{"TEST"}, expected: false},
-	}
-
-	for _, test := range tests {
-		c := client{
-			trades:    test.trades,
-			quotes:    test.quotes,
-			bars:      test.bars,
-			dailyBars: test.dailyBars,
-		}
-		assert.Equal(t, test.expected, noSubscribeCallNecessary(c.trades, c.quotes, c.bars, c.dailyBars))
-	}
-}
-
 func TestWriteSubCancelled(t *testing.T) {
 	conn := newMockConn()
 	// We want to close it so that the write fails
@@ -561,14 +547,16 @@ func TestWriteSubContents(t *testing.T) {
 		quotes    []string
 		bars      []string
 		dailyBars []string
+		statuses  []string
 	}{
-		{"empty", []string{}, []string{}, []string{}, []string{}},
-		{"trades_only", []string{"ALPACA"}, []string{}, []string{}, []string{}},
-		{"quotes_only", []string{}, []string{"AL", "PACA"}, []string{}, []string{}},
-		{"bars_only", []string{}, []string{}, []string{"A", "L", "PACA"}, []string{}},
-		{"daily_bars_only", []string{}, []string{}, []string{}, []string{"LPACA"}},
-		{"mix", []string{"ALPACA"}, []string{"A", "L", "PACA"}, []string{}, []string{}},
-		{"complete", []string{"ALPACA"}, []string{"ALPACA"}, []string{"ALPACA"}, []string{"ALPACA"}},
+		{"empty", []string{}, []string{}, []string{}, []string{}, []string{}},
+		{"trades_only", []string{"ALPACA"}, []string{}, []string{}, []string{}, []string{}},
+		{"quotes_only", []string{}, []string{"AL", "PACA"}, []string{}, []string{}, []string{}},
+		{"bars_only", []string{}, []string{}, []string{"A", "L", "PACA"}, []string{}, []string{}},
+		{"daily_bars_only", []string{}, []string{}, []string{}, []string{"LPACA"}, []string{}},
+		{"daily_bars_only", []string{}, []string{}, []string{}, []string{}, []string{"ALPACA"}},
+		{"mix", []string{"ALPACA"}, []string{"A", "L", "PACA"}, []string{}, []string{}, []string{"*"}},
+		{"complete", []string{"ALPACA"}, []string{"ALPACA"}, []string{"ALPACA"}, []string{"ALPACA"}, []string{"ALPACA"}},
 	}
 
 	for _, test := range tests {
@@ -576,11 +564,14 @@ func TestWriteSubContents(t *testing.T) {
 			conn := newMockConn()
 			defer conn.close()
 			c := client{
-				conn:      conn,
-				trades:    test.trades,
-				quotes:    test.quotes,
-				bars:      test.bars,
-				dailyBars: test.dailyBars,
+				conn: conn,
+				sub: subscriptions{
+					trades:    test.trades,
+					quotes:    test.quotes,
+					bars:      test.bars,
+					dailyBars: test.dailyBars,
+					statuses:  test.statuses,
+				},
 			}
 
 			err := c.writeSub(context.Background())
@@ -593,6 +584,7 @@ func TestWriteSubContents(t *testing.T) {
 				Quotes    []string `msgpack:"quotes"`
 				Bars      []string `msgpack:"bars"`
 				DailyBars []string `msgpack:"dailyBars"`
+				Statuses  []string `msgpack:"statuses"`
 			}
 			err = msgpack.Unmarshal(msg, &got)
 			require.NoError(t, err)
@@ -601,6 +593,7 @@ func TestWriteSubContents(t *testing.T) {
 			assert.ElementsMatch(t, test.quotes, got.Quotes)
 			assert.ElementsMatch(t, test.bars, got.Bars)
 			assert.ElementsMatch(t, test.dailyBars, got.DailyBars)
+			assert.ElementsMatch(t, test.statuses, got.Statuses)
 		})
 	}
 }
@@ -724,10 +717,10 @@ func TestReadSubResponseContents(t *testing.T) {
 				assert.Error(t, err)
 			} else {
 				assert.NoError(t, err)
-				assert.ElementsMatch(t, test.trades, c.trades)
-				assert.ElementsMatch(t, test.quotes, c.quotes)
-				assert.ElementsMatch(t, test.bars, c.bars)
-				assert.ElementsMatch(t, test.dailyBars, c.dailyBars)
+				assert.ElementsMatch(t, test.trades, c.sub.trades)
+				assert.ElementsMatch(t, test.quotes, c.sub.quotes)
+				assert.ElementsMatch(t, test.bars, c.sub.bars)
+				assert.ElementsMatch(t, test.dailyBars, c.sub.dailyBars)
 			}
 		})
 	}
