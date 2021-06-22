@@ -191,6 +191,10 @@ func (h *stocksMsgHandler) decodeBar(d *msgpack.Decoder, n int) (Bar, error) {
 			bar.Volume, err = d.DecodeUint64()
 		case "t":
 			bar.Timestamp, err = d.DecodeTime()
+		case "n":
+			bar.TradeCount, err = d.DecodeUint64()
+		case "vw":
+			bar.VWAP, err = d.DecodeFloat64()
 		default:
 			err = d.Skip()
 		}
@@ -353,6 +357,10 @@ func (h *cryptoMsgHandler) decodeBar(d *msgpack.Decoder, n int) (CryptoBar, erro
 			bar.Volume, err = d.DecodeFloat64()
 		case "t":
 			bar.Timestamp, err = d.DecodeTime()
+		case "n":
+			bar.TradeCount, err = d.DecodeUint64()
+		case "vw":
+			bar.VWAP, err = d.DecodeFloat64()
 		default:
 			err = d.Skip()
 		}

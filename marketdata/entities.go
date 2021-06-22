@@ -61,12 +61,14 @@ const (
 
 // Bar is an aggregate of trades
 type Bar struct {
-	Open      float64   `json:"o"`
-	High      float64   `json:"h"`
-	Low       float64   `json:"l"`
-	Close     float64   `json:"c"`
-	Volume    uint64    `json:"v"`
-	Timestamp time.Time `json:"t"`
+	Open       float64   `json:"o"`
+	High       float64   `json:"h"`
+	Low        float64   `json:"l"`
+	Close      float64   `json:"c"`
+	Volume     uint64    `json:"v"`
+	Timestamp  time.Time `json:"t"`
+	TradeCount uint64    `json:"n"`
+	VWAP       float64   `json:"vw"`
 }
 
 // BarItem contains a single bar or an error
