@@ -550,15 +550,19 @@ func TestCoreFunctionalityStocks(t *testing.T) {
 	// sending two bars and a quote
 	connection.readCh <- serializeToMsgpack(t, []interface{}{
 		barWithT{
-			Type:   "b",
-			Symbol: "ALPACA",
-			Volume: 322,
+			Type:       "b",
+			Symbol:     "ALPACA",
+			Volume:     322,
+			TradeCount: 3,
+			VWAP:       3.1415,
 		},
 		barWithT{
-			Type:   "d",
-			Symbol: "LPACA",
-			Open:   35.1,
-			High:   36.2,
+			Type:       "d",
+			Symbol:     "LPACA",
+			Open:       35.1,
+			High:       36.2,
+			TradeCount: 25,
+			VWAP:       35.64,
 		},
 		quoteWithT{
 			Type:    "q",
@@ -589,6 +593,8 @@ func TestCoreFunctionalityStocks(t *testing.T) {
 	select {
 	case bar := <-bars:
 		assert.EqualValues(t, 322, bar.Volume)
+		assert.EqualValues(t, 3, bar.TradeCount)
+		assert.EqualValues(t, 3.1415, bar.VWAP)
 	case <-time.After(time.Second):
 		require.Fail(t, "no bar received in time")
 	}
@@ -597,6 +603,8 @@ func TestCoreFunctionalityStocks(t *testing.T) {
 	case dailyBar := <-dailyBars:
 		assert.EqualValues(t, 35.1, dailyBar.Open)
 		assert.EqualValues(t, 36.2, dailyBar.High)
+		assert.EqualValues(t, 25, dailyBar.TradeCount)
+		assert.EqualValues(t, 35.64, dailyBar.VWAP)
 	case <-time.After(time.Second):
 		require.Fail(t, "no daily bar received in time")
 	}
@@ -655,15 +663,19 @@ func TestCoreFunctionalityCrypto(t *testing.T) {
 	// sending two bars and a quote
 	connection.readCh <- serializeToMsgpack(t, []interface{}{
 		cryptoBarWithT{
-			Type:   "b",
-			Symbol: "LTCUSD",
-			Volume: 10,
+			Type:       "b",
+			Symbol:     "LTCUSD",
+			Volume:     10,
+			TradeCount: 3,
+			VWAP:       123.45,
 		},
 		cryptoBarWithT{
-			Type:   "d",
-			Symbol: "LTCUSD",
-			Open:   196.05,
-			High:   196.3,
+			Type:       "d",
+			Symbol:     "LTCUSD",
+			Open:       196.05,
+			High:       196.3,
+			TradeCount: 32,
+			VWAP:       196.21,
 		},
 		cryptoQuoteWithT{
 			Type:     "q",
@@ -685,6 +697,8 @@ func TestCoreFunctionalityCrypto(t *testing.T) {
 	select {
 	case bar := <-bars:
 		assert.EqualValues(t, 10, bar.Volume)
+		assert.EqualValues(t, 3, bar.TradeCount)
+		assert.EqualValues(t, 123.45, bar.VWAP)
 	case <-time.After(time.Second):
 		require.Fail(t, "no bar received in time")
 	}
@@ -693,6 +707,8 @@ func TestCoreFunctionalityCrypto(t *testing.T) {
 	case dailyBar := <-dailyBars:
 		assert.EqualValues(t, 196.05, dailyBar.Open)
 		assert.EqualValues(t, 196.3, dailyBar.High)
+		assert.EqualValues(t, 32, dailyBar.TradeCount)
+		assert.EqualValues(t, 196.21, dailyBar.VWAP)
 	case <-time.After(time.Second):
 		require.Fail(t, "no daily bar received in time")
 	}
