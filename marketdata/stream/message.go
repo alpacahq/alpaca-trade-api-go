@@ -397,6 +397,10 @@ func (h *cryptoMsgHandler) handleDailyBar(d *msgpack.Decoder, n int) error {
 
 func (h *cryptoMsgHandler) handleTradingStatus(d *msgpack.Decoder, n int) error {
 	// should not happen!
+	return discardMapContents(d, n)
+}
+
+func discardMapContents(d *msgpack.Decoder, n int) error {
 	for i := 0; i < n; i++ {
 		// key
 		if _, err := d.DecodeString(); err != nil {

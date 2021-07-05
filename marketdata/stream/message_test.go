@@ -142,7 +142,7 @@ type subWithT struct {
 	NewField uint64 `msgpack:"N"`
 }
 
-var testTime = time.Date(2021, 03, 04, 15, 16, 17, 18, time.UTC)
+var testTime = time.Date(2021, 3, 4, 15, 16, 17, 18, time.UTC)
 
 var testTrade = tradeWithT{
 	Type:       "t",
@@ -178,7 +178,7 @@ var testBar = barWithT{
 	Low:        98.67,
 	Close:      101.1,
 	Volume:     2560,
-	Timestamp:  time.Date(2021, 03, 05, 16, 0, 0, 0, time.UTC),
+	Timestamp:  time.Date(2021, 3, 5, 16, 0, 0, 0, time.UTC),
 	TradeCount: 1234,
 	VWAP:       100.123456,
 }
@@ -190,7 +190,7 @@ var testTradingStatus = tradingStatusWithT{
 	StatusMsg:  "Trading Resumption",
 	ReasonCode: "LUDP",
 	ReasonMsg:  "Volatility Trading Pause",
-	Timestamp:  time.Date(2021, 03, 05, 16, 0, 0, 0, time.UTC),
+	Timestamp:  time.Date(2021, 3, 5, 16, 0, 0, 0, time.UTC),
 	Tape:       "C",
 }
 
@@ -359,6 +359,7 @@ func TestHandleMessagesCrypto(t *testing.T) {
 	b, err := msgpack.Marshal([]interface{}{
 		testOther,
 		testCryptoTrade,
+		testTradingStatus,
 		testCryptoQuote,
 		testCryptoBar,
 		testError,
