@@ -33,7 +33,7 @@ type StreamClient interface {
 // A client can not be reused once it has terminated!
 //
 // SubscribeTo... and UnsubscribeFrom... can be used to modify subscriptions and
-// the handler used to process incoming trades/quotes/bars. These block until an
+// the handler used to process incoming trades/quotes/bars/etc. These block until an
 // irrecoverable error occurs or if they succeed.
 //
 // Note that subscription changes can not be called concurrently.
@@ -49,6 +49,8 @@ type StocksClient interface {
 	UnsubscribeFromDailyBars(symbols ...string) error
 	SubscribeToStatuses(handler func(ts TradingStatus), symbols ...string) error
 	UnsubscribeFromStatuses(symbols ...string) error
+	SubscribeToLULDs(handler func(luld LULD), symbols ...string) error
+	UnsubscribeFromLULDs(symbols ...string) error
 }
 
 // CryptoClient is a client that connects to an Alpaca Data V2 stream server
@@ -158,6 +160,7 @@ func (sc *stocksClient) configure(o stockOptions) {
 	sc.handler.barHandler = o.barHandler
 	sc.handler.dailyBarHandler = o.dailyBarHandler
 	sc.handler.tradingStatusHandler = o.tradingStatusHandler
+	sc.handler.luldHandler = o.luldHandler
 }
 
 func (sc *stocksClient) Connect(ctx context.Context) error {

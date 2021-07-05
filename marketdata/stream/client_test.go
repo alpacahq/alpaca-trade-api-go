@@ -208,6 +208,8 @@ func TestSubscribeBeforeConnectStocks(t *testing.T) {
 	assert.Equal(t, ErrSubscriptionChangeBeforeConnect, err)
 	err = c.SubscribeToStatuses(func(ts TradingStatus) {})
 	assert.Equal(t, ErrSubscriptionChangeBeforeConnect, err)
+	err = c.SubscribeToLULDs(func(luld LULD) {})
+	assert.Equal(t, ErrSubscriptionChangeBeforeConnect, err)
 	err = c.UnsubscribeFromTrades()
 	assert.Equal(t, ErrSubscriptionChangeBeforeConnect, err)
 	err = c.UnsubscribeFromQuotes()
@@ -217,6 +219,8 @@ func TestSubscribeBeforeConnectStocks(t *testing.T) {
 	err = c.UnsubscribeFromDailyBars()
 	assert.Equal(t, ErrSubscriptionChangeBeforeConnect, err)
 	err = c.UnsubscribeFromStatuses()
+	assert.Equal(t, ErrSubscriptionChangeBeforeConnect, err)
+	err = c.UnsubscribeFromLULDs()
 	assert.Equal(t, ErrSubscriptionChangeBeforeConnect, err)
 }
 
@@ -528,6 +532,7 @@ func TestCoreFunctionalityStocks(t *testing.T) {
 		bars:      []string{"ALPACA"},
 		dailyBars: []string{"LPACA"},
 		statuses:  []string{"ALPACA"},
+		lulds:     []string{"ALPACA"},
 	})
 
 	trades := make(chan Trade, 10)
@@ -535,12 +540,14 @@ func TestCoreFunctionalityStocks(t *testing.T) {
 	bars := make(chan Bar, 10)
 	dailyBars := make(chan Bar, 10)
 	tradingStatuses := make(chan TradingStatus, 10)
+	lulds := make(chan LULD, 10)
 	c := NewStocksClient("iex",
 		WithTrades(func(t Trade) { trades <- t }, "ALPACA"),
 		WithQuotes(func(q Quote) { quotes <- q }, "ALPCA"),
 		WithBars(func(b Bar) { bars <- b }, "ALPACA"),
 		WithDailyBars(func(b Bar) { dailyBars <- b }, "LPACA"),
 		WithStatuses(func(ts TradingStatus) { tradingStatuses <- ts }, "ALPACA"),
+		WithLULDs(func(l LULD) { lulds <- l }, "ALPACA"),
 		withConnCreator(func(ctx context.Context, u url.URL) (conn, error) {
 			return connection, nil
 		}))
@@ -592,6 +599,17 @@ func TestCoreFunctionalityStocks(t *testing.T) {
 			Tape:       "C",
 		},
 	})
+	// sending a LULD
+	connection.readCh <- serializeToMsgpack(t, []interface{}{
+		luldWithT{
+			Type:           "l",
+			Symbol:         "ALPACA",
+			LimitUpPrice:   42.1789,
+			LimitDownPrice: 32.2123,
+			Indicator:      "B",
+			Tape:           "C",
+		},
+	})
 
 	// checking contents
 	select {
@@ -632,6 +650,16 @@ func TestCoreFunctionalityStocks(t *testing.T) {
 		assert.Equal(t, "T12", ts.ReasonCode)
 	case <-time.After(time.Second):
 		require.Fail(t, "no trading status received in time")
+	}
+
+	select {
+	case l := <-lulds:
+		assert.EqualValues(t, 42.1789, l.LimitUpPrice)
+		assert.EqualValues(t, 32.2123, l.LimitDownPrice)
+		assert.Equal(t, "B", l.Indicator)
+		assert.Equal(t, "C", l.Tape)
+	case <-time.After(time.Second):
+		require.Fail(t, "no LULD received in time")
 	}
 }
 
@@ -764,6 +792,7 @@ func writeInitialFlowMessagesToConn(
 			Bars:      sub.bars,
 			DailyBars: sub.dailyBars,
 			Statuses:  sub.statuses,
+			LULDs:     sub.lulds,
 		},
 	})
 }
@@ -789,4 +818,5 @@ func checkInitialMessagesSentByClient(
 	require.ElementsMatch(t, sub.bars, s["bars"])
 	require.ElementsMatch(t, sub.dailyBars, s["dailyBars"])
 	require.ElementsMatch(t, sub.statuses, s["statuses"])
+	require.ElementsMatch(t, sub.lulds, s["lulds"])
 }

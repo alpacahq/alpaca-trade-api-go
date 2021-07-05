@@ -71,6 +71,19 @@ type tradingStatusWithT struct {
 	NewField uint64 `msgpack:"n"`
 }
 
+// luldWithT is the incoming LULD message that also contains the T type key
+type luldWithT struct {
+	Type           string    `json:"T" msgpack:"T"`
+	Symbol         string    `json:"S" msgpack:"S"`
+	LimitUpPrice   float64   `json:"u" msgpack:"u"`
+	LimitDownPrice float64   `json:"d" msgpack:"d"`
+	Indicator      string    `json:"i" msgpack:"i"`
+	Timestamp      time.Time `json:"t" msgpack:"t"`
+	Tape           string    `json:"z" msgpack:"z"`
+	// NewField is for testing correct handling of added fields in the future
+	NewField uint64 `msgpack:"n"`
+}
+
 // cryptoTradeWithT is the incoming crypto trade message that also contains the T type key
 type cryptoTradeWithT struct {
 	Type      string    `msgpack:"T"`
@@ -138,6 +151,7 @@ type subWithT struct {
 	Bars      []string `msgpack:"bars"`
 	DailyBars []string `msgpack:"dailyBars"`
 	Statuses  []string `msgpack:"statuses"`
+	LULDs     []string `msgpack:"lulds"`
 	// NewField is for testing correct handling of added fields in the future
 	NewField uint64 `msgpack:"N"`
 }
@@ -192,6 +206,16 @@ var testTradingStatus = tradingStatusWithT{
 	ReasonMsg:  "Volatility Trading Pause",
 	Timestamp:  time.Date(2021, 3, 5, 16, 0, 0, 0, time.UTC),
 	Tape:       "C",
+}
+
+var testLULD = luldWithT{
+	Type:           "l",
+	Symbol:         "TEST",
+	LimitUpPrice:   4.21,
+	LimitDownPrice: 3.22,
+	Indicator:      "B",
+	Timestamp:      time.Date(2021, 7, 5, 13, 32, 0, 0, time.UTC),
+	Tape:           "C",
 }
 
 var testCryptoTrade = cryptoTradeWithT{
@@ -259,6 +283,7 @@ func TestHandleMessagesStocks(t *testing.T) {
 		testError,
 		testSubMessage1,
 		testSubMessage2,
+		testLULD,
 	})
 	require.NoError(t, err)
 
@@ -301,6 +326,10 @@ func TestHandleMessagesStocks(t *testing.T) {
 	h.tradingStatusHandler = func(ts TradingStatus) {
 		tradingStatus = ts
 	}
+	var luld LULD
+	h.luldHandler = func(l LULD) {
+		luld = l
+	}
 
 	err = c.handleMessage(b)
 	require.NoError(t, err)
@@ -321,6 +350,13 @@ func TestHandleMessagesStocks(t *testing.T) {
 	assert.Equal(t, testTradingStatus.ReasonMsg, tradingStatus.ReasonMsg)
 	assert.True(t, testTradingStatus.Timestamp.Equal(tradingStatus.Timestamp))
 	assert.Equal(t, testTradingStatus.Tape, tradingStatus.Tape)
+
+	assert.Equal(t, testLULD.Symbol, luld.Symbol)
+	assert.EqualValues(t, testLULD.LimitUpPrice, luld.LimitUpPrice)
+	assert.EqualValues(t, testLULD.LimitDownPrice, luld.LimitDownPrice)
+	assert.Equal(t, testLULD.Indicator, luld.Indicator)
+	assert.True(t, luld.Timestamp.Equal(testLULD.Timestamp))
+	assert.Equal(t, testLULD.Tape, luld.Tape)
 
 	assert.EqualValues(t, testQuote.Symbol, quote.Symbol)
 	assert.EqualValues(t, testQuote.BidExchange, quote.BidExchange)
@@ -359,6 +395,7 @@ func TestHandleMessagesCrypto(t *testing.T) {
 	b, err := msgpack.Marshal([]interface{}{
 		testOther,
 		testCryptoTrade,
+		testLULD,
 		testTradingStatus,
 		testCryptoQuote,
 		testCryptoBar,

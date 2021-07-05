@@ -52,6 +52,16 @@ type TradingStatus struct {
 	Tape       string
 }
 
+// LULD is a Limit Up Limit Down message
+type LULD struct {
+	Symbol         string
+	LimitUpPrice   float64
+	LimitDownPrice float64
+	Indicator      string
+	Timestamp      time.Time
+	Tape           string
+}
+
 type CryptoTrade struct {
 	Symbol    string
 	Price     float64
