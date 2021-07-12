@@ -15,6 +15,7 @@ type msgHandler interface {
 	handleBar(d *msgpack.Decoder, n int) error
 	handleDailyBar(d *msgpack.Decoder, n int) error
 	handleTradingStatus(d *msgpack.Decoder, n int) error
+	handleLULD(d *msgpack.Decoder, n int) error
 }
 
 func (c *client) handleMessage(b []byte) error {
@@ -63,6 +64,8 @@ func (c *client) handleMessage(b []byte) error {
 			err = c.handler.handleDailyBar(d, n)
 		case "s":
 			err = c.handler.handleTradingStatus(d, n)
+		case "l":
+			err = c.handler.handleLULD(d, n)
 		case "subscription":
 			err = c.handleSubscriptionMessage(d, n)
 		case "error":
@@ -85,6 +88,7 @@ type stocksMsgHandler struct {
 	barHandler           func(bar Bar)
 	dailyBarHandler      func(bar Bar)
 	tradingStatusHandler func(ts TradingStatus)
+	luldHandler          func(luld LULD)
 }
 
 var _ msgHandler = (*stocksMsgHandler)(nil)
@@ -265,6 +269,40 @@ func (h *stocksMsgHandler) handleTradingStatus(d *msgpack.Decoder, n int) error 
 	return nil
 }
 
+func (h *stocksMsgHandler) handleLULD(d *msgpack.Decoder, n int) error {
+	luld := LULD{}
+	for i := 0; i < n; i++ {
+		key, err := d.DecodeString()
+		if err != nil {
+			return err
+		}
+		switch key {
+		case "S":
+			luld.Symbol, err = d.DecodeString()
+		case "u":
+			luld.LimitUpPrice, err = d.DecodeFloat64()
+		case "d":
+			luld.LimitDownPrice, err = d.DecodeFloat64()
+		case "i":
+			luld.Indicator, err = d.DecodeString()
+		case "t":
+			luld.Timestamp, err = d.DecodeTime()
+		case "z":
+			luld.Tape, err = d.DecodeString()
+		default:
+			err = d.Skip()
+		}
+		if err != nil {
+			return err
+		}
+	}
+	h.mu.RLock()
+	handler := h.luldHandler
+	h.mu.RUnlock()
+	handler(luld)
+	return nil
+}
+
 type cryptoMsgHandler struct {
 	mu              sync.RWMutex
 	tradeHandler    func(trade CryptoTrade)
@@ -397,6 +435,15 @@ func (h *cryptoMsgHandler) handleDailyBar(d *msgpack.Decoder, n int) error {
 
 func (h *cryptoMsgHandler) handleTradingStatus(d *msgpack.Decoder, n int) error {
 	// should not happen!
+	return discardMapContents(d, n)
+}
+
+func (h *cryptoMsgHandler) handleLULD(d *msgpack.Decoder, n int) error {
+	// should not happen!
+	return discardMapContents(d, n)
+}
+
+func discardMapContents(d *msgpack.Decoder, n int) error {
 	for i := 0; i < n; i++ {
 		// key
 		if _, err := d.DecodeString(); err != nil {
@@ -470,6 +517,7 @@ var subMessageHandler = func(c *client, s subscriptions) error {
 	c.sub.bars = s.bars
 	c.sub.dailyBars = s.dailyBars
 	c.sub.statuses = s.statuses
+	c.sub.lulds = s.lulds
 	if c.pendingSubChange != nil {
 		psc := c.pendingSubChange
 		psc.result <- nil
@@ -497,6 +545,8 @@ func (c *client) handleSubscriptionMessage(d *msgpack.Decoder, n int) error {
 			s.dailyBars, err = decodeStringSlice(d)
 		case "statuses":
 			s.statuses, err = decodeStringSlice(d)
+		case "lulds":
+			s.lulds, err = decodeStringSlice(d)
 		default:
 			err = d.Skip()
 		}
