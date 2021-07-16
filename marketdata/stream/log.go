@@ -2,34 +2,44 @@ package stream
 
 import (
 	"log"
-	"os"
 )
 
+// Logger wraps methods for leveled, formatted logging.
 type Logger interface {
 	Infof(format string, v ...interface{})
 	Warnf(format string, v ...interface{})
 	Errorf(format string, v ...interface{})
 }
 
-type stdLog struct {
-	logger *log.Logger
+type defaultLogger struct{}
+
+func (*defaultLogger) Infof(format string, v ...interface{}) {
+	log.Printf("INFO "+format, v...)
+}
+func (*defaultLogger) Warnf(format string, v ...interface{}) {
+	log.Printf("WARN "+format, v...)
+}
+func (*defaultLogger) Errorf(format string, v ...interface{}) {
+	log.Printf("ERROR "+format, v...)
 }
 
-var _ Logger = (*stdLog)(nil)
-
-func (s *stdLog) Infof(format string, v ...interface{}) {
-	// NOTE: there is no concept of levels in log
+// DefaultLogger returns a Logger that uses the standard go log package to
+// print leveled logs to the standard error.
+func DefaultLogger() Logger {
+	return &defaultLogger{}
 }
 
-func (s *stdLog) Warnf(format string, v ...interface{}) {
-	// NOTE: there is no concept of levels in log
+type errorOnlyLogger struct{}
+
+var _ Logger = (*errorOnlyLogger)(nil)
+
+func (*errorOnlyLogger) Infof(format string, v ...interface{}) {}
+func (*errorOnlyLogger) Warnf(format string, v ...interface{}) {}
+func (*errorOnlyLogger) Errorf(format string, v ...interface{}) {
+	log.Printf(format, v...)
 }
 
-func (s *stdLog) Errorf(format string, v ...interface{}) {
-	s.logger.Printf(format, v...)
-}
-
-func newStdLog() Logger {
-	// Note log.Default() is also available in go 1.16
-	return &stdLog{logger: log.New(os.Stderr, "", log.LstdFlags)}
+// ErrorOnlyLogger returns a Logger that only logs errors to the standard error.
+func ErrorOnlyLogger() Logger {
+	return &errorOnlyLogger{}
 }

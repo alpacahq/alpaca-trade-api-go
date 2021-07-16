@@ -37,7 +37,7 @@ func (c *client) initialize(ctx context.Context) error {
 				n = 10
 			}
 			sleepDuration := 500 * time.Millisecond * time.Duration(authRetryDelayMultiplier*n)
-			c.logger.Infof("datav2stream: retring auth in %s, attempt %d/%d", sleepDuration, i+1, authRetryCount+1)
+			c.logger.Infof("datav2stream: retrying auth in %s, attempt %d/%d", sleepDuration, i+1, authRetryCount+1)
 			time.Sleep(sleepDuration)
 		}
 		ctxWithTimeout, cancel := context.WithTimeout(ctx, initializeTimeout)
@@ -55,6 +55,7 @@ func (c *client) initialize(ctx context.Context) error {
 		if !isErrorRetriable(retryErr) {
 			return retryErr
 		}
+		c.logger.Infof("datav2stream: auth error: %s", retryErr)
 	}
 
 	if retryErr != nil {
@@ -127,6 +128,10 @@ var ErrConnectionLimitExceeded = errors.New("connection limit exceeded")
 // ErrInvalidCredentials is returned when invalid credentials have been sent by the user
 var ErrInvalidCredentials = errors.New("invalid credentials")
 
+// ErrInsufficientSubscription is returned when the user does not have proper
+// subscription for the requested feed (e.g. SIP)
+var ErrInsufficientSubscription = errors.New("insufficient subscription")
+
 // isErrorRetriable returns whether the error is considered retriable during the initialization flow
 func isErrorRetriable(err error) bool {
 	return errors.Is(err, ErrConnectionLimitExceeded)
@@ -149,21 +154,22 @@ func (c *client) readAuthResponse(ctx context.Context) error {
 		return ErrBadAuthResponse
 	}
 
-	// A previous connection may be "stuck" on the server so we may run into
-	// `[{"T":"error","code":406,"msg":"connection limit exceeded"}]`
-	if resps[0].T == "error" {
-		err := fmt.Errorf("auth: error from server: %s", resps[0].Msg)
-		if resps[0].Code == 406 {
-			return ErrConnectionLimitExceeded
-		}
-		// invalid credentials
-		// [{"T":"error","code":402,"msg":"auth failed"}]
-		if resps[0].Code == 402 {
+	resp := resps[0]
+
+	if resp.T == "error" {
+		switch resp.Code {
+		case 402:
 			return ErrInvalidCredentials
+		case 406:
+			// A previous connection may be "stuck" on the server so we may run into
+			// `[{"T":"error","code":406,"msg":"connection limit exceeded"}]`
+			return ErrConnectionLimitExceeded
+		case 409:
+			return ErrInsufficientSubscription
 		}
-		return err
+		return errors.New(resp.Msg)
 	}
-	if resps[0].T != "success" || resps[0].Msg != "authenticated" {
+	if resp.T != "success" || resp.Msg != "authenticated" {
 		return ErrBadAuthResponse
 	}
 

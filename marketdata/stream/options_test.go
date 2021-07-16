@@ -1,7 +1,6 @@
 package stream
 
 import (
-	"log"
 	"os"
 	"testing"
 	"time"
@@ -28,7 +27,7 @@ func TestDefaultOptions(t *testing.T) {
 
 			o := defaultStockOptions()
 
-			assert.EqualValues(t, newStdLog(), o.logger)
+			assert.EqualValues(t, DefaultLogger(), o.logger)
 			assert.EqualValues(t, test.expectedBaseURL, o.baseURL)
 			assert.EqualValues(t, "testkey", o.key)
 			assert.EqualValues(t, "testsecret", o.secret)
@@ -50,7 +49,7 @@ func TestConfigureStocks(t *testing.T) {
 	// NOTE: we are also testing the various options and their apply
 	// even though the test is testing multiple things they're closely related
 
-	logger := &stdLog{logger: log.New(os.Stdout, "TEST", log.LUTC)}
+	logger := ErrorOnlyLogger()
 	c := NewStocksClient("iex",
 		WithLogger(logger),
 		WithBaseURL("testhost"),

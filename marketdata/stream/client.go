@@ -365,7 +365,7 @@ func (c *client) maintainConnection(ctx context.Context, u url.URL, initialResul
 // isErrorIrrecoverable returns whether the error is irrecoverable and further retries should
 // not take place
 func isErrorIrrecoverable(err error) bool {
-	return errors.Is(err, ErrInvalidCredentials)
+	return errors.Is(err, ErrInvalidCredentials) || errors.Is(err, ErrInsufficientSubscription)
 }
 
 var newPingTicker = func() ticker {
