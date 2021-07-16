@@ -116,11 +116,6 @@ func newClient() *client {
 
 func (c *client) configure(o options) {
 	c.logger = o.logger
-	if _, ok := o.logger.(*stdLog); ok {
-		msg := "WARNING: you are using the standard logger, which will only print ERROR messages. " +
-			"To see INFO and WARN messages as well, use the WithLogger option with a proper logger, e.g. zap!"
-		c.logger.Errorf(msg)
-	}
 	c.baseURL = o.baseURL
 	c.key = o.key
 	c.secret = o.secret

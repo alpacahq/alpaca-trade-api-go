@@ -133,7 +133,7 @@ func defaultStockOptions() *stockOptions {
 
 	return &stockOptions{
 		options: options{
-			logger:         newStdLog(),
+			logger:         DefaultLogger(),
 			baseURL:        baseURL,
 			key:            common.Credentials().ID,
 			secret:         common.Credentials().Secret,
@@ -238,7 +238,7 @@ func defaultCryptoOptions() *cryptoOptions {
 
 	return &cryptoOptions{
 		options: options{
-			logger:         newStdLog(),
+			logger:         DefaultLogger(),
 			baseURL:        baseURL,
 			key:            common.Credentials().ID,
 			secret:         common.Credentials().Secret,

@@ -66,7 +66,7 @@ func TestInitializeAuthError(t *testing.T) {
 func TestInitializeAuthRetryFails(t *testing.T) {
 	conn := newMockConn()
 	defer conn.close()
-	c := client{conn: conn, key: "key", secret: "secret", logger: newStdLog()}
+	c := client{conn: conn, key: "key", secret: "secret", logger: DefaultLogger()}
 	ordm := authRetryDelayMultiplier
 	arc := authRetryCount
 	defer func() {
