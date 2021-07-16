@@ -203,6 +203,7 @@ func (c *client) readSubResponse(ctx context.Context) error {
 		Bars      []string `msgpack:"bars"`
 		DailyBars []string `msgpack:"dailyBars"`
 		Statuses  []string `msgpack:"statuses"`
+		LULDs     []string `msgpack:"lulds"`
 	}
 	if err := msgpack.Unmarshal(b, &resps); err != nil {
 		return err
@@ -223,5 +224,6 @@ func (c *client) readSubResponse(ctx context.Context) error {
 	c.sub.bars = resps[0].Bars
 	c.sub.dailyBars = resps[0].DailyBars
 	c.sub.statuses = resps[0].Statuses
+	c.sub.lulds = resps[0].LULDs
 	return nil
 }

@@ -122,6 +122,7 @@ func TestInitializeAuthRetrySucceeds(t *testing.T) {
 	bars := []string{"ALP", "ACA"}
 	dailyBars := []string{"CLDR"}
 	statuses := []string{"*"}
+	lulds := []string{"AL", "PACA", "ALP"}
 	c := NewStocksClient(
 		"sip",
 		WithCredentials("testkey", "testsecret"),
@@ -130,6 +131,7 @@ func TestInitializeAuthRetrySucceeds(t *testing.T) {
 		WithBars(func(b Bar) {}, bars...),
 		WithDailyBars(func(db Bar) {}, dailyBars...),
 		WithStatuses(func(ts TradingStatus) {}, statuses...),
+		WithLULDs(func(l LULD) {}, lulds...),
 	).(*stocksClient)
 	c.conn = conn
 	ordm := authRetryDelayMultiplier
@@ -185,6 +187,7 @@ func TestInitializeAuthRetrySucceeds(t *testing.T) {
 			"bars":      bars,
 			"dailyBars": dailyBars,
 			"statuses":  statuses,
+			"lulds":     lulds,
 		},
 	})
 
@@ -194,6 +197,7 @@ func TestInitializeAuthRetrySucceeds(t *testing.T) {
 	assert.ElementsMatch(t, bars, c.sub.bars)
 	assert.ElementsMatch(t, dailyBars, c.sub.dailyBars)
 	assert.ElementsMatch(t, statuses, c.sub.statuses)
+	assert.ElementsMatch(t, lulds, c.sub.lulds)
 
 	// checking whether the client sent the proper messages
 	// First auth
@@ -215,6 +219,7 @@ func TestInitializeAuthRetrySucceeds(t *testing.T) {
 	assert.ElementsMatch(t, bars, sub["bars"])
 	assert.ElementsMatch(t, dailyBars, sub["dailyBars"])
 	assert.ElementsMatch(t, statuses, sub["statuses"])
+	assert.ElementsMatch(t, lulds, sub["lulds"])
 }
 
 func TestInitializeSubError(t *testing.T) {
@@ -548,15 +553,17 @@ func TestWriteSubContents(t *testing.T) {
 		bars      []string
 		dailyBars []string
 		statuses  []string
+		lulds     []string
 	}{
-		{"empty", []string{}, []string{}, []string{}, []string{}, []string{}},
-		{"trades_only", []string{"ALPACA"}, []string{}, []string{}, []string{}, []string{}},
-		{"quotes_only", []string{}, []string{"AL", "PACA"}, []string{}, []string{}, []string{}},
-		{"bars_only", []string{}, []string{}, []string{"A", "L", "PACA"}, []string{}, []string{}},
-		{"daily_bars_only", []string{}, []string{}, []string{}, []string{"LPACA"}, []string{}},
-		{"daily_bars_only", []string{}, []string{}, []string{}, []string{}, []string{"ALPACA"}},
-		{"mix", []string{"ALPACA"}, []string{"A", "L", "PACA"}, []string{}, []string{}, []string{"*"}},
-		{"complete", []string{"ALPACA"}, []string{"ALPACA"}, []string{"ALPACA"}, []string{"ALPACA"}, []string{"ALPACA"}},
+		{"empty", []string{}, []string{}, []string{}, []string{}, []string{}, []string{}},
+		{"trades_only", []string{"ALPACA"}, []string{}, []string{}, []string{}, []string{}, []string{}},
+		{"quotes_only", []string{}, []string{"AL", "PACA"}, []string{}, []string{}, []string{}, []string{}},
+		{"bars_only", []string{}, []string{}, []string{"A", "L", "PACA"}, []string{}, []string{}, []string{}},
+		{"daily_bars_only", []string{}, []string{}, []string{}, []string{"LPACA"}, []string{}, []string{}},
+		{"statuses_only", []string{}, []string{}, []string{}, []string{}, []string{"ALP", "ACA"}, []string{}},
+		{"lulds_only", []string{}, []string{}, []string{}, []string{}, []string{}, []string{"ALPA", "CA"}},
+		{"mix", []string{"ALPACA"}, []string{"A", "L", "PACA"}, []string{}, []string{}, []string{"*"}, []string{}},
+		{"complete", []string{"ALPACA"}, []string{"ALPACA"}, []string{"ALPACA"}, []string{"ALPACA"}, []string{"ALPACA"}, []string{"ALPCA"}},
 	}
 
 	for _, test := range tests {
@@ -571,6 +578,7 @@ func TestWriteSubContents(t *testing.T) {
 					bars:      test.bars,
 					dailyBars: test.dailyBars,
 					statuses:  test.statuses,
+					lulds:     test.lulds,
 				},
 			}
 
@@ -585,6 +593,7 @@ func TestWriteSubContents(t *testing.T) {
 				Bars      []string `msgpack:"bars"`
 				DailyBars []string `msgpack:"dailyBars"`
 				Statuses  []string `msgpack:"statuses"`
+				LULDs     []string `msgpack:"lulds"`
 			}
 			err = msgpack.Unmarshal(msg, &got)
 			require.NoError(t, err)
@@ -594,6 +603,7 @@ func TestWriteSubContents(t *testing.T) {
 			assert.ElementsMatch(t, test.bars, got.Bars)
 			assert.ElementsMatch(t, test.dailyBars, got.DailyBars)
 			assert.ElementsMatch(t, test.statuses, got.Statuses)
+			assert.ElementsMatch(t, test.lulds, got.LULDs)
 		})
 	}
 }

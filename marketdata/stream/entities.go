@@ -30,13 +30,15 @@ type Quote struct {
 
 // Bar is an aggregate of trades
 type Bar struct {
-	Symbol    string
-	Open      float64
-	High      float64
-	Low       float64
-	Close     float64
-	Volume    uint64
-	Timestamp time.Time
+	Symbol     string
+	Open       float64
+	High       float64
+	Low        float64
+	Close      float64
+	Volume     uint64
+	Timestamp  time.Time
+	TradeCount uint64
+	VWAP       float64
 }
 
 // TradingStatus is a halt or resume status for a security
@@ -48,6 +50,16 @@ type TradingStatus struct {
 	ReasonMsg  string
 	Timestamp  time.Time
 	Tape       string
+}
+
+// LULD is a Limit Up Limit Down message
+type LULD struct {
+	Symbol         string
+	LimitUpPrice   float64
+	LimitDownPrice float64
+	Indicator      string
+	Timestamp      time.Time
+	Tape           string
 }
 
 type CryptoTrade struct {
@@ -65,13 +77,15 @@ type CryptoQuote struct {
 }
 
 type CryptoBar struct {
-	Symbol    string
-	Open      float64
-	High      float64
-	Low       float64
-	Close     float64
-	Volume    float64
-	Timestamp time.Time
+	Symbol     string
+	Open       float64
+	High       float64
+	Low        float64
+	Close      float64
+	Volume     float64
+	Timestamp  time.Time
+	TradeCount uint64
+	VWAP       float64
 }
 
 // errorMessage is an error received from the server

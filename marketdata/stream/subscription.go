@@ -68,6 +68,13 @@ func (sc *stocksClient) SubscribeToStatuses(handler func(TradingStatus), symbols
 	return sc.client.handleSubChange(true, newSubChangeRequest(), subscriptions{statuses: symbols})
 }
 
+func (sc *stocksClient) SubscribeToLULDs(handler func(LULD), symbols ...string) error {
+	sc.handler.mu.Lock()
+	sc.handler.luldHandler = handler
+	sc.handler.mu.Unlock()
+	return sc.client.handleSubChange(true, newSubChangeRequest(), subscriptions{lulds: symbols})
+}
+
 func (sc *stocksClient) UnsubscribeFromTrades(symbols ...string) error {
 	return sc.handleSubChange(false, newSubChangeRequest(), subscriptions{trades: symbols})
 }
@@ -86,6 +93,10 @@ func (sc *stocksClient) UnsubscribeFromDailyBars(symbols ...string) error {
 
 func (sc *stocksClient) UnsubscribeFromStatuses(symbols ...string) error {
 	return sc.handleSubChange(false, newSubChangeRequest(), subscriptions{statuses: symbols})
+}
+
+func (sc *stocksClient) UnsubscribeFromLULDs(symbols ...string) error {
+	return sc.handleSubChange(false, newSubChangeRequest(), subscriptions{lulds: symbols})
 }
 
 func (cc *cryptoClient) SubscribeToTrades(handler func(CryptoTrade), symbols ...string) error {
@@ -138,11 +149,12 @@ type subscriptions struct {
 	bars      []string
 	dailyBars []string
 	statuses  []string
+	lulds     []string
 }
 
 func (s subscriptions) noSubscribeCallNecessary() bool {
 	return len(s.trades) == 0 && len(s.quotes) == 0 && len(s.bars) == 0 &&
-		len(s.dailyBars) == 0 && len(s.statuses) == 0
+		len(s.dailyBars) == 0 && len(s.statuses) == 0 && len(s.lulds) == 0
 }
 
 func (c *client) handleSubChange(
@@ -194,5 +206,6 @@ func getSubChangeMessage(subscribe bool, changes subscriptions) ([]byte, error) 
 		"bars":      changes.bars,
 		"dailyBars": changes.dailyBars,
 		"statuses":  changes.statuses,
+		"lulds":     changes.lulds,
 	})
 }

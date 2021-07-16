@@ -43,16 +43,18 @@ type quoteWithT struct {
 
 // barWithT is the incoming bar message that also contains the T type key
 type barWithT struct {
-	Type      string    `msgpack:"T"`
-	Symbol    string    `msgpack:"S"`
-	Open      float64   `msgpack:"o"`
-	High      float64   `msgpack:"h"`
-	Low       float64   `msgpack:"l"`
-	Close     float64   `msgpack:"c"`
-	Volume    uint64    `msgpack:"v"`
-	Timestamp time.Time `msgpack:"t"`
+	Type       string    `msgpack:"T"`
+	Symbol     string    `msgpack:"S"`
+	Open       float64   `msgpack:"o"`
+	High       float64   `msgpack:"h"`
+	Low        float64   `msgpack:"l"`
+	Close      float64   `msgpack:"c"`
+	Volume     uint64    `msgpack:"v"`
+	Timestamp  time.Time `msgpack:"t"`
+	TradeCount uint64    `msgpack:"n"`
+	VWAP       float64   `msgpack:"vw"`
 	// NewField is for testing correct handling of added fields in the future
-	NewField uint64 `msgpack:"n"`
+	NewField uint64 `msgpack:"new"`
 }
 
 // tradingStatusWithT is the incoming trading status message that also contains the T type key
@@ -65,6 +67,19 @@ type tradingStatusWithT struct {
 	ReasonMsg  string    `msgpack:"rm"`
 	Timestamp  time.Time `msgpack:"t"`
 	Tape       string    `msgpack:"z"`
+	// NewField is for testing correct handling of added fields in the future
+	NewField uint64 `msgpack:"n"`
+}
+
+// luldWithT is the incoming LULD message that also contains the T type key
+type luldWithT struct {
+	Type           string    `json:"T" msgpack:"T"`
+	Symbol         string    `json:"S" msgpack:"S"`
+	LimitUpPrice   float64   `json:"u" msgpack:"u"`
+	LimitDownPrice float64   `json:"d" msgpack:"d"`
+	Indicator      string    `json:"i" msgpack:"i"`
+	Timestamp      time.Time `json:"t" msgpack:"t"`
+	Tape           string    `json:"z" msgpack:"z"`
 	// NewField is for testing correct handling of added fields in the future
 	NewField uint64 `msgpack:"n"`
 }
@@ -93,16 +108,18 @@ type cryptoQuoteWithT struct {
 
 // cryptoBarWithT is the incoming crypto bar message that also contains the T type key
 type cryptoBarWithT struct {
-	Type      string    `msgpack:"T"`
-	Symbol    string    `msgpack:"S"`
-	Open      float64   `msgpack:"o"`
-	High      float64   `msgpack:"h"`
-	Low       float64   `msgpack:"l"`
-	Close     float64   `msgpack:"c"`
-	Volume    float64   `msgpack:"v"`
-	Timestamp time.Time `msgpack:"t"`
+	Type       string    `msgpack:"T"`
+	Symbol     string    `msgpack:"S"`
+	Open       float64   `msgpack:"o"`
+	High       float64   `msgpack:"h"`
+	Low        float64   `msgpack:"l"`
+	Close      float64   `msgpack:"c"`
+	Volume     float64   `msgpack:"v"`
+	Timestamp  time.Time `msgpack:"t"`
+	TradeCount uint64    `msgpack:"n"`
+	VWAP       float64   `msgpack:"vw"`
 	// NewField is for testing correct handling of added fields in the future
-	NewField uint64 `msgpack:"n"`
+	NewField uint64 `msgpack:"new"`
 }
 
 type other struct {
@@ -134,11 +151,12 @@ type subWithT struct {
 	Bars      []string `msgpack:"bars"`
 	DailyBars []string `msgpack:"dailyBars"`
 	Statuses  []string `msgpack:"statuses"`
+	LULDs     []string `msgpack:"lulds"`
 	// NewField is for testing correct handling of added fields in the future
 	NewField uint64 `msgpack:"N"`
 }
 
-var testTime = time.Date(2021, 03, 04, 15, 16, 17, 18, time.UTC)
+var testTime = time.Date(2021, 3, 4, 15, 16, 17, 18, time.UTC)
 
 var testTrade = tradeWithT{
 	Type:       "t",
@@ -167,14 +185,16 @@ var testQuote = quoteWithT{
 }
 
 var testBar = barWithT{
-	Type:      "b",
-	Symbol:    "TEST",
-	Open:      100,
-	High:      101.2,
-	Low:       98.67,
-	Close:     101.1,
-	Volume:    2560,
-	Timestamp: time.Date(2021, 03, 05, 16, 0, 0, 0, time.UTC),
+	Type:       "b",
+	Symbol:     "TEST",
+	Open:       100,
+	High:       101.2,
+	Low:        98.67,
+	Close:      101.1,
+	Volume:     2560,
+	Timestamp:  time.Date(2021, 3, 5, 16, 0, 0, 0, time.UTC),
+	TradeCount: 1234,
+	VWAP:       100.123456,
 }
 
 var testTradingStatus = tradingStatusWithT{
@@ -184,8 +204,18 @@ var testTradingStatus = tradingStatusWithT{
 	StatusMsg:  "Trading Resumption",
 	ReasonCode: "LUDP",
 	ReasonMsg:  "Volatility Trading Pause",
-	Timestamp:  time.Date(2021, 03, 05, 16, 0, 0, 0, time.UTC),
+	Timestamp:  time.Date(2021, 3, 5, 16, 0, 0, 0, time.UTC),
 	Tape:       "C",
+}
+
+var testLULD = luldWithT{
+	Type:           "l",
+	Symbol:         "TEST",
+	LimitUpPrice:   4.21,
+	LimitDownPrice: 3.22,
+	Indicator:      "B",
+	Timestamp:      time.Date(2021, 7, 5, 13, 32, 0, 0, time.UTC),
+	Tape:           "C",
 }
 
 var testCryptoTrade = cryptoTradeWithT{
@@ -205,14 +235,16 @@ var testCryptoQuote = cryptoQuoteWithT{
 }
 
 var testCryptoBar = cryptoBarWithT{
-	Type:      "b",
-	Symbol:    "TEST",
-	Open:      100,
-	High:      101.2,
-	Low:       98.67,
-	Close:     101.1,
-	Volume:    2560,
-	Timestamp: time.Date(2021, 03, 05, 16, 0, 0, 0, time.UTC),
+	Type:       "b",
+	Symbol:     "TEST",
+	Open:       100,
+	High:       101.2,
+	Low:        98.67,
+	Close:      101.1,
+	Volume:     2560,
+	Timestamp:  time.Date(2021, 03, 05, 16, 0, 0, 0, time.UTC),
+	TradeCount: 1234,
+	VWAP:       100.123456,
 }
 
 var testOther = other{
@@ -251,6 +283,7 @@ func TestHandleMessagesStocks(t *testing.T) {
 		testError,
 		testSubMessage1,
 		testSubMessage2,
+		testLULD,
 	})
 	require.NoError(t, err)
 
@@ -293,6 +326,10 @@ func TestHandleMessagesStocks(t *testing.T) {
 	h.tradingStatusHandler = func(ts TradingStatus) {
 		tradingStatus = ts
 	}
+	var luld LULD
+	h.luldHandler = func(l LULD) {
+		luld = l
+	}
 
 	err = c.handleMessage(b)
 	require.NoError(t, err)
@@ -314,6 +351,13 @@ func TestHandleMessagesStocks(t *testing.T) {
 	assert.True(t, testTradingStatus.Timestamp.Equal(tradingStatus.Timestamp))
 	assert.Equal(t, testTradingStatus.Tape, tradingStatus.Tape)
 
+	assert.Equal(t, testLULD.Symbol, luld.Symbol)
+	assert.EqualValues(t, testLULD.LimitUpPrice, luld.LimitUpPrice)
+	assert.EqualValues(t, testLULD.LimitDownPrice, luld.LimitDownPrice)
+	assert.Equal(t, testLULD.Indicator, luld.Indicator)
+	assert.True(t, luld.Timestamp.Equal(testLULD.Timestamp))
+	assert.Equal(t, testLULD.Tape, luld.Tape)
+
 	assert.EqualValues(t, testQuote.Symbol, quote.Symbol)
 	assert.EqualValues(t, testQuote.BidExchange, quote.BidExchange)
 	assert.EqualValues(t, testQuote.BidPrice, quote.BidPrice)
@@ -331,6 +375,8 @@ func TestHandleMessagesStocks(t *testing.T) {
 	assert.EqualValues(t, testBar.Low, bar.Low)
 	assert.EqualValues(t, testBar.Close, bar.Close)
 	assert.EqualValues(t, testBar.Volume, bar.Volume)
+	assert.EqualValues(t, testBar.TradeCount, bar.TradeCount)
+	assert.EqualValues(t, testBar.VWAP, bar.VWAP)
 
 	assert.EqualValues(t, testError.Code, em.code)
 	assert.EqualValues(t, testError.Msg, em.msg)
@@ -349,6 +395,8 @@ func TestHandleMessagesCrypto(t *testing.T) {
 	b, err := msgpack.Marshal([]interface{}{
 		testOther,
 		testCryptoTrade,
+		testLULD,
+		testTradingStatus,
 		testCryptoQuote,
 		testCryptoBar,
 		testError,
@@ -412,6 +460,8 @@ func TestHandleMessagesCrypto(t *testing.T) {
 	assert.EqualValues(t, testCryptoBar.Low, bar.Low)
 	assert.EqualValues(t, testCryptoBar.Close, bar.Close)
 	assert.EqualValues(t, testCryptoBar.Volume, bar.Volume)
+	assert.EqualValues(t, testCryptoBar.TradeCount, bar.TradeCount)
+	assert.EqualValues(t, testCryptoBar.VWAP, bar.VWAP)
 
 	assert.EqualValues(t, testError.Code, em.code)
 	assert.EqualValues(t, testError.Msg, em.msg)
