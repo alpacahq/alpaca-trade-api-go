@@ -55,7 +55,7 @@ func (c *client) initialize(ctx context.Context) error {
 		if !isErrorRetriable(retryErr) {
 			return retryErr
 		}
-		c.logger.Infof("datav2stream: auth error: %s, will retry", retryErr)
+		c.logger.Infof("datav2stream: auth error: %s", retryErr)
 	}
 
 	if retryErr != nil {
