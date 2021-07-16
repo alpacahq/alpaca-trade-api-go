@@ -86,50 +86,60 @@ func TestConnectWithInvalidURL(t *testing.T) {
 	}
 }
 
-func TestConnectImmediatelyFailsInvalidCredentials(t *testing.T) {
+func TestConnectImmediatelyFailsAfterIrrecoverableErrors(t *testing.T) {
+	irrecoverableErrors := []struct {
+		code int
+		msg  string
+		err  error
+	}{
+		{code: 402, msg: "auth failed", err: ErrInvalidCredentials},
+		{code: 409, msg: "insufficient subscription", err: ErrInsufficientSubscription},
+	}
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			connection := newMockConn()
-			defer connection.close()
-			connCreator := func(ctx context.Context, u url.URL) (conn, error) {
-				return connection, nil
-			}
+		for _, ie := range irrecoverableErrors {
+			t.Run(tt.name+"/"+ie.msg, func(t *testing.T) {
+				connection := newMockConn()
+				defer connection.close()
+				connCreator := func(ctx context.Context, u url.URL) (conn, error) {
+					return connection, nil
+				}
 
-			// if the error weren't irrecoverable then we would be retrying for quite a while
-			// and the test would time out
-			reconnectSettings := WithReconnectSettings(20, time.Second)
+				// if the error weren't irrecoverable then we would be retrying for quite a while
+				// and the test would time out
+				reconnectSettings := WithReconnectSettings(20, time.Second)
 
-			var c StreamClient
-			switch tt.name {
-			case stocksTests:
-				c = NewStocksClient("iex", reconnectSettings, withConnCreator(connCreator))
-			case cryptoTests:
-				c = NewCryptoClient(reconnectSettings, withConnCreator(connCreator))
-			}
+				var c StreamClient
+				switch tt.name {
+				case stocksTests:
+					c = NewStocksClient("iex", reconnectSettings, withConnCreator(connCreator))
+				case cryptoTests:
+					c = NewCryptoClient(reconnectSettings, withConnCreator(connCreator))
+				}
 
-			// server welcomes the client
-			connection.readCh <- serializeToMsgpack(t, []controlWithT{
-				{
-					Type: "success",
-					Msg:  "connected",
-				},
+				// server welcomes the client
+				connection.readCh <- serializeToMsgpack(t, []controlWithT{
+					{
+						Type: "success",
+						Msg:  "connected",
+					},
+				})
+				// server rejects the credentials
+				connection.readCh <- serializeToMsgpack(t, []errorWithT{
+					{
+						Type: "error",
+						Code: ie.code,
+						Msg:  ie.msg,
+					},
+				})
+				ctx, cancel := context.WithCancel(context.Background())
+				defer cancel()
+
+				err := c.Connect(ctx)
+
+				assert.Error(t, err)
+				assert.True(t, errors.Is(err, ie.err))
 			})
-			// server rejects the credentials
-			connection.readCh <- serializeToMsgpack(t, []errorWithT{
-				{
-					Type: "error",
-					Code: 402,
-					Msg:  "auth failed",
-				},
-			})
-			ctx, cancel := context.WithCancel(context.Background())
-			defer cancel()
-
-			err := c.Connect(ctx)
-
-			assert.Error(t, err)
-			assert.True(t, errors.Is(err, ErrInvalidCredentials))
-		})
+		}
 	}
 }
 
@@ -273,9 +283,13 @@ func TestSubscribeCalledButClientTerminatesCrypto(t *testing.T) {
 	defer connection.close()
 	writeInitialFlowMessagesToConn(t, connection, subscriptions{})
 
-	c := NewCryptoClient(withConnCreator(func(ctx context.Context, u url.URL) (conn, error) {
-		return connection, nil
-	}))
+	c := NewCryptoClient(
+		// set missing credentials explicitely because env vars may set incorrect defaults for the test
+		WithCredentials("", ""),
+		withConnCreator(func(ctx context.Context, u url.URL) (conn, error) {
+			return connection, nil
+		}))
+
 	ctx, cancel := context.WithCancel(context.Background())
 
 	err := c.Connect(ctx)
@@ -401,9 +415,12 @@ func TestSubscribeFailsDueToError(t *testing.T) {
 	defer connection.close()
 	writeInitialFlowMessagesToConn(t, connection, subscriptions{})
 
-	c := NewCryptoClient(withConnCreator(func(ctx context.Context, u url.URL) (conn, error) {
-		return connection, nil
-	}))
+	c := NewCryptoClient(
+		// set missing credentials explicitely because env vars may set incorrect defaults for the test
+		WithCredentials("", ""),
+		withConnCreator(func(ctx context.Context, u url.URL) (conn, error) {
+			return connection, nil
+		}))
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()

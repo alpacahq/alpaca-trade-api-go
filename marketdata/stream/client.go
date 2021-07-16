@@ -116,6 +116,11 @@ func newClient() *client {
 
 func (c *client) configure(o options) {
 	c.logger = o.logger
+	if _, ok := o.logger.(*stdLog); ok {
+		msg := "WARNING: you are using the standard logger, which will only print ERROR messages. " +
+			"To see INFO and WARN messages as well, use the WithLogger option with a proper logger, e.g. zap!"
+		c.logger.Errorf(msg)
+	}
 	c.baseURL = o.baseURL
 	c.key = o.key
 	c.secret = o.secret
@@ -365,7 +370,7 @@ func (c *client) maintainConnection(ctx context.Context, u url.URL, initialResul
 // isErrorIrrecoverable returns whether the error is irrecoverable and further retries should
 // not take place
 func isErrorIrrecoverable(err error) bool {
-	return errors.Is(err, ErrInvalidCredentials)
+	return errors.Is(err, ErrInvalidCredentials) || errors.Is(err, ErrInsufficientSubscription)
 }
 
 var newPingTicker = func() ticker {
