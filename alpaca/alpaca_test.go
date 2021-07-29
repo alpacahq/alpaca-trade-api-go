@@ -517,7 +517,9 @@ func (s *AlpacaTestSuite) TestAlpaca() {
 					"h": 133.48,
 					"l": 133.37,
 					"c": 133.42,
-					"v": 207020
+					"v": 207020,
+					"n": 1234,
+					"vw": 133.3987
 				},
 				"dailyBar": {
 					"t": "2021-05-03T04:00:00Z",
@@ -525,7 +527,9 @@ func (s *AlpacaTestSuite) TestAlpaca() {
 					"h": 134.07,
 					"l": 131.83,
 					"c": 133.42,
-					"v": 25846800
+					"v": 25846800,
+					"n": 254678,
+					"vw": 132.568
 				},
 				"prevDailyBar": {
 					"t": "2021-04-30T04:00:00Z",
@@ -533,7 +537,9 @@ func (s *AlpacaTestSuite) TestAlpaca() {
 					"h": 133.56,
 					"l": 131.065,
 					"c": 131.46,
-					"v": 109506363
+					"v": 109506363,
+					"n": 1012323,
+					"vw": 132.025
 				}
 			},
 			"MSFT": {
@@ -566,7 +572,9 @@ func (s *AlpacaTestSuite) TestAlpaca() {
 					"h": 253.869,
 					"l": 253.78,
 					"c": 253.855,
-					"v": 25717
+					"v": 25717,
+					"n": 137,
+					"vw": 253.823
 				},
 				"dailyBar": {
 					"t": "2021-05-03T04:00:00Z",
@@ -574,7 +582,9 @@ func (s *AlpacaTestSuite) TestAlpaca() {
 					"h": 254.35,
 					"l": 251.8,
 					"c": 253.855,
-					"v": 6100459
+					"v": 6100459,
+					"n": 33453,
+					"vw": 253.0534
 				},
 				"prevDailyBar": null
 			},
@@ -592,7 +602,10 @@ func (s *AlpacaTestSuite) TestAlpaca() {
 		assert.Len(s.T(), got, 3)
 		assert.Nil(s.T(), got["INVALID"])
 		assert.EqualValues(s.T(), 7, got["AAPL"].LatestQuote.AskSize)
+		assert.EqualValues(s.T(), 254678, got["AAPL"].DailyBar.TradeCount)
+		assert.EqualValues(s.T(), 132.025, got["AAPL"].PrevDailyBar.VWAP)
 		assert.EqualValues(s.T(), 6100459, got["MSFT"].DailyBar.Volume)
+		assert.EqualValues(s.T(), 137, got["MSFT"].MinuteBar.TradeCount)
 		assert.Nil(s.T(), got["MSFT"].PrevDailyBar)
 
 		// api failure

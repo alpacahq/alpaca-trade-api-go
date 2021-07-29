@@ -121,6 +121,7 @@ type stockOptions struct {
 	barHandler           func(Bar)
 	dailyBarHandler      func(Bar)
 	tradingStatusHandler func(TradingStatus)
+	luldHandler          func(LULD)
 }
 
 // defaultStockOptions are the default options for a client.
@@ -147,6 +148,7 @@ func defaultStockOptions() *stockOptions {
 				bars:      []string{},
 				dailyBars: []string{},
 				statuses:  []string{},
+				lulds:     []string{},
 			},
 			connCreator: func(ctx context.Context, u url.URL) (conn, error) {
 				return newNhooyrWebsocketConn(ctx, u)
@@ -157,6 +159,7 @@ func defaultStockOptions() *stockOptions {
 		barHandler:           func(b Bar) {},
 		dailyBarHandler:      func(b Bar) {},
 		tradingStatusHandler: func(ts TradingStatus) {},
+		luldHandler:          func(l LULD) {},
 	}
 }
 
@@ -217,6 +220,14 @@ func WithStatuses(handler func(TradingStatus), symbols ...string) StockOption {
 	return newFuncStockOption(func(o *stockOptions) {
 		o.sub.statuses = symbols
 		o.tradingStatusHandler = handler
+	})
+}
+
+// WithLULDs configures initial LULD symbols to subscribe to and the handler
+func WithLULDs(handler func(LULD), symbols ...string) StockOption {
+	return newFuncStockOption(func(o *stockOptions) {
+		o.sub.lulds = symbols
+		o.luldHandler = handler
 	})
 }
 

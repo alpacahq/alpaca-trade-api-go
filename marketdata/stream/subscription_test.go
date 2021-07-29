@@ -18,6 +18,7 @@ func TestNoSubscribeCallNecessary(t *testing.T) {
 		{sub: subscriptions{bars: []string{"TEST"}}, expected: false},
 		{sub: subscriptions{dailyBars: []string{"TEST"}}, expected: false},
 		{sub: subscriptions{statuses: []string{"TEST"}}, expected: false},
+		{sub: subscriptions{lulds: []string{"TEST"}}, expected: false},
 		{sub: subscriptions{
 			trades: []string{"TEST"}, quotes: []string{"TEST"}, bars: []string{"TEST"},
 		}, expected: false},
