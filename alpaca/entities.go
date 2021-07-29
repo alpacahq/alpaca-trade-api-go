@@ -223,6 +223,11 @@ type barResponse struct {
 	Bars          []marketdata.Bar `json:"bars"`
 }
 
+type multiBarResponse struct {
+	NextPageToken *string                     `json:"next_page_token"`
+	Bars          map[string][]marketdata.Bar `json:"bars"`
+}
+
 type latestTradeResponse struct {
 	Symbol string           `json:"symbol"`
 	Trade  marketdata.Trade `json:"trade"`

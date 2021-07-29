@@ -77,6 +77,13 @@ type BarItem struct {
 	Error error
 }
 
+// MultiBarItem contains a single bar for a symbol or an error
+type MultiBarItem struct {
+	Symbol string
+	Bar    Bar
+	Error  error
+}
+
 // Snapshot is a snapshot of a symbol
 type Snapshot struct {
 	LatestTrade  *Trade `json:"latestTrade"`

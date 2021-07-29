@@ -9,6 +9,7 @@ import (
 
 	"github.com/alpacahq/alpaca-trade-api-go/v2/alpaca"
 	"github.com/alpacahq/alpaca-trade-api-go/v2/common"
+	"github.com/alpacahq/alpaca-trade-api-go/v2/marketdata"
 	"github.com/shopspring/decimal"
 )
 
@@ -314,10 +315,10 @@ func (alp alpacaClientContainer) rerank() {
 // Get the total price of the array of input stocks.
 func (alp alpacaClientContainer) getTotalPrice(arr []string) float64 {
 	totalPrice := 0.0
-	for _, stock := range arr {
-		numBars := 1
-		bar, _ := alpacaClient.client.GetSymbolBars(stock, alpaca.ListBarParams{Timeframe: "minute", Limit: &numBars})
-		totalPrice += float64(bar[0].Close)
+	// TODO: Handle the error!
+	snapshots, _ := alpacaClient.client.GetSnapshots(arr)
+	for _, snapshot := range snapshots {
+		totalPrice += snapshot.MinuteBar.Close
 	}
 	return totalPrice
 }
@@ -367,12 +368,29 @@ func (alp alpacaClientContainer) sendBatchOrder(qty int, stocks []string, side s
 
 // Get percent changes of the stock prices over the past 10 days.
 func (alp alpacaClientContainer) getPercentChanges() {
-	length := 10
+	symbols := make([]string, len(alp.allStocks))
+	symbolIndices := make(map[string]int, len(alp.allStocks))
 	for i, stock := range alpacaClient.allStocks {
-		startTime, endTime := time.Unix(time.Now().Unix()-int64(length*60), 0), time.Now()
-		bars, _ := alpacaClient.client.GetSymbolBars(stock.name, alpaca.ListBarParams{Timeframe: "minute", StartDt: &startTime, EndDt: &endTime})
-		percentChange := (bars[len(bars)-1].Close - bars[0].Open) / bars[0].Open
-		alpacaClient.allStocks[i].pc = float64(percentChange)
+		symbols[i] = stock.name
+		symbolIndices[stock.name] = i
+	}
+	// TODO: Handle the error!
+	snapshots, _ := alpacaClient.client.GetSnapshots(symbols)
+	start := time.Now().AddDate(0, 0, -10)
+	end := start.Add(time.Minute)
+	for item := range alpacaClient.client.GetMultiBars(symbols, alpaca.GetBarsParams{
+		TimeFrame: marketdata.Day,
+		Start:     &start,
+		End:       &end,
+	}) {
+		// TODO: Handle the error!
+		// if item.Error != nil ...
+		snapshot := snapshots[item.Symbol]
+		if snapshot != nil && snapshot.MinuteBar != nil {
+			percentChange := (snapshot.MinuteBar.Close - item.Bar.Open) / item.Bar.Open
+			idx := symbolIndices[item.Symbol]
+			alpacaClient.allStocks[idx].pc = float64(percentChange)
+		}
 	}
 }
 
