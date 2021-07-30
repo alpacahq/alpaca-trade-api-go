@@ -85,3 +85,15 @@ type Snapshot struct {
 	DailyBar     *Bar   `json:"dailyBar"`
 	PrevDailyBar *Bar   `json:"prevDailyBar"`
 }
+
+// ADTV is an average daily trading volume result
+type ADTV struct {
+	Volume float64
+	Days   int
+}
+
+// ValueAtTime is a value at a given timestamp 
+type ValueAtTime struct {
+	Timestamp time.Time
+	Value     float64
+}

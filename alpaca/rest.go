@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"math"
 	"net/http"
 	"net/url"
 	"os"
@@ -703,6 +704,72 @@ func (c *Client) GetSnapshots(symbols []string) (map[string]*marketdata.Snapshot
 	return snapshots, nil
 }
 
+// GetADTV returns the average daily trade volume for a given symbol
+//
+// Deprecated: will be moved to the marketdata package!
+func (c *Client) GetADTV(symbol string, start, end time.Time) (*marketdata.ADTV, error) {
+	bars := c.GetBars(symbol, marketdata.Day, marketdata.Raw, start, end, 10000)
+	var (
+		count       int
+		totalVolume uint64
+	)
+	for barItem := range bars {
+		if barItem.Error != nil {
+			return nil, barItem.Error
+		}
+		count++
+		totalVolume += uint64(barItem.Bar.Volume)
+	}
+	if count == 0 {
+		return &marketdata.ADTV{Volume: 0}, nil
+	}
+	return &marketdata.ADTV{
+		Volume: float64(totalVolume) / float64(count),
+		Days:   count,
+	}, nil
+}
+
+// GetSMA returns the Simple Moving Average (SMA) starting at start, ending at end
+// and using window as the averaging period.
+//
+// Deprecated: will be moved to the marketdata package!
+func (c *Client) GetSMA(symbol string, start, end time.Time, window int) ([]marketdata.ValueAtTime, error) {
+	if window < 1 {
+		return nil, nil
+	}
+	bars := c.GetBars(symbol, marketdata.Day, marketdata.Raw, start, end, 10000)
+	values := make([]float64, window)
+	res := make([]marketdata.ValueAtTime, 0)
+
+	var (
+		valuesPos   int
+		sampleCount int
+		average     float64
+	)
+
+	for barItem := range bars {
+		if barItem.Error != nil {
+			return nil, barItem.Error
+		}
+		bar := barItem.Bar
+		average -= values[valuesPos]
+		values[valuesPos] = bar.Close
+		average += values[valuesPos]
+		if sampleCount != window {
+			sampleCount++
+		}
+		valuesPos = (valuesPos + 1) % window
+
+		avg := marketdata.ValueAtTime{
+			Timestamp: bar.Timestamp,
+			Value:     math.Round(average/float64(sampleCount)*1000000) / 1000000,
+		}
+		res = append(res, avg)
+	}
+
+	return res, nil
+}
+
 // CloseAllPositions liquidates all open positions at market price.
 func (c *Client) CloseAllPositions() error {
 	u, err := url.Parse(fmt.Sprintf("%s/%s/positions", base, apiVersion))
@@ -1164,6 +1231,21 @@ func GetSnapshot(symbol string) (*marketdata.Snapshot, error) {
 // Deprecated: will be moved to the marketdata package!
 func GetSnapshots(symbols []string) (map[string]*marketdata.Snapshot, error) {
 	return DefaultClient.GetSnapshots(symbols)
+}
+
+// GetADTV returns the average daily trade volume for a given symbol
+//
+// Deprecated: will be moved to the marketdata package!
+func GetADTV(symbol string, start, end time.Time) (*marketdata.ADTV, error) {
+	return DefaultClient.GetADTV(symbol, start, end)
+}
+
+// GetSMA returns the Simple Moving Average (SMA) starting at start, ending at end
+// and using window as the averaging period.
+//
+// Deprecated: will be moved to the marketdata package!
+func GetSMA(symbol string, start, end time.Time, window int) ([]marketdata.ValueAtTime, error) {
+	return DefaultClient.GetSMA(symbol, start, end, window)
 }
 
 // GetPosition returns the account's position for the
