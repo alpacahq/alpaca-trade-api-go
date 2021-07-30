@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -69,10 +70,8 @@ func defaultDo(c *Client, req *http.Request) (*http.Response, error) {
 
 // TODO: Move to the marketdata package
 const (
-	// v2MaxLimit is the default limit parameter for all v2 endpoints
 	v2DefaultLimit = 1000
-	// v2MaxLimit is the maximum allowed limit parameter for all v2 endpoints
-	v2MaxLimit = 10000
+	v2MaxLimit     = 10000
 )
 
 func init() {
@@ -419,12 +418,15 @@ func (c *Client) GetLastTrade(symbol string) (*LastTradeResponse, error) {
 	return lastTrade, nil
 }
 
-func setQueryInterval(q url.Values, start, end *time.Time) {
+func setBaseQuery(q url.Values, start, end *time.Time, feed string) {
 	if start != nil {
 		q.Set("start", start.Format(time.RFC3339))
 	}
 	if end != nil {
 		q.Set("end", end.Format(time.RFC3339))
+	}
+	if feed != "" {
+		q.Set("feed", feed)
 	}
 }
 
@@ -448,19 +450,40 @@ func setQueryLimit(q url.Values, totalLimit *int, pageLimit *int, received int) 
 	q.Set("limit", fmt.Sprintf("%d", limit))
 }
 
-// GetTradesParams contains optional parameters for getting trades
-
+// GetTradesParams contains optional parameters for getting trades.
 type GetTradesParams struct {
-	Start      *time.Time
-	End        *time.Time
+	// Start is the inclusive beginning of the interval
+	Start *time.Time
+	// End is the inclusive end of the interval
+	End *time.Time
+	// TotalLimit is the limit of the total number of the returned trades.
+	// If missing, all trades between start end end will be returned.
 	TotalLimit *int
-	PageLimit  *int
+	// PageLimit is the pagination size. If empty, the default page size will be used.
+	PageLimit *int
+	// Feed is the source of the data: sip or iex.
+	Feed string
 }
 
-// GetTrades returns a channel that will be populated with the trades for the given symbol.
+// GetTrades returns the trades for the given symbol. It blocks until all the trades are collected.
+// If you want to process the incoming trades instantly, use GetTradesAsync instead!
 //
 // Deprecated: will be moved to the marketdata package!
-func (c *Client) GetTrades(symbol string, params GetTradesParams) <-chan marketdata.TradeItem {
+func (c *Client) GetTrades(symbol string, params GetTradesParams) ([]marketdata.Trade, error) {
+	trades := make([]marketdata.Trade, 0)
+	for item := range c.GetTradesAsync(symbol, params) {
+		if err := item.Error; err != nil {
+			return nil, err
+		}
+		trades = append(trades, item.Trade)
+	}
+	return trades, nil
+}
+
+// GetTradesAsync returns a channel that will be populated with the trades for the given symbol.
+//
+// Deprecated: will be moved to the marketdata package!
+func (c *Client) GetTradesAsync(symbol string, params GetTradesParams) <-chan marketdata.TradeItem {
 	ch := make(chan marketdata.TradeItem)
 
 	go func() {
@@ -473,7 +496,7 @@ func (c *Client) GetTrades(symbol string, params GetTradesParams) <-chan marketd
 		}
 
 		q := u.Query()
-		setQueryInterval(q, params.Start, params.End)
+		setBaseQuery(q, params.Start, params.End, params.Feed)
 
 		received := 0
 		for {
@@ -507,18 +530,39 @@ func (c *Client) GetTrades(symbol string, params GetTradesParams) <-chan marketd
 }
 
 // GetQuotesParams contains optional parameters for getting quotes
-
 type GetQuotesParams struct {
-	Start      *time.Time
-	End        *time.Time
+	// Start is the inclusive beginning of the interval
+	Start *time.Time
+	// End is the inclusive end of the interval
+	End *time.Time
+	// TotalLimit is the limit of the total number of the returned quotes.
+	// If missing, all quotes between start end end will be returned.
 	TotalLimit *int
-	PageLimit  *int
+	// PageLimit is the pagination size. If empty, the default page size will be used.
+	PageLimit *int
+	// Feed is the source of the data: sip or iex.
+	Feed string
 }
 
-// GetQuotes returns a channel that will be populated with the quotes for the given symbol.
+// GetQuotes returns the quotes for the given symbol. It blocks until all the quotes are collected.
+// If you want to process the incoming quotes instantly, use GetQuotesAsync instead!
 //
 // Deprecated: will be moved to the marketdata package!
-func (c *Client) GetQuotes(symbol string, params GetQuotesParams) <-chan marketdata.QuoteItem {
+func (c *Client) GetQuotes(symbol string, params GetQuotesParams) ([]marketdata.Quote, error) {
+	quotes := make([]marketdata.Quote, 0)
+	for item := range c.GetQuotesAsync(symbol, params) {
+		if err := item.Error; err != nil {
+			return nil, err
+		}
+		quotes = append(quotes, item.Quote)
+	}
+	return quotes, nil
+}
+
+// GetQuotesAsync returns a channel that will be populated with the quotes for the given symbol.
+//
+// Deprecated: will be moved to the marketdata package!
+func (c *Client) GetQuotesAsync(symbol string, params GetQuotesParams) <-chan marketdata.QuoteItem {
 	// NOTE: this method is very similar to GetTrades.
 	// With generics it would be almost trivial to refactor them to use a common base method,
 	// but without them it doesn't seem to be worth it
@@ -534,7 +578,7 @@ func (c *Client) GetQuotes(symbol string, params GetQuotesParams) <-chan marketd
 		}
 
 		q := u.Query()
-		setQueryInterval(q, params.Start, params.End)
+		setBaseQuery(q, params.Start, params.End, params.Feed)
 
 		received := 0
 		for {
@@ -568,17 +612,26 @@ func (c *Client) GetQuotes(symbol string, params GetQuotesParams) <-chan marketd
 }
 
 // GetBarsParams contains optional parameters for getting bars
-
 type GetBarsParams struct {
-	TimeFrame  marketdata.TimeFrame
+	// TimeFrame is the aggregation size of the bars
+	TimeFrame marketdata.TimeFrame
+	// Adjustment tells if the bars should be adjusted for corporate actions
 	Adjustment marketdata.Adjustment
-	Start      *time.Time
-	End        *time.Time
+	// Start is the inclusive beginning of the interval
+	Start *time.Time
+	// End is the inclusive end of the interval
+	End *time.Time
+	// TotalLimit is the limit of the total number of the returned trades.
+	// If missing, all trades between start end end will be returned.
 	TotalLimit *int
-	PageLimit  *int
+	// PageLimit is the pagination size. If empty, the default page size will be used.
+	PageLimit *int
+	// Feed is the source of the data: sip or iex.
+	Feed string
 }
 
 func setQueryBarParams(q url.Values, params GetBarsParams) {
+	setBaseQuery(q, params.Start, params.End, params.Feed)
 	// TODO: Replace with All once it's supported
 	adjustment := marketdata.Raw
 	if params.Adjustment != "" {
@@ -592,10 +645,24 @@ func setQueryBarParams(q url.Values, params GetBarsParams) {
 	q.Set("timeframe", string(timeframe))
 }
 
-// GetBars returns a channel that will be populated with the bars for the given symbol.
+// GetBars returns a slice of bars for the given symbol.
 //
 // Deprecated: will be moved to the marketdata package!
-func (c *Client) GetBars(symbol string, params GetBarsParams) <-chan marketdata.BarItem {
+func (c *Client) GetBars(symbol string, params GetBarsParams) ([]marketdata.Bar, error) {
+	bars := make([]marketdata.Bar, 0)
+	for item := range c.GetBarsAsync(symbol, params) {
+		if err := item.Error; err != nil {
+			return nil, err
+		}
+		bars = append(bars, item.Bar)
+	}
+	return bars, nil
+}
+
+// GetBarsAsync returns a channel that will be populated with the bars for the given symbol.
+//
+// Deprecated: will be moved to the marketdata package!
+func (c *Client) GetBarsAsync(symbol string, params GetBarsParams) <-chan marketdata.BarItem {
 	ch := make(chan marketdata.BarItem)
 
 	go func() {
@@ -608,7 +675,6 @@ func (c *Client) GetBars(symbol string, params GetBarsParams) <-chan marketdata.
 		}
 
 		q := u.Query()
-		setQueryInterval(q, params.Start, params.End)
 		setQueryBarParams(q, params)
 
 		received := 0
@@ -642,10 +708,26 @@ func (c *Client) GetBars(symbol string, params GetBarsParams) <-chan marketdata.
 	return ch
 }
 
+// GetMultiBars returns a slice of bars for the given symbols.
+//
+// Deprecated: will be moved to the marketdata package!
+func (c *Client) GetMultiBars(
+	symbols []string, params GetBarsParams,
+) (map[string][]marketdata.Bar, error) {
+	bars := make(map[string][]marketdata.Bar, len(symbols))
+	for item := range c.GetMultiBarsAsync(symbols, params) {
+		if err := item.Error; err != nil {
+			return nil, err
+		}
+		bars[item.Symbol] = append(bars[item.Symbol], item.Bar)
+	}
+	return bars, nil
+}
+
 // GetBars returns a channel that will be populated with the bars for the requested symbols.
 //
 // Deprecated: will be moved to the marketdata package!
-func (c *Client) GetMultiBars(symbols []string, params GetBarsParams) <-chan marketdata.MultiBarItem {
+func (c *Client) GetMultiBarsAsync(symbols []string, params GetBarsParams) <-chan marketdata.MultiBarItem {
 	ch := make(chan marketdata.MultiBarItem)
 
 	go func() {
@@ -677,7 +759,14 @@ func (c *Client) GetMultiBars(symbols []string, params GetBarsParams) <-chan mar
 				return
 			}
 
-			for symbol, bars := range barResp.Bars {
+			sortedSymbols := make([]string, 0, len(barResp.Bars))
+			for symbol := range barResp.Bars {
+				sortedSymbols = append(sortedSymbols, symbol)
+			}
+			sort.Strings(sortedSymbols)
+
+			for _, symbol := range sortedSymbols {
+				bars := barResp.Bars[symbol]
 				for _, bar := range bars {
 					ch <- marketdata.MultiBarItem{Symbol: symbol, Bar: bar}
 				}
@@ -1193,34 +1282,66 @@ func GetLastTrade(symbol string) (*LastTradeResponse, error) {
 	return DefaultClient.GetLastTrade(symbol)
 }
 
-// GetTrades returns a channel that will be populated with the trades for the given symbol
-// that happened between the given start and end times, limited to the given limit.
+// GetTrades returns the trades for the given symbol. It blocks until all the trades are collected.
+// If you want to process the incoming trades instantly, use GetTradesAsync instead!
 //
 // Deprecated: will be moved to the marketdata package!
-func GetTrades(symbol string, params GetTradesParams) <-chan marketdata.TradeItem {
+func GetTrades(symbol string, params GetTradesParams) ([]marketdata.Trade, error) {
 	return DefaultClient.GetTrades(symbol, params)
 }
 
-// GetQuotes returns a channel that will be populated with the quotes for the given symbol
+// GetTradesAsync returns a channel that will be populated with the trades for the given symbol
 // that happened between the given start and end times, limited to the given limit.
 //
 // Deprecated: will be moved to the marketdata package!
-func GetQuotes(symbol string, params GetQuotesParams) <-chan marketdata.QuoteItem {
+func GetTradesAsync(symbol string, params GetTradesParams) <-chan marketdata.TradeItem {
+	return DefaultClient.GetTradesAsync(symbol, params)
+}
+
+// GetQuotes returns the quotes for the given symbol. It blocks until all the quotes are collected.
+// If you want to process the incoming quotes instantly, use GetQuotesAsync instead!
+//
+// Deprecated: will be moved to the marketdata package!
+func GetQuotes(symbol string, params GetQuotesParams) ([]marketdata.Quote, error) {
 	return DefaultClient.GetQuotes(symbol, params)
 }
 
-// GetBars returns a channel that will be populated with the bars for the given symbol.
+// GetQuotesAsync returns a channel that will be populated with the quotes for the given symbol
+// that happened between the given start and end times, limited to the given limit.
 //
 // Deprecated: will be moved to the marketdata package!
-func GetBars(symbol string, params GetBarsParams) <-chan marketdata.BarItem {
+func GetQuotesAsync(symbol string, params GetQuotesParams) <-chan marketdata.QuoteItem {
+	return DefaultClient.GetQuotesAsync(symbol, params)
+}
+
+// GetBars returns the bars for the given symbol. It blocks until all the bars are collected.
+// If you want to process the incoming bars instantly, use GetBarsAsync instead!
+//
+// Deprecated: will be moved to the marketdata package!
+func GetBars(symbol string, params GetBarsParams) ([]marketdata.Bar, error) {
 	return DefaultClient.GetBars(symbol, params)
 }
 
-// GetMultiBars returns a channel that will be populated with the bars for the given symbols.
+// GetBarsAsync returns a channel that will be populated with the bars for the given symbol.
 //
 // Deprecated: will be moved to the marketdata package!
-func GetMultiBars(symbols []string, params GetBarsParams) <-chan marketdata.MultiBarItem {
+func GetBarsAsync(symbol string, params GetBarsParams) <-chan marketdata.BarItem {
+	return DefaultClient.GetBarsAsync(symbol, params)
+}
+
+// GetMultiBars returns the bars for the given symbols. It blocks until all the bars are collected.
+// If you want to process the incoming bars instantly, use GetMultiBarsAsync instead!
+//
+// Deprecated: will be moved to the marketdata package!
+func GetMultiBars(symbols []string, params GetBarsParams) (map[string][]marketdata.Bar, error) {
 	return DefaultClient.GetMultiBars(symbols, params)
+}
+
+// GetMultiBarsAsync returns a channel that will be populated with the bars for the given symbols.
+//
+// Deprecated: will be moved to the marketdata package!
+func GetMultiBarsAsync(symbols []string, params GetBarsParams) <-chan marketdata.MultiBarItem {
+	return DefaultClient.GetMultiBarsAsync(symbols, params)
 }
 
 // GetLatestTrade returns the latest trade for a given symbol.
