@@ -84,17 +84,19 @@ func main() {
 	}
 	fmt.Printf("%d order(s) cancelled\n", len(orders))
 
-	// TODO: Uncomment!
-	// Wait for market to open.
-	// fmt.Println("Waiting for market to open...")
-	// for {
-	// 	isOpen := alpacaClient.awaitMarketOpen()
-	// 	if isOpen {
-	// 		break
-	// 	}
-	// 	time.Sleep(1 * time.Minute)
-	// }
-	// fmt.Println("Market Opened.")
+	fmt.Println("Waiting for market to open...")
+	for {
+		isOpen, err := algo.awaitMarketOpen()
+		if err != nil {
+			fmt.Println("Failed to wait for market open:", err)
+			return
+		}
+		if isOpen {
+			break
+		}
+		time.Sleep(1 * time.Minute)
+	}
+	fmt.Println("Market Opened")
 
 	for {
 		if err := algo.run(); err != nil {
@@ -148,14 +150,17 @@ func (alp longShortAlgo) run() error {
 }
 
 // Spin until the market is open.
-func (alp longShortAlgo) awaitMarketOpen() bool {
-	clock, _ := algo.client.GetClock()
+func (alp longShortAlgo) awaitMarketOpen() (bool, error) {
+	clock, err := algo.client.GetClock()
+	if err != nil {
+		return false, fmt.Errorf("get clock: %w", err)
+	}
 	if clock.IsOpen {
-		return true
+		return true, nil
 	}
 	timeToOpen := int(clock.NextOpen.Sub(clock.Timestamp).Minutes())
 	fmt.Printf("%d minutes until next market open\n", timeToOpen)
-	return false
+	return false, nil
 }
 
 // Rebalance our position after an update.
