@@ -41,7 +41,8 @@ var hasSipAccess bool = false
 func init() {
 	API_KEY := "YOUR_API_KEY_HERE"
 	API_SECRET := "YOUR_API_SECRET_HERE"
-	BASE_URL := "https://paper-api.alpaca.markets"
+	// BASE_URL := "https://paper-api.alpaca.markets"
+	// alpaca.SetBaseUrl(BASE_URL)
 
 	// Check for environment variables
 	if common.Credentials().ID == "" {
@@ -50,7 +51,6 @@ func init() {
 	if common.Credentials().Secret == "" {
 		os.Setenv(common.EnvApiSecretKey, API_SECRET)
 	}
-	alpaca.SetBaseUrl(BASE_URL)
 
 	// Format the allStocks variable for use in the class.
 	allStocks := []stockField{}
@@ -84,21 +84,16 @@ func main() {
 	}
 	fmt.Printf("%d order(s) cancelled\n", len(orders))
 
-	fmt.Println("Waiting for market to open...")
 	for {
 		isOpen, err := algo.awaitMarketOpen()
 		if err != nil {
 			fmt.Println("Failed to wait for market open:", err)
 			return
 		}
-		if isOpen {
-			break
+		if !isOpen {
+			time.Sleep(1 * time.Minute)
+			continue
 		}
-		time.Sleep(1 * time.Minute)
-	}
-	fmt.Println("Market Opened")
-
-	for {
 		if err := algo.run(); err != nil {
 			fmt.Println("Run error:", err)
 			return
