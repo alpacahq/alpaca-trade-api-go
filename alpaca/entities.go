@@ -419,6 +419,7 @@ type ServerMsg struct {
 
 type TradeUpdate struct {
 	Event       string           `json:"event"`
+	ExecutionID string           `json:"execution_id"`
 	Order       Order            `json:"order"`
 	PositionQty *decimal.Decimal `json:"position_qty"`
 	Price       *decimal.Decimal `json:"price"`
