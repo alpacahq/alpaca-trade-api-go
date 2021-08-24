@@ -4,14 +4,16 @@ import (
 	"context"
 	"net/http"
 	"net/url"
+	"os"
 	"time"
 
 	"nhooyr.io/websocket"
 )
 
 type nhooyrWebsocketConn struct {
-	conn    *websocket.Conn
-	msgType websocket.MessageType
+	conn       *websocket.Conn
+	msgType    websocket.MessageType
+	comression websocket.CompressionMode
 }
 
 // newNhooyrWebsocketConn creates a new nhooyr websocket connection
@@ -19,16 +21,29 @@ func newNhooyrWebsocketConn(ctx context.Context, u url.URL) (conn, error) {
 	ctxWithTimeout, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
 
+	var compression websocket.CompressionMode
+	compressionMode := os.Getenv("STREAM_COMPRESSION")
+	switch compressionMode {
+	case "no":
+		compression = websocket.CompressionDisabled
+	case "compression":
+		compression = websocket.CompressionNoContextTakeover
+	case "takeover":
+		compression = websocket.CompressionContextTakeover
+	default:
+		compression = websocket.CompressionContextTakeover
+	}
 	conn, _, err := websocket.Dial(ctxWithTimeout, u.String(), &websocket.DialOptions{
-		CompressionMode: websocket.CompressionContextTakeover,
+		CompressionMode: compression,
 		HTTPHeader: http.Header{
 			"Content-Type": []string{"application/msgpack"},
 		},
 	})
 
 	return &nhooyrWebsocketConn{
-		conn:    conn,
-		msgType: websocket.MessageBinary,
+		conn:       conn,
+		msgType:    websocket.MessageBinary,
+		comression: compression,
 	}, err
 }
 
