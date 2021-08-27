@@ -323,6 +323,8 @@ func (h *cryptoMsgHandler) handleTrade(d *msgpack.Decoder, n int) error {
 		switch key {
 		case "S":
 			trade.Symbol, err = d.DecodeString()
+		case "x":
+			trade.Exchange, err = d.DecodeString()
 		case "p":
 			trade.Price, err = d.DecodeFloat64()
 		case "s":
@@ -353,6 +355,8 @@ func (h *cryptoMsgHandler) handleQuote(d *msgpack.Decoder, n int) error {
 		switch key {
 		case "S":
 			quote.Symbol, err = d.DecodeString()
+		case "x":
+			quote.Exchange, err = d.DecodeString()
 		case "bp":
 			quote.BidPrice, err = d.DecodeFloat64()
 		case "ap":

@@ -88,6 +88,7 @@ type luldWithT struct {
 type cryptoTradeWithT struct {
 	Type      string    `msgpack:"T"`
 	Symbol    string    `msgpack:"S"`
+	Exchange  string    `msgpack:"x"`
 	Price     float64   `msgpack:"p"`
 	Size      float64   `msgpack:"s"`
 	Timestamp time.Time `msgpack:"t"`
@@ -99,6 +100,7 @@ type cryptoTradeWithT struct {
 type cryptoQuoteWithT struct {
 	Type      string    `msgpack:"T"`
 	Symbol    string    `msgpack:"S"`
+	Exchange  string    `msgpack:"x"`
 	BidPrice  float64   `msgpack:"bp"`
 	AskPrice  float64   `msgpack:"ap"`
 	Timestamp time.Time `msgpack:"t"`
@@ -221,6 +223,7 @@ var testLULD = luldWithT{
 var testCryptoTrade = cryptoTradeWithT{
 	Type:      "t",
 	Symbol:    "A",
+	Exchange:  "ERSX",
 	Price:     100,
 	Size:      10.1,
 	Timestamp: testTime,
@@ -229,6 +232,7 @@ var testCryptoTrade = cryptoTradeWithT{
 var testCryptoQuote = cryptoQuoteWithT{
 	Type:      "q",
 	Symbol:    "TEST",
+	Exchange:  "ERSX",
 	BidPrice:  99.9,
 	AskPrice:  100.1,
 	Timestamp: testTime,
@@ -445,11 +449,13 @@ func TestHandleMessagesCrypto(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.EqualValues(t, testCryptoTrade.Symbol, trade.Symbol)
+	assert.EqualValues(t, testCryptoTrade.Exchange, trade.Exchange)
 	assert.EqualValues(t, testCryptoTrade.Price, trade.Price)
 	assert.EqualValues(t, testCryptoTrade.Size, trade.Size)
 	assert.True(t, trade.Timestamp.Equal(testTime))
 
 	assert.EqualValues(t, testCryptoQuote.Symbol, quote.Symbol)
+	assert.EqualValues(t, testCryptoQuote.Exchange, quote.Exchange)
 	assert.EqualValues(t, testCryptoQuote.BidPrice, quote.BidPrice)
 	assert.EqualValues(t, testCryptoQuote.AskPrice, quote.AskPrice)
 	assert.True(t, quote.Timestamp.Equal(testTime))
