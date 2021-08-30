@@ -64,6 +64,7 @@ type LULD struct {
 
 type CryptoTrade struct {
 	Symbol    string
+	Exchange  string
 	Price     float64
 	Size      float64
 	Timestamp time.Time
@@ -71,6 +72,7 @@ type CryptoTrade struct {
 
 type CryptoQuote struct {
 	Symbol    string
+	Exchange  string
 	BidPrice  float64
 	AskPrice  float64
 	Timestamp time.Time
