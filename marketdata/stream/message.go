@@ -387,6 +387,8 @@ func (h *cryptoMsgHandler) decodeBar(d *msgpack.Decoder, n int) (CryptoBar, erro
 		switch key {
 		case "S":
 			bar.Symbol, err = d.DecodeString()
+		case "x":
+			bar.Exchange, err = d.DecodeString()
 		case "o":
 			bar.Open, err = d.DecodeFloat64()
 		case "h":

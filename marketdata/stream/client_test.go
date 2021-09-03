@@ -714,6 +714,7 @@ func TestCoreFunctionalityCrypto(t *testing.T) {
 		cryptoBarWithT{
 			Type:       "b",
 			Symbol:     "LTCUSD",
+			Exchange:   "TEST",
 			Volume:     10,
 			TradeCount: 3,
 			VWAP:       123.45,
@@ -721,6 +722,7 @@ func TestCoreFunctionalityCrypto(t *testing.T) {
 		cryptoBarWithT{
 			Type:       "d",
 			Symbol:     "LTCUSD",
+			Exchange:   "TES7",
 			Open:       196.05,
 			High:       196.3,
 			TradeCount: 32,
@@ -748,6 +750,7 @@ func TestCoreFunctionalityCrypto(t *testing.T) {
 		assert.EqualValues(t, 10, bar.Volume)
 		assert.EqualValues(t, 3, bar.TradeCount)
 		assert.EqualValues(t, 123.45, bar.VWAP)
+		assert.Equal(t, "TEST", bar.Exchange)
 	case <-time.After(time.Second):
 		require.Fail(t, "no bar received in time")
 	}
@@ -758,6 +761,7 @@ func TestCoreFunctionalityCrypto(t *testing.T) {
 		assert.EqualValues(t, 196.3, dailyBar.High)
 		assert.EqualValues(t, 32, dailyBar.TradeCount)
 		assert.EqualValues(t, 196.21, dailyBar.VWAP)
+		assert.Equal(t, "TES7", dailyBar.Exchange)
 	case <-time.After(time.Second):
 		require.Fail(t, "no daily bar received in time")
 	}
