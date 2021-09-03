@@ -732,6 +732,10 @@ func TestCoreFunctionalityCrypto(t *testing.T) {
 			Type:     "q",
 			Symbol:   "ETHUSD",
 			AskPrice: 2848.53,
+			AskSize:  3.12,
+			BidPrice: 2712.82,
+			BidSize:  3.982,
+			Exchange: "TEST",
 		},
 	})
 	// sending a trade
@@ -741,6 +745,11 @@ func TestCoreFunctionalityCrypto(t *testing.T) {
 			Type:      "t",
 			Symbol:    "BTCUSD",
 			Timestamp: ts,
+			Exchange:  "TST",
+			Price:     4123.123,
+			Size:      34.876,
+			Id:        25,
+			TakerSide: "S",
 		},
 	})
 
@@ -770,6 +779,9 @@ func TestCoreFunctionalityCrypto(t *testing.T) {
 	case quote := <-quotes:
 		assert.Equal(t, "ETHUSD", quote.Symbol)
 		assert.EqualValues(t, 2848.53, quote.AskPrice)
+		assert.EqualValues(t, 3.12, quote.AskSize)
+		assert.EqualValues(t, 3.982, quote.BidSize)
+		assert.EqualValues(t, "TEST", quote.Exchange)
 	case <-time.After(time.Second):
 		require.Fail(t, "no quote received in time")
 	}
@@ -777,6 +789,7 @@ func TestCoreFunctionalityCrypto(t *testing.T) {
 	select {
 	case trade := <-trades:
 		assert.True(t, trade.Timestamp.Equal(ts))
+		assert.EqualValues(t, "S", trade.TakerSide)
 	case <-time.After(time.Second):
 		require.Fail(t, "no trade received in time")
 	}

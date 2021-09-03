@@ -92,6 +92,8 @@ type cryptoTradeWithT struct {
 	Price     float64   `msgpack:"p"`
 	Size      float64   `msgpack:"s"`
 	Timestamp time.Time `msgpack:"t"`
+	Id        int64     `msgpack:"i"`
+	TakerSide string    `msgpack:"tks"`
 	// NewField is for testing correct handling of added fields in the future
 	NewField uint64 `msgpack:"n"`
 }
@@ -102,7 +104,9 @@ type cryptoQuoteWithT struct {
 	Symbol    string    `msgpack:"S"`
 	Exchange  string    `msgpack:"x"`
 	BidPrice  float64   `msgpack:"bp"`
+	BidSize   float64   `msgpack:"bs"`
 	AskPrice  float64   `msgpack:"ap"`
+	AskSize   float64   `msgpack:"as"`
 	Timestamp time.Time `msgpack:"t"`
 	// NewField is for testing correct handling of added fields in the future
 	NewField uint64 `msgpack:"n"`
@@ -228,6 +232,8 @@ var testCryptoTrade = cryptoTradeWithT{
 	Price:     100,
 	Size:      10.1,
 	Timestamp: testTime,
+	Id:        32,
+	TakerSide: "B",
 }
 
 var testCryptoQuote = cryptoQuoteWithT{
@@ -235,7 +241,9 @@ var testCryptoQuote = cryptoQuoteWithT{
 	Symbol:    "TEST",
 	Exchange:  "ERSX",
 	BidPrice:  99.9,
+	BidSize:   1.0945,
 	AskPrice:  100.1,
+	AskSize:   2.41231,
 	Timestamp: testTime,
 }
 
@@ -454,12 +462,16 @@ func TestHandleMessagesCrypto(t *testing.T) {
 	assert.EqualValues(t, testCryptoTrade.Exchange, trade.Exchange)
 	assert.EqualValues(t, testCryptoTrade.Price, trade.Price)
 	assert.EqualValues(t, testCryptoTrade.Size, trade.Size)
+	assert.EqualValues(t, testCryptoTrade.Id, trade.Id)
+	assert.EqualValues(t, testCryptoTrade.TakerSide, trade.TakerSide)
 	assert.True(t, trade.Timestamp.Equal(testTime))
 
 	assert.EqualValues(t, testCryptoQuote.Symbol, quote.Symbol)
 	assert.EqualValues(t, testCryptoQuote.Exchange, quote.Exchange)
 	assert.EqualValues(t, testCryptoQuote.BidPrice, quote.BidPrice)
+	assert.EqualValues(t, testCryptoQuote.BidSize, quote.BidSize)
 	assert.EqualValues(t, testCryptoQuote.AskPrice, quote.AskPrice)
+	assert.EqualValues(t, testCryptoQuote.AskSize, quote.AskSize)
 	assert.True(t, quote.Timestamp.Equal(testTime))
 
 	assert.EqualValues(t, testCryptoBar.Symbol, bar.Symbol)

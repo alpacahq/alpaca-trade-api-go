@@ -68,13 +68,19 @@ type CryptoTrade struct {
 	Price     float64
 	Size      float64
 	Timestamp time.Time
+	Id        int64
+	// TakerSide is the taker's side: one of B, S or -.
+	// B is buy, S is sell and - is unknown.
+	TakerSide string
 }
 
 type CryptoQuote struct {
 	Symbol    string
 	Exchange  string
 	BidPrice  float64
+	BidSize   float64
 	AskPrice  float64
+	AskSize   float64
 	Timestamp time.Time
 }
 

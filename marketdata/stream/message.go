@@ -331,6 +331,10 @@ func (h *cryptoMsgHandler) handleTrade(d *msgpack.Decoder, n int) error {
 			trade.Size, err = d.DecodeFloat64()
 		case "t":
 			trade.Timestamp, err = d.DecodeTime()
+		case "i":
+			trade.Id, err = d.DecodeInt64()
+		case "tks":
+			trade.TakerSide, err = d.DecodeString()
 		default:
 			err = d.Skip()
 		}
@@ -359,8 +363,12 @@ func (h *cryptoMsgHandler) handleQuote(d *msgpack.Decoder, n int) error {
 			quote.Exchange, err = d.DecodeString()
 		case "bp":
 			quote.BidPrice, err = d.DecodeFloat64()
+		case "bs":
+			quote.BidSize, err = d.DecodeFloat64()
 		case "ap":
 			quote.AskPrice, err = d.DecodeFloat64()
+		case "as":
+			quote.AskSize, err = d.DecodeFloat64()
 		case "t":
 			quote.Timestamp, err = d.DecodeTime()
 		default:
