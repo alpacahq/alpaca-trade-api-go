@@ -17,12 +17,10 @@ func main() {
 		stream.WithLogger(&logger{}),
 		// configuring initial subscriptions and handlers
 		stream.WithCryptoTrades(func(ct stream.CryptoTrade) {
-			fmt.Printf("%s TRADE %s %g of $%g at %s, id: %d, taker side: %s\n",
-				ct.Exchange, ct.Symbol, ct.Size, ct.Price, ct.Timestamp, ct.Id, ct.TakerSide)
+			fmt.Printf("TRADE: %+v\n", ct)
 		}, "*"),
 		stream.WithCryptoQuotes(func(cq stream.CryptoQuote) {
-			fmt.Printf("%s QUOTE %s bid price: $%g, size:%g  ask price: $%g, size: %g at %s\n",
-				cq.Exchange, cq.Symbol, cq.BidPrice, cq.BidSize, cq.AskPrice, cq.AskSize, cq.Timestamp)
+			fmt.Printf("QUOTE: %+v\n", cq)
 		}, "BTCUSD"),
 	)
 	if err := c.Connect(ctx); err != nil {
