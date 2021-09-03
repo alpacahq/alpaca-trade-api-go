@@ -80,6 +80,7 @@ type CryptoQuote struct {
 
 type CryptoBar struct {
 	Symbol     string
+	Exchange   string
 	Open       float64
 	High       float64
 	Low        float64

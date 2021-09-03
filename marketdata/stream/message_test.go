@@ -112,6 +112,7 @@ type cryptoQuoteWithT struct {
 type cryptoBarWithT struct {
 	Type       string    `msgpack:"T"`
 	Symbol     string    `msgpack:"S"`
+	Exchange   string    `msgpack:"x"`
 	Open       float64   `msgpack:"o"`
 	High       float64   `msgpack:"h"`
 	Low        float64   `msgpack:"l"`
@@ -241,6 +242,7 @@ var testCryptoQuote = cryptoQuoteWithT{
 var testCryptoBar = cryptoBarWithT{
 	Type:       "b",
 	Symbol:     "TEST",
+	Exchange:   "TEST",
 	Open:       100,
 	High:       101.2,
 	Low:        98.67,
@@ -461,6 +463,7 @@ func TestHandleMessagesCrypto(t *testing.T) {
 	assert.True(t, quote.Timestamp.Equal(testTime))
 
 	assert.EqualValues(t, testCryptoBar.Symbol, bar.Symbol)
+	assert.EqualValues(t, testCryptoBar.Exchange, bar.Exchange)
 	assert.EqualValues(t, testCryptoBar.Open, bar.Open)
 	assert.EqualValues(t, testCryptoBar.High, bar.High)
 	assert.EqualValues(t, testCryptoBar.Low, bar.Low)
