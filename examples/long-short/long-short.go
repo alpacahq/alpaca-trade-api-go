@@ -460,8 +460,8 @@ func (alp longShortAlgo) getPercentChanges() error {
 	}
 	multiBars, err := algo.client.GetMultiBars(symbols, alpaca.GetBarsParams{
 		TimeFrame: marketdata.Min,
-		Start:     &start,
-		End:       &end,
+		Start:     start,
+		End:       end,
 		Feed:      feed,
 	})
 	if err != nil {

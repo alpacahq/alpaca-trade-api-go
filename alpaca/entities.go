@@ -211,10 +211,20 @@ type tradeResponse struct {
 	Trades        []marketdata.Trade `json:"trades"`
 }
 
+type multiTradeResponse struct {
+	NextPageToken *string                       `json:"next_page_token"`
+	Trades        map[string][]marketdata.Trade `json:"trades"`
+}
+
 type quoteResponse struct {
 	Symbol        string             `json:"symbol"`
 	NextPageToken *string            `json:"next_page_token"`
 	Quotes        []marketdata.Quote `json:"quotes"`
+}
+
+type multiQuoteResponse struct {
+	NextPageToken *string                       `json:"next_page_token"`
+	Quotes        map[string][]marketdata.Quote `json:"quotes"`
 }
 
 type barResponse struct {

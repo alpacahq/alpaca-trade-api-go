@@ -68,12 +68,6 @@ func defaultDo(c *Client, req *http.Request) (*http.Response, error) {
 	return resp, nil
 }
 
-// TODO: Move to the marketdata package
-const (
-	v2DefaultLimit = 1000
-	v2MaxLimit     = 10000
-)
-
 func init() {
 	if s := os.Getenv("APCA_API_BASE_URL"); s != "" {
 		base = s
@@ -418,11 +412,11 @@ func (c *Client) GetLastTrade(symbol string) (*LastTradeResponse, error) {
 	return lastTrade, nil
 }
 
-func setBaseQuery(q url.Values, start, end *time.Time, feed string) {
-	if start != nil {
+func setBaseQuery(q url.Values, start, end time.Time, feed string) {
+	if !start.IsZero() {
 		q.Set("start", start.Format(time.RFC3339))
 	}
-	if end != nil {
+	if !end.IsZero() {
 		q.Set("end", end.Format(time.RFC3339))
 	}
 	if feed != "" {
@@ -430,37 +424,36 @@ func setBaseQuery(q url.Values, start, end *time.Time, feed string) {
 	}
 }
 
-func setQueryLimit(q url.Values, totalLimit *int, pageLimit *int, received int) {
-	limit := v2DefaultLimit
-	if pageLimit != nil {
-		limit = *pageLimit
+func setQueryLimit(q url.Values, totalLimit int, pageLimit int, received int) {
+	limit := 0 // use server side default if unset
+	if pageLimit != 0 {
+		limit = pageLimit
 	}
-	if limit > v2MaxLimit {
-		limit = v2MaxLimit
-	}
-	if totalLimit != nil {
-		remaining := *totalLimit - received
-		if remaining <= 0 {
+	if totalLimit != 0 {
+		remaining := totalLimit - received
+		if remaining <= 0 { // this should never happen
 			return
 		}
-		if limit > remaining {
+		if limit == 0 || limit > remaining {
 			limit = remaining
 		}
 	}
-	q.Set("limit", fmt.Sprintf("%d", limit))
+	if limit != 0 {
+		q.Set("limit", fmt.Sprintf("%d", limit))
+	}
 }
 
 // GetTradesParams contains optional parameters for getting trades.
 type GetTradesParams struct {
 	// Start is the inclusive beginning of the interval
-	Start *time.Time
+	Start time.Time
 	// End is the inclusive end of the interval
-	End *time.Time
+	End time.Time
 	// TotalLimit is the limit of the total number of the returned trades.
 	// If missing, all trades between start end end will be returned.
-	TotalLimit *int
+	TotalLimit int
 	// PageLimit is the pagination size. If empty, the default page size will be used.
-	PageLimit *int
+	PageLimit int
 	// Feed is the source of the data: sip or iex.
 	Feed string
 }
@@ -499,7 +492,7 @@ func (c *Client) GetTradesAsync(symbol string, params GetTradesParams) <-chan ma
 		setBaseQuery(q, params.Start, params.End, params.Feed)
 
 		received := 0
-		for {
+		for params.TotalLimit == 0 || received < params.TotalLimit {
 			setQueryLimit(q, params.TotalLimit, params.PageLimit, received)
 			u.RawQuery = q.Encode()
 
@@ -529,17 +522,92 @@ func (c *Client) GetTradesAsync(symbol string, params GetTradesParams) <-chan ma
 	return ch
 }
 
+// GetMultiTrades returns trades for the given symbols.
+//
+// Deprecated: will be moved to the marketdata package!
+func (c *Client) GetMultiTrades(
+	symbols []string, params GetTradesParams,
+) (map[string][]marketdata.Trade, error) {
+	trades := make(map[string][]marketdata.Trade, len(symbols))
+	for item := range c.GetMultiTradesAsync(symbols, params) {
+		if err := item.Error; err != nil {
+			return nil, err
+		}
+		trades[item.Symbol] = append(trades[item.Symbol], item.Trade)
+	}
+	return trades, nil
+}
+
+// GetTrades returns a channel that will be populated with the trades for the requested symbols.
+//
+// Deprecated: will be moved to the marketdata package!
+func (c *Client) GetMultiTradesAsync(symbols []string, params GetTradesParams) <-chan marketdata.MultiTradeItem {
+	ch := make(chan marketdata.MultiTradeItem)
+
+	go func() {
+		defer close(ch)
+
+		u, err := url.Parse(fmt.Sprintf("%s/v2/stocks/trades", dataURL))
+		if err != nil {
+			ch <- marketdata.MultiTradeItem{Error: err}
+			return
+		}
+
+		q := u.Query()
+		q.Set("symbols", strings.Join(symbols, ","))
+		setBaseQuery(q, params.Start, params.End, params.Feed)
+
+		received := 0
+		for params.TotalLimit == 0 || received < params.TotalLimit {
+			setQueryLimit(q, params.TotalLimit, params.PageLimit, received)
+			u.RawQuery = q.Encode()
+
+			resp, err := c.get(u)
+			if err != nil {
+				ch <- marketdata.MultiTradeItem{Error: err}
+				return
+			}
+
+			var tradeResp multiTradeResponse
+			if err = unmarshal(resp, &tradeResp); err != nil {
+				ch <- marketdata.MultiTradeItem{Error: err}
+				return
+			}
+
+			sortedSymbols := make([]string, 0, len(tradeResp.Trades))
+			for symbol := range tradeResp.Trades {
+				sortedSymbols = append(sortedSymbols, symbol)
+			}
+			sort.Strings(sortedSymbols)
+
+			for _, symbol := range sortedSymbols {
+				trades := tradeResp.Trades[symbol]
+				for _, trade := range trades {
+					ch <- marketdata.MultiTradeItem{Symbol: symbol, Trade: trade}
+				}
+				received += len(trades)
+			}
+			if tradeResp.NextPageToken == nil {
+				return
+			}
+			q.Set("page_token", *tradeResp.NextPageToken)
+		}
+	}()
+
+	return ch
+}
+
 // GetQuotesParams contains optional parameters for getting quotes
 type GetQuotesParams struct {
 	// Start is the inclusive beginning of the interval
-	Start *time.Time
+	Start time.Time
 	// End is the inclusive end of the interval
-	End *time.Time
+	End time.Time
 	// TotalLimit is the limit of the total number of the returned quotes.
 	// If missing, all quotes between start end end will be returned.
-	TotalLimit *int
+	TotalLimit int
 	// PageLimit is the pagination size. If empty, the default page size will be used.
-	PageLimit *int
+	PageLimit int
 	// Feed is the source of the data: sip or iex.
 	Feed string
 }
@@ -581,7 +649,7 @@ func (c *Client) GetQuotesAsync(symbol string, params GetQuotesParams) <-chan ma
 		setBaseQuery(q, params.Start, params.End, params.Feed)
 
 		received := 0
-		for {
+		for params.TotalLimit == 0 || received < params.TotalLimit {
 			setQueryLimit(q, params.TotalLimit, params.PageLimit, received)
 			u.RawQuery = q.Encode()
 
@@ -611,6 +679,81 @@ func (c *Client) GetQuotesAsync(symbol string, params GetQuotesParams) <-chan ma
 	return ch
 }
 
+// GetMultiQuotes returns quotes for the given symbols.
+//
+// Deprecated: will be moved to the marketdata package!
+func (c *Client) GetMultiQuotes(
+	symbols []string, params GetQuotesParams,
+) (map[string][]marketdata.Quote, error) {
+	quotes := make(map[string][]marketdata.Quote, len(symbols))
+	for item := range c.GetMultiQuotesAsync(symbols, params) {
+		if err := item.Error; err != nil {
+			return nil, err
+		}
+		quotes[item.Symbol] = append(quotes[item.Symbol], item.Quote)
+	}
+	return quotes, nil
+}
+
+// GetQuotes returns a channel that will be populated with the quotes for the requested symbols.
+//
+// Deprecated: will be moved to the marketdata package!
+func (c *Client) GetMultiQuotesAsync(symbols []string, params GetQuotesParams) <-chan marketdata.MultiQuoteItem {
+	ch := make(chan marketdata.MultiQuoteItem)
+
+	go func() {
+		defer close(ch)
+
+		u, err := url.Parse(fmt.Sprintf("%s/v2/stocks/quotes", dataURL))
+		if err != nil {
+			ch <- marketdata.MultiQuoteItem{Error: err}
+			return
+		}
+
+		q := u.Query()
+		q.Set("symbols", strings.Join(symbols, ","))
+		setBaseQuery(q, params.Start, params.End, params.Feed)
+
+		received := 0
+		for params.TotalLimit == 0 || received < params.TotalLimit {
+			setQueryLimit(q, params.TotalLimit, params.PageLimit, received)
+			u.RawQuery = q.Encode()
+
+			resp, err := c.get(u)
+			if err != nil {
+				ch <- marketdata.MultiQuoteItem{Error: err}
+				return
+			}
+
+			var quoteResp multiQuoteResponse
+			if err = unmarshal(resp, &quoteResp); err != nil {
+				ch <- marketdata.MultiQuoteItem{Error: err}
+				return
+			}
+
+			sortedSymbols := make([]string, 0, len(quoteResp.Quotes))
+			for symbol := range quoteResp.Quotes {
+				sortedSymbols = append(sortedSymbols, symbol)
+			}
+			sort.Strings(sortedSymbols)
+
+			for _, symbol := range sortedSymbols {
+				quotes := quoteResp.Quotes[symbol]
+				for _, quote := range quotes {
+					ch <- marketdata.MultiQuoteItem{Symbol: symbol, Quote: quote}
+				}
+				received += len(quotes)
+			}
+			if quoteResp.NextPageToken == nil {
+				return
+			}
+			q.Set("page_token", *quoteResp.NextPageToken)
+		}
+	}()
+
+	return ch
+}
+
 // GetBarsParams contains optional parameters for getting bars
 type GetBarsParams struct {
 	// TimeFrame is the aggregation size of the bars
@@ -618,14 +761,14 @@ type GetBarsParams struct {
 	// Adjustment tells if the bars should be adjusted for corporate actions
 	Adjustment marketdata.Adjustment
 	// Start is the inclusive beginning of the interval
-	Start *time.Time
+	Start time.Time
 	// End is the inclusive end of the interval
-	End *time.Time
+	End time.Time
 	// TotalLimit is the limit of the total number of the returned trades.
 	// If missing, all trades between start end end will be returned.
-	TotalLimit *int
+	TotalLimit int
 	// PageLimit is the pagination size. If empty, the default page size will be used.
-	PageLimit *int
+	PageLimit int
 	// Feed is the source of the data: sip or iex.
 	Feed string
 }
@@ -678,7 +821,7 @@ func (c *Client) GetBarsAsync(symbol string, params GetBarsParams) <-chan market
 		setQueryBarParams(q, params)
 
 		received := 0
-		for {
+		for params.TotalLimit == 0 || received < params.TotalLimit {
 			setQueryLimit(q, params.TotalLimit, params.PageLimit, received)
 			u.RawQuery = q.Encode()
 
@@ -708,7 +851,7 @@ func (c *Client) GetBarsAsync(symbol string, params GetBarsParams) <-chan market
 	return ch
 }
 
-// GetMultiBars returns a slice of bars for the given symbols.
+// GetMultiBars returns bars for the given symbols.
 //
 // Deprecated: will be moved to the marketdata package!
 func (c *Client) GetMultiBars(
@@ -744,7 +887,8 @@ func (c *Client) GetMultiBarsAsync(symbols []string, params GetBarsParams) <-cha
 		setQueryBarParams(q, params)
 
 		received := 0
-		for {
+		for params.TotalLimit == 0 || received < params.TotalLimit {
+			setQueryLimit(q, params.TotalLimit, params.PageLimit, received)
 			u.RawQuery = q.Encode()
 
 			resp, err := c.get(u)
@@ -1298,6 +1442,21 @@ func GetTradesAsync(symbol string, params GetTradesParams) <-chan marketdata.Tra
 	return DefaultClient.GetTradesAsync(symbol, params)
 }
 
+// GetMultiTrades returns the trades for the given symbols. It blocks until all the trades are collected.
+// If you want to process the incoming trades instantly, use GetMultiTradesAsync instead!
+//
+// Deprecated: will be moved to the marketdata package!
+func GetMultiTrades(symbols []string, params GetTradesParams) (map[string][]marketdata.Trade, error) {
+	return DefaultClient.GetMultiTrades(symbols, params)
+}
+
+// GetMultiTradesAsync returns a channel that will be populated with the trades for the given symbols.
+//
+// Deprecated: will be moved to the marketdata package!
+func GetMultiTradesAsync(symbols []string, params GetTradesParams) <-chan marketdata.MultiTradeItem {
+	return DefaultClient.GetMultiTradesAsync(symbols, params)
+}
+
 // GetQuotes returns the quotes for the given symbol. It blocks until all the quotes are collected.
 // If you want to process the incoming quotes instantly, use GetQuotesAsync instead!
 //
@@ -1312,6 +1471,21 @@ func GetQuotes(symbol string, params GetQuotesParams) ([]marketdata.Quote, error
 // Deprecated: will be moved to the marketdata package!
 func GetQuotesAsync(symbol string, params GetQuotesParams) <-chan marketdata.QuoteItem {
 	return DefaultClient.GetQuotesAsync(symbol, params)
+}
+
+// GetMultiQuotes returns the quotes for the given symbols. It blocks until all the quotes are collected.
+// If you want to process the incoming quotes instantly, use GetMultiQuotesAsync instead!
+//
+// Deprecated: will be moved to the marketdata package!
+func GetMultiQuotes(symbols []string, params GetQuotesParams) (map[string][]marketdata.Quote, error) {
+	return DefaultClient.GetMultiQuotes(symbols, params)
+}
+
+// GetMultiQuotesAsync returns a channel that will be populated with the quotes for the given symbols.
+//
+// Deprecated: will be moved to the marketdata package!
+func GetMultiQuotesAsync(symbols []string, params GetQuotesParams) <-chan marketdata.MultiQuoteItem {
+	return DefaultClient.GetMultiQuotesAsync(symbols, params)
 }
 
 // GetBars returns the bars for the given symbol. It blocks until all the bars are collected.
