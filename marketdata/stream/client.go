@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"strings"
 	"sync"
 	"time"
 )
@@ -188,7 +189,8 @@ func (sc *stocksClient) constructURL() (url.URL, error) {
 type cryptoClient struct {
 	*client
 
-	handler *cryptoMsgHandler
+	exchanges []string
+	handler   *cryptoMsgHandler
 }
 
 var _ CryptoClient = (*cryptoClient)(nil)
@@ -213,14 +215,15 @@ func (cc *cryptoClient) configure(o cryptoOptions) {
 	cc.handler.quoteHandler = o.quoteHandler
 	cc.handler.barHandler = o.barHandler
 	cc.handler.dailyBarHandler = o.dailyBarHandler
+	cc.exchanges = o.exchanges
 }
 
-func (sc *cryptoClient) Connect(ctx context.Context) error {
-	u, err := sc.constructURL()
+func (cc *cryptoClient) Connect(ctx context.Context) error {
+	u, err := cc.constructURL()
 	if err != nil {
 		return err
 	}
-	return sc.connect(ctx, u)
+	return cc.connect(ctx, u)
 }
 
 func (cc *cryptoClient) constructURL() (url.URL, error) {
@@ -234,7 +237,13 @@ func (cc *cryptoClient) constructURL() (url.URL, error) {
 		scheme = "ws"
 	}
 
-	return url.URL{Scheme: scheme, Host: ub.Host, Path: ub.Path}, nil
+	var rawQuery string
+	if len(cc.exchanges) > 0 {
+
+		rawQuery = "exchanges=" + strings.Join(cc.exchanges, ",")
+	}
+
+	return url.URL{Scheme: scheme, Host: ub.Host, Path: ub.Path, RawQuery: rawQuery}, nil
 }
 
 // ErrConnectCalledMultipleTimes is returned when Connect has been called multiple times on a single client

@@ -237,6 +237,7 @@ type cryptoOptions struct {
 	quoteHandler    func(CryptoQuote)
 	barHandler      func(CryptoBar)
 	dailyBarHandler func(CryptoBar)
+	exchanges       []string
 }
 
 // defaultCryptoOptions are the default options for a client.
@@ -324,5 +325,12 @@ func WithCryptoDailyBars(handler func(CryptoBar), symbols ...string) CryptoOptio
 	return newFuncCryptoOption(func(o *cryptoOptions) {
 		o.sub.dailyBars = symbols
 		o.dailyBarHandler = handler
+	})
+}
+
+// WithExchanges configures the set of crypto exchanges to listen to
+func WithExchanges(exchanges ...string) CryptoOption {
+	return newFuncCryptoOption(func(o *cryptoOptions) {
+		o.exchanges = exchanges
 	})
 }
