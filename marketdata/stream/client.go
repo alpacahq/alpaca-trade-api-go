@@ -239,7 +239,6 @@ func (cc *cryptoClient) constructURL() (url.URL, error) {
 
 	var rawQuery string
 	if len(cc.exchanges) > 0 {
-
 		rawQuery = "exchanges=" + strings.Join(cc.exchanges, ",")
 	}
 
