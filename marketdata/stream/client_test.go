@@ -854,3 +854,51 @@ func checkInitialMessagesSentByClient(
 	require.ElementsMatch(t, sub.statuses, s["statuses"])
 	require.ElementsMatch(t, sub.lulds, s["lulds"])
 }
+
+func TestCryptoClientConstructURL(t *testing.T) {
+	for _, test := range []struct {
+		name      string
+		exchanges []string
+		baseUrl   string
+		expected  string
+	}{
+		{
+			name:     "wss_noexchange",
+			baseUrl:  "wss://test.example.com/test/crypto",
+			expected: "wss://test.example.com/test/crypto",
+		},
+		{
+			name:      "wss_exchange",
+			baseUrl:   "wss://test.example.com/test/crypto",
+			exchanges: []string{"TEST", "TEST2"},
+			expected:  "wss://test.example.com/test/crypto?exchanges=TEST,TEST2",
+		},
+		{
+			name:     "ws_noexchange",
+			baseUrl:  "ws://test.example.com/test/crypto",
+			expected: "ws://test.example.com/test/crypto",
+		},
+		{
+			name:     "http_noexchange",
+			baseUrl:  "http://test.example.com/test/crypto",
+			expected: "ws://test.example.com/test/crypto",
+		},
+		{
+			name:     "https_noexchange",
+			baseUrl:  "https://test.example.com/test/crypto",
+			expected: "wss://test.example.com/test/crypto",
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			c := NewCryptoClient(
+				WithBaseURL(test.baseUrl),
+				WithExchanges(test.exchanges...),
+			)
+			cryptoClient, ok := c.(*cryptoClient)
+			require.True(t, ok)
+			got, err := cryptoClient.constructURL()
+			require.NoError(t, err)
+			assert.EqualValues(t, test.expected, got.String())
+		})
+	}
+}

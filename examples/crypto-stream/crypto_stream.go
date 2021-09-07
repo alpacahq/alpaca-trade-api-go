@@ -22,6 +22,7 @@ func main() {
 		stream.WithCryptoQuotes(func(cq stream.CryptoQuote) {
 			fmt.Printf("QUOTE: %+v\n", cq)
 		}, "BTCUSD"),
+		// stream.WithExchanges("EXAMPLE"),
 	)
 	if err := c.Connect(ctx); err != nil {
 		panic(err)
