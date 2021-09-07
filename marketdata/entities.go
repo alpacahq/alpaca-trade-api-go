@@ -4,11 +4,11 @@ import "time"
 
 // Trade is a stock trade that happened on the market
 type Trade struct {
-	ID         int64     `json:"i"`
-	Exchange   string    `json:"x"`
+	Timestamp  time.Time `json:"t"`
 	Price      float64   `json:"p"`
 	Size       uint32    `json:"s"`
-	Timestamp  time.Time `json:"t"`
+	Exchange   string    `json:"x"`
+	ID         int64     `json:"i"`
 	Conditions []string  `json:"c"`
 	Tape       string    `json:"z"`
 }
@@ -19,15 +19,22 @@ type TradeItem struct {
 	Error error
 }
 
+// MultiTradeItem contains a single trade for a symbol or an error
+type MultiTradeItem struct {
+	Symbol string
+	Trade  Trade
+	Error  error
+}
+
 // Quote is a stock quote from the market
 type Quote struct {
-	BidExchange string    `json:"bx"`
+	Timestamp   time.Time `json:"t"`
 	BidPrice    float64   `json:"bp"`
 	BidSize     uint32    `json:"bs"`
-	AskExchange string    `json:"ax"`
+	BidExchange string    `json:"bx"`
 	AskPrice    float64   `json:"ap"`
 	AskSize     uint32    `json:"as"`
-	Timestamp   time.Time `json:"t"`
+	AskExchange string    `json:"ax"`
 	Conditions  []string  `json:"c"`
 	Tape        string    `json:"z"`
 }
@@ -36,6 +43,13 @@ type Quote struct {
 type QuoteItem struct {
 	Quote Quote
 	Error error
+}
+
+// MultiQuoteItem contains a single quote for a symbol or an error
+type MultiQuoteItem struct {
+	Symbol string
+	Quote  Quote
+	Error  error
 }
 
 // TimeFrame is the resolution of the bars
@@ -61,12 +75,12 @@ const (
 
 // Bar is an aggregate of trades
 type Bar struct {
+	Timestamp  time.Time `json:"t"`
 	Open       float64   `json:"o"`
 	High       float64   `json:"h"`
 	Low        float64   `json:"l"`
 	Close      float64   `json:"c"`
 	Volume     uint64    `json:"v"`
-	Timestamp  time.Time `json:"t"`
 	TradeCount uint64    `json:"n"`
 	VWAP       float64   `json:"vw"`
 }
