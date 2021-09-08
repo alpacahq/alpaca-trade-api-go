@@ -5,7 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net/http"
+	"strings"
 	"testing"
 	"time"
 
@@ -351,6 +353,45 @@ func TestGetAsset(t *testing.T) {
 	asset, err = c.GetAsset("APCA")
 	require.Error(t, err)
 	assert.Nil(t, asset)
+
+}
+
+func TestGetAssetFromJSON(t *testing.T) {
+	c := testClient()
+
+	assetJSON := `{
+			"id": "904837e3-3b76-47ec-b432-046db621571b",
+			"class": "us_equity",
+			"exchange": "NASDAQ",
+			"symbol": "APCA",
+			"status": "active",
+			"tradable": true,
+			"marginable": true,
+			"shortable": true,
+			"easy_to_borrow": true
+		}`
+
+	// successful
+	c.do = func(c *client, req *http.Request) (*http.Response, error) {
+		return &http.Response{
+			Body: ioutil.NopCloser(strings.NewReader(assetJSON)),
+		}, nil
+	}
+
+	asset, err := c.GetAsset("APCA")
+	assert.Nil(t, err)
+	assert.Equal(t, "us_equity", asset.Class)
+	assert.NotNil(t, asset)
+
+	// api failure
+	c.do = func(c *client, req *http.Request) (*http.Response, error) {
+		return &http.Response{}, fmt.Errorf("fail")
+	}
+
+	asset, err = c.GetAsset("APCA")
+	assert.NotNil(t, err)
+	assert.Nil(t, asset)
+
 }
 
 func TestTestVerify(t *testing.T) {
