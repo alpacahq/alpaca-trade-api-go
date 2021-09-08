@@ -932,7 +932,7 @@ func (s *AlpacaTestSuite) TestAlpaca() {
 					High:   80.86,
 					Low:    80.02,
 					Close:  80.51,
-					Volume: 4283085,
+					Volume: 2147483655,
 				},
 			}
 			var barsMap = make(map[string][]Bar)
@@ -946,6 +946,7 @@ func (s *AlpacaTestSuite) TestAlpaca() {
 		assert.NoError(s.T(), err)
 		require.Len(s.T(), bars, 1)
 		assert.Equal(s.T(), int64(1551157200), bars["APCA"][0].Time)
+		assert.Equal(s.T(), int64(2147483655), bars["APCA"][0].Volume)
 
 		// api failure
 		do = func(c *Client, req *http.Request) (*http.Response, error) {
