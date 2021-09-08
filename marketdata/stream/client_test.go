@@ -292,8 +292,7 @@ func TestSubscribeCalledButClientTerminatesCrypto(t *testing.T) {
 	writeInitialFlowMessagesToConn(t, connection, subscriptions{})
 
 	c := NewCryptoClient(
-		// set missing credentials explicitely because env vars may set incorrect defaults for the test
-		WithCredentials("", ""),
+		WithCredentials("my_key", "my_secret"),
 		withConnCreator(func(ctx context.Context, u url.URL) (conn, error) {
 			return connection, nil
 		}))
@@ -303,7 +302,7 @@ func TestSubscribeCalledButClientTerminatesCrypto(t *testing.T) {
 	err := c.Connect(ctx)
 	require.NoError(t, err)
 
-	checkInitialMessagesSentByClient(t, connection, "", "", c.(*cryptoClient).sub)
+	checkInitialMessagesSentByClient(t, connection, "my_key", "my_secret", c.(*cryptoClient).sub)
 	subErrCh := make(chan error, 1)
 	subFunc := func() {
 		subErrCh <- c.SubscribeToTrades(func(trade CryptoTrade) {}, "PACOIN")
@@ -424,8 +423,7 @@ func TestSubscribeFailsDueToError(t *testing.T) {
 	writeInitialFlowMessagesToConn(t, connection, subscriptions{})
 
 	c := NewCryptoClient(
-		// set missing credentials explicitely because env vars may set incorrect defaults for the test
-		WithCredentials("", ""),
+		WithCredentials("my_key", "my_secret"),
 		withConnCreator(func(ctx context.Context, u url.URL) (conn, error) {
 			return connection, nil
 		}))
@@ -436,7 +434,7 @@ func TestSubscribeFailsDueToError(t *testing.T) {
 	// connect
 	err := c.Connect(ctx)
 	require.NoError(t, err)
-	checkInitialMessagesSentByClient(t, connection, "", "", subscriptions{})
+	checkInitialMessagesSentByClient(t, connection, "my_key", "my_secret", subscriptions{})
 
 	// attempting sub change
 	subRes := make(chan error)

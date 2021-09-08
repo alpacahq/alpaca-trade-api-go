@@ -12,14 +12,13 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/alpacahq/alpaca-trade-api-go/v2/common"
 	"github.com/gorilla/websocket"
 )
 
 // StreamTradeUpdates listens to trade updates as long as the given context is not cancelled
 // and calls the given handler for each update.
-func StreamTradeUpdates(ctx context.Context, handler func(TradeUpdate)) error {
-	s := getStream()
+func (c *client) StreamTradeUpdates(ctx context.Context, handler func(TradeUpdate)) error {
+	s := getStream(c.opts.BaseURL, c.opts.ApiKey, c.opts.ApiSecret)
 	if err := s.Subscribe("trade_updates", func(msg interface{}) {
 		handler(msg.(TradeUpdate))
 	}); err != nil {
@@ -30,6 +29,12 @@ func StreamTradeUpdates(ctx context.Context, handler func(TradeUpdate)) error {
 		s.Close()
 	}()
 	return nil
+}
+
+// StreamTradeUpdates listens to trade updates as long as the given context is not cancelled
+// and calls the given handler for each update.
+func StreamTradeUpdates(ctx context.Context, handler func(TradeUpdate)) error {
+	return DefaultClient.StreamTradeUpdates(ctx, handler)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -57,6 +62,7 @@ type wsStream struct {
 	authenticated, closed atomic.Value
 	handlers              sync.Map
 	base                  string
+	apiKey, apiSecret     string
 }
 
 // Subscribe to the specified Alpaca stream channel.
@@ -173,7 +179,7 @@ func (s *wsStream) findHandler(stream string) func(interface{}) {
 
 func (s *wsStream) start() {
 	for {
-		msg := ServerMsg{}
+		msg := serverMsg{}
 
 		if err := s.conn.ReadJSON(&msg); err == nil {
 			handler := s.findHandler(msg.Stream)
@@ -185,15 +191,15 @@ func (s *wsStream) start() {
 					json.Unmarshal(msgBytes, &tradeupdate)
 					handler(tradeupdate)
 				case strings.HasPrefix(msg.Stream, "Q."):
-					var quote StreamQuote
+					var quote streamQuote
 					json.Unmarshal(msgBytes, &quote)
 					handler(quote)
 				case strings.HasPrefix(msg.Stream, "T."):
-					var trade StreamTrade
+					var trade streamTrade
 					json.Unmarshal(msgBytes, &trade)
 					handler(trade)
 				case strings.HasPrefix(msg.Stream, "AM."):
-					var agg StreamAgg
+					var agg streamAgg
 					json.Unmarshal(msgBytes, &agg)
 					handler(agg)
 
@@ -223,7 +229,7 @@ func (s *wsStream) sub(channel string) (err error) {
 	s.Lock()
 	defer s.Unlock()
 
-	subReq := ClientMsg{
+	subReq := clientMsg{
 		Action: "listen",
 		Data: map[string]interface{}{
 			"streams": []interface{}{
@@ -243,7 +249,7 @@ func (s *wsStream) unsub(channel string) (err error) {
 	s.Lock()
 	defer s.Unlock()
 
-	subReq := ClientMsg{
+	subReq := clientMsg{
 		Action: "unlisten",
 		Data: map[string]interface{}{
 			"streams": []interface{}{
@@ -271,11 +277,11 @@ func (s *wsStream) auth() (err error) {
 		return
 	}
 
-	authRequest := ClientMsg{
+	authRequest := clientMsg{
 		Action: "authenticate",
 		Data: map[string]interface{}{
-			"key_id":     common.Credentials().ID,
-			"secret_key": common.Credentials().Secret,
+			"key_id":     s.apiKey,
+			"secret_key": s.apiSecret,
 		},
 	}
 
@@ -283,7 +289,7 @@ func (s *wsStream) auth() (err error) {
 		return
 	}
 
-	msg := ServerMsg{}
+	msg := serverMsg{}
 
 	// ensure the auth response comes in a timely manner
 	s.conn.SetReadDeadline(time.Now().Add(5 * time.Second))
@@ -304,12 +310,14 @@ func (s *wsStream) auth() (err error) {
 	return
 }
 
-func getStream() *wsStream {
+func getStream(baseURL, apiKey, apiSecret string) *wsStream {
 	once.Do(func() {
 		str = &wsStream{
 			authenticated: atomic.Value{},
 			handlers:      sync.Map{},
-			base:          base,
+			base:          baseURL,
+			apiKey:        apiKey,
+			apiSecret:     apiSecret,
 		}
 
 		str.authenticated.Store(false)

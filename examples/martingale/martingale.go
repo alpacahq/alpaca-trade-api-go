@@ -12,13 +12,12 @@ import (
 	"time"
 
 	"github.com/alpacahq/alpaca-trade-api-go/v2/alpaca"
-	"github.com/alpacahq/alpaca-trade-api-go/v2/common"
 	"github.com/alpacahq/alpaca-trade-api-go/v2/marketdata/stream"
 	"github.com/shopspring/decimal"
 )
 
 type alpacaClientContainer struct {
-	client        *alpaca.Client
+	client        alpaca.Client
 	tickSize      int
 	tickIndex     int
 	baseBet       float64
@@ -44,19 +43,11 @@ var alpacaClient alpacaClientContainer
 // The MartingaleTrader bets that streaks of increases or decreases in a stock's
 // price are likely to break, and increases its bet each time it is wrong.
 func init() {
-	API_KEY := "YOUR_API_KEY_HERE"
-	API_SECRET := "YOUR_API_SECRET_HERE"
-	BASE_URL := "https://paper-api.alpaca.markets"
-
-	// Check for environment variables
-	if common.Credentials().ID == "" {
-		os.Setenv(common.EnvApiKeyID, API_KEY)
-	}
-	if common.Credentials().Secret == "" {
-		os.Setenv(common.EnvApiSecretKey, API_SECRET)
-	}
-	// os.Setenv("APCA_API_VERSION", "v1")
-	alpaca.SetBaseUrl(BASE_URL)
+	// You can set your API key/secret here or you can use environment variables!
+	apiKey := ""
+	apiSecret := ""
+	// Change this to https://api.alpaca.markets if you want to go live!
+	baseURL := "https://paper-api.alpaca.markets"
 
 	// Check if user input a stock
 	stock := "AAPL"
@@ -64,7 +55,11 @@ func init() {
 		stock = os.Args[1]
 	}
 
-	client := alpaca.NewClient(common.Credentials())
+	client := alpaca.NewClient(alpaca.ClientOpts{
+		ApiKey:    apiKey,
+		ApiSecret: apiSecret,
+		BaseURL:   baseURL,
+	})
 
 	// Cancel any open orders so they don't interfere with this script
 	client.CancelAllOrders()
@@ -130,11 +125,8 @@ func main() {
 
 	alpaca.StreamTradeUpdates(context.TODO(), handleTradeUpdates)
 
-	select {
-	case err := <-c.Terminated():
-		if err != nil {
-			panic(err)
-		}
+	if err := <-c.Terminated(); err != nil {
+		panic(err)
 	}
 }
 
