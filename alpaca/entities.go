@@ -312,8 +312,13 @@ type serverMsg struct {
 }
 
 type TradeUpdate struct {
-	Event string `json:"event"`
-	Order Order  `json:"order"`
+	Event       string           `json:"event"`
+	ExecutionID string           `json:"execution_id"`
+	Order       Order            `json:"order"`
+	PositionQty *decimal.Decimal `json:"position_qty"`
+	Price       *decimal.Decimal `json:"price"`
+	Qty         *decimal.Decimal `json:"qty"`
+	Timestamp   *time.Time       `json:"timestamp"`
 }
 
 ////////////////////////////////////////////////////////////////////////////////
