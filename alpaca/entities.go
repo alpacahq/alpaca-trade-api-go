@@ -3,7 +3,6 @@ package alpaca
 import (
 	"time"
 
-	"github.com/alpacahq/alpaca-trade-api-go/v2/marketdata"
 	"github.com/shopspring/decimal"
 )
 
@@ -126,126 +125,6 @@ type Fundamental struct {
 	FiftyTwoWeekLow   decimal.Decimal `json:"fifty_two_week_low"`
 	ShortDescription  string          `json:"short_description"`
 	LongDescription   string          `json:"long_description"`
-}
-
-type Bar struct {
-	Time   int64   `json:"t"`
-	Open   float32 `json:"o"`
-	High   float32 `json:"h"`
-	Low    float32 `json:"l"`
-	Close  float32 `json:"c"`
-	Volume int32   `json:"v"`
-}
-
-type ListBarParams struct {
-	Timeframe string     `url:"timeframe,omitempty"`
-	StartDt   *time.Time `url:"start_dt,omitempty"`
-	EndDt     *time.Time `url:"end_dt,omitempty"`
-	Limit     *int       `url:"limit,omitempty"`
-}
-
-type LastQuote struct {
-	AskPrice    float32 `json:"askprice"`
-	AskSize     int32   `json:"asksize"`
-	AskExchange int     `json:"askexchange"`
-	BidPrice    float32 `json:"bidprice"`
-	BidSize     int32   `json:"bidsize"`
-	BidExchange int     `json:"bidexchange"`
-	Timestamp   int64   `json:"timestamp"`
-}
-
-func (l *LastQuote) Time() time.Time {
-	return time.Unix(0, l.Timestamp)
-}
-
-type LastQuoteResponse struct {
-	Status string    `json:"status"`
-	Symbol string    `json:"symbol"`
-	Last   LastQuote `json:"last"`
-}
-
-type LastTrade struct {
-	Price     float32 `json:"price"`
-	Size      int32   `json:"size"`
-	Exchange  int     `json:"exchange"`
-	Cond1     int     `json:"cond1"`
-	Cond2     int     `json:"cond2"`
-	Cond3     int     `json:"cond3"`
-	Cond4     int     `json:"cond4"`
-	Timestamp int64   `json:"timestamp"`
-}
-
-func (l *LastTrade) Time() time.Time {
-	return time.Unix(0, l.Timestamp)
-}
-
-type LastTradeResponse struct {
-	Status string    `json:"status"`
-	Symbol string    `json:"symbol"`
-	Last   LastTrade `json:"last"`
-}
-
-type AggV2 struct {
-	Timestamp     int64   `json:"t"`
-	Ticker        string  `json:"T"`
-	Open          float32 `json:"O"`
-	High          float32 `json:"H"`
-	Low           float32 `json:"L"`
-	Close         float32 `json:"C"`
-	Volume        int32   `json:"V"`
-	NumberOfItems int     `json:"n"`
-}
-
-type Aggregates struct {
-	Ticker       string  `json:"ticker"`
-	Status       string  `json:"status"`
-	Adjusted     bool    `json:"adjusted"`
-	QueryCount   int     `json:"queryCount"`
-	ResultsCount int     `json:"resultsCount"`
-	Results      []AggV2 `json:"results"`
-}
-
-type tradeResponse struct {
-	Symbol        string             `json:"symbol"`
-	NextPageToken *string            `json:"next_page_token"`
-	Trades        []marketdata.Trade `json:"trades"`
-}
-
-type multiTradeResponse struct {
-	NextPageToken *string                       `json:"next_page_token"`
-	Trades        map[string][]marketdata.Trade `json:"trades"`
-}
-
-type quoteResponse struct {
-	Symbol        string             `json:"symbol"`
-	NextPageToken *string            `json:"next_page_token"`
-	Quotes        []marketdata.Quote `json:"quotes"`
-}
-
-type multiQuoteResponse struct {
-	NextPageToken *string                       `json:"next_page_token"`
-	Quotes        map[string][]marketdata.Quote `json:"quotes"`
-}
-
-type barResponse struct {
-	Symbol        string           `json:"symbol"`
-	NextPageToken *string          `json:"next_page_token"`
-	Bars          []marketdata.Bar `json:"bars"`
-}
-
-type multiBarResponse struct {
-	NextPageToken *string                     `json:"next_page_token"`
-	Bars          map[string][]marketdata.Bar `json:"bars"`
-}
-
-type latestTradeResponse struct {
-	Symbol string           `json:"symbol"`
-	Trade  marketdata.Trade `json:"trade"`
-}
-
-type latestQuoteResponse struct {
-	Symbol string           `json:"symbol"`
-	Quote  marketdata.Quote `json:"quote"`
 }
 
 type CalendarDay struct {
@@ -419,15 +298,15 @@ const (
 
 // stream
 
-// ClientMsg is the standard message sent by clients of the stream interface
-type ClientMsg struct {
+// clientMsg is the standard message sent by clients of the stream interface
+type clientMsg struct {
 	Action string      `json:"action" msgpack:"action"`
 	Data   interface{} `json:"data" msgpack:"data"`
 }
 
-// ServerMsg is the standard message sent by the server to update clients
+// serverMsg is the standard message sent by the server to update clients
 // of the stream interface
-type ServerMsg struct {
+type serverMsg struct {
 	Stream string      `json:"stream" msgpack:"stream"`
 	Data   interface{} `json:"data"`
 }
@@ -437,7 +316,10 @@ type TradeUpdate struct {
 	Order Order  `json:"order"`
 }
 
-type StreamAgg struct {
+////////////////////////////////////////////////////////////////////////////////
+// TODO: Everything under here should be removed once the old ws implementation is removed
+
+type streamAgg struct {
 	Event             string  `json:"ev"`
 	Symbol            string  `json:"T"`
 	Open              float32 `json:"o"`
@@ -452,12 +334,12 @@ type StreamAgg struct {
 	VWAP              float32 `json:"vw"`
 }
 
-func (s *StreamAgg) Time() time.Time {
+func (s *streamAgg) Time() time.Time {
 	// milliseconds
 	return time.Unix(0, s.Start*1e6)
 }
 
-type StreamQuote struct {
+type streamQuote struct {
 	Event       string  `json:"ev"`
 	Symbol      string  `json:"T"`
 	BidPrice    float32 `json:"p"`
@@ -469,12 +351,12 @@ type StreamQuote struct {
 	Timestamp   int64   `json:"t"`
 }
 
-func (s *StreamQuote) Time() time.Time {
+func (s *streamQuote) Time() time.Time {
 	// nanoseconds
 	return time.Unix(0, s.Timestamp)
 }
 
-type StreamTrade struct {
+type streamTrade struct {
 	Event      string  `json:"ev"`
 	Symbol     string  `json:"T"`
 	TradeID    string  `json:"i"`
@@ -486,7 +368,7 @@ type StreamTrade struct {
 	TapeID     int     `json:"z"`
 }
 
-func (s *StreamTrade) Time() time.Time {
+func (s *streamTrade) Time() time.Time {
 	// nanoseconds
 	return time.Unix(0, s.Timestamp)
 }

@@ -3,6 +3,7 @@ module github.com/alpacahq/alpaca-trade-api-go/v2
 go 1.14
 
 require (
+	github.com/RobinUS2/golang-moving-average v1.0.0
 	github.com/gobwas/ws v1.0.3 // indirect
 	github.com/golang/protobuf v1.4.3 // indirect
 	github.com/google/go-cmp v0.5.3 // indirect

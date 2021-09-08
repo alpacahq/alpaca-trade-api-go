@@ -4,155 +4,119 @@
 [![CircleCI Status](https://circleci.com/gh/alpacahq/alpaca-trade-api-go.svg?style=svg)](https://circleci.com/gh/alpacahq/alpaca-trade-api-go)
 [![Go Report Card](https://goreportcard.com/badge/github.com/alpacahq/alpaca-trade-api-go)](https://goreportcard.com/report/github.com/alpacahq/alpaca-trade-api-go)
 
-`alpaca-trade-api-go` is a Go library for the Alpaca trade API. It allows rapid 
+`alpaca-trade-api-go` is a Go library for the Alpaca trade and marketdata API. It allows rapid
 trading algo development easily, with support for the both REST and streaming interfaces.
- For details of each API behavior, please see the online API document.
+For details of each API behavior, please see the online API document.
 
 ## Installation
 
-```
-$ go get github.com/alpacahq/alpaca-trade-api-go/common
-$ go get github.com/alpacahq/alpaca-trade-api-go/polygon
-$ go get github.com/alpacahq/alpaca-trade-api-go/stream
-$ go get github.com/alpacahq/alpaca-trade-api-go/alpaca
+```bash
+go get -u github.com/alpacahq/alpaca-trade-api-go/v2
 ```
 
-## Example
+## Examples
 
-In order to call Alpaca's trade API, you need to obtain an API key pair.
-Replace <key_id> and <secret_key> with what you get from the web console.
+In order to call Alpaca's trade API, you need to obtain an API key pair from the web console.
 
-### REST example
+### Trading REST example
 
-```go
-import (
-    "os"
-    "fmt"
-
-    "github.com/alpacahq/alpaca-trade-api-go/alpaca"
-    "github.com/alpacahq/alpaca-trade-api-go/common"
-)
-
-func init() {
-    os.Setenv(common.EnvApiKeyID, "<key_id>")
-    os.Setenv(common.EnvApiSecretKey, "<secret_key>")
-
-    fmt.Printf("Running w/ credentials [%v %v]\n", common.Credentials().ID, common.Credentials().Secret)
-
-    alpaca.SetBaseUrl("https://paper-api.alpaca.markets")
-}
-
-func main() {
-    alpacaClient := alpaca.NewClient(common.Credentials())
-    acct, err := alpacaClient.GetAccount()
-    if err != nil {
-        panic(err)
-    }
-
-    fmt.Println(*acct)
-}
-```
-
-### Streaming example
-
-The SDK provides a unified streaming interface for both data updates 
-(from Alpaca or Polygon), and Alpaca's trade/account updates. 
-The following example subscribes to trade updates, and prints any messages received,
-and subscribes to live quotes for AAPL, and prints any quotes received. 
-The main function also ends with an empty `select{}` statement which causes the
- program to run indefinitely.
-
-In order to use Polygon streaming, you need to call `stream.SetDataStream("polygon")`.
- This requires your Alpaca account to be eligible for Polygon integration 
- (for details of the setup, please read Alpaca API document).
 ```go
 package main
 
 import (
 	"fmt"
-	"os"
 
-	"github.com/alpacahq/alpaca-trade-api-go/alpaca"
-	"github.com/alpacahq/alpaca-trade-api-go/common"
-	"github.com/alpacahq/alpaca-trade-api-go/stream"
+	"github.com/alpacahq/alpaca-trade-api-go/v2/alpaca"
 )
 
 func main() {
-	os.Setenv(common.EnvApiKeyID, "your_key_id")
-	os.Setenv(common.EnvApiSecretKey, "your_secret_key")
-
-	if err := stream.Register(alpaca.TradeUpdates, tradeHandler); err != nil {
+	client := alpaca.NewClient(alpaca.ClientOpts{
+		// Alternatively you can set your key and secret using the
+		// APCA_API_KEY_ID and APCA_API_SECRET_KEY environment variables
+		ApiKey:    "YOUR_API_KEY",
+		ApiSecret: "YOUR_API_SECRET",
+		BaseURL:   "https://paper-api.alpaca.markets",
+	})
+	acct, err := client.GetAccount()
+	if err != nil {
 		panic(err)
 	}
-
-	if err := stream.Register("Q.AAPL", quoteHandler); err != nil {
-		panic(err)
-	}
-
-	select {}
-}
-
-func tradeHandler(msg interface{}) {
-	tradeupdate := msg.(alpaca.TradeUpdate)
-	fmt.Printf("%s event received for order %s.\n", tradeupdate.Event, tradeupdate.Order.ID)
-}
-
-func quoteHandler(msg interface{}) {
-	quote := msg.(alpaca.StreamQuote)
-
-	fmt.Println(quote.Symbol, quote.BidPrice, quote.BidSize, quote.AskPrice, quote.AskSize)
+	fmt.Printf("%+v\n", *acct)
 }
 ```
 
-#### Deregister
-You could also deregister from a channel. e.g:
+### Trade updates stream example
+
+The following example shows how you can stream your own trade updates.
+First we register a handler function that simply prints the received trade updates,
+then we submit a single AAPL buy order. You should see two updates, a "new" event
+as soon as you submit the order, and a "fill" event soon after that, provided that
+the market is open.
 
 ```go
-   if err := stream.Deregister("Q.AAPL"); err != nil {
-        panic(err)
-      }
+ctx := context.TODO()
+if err := alpaca.StreamTradeUpdates(ctx, func(tu alpaca.TradeUpdate) {
+	log.Printf("%+v\n", tu)
+}); err != nil {
+	log.Fatalf("failed to stream trade updates: %v", err)
+}
+
+symbol := "AAPL"
+qty := decimal.NewFromInt(1)
+if _, err := alpaca.PlaceOrder(alpaca.PlaceOrderRequest{
+	AssetKey:    &symbol,
+	Qty:         &qty,
+	Side:        "buy",
+	Type:        "market",
+	TimeInForce: "day",
+}); err != nil {
+	log.Fatalf("failed place order: %v", err)
+}
+log.Println("order sent")
+
+<-ctx.Done()
 ```
+
+### Further examples
+
+See the [examples](https://github.com/alpacahq/alpaca-trade-api-go/tree/master/examples)
+directory for further examples:
+
+- algo-trading examples
+  - long-short
+  - martingale
+  - mean-reversion
+- marketdata examples
+  - crypto-stream
+  - data-stream
+  - marketdata
 
 ## API Document
 
-The HTTP API document is located at https://docs.alpaca.markets/
+The HTTP API document is located [here](https://alpaca.markets/docs/api-documentation/).
 
 ## Authentication
 
-The Alpaca API requires API key ID and secret key, which you can obtain from 
+The Alpaca API requires API key ID and secret key, which you can obtain from
 the web console after you sign in. This key pair can then be applied to the SDK
-either by setting environment variables (`APCA_API_KEY_ID=<key_id>` and `APCA_API_SECRET_KEY=<secret_key>`), 
+either by setting environment variables (`APCA_API_KEY_ID=<key_id>` and `APCA_API_SECRET_KEY=<secret_key>`),
 or hardcoding them into the Go code directly as shown in the examples above.
 
 ```sh
-$ export APCA_API_KEY_ID=xxxxx
-$ export APCA_API_SECRET_KEY=yyyyy
+export APCA_API_KEY_ID=xxxxx
+export APCA_API_SECRET_KEY=yyyyy
 ```
 
 ## Endpoint
 
-For paper trading, set the environment variable `APCA_API_BASE_URL`.
+For paper trading, set the environment variable `APCA_API_BASE_URL` or set the
+`BaseURL` option when constructing the client.
 
 ```sh
-$ export APCA_API_BASE_URL=https://paper-api.alpaca.markets
+export APCA_API_BASE_URL=https://paper-api.alpaca.markets
 ```
-
-You can also instead use the function `alpaca.SetBaseUrl("https://paper-api.alpaca.markets")` 
-to configure the endpoint.
-
-
-## Running Multiple Strategies
-There's a way to execute more than one algorithm at once.<br>
-The websocket connection is limited to 1 connection per account. <br>
-For that exact purpose this ![project](https://github.com/shlomikushchi/alpaca-proxy-agent) was created<br>
-The steps to execute this are:
-* Run the Alpaca Proxy Agent as described in the project's README
-* Define this env variable: `DATA_PROXY_WS` to be the address of the proxy agent. (e.g: `DATA_PROXY_WS=http://127.0.0.1:8765`)
-* execute your algorithm. it will connect to the servers through the proxy agent allowing you to execute multiple strategies
-
-note: this env variable could be used to proxy the data websocket through a custom server too. 
 
 ## GoDoc
 
-For a more in-depth look at the SDK, see the 
-[GoDoc](https://godoc.org/github.com/alpacahq/alpaca-trade-api-go)
+For a more in-depth look at the SDK, see the
+[GoDoc](https://pkg.go.dev/github.com/alpacahq/alpaca-trade-api-go)

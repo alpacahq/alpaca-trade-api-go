@@ -5,8 +5,6 @@ import (
 	"net/url"
 	"os"
 	"time"
-
-	"github.com/alpacahq/alpaca-trade-api-go/v2/common"
 )
 
 // StockOption is a configuration option for the StockClient
@@ -75,8 +73,12 @@ func WithBaseURL(url string) Option {
 // WithCredentials configures the key and secret to use
 func WithCredentials(key, secret string) Option {
 	return newFuncOption(func(o *options) {
-		o.key = key
-		o.secret = secret
+		if key != "" {
+			o.key = key
+		}
+		if secret != "" {
+			o.secret = secret
+		}
 	})
 }
 
@@ -136,8 +138,8 @@ func defaultStockOptions() *stockOptions {
 		options: options{
 			logger:         DefaultLogger(),
 			baseURL:        baseURL,
-			key:            common.Credentials().ID,
-			secret:         common.Credentials().Secret,
+			key:            os.Getenv("APCA_API_KEY_ID"),
+			secret:         os.Getenv("APCA_API_SECRET_KEY"),
 			reconnectLimit: 20,
 			reconnectDelay: 150 * time.Millisecond,
 			processorCount: 1,
@@ -253,8 +255,8 @@ func defaultCryptoOptions() *cryptoOptions {
 		options: options{
 			logger:         DefaultLogger(),
 			baseURL:        baseURL,
-			key:            common.Credentials().ID,
-			secret:         common.Credentials().Secret,
+			key:            os.Getenv("APCA_API_KEY_ID"),
+			secret:         os.Getenv("APCA_API_SECRET_KEY"),
 			reconnectLimit: 20,
 			reconnectDelay: 150 * time.Millisecond,
 			processorCount: 1,

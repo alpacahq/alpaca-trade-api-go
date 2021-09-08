@@ -106,3 +106,46 @@ type Snapshot struct {
 	DailyBar     *Bar   `json:"dailyBar"`
 	PrevDailyBar *Bar   `json:"prevDailyBar"`
 }
+
+type tradeResponse struct {
+	Symbol        string  `json:"symbol"`
+	NextPageToken *string `json:"next_page_token"`
+	Trades        []Trade `json:"trades"`
+}
+
+type multiTradeResponse struct {
+	NextPageToken *string            `json:"next_page_token"`
+	Trades        map[string][]Trade `json:"trades"`
+}
+
+type quoteResponse struct {
+	Symbol        string  `json:"symbol"`
+	NextPageToken *string `json:"next_page_token"`
+	Quotes        []Quote `json:"quotes"`
+}
+
+type multiQuoteResponse struct {
+	NextPageToken *string            `json:"next_page_token"`
+	Quotes        map[string][]Quote `json:"quotes"`
+}
+
+type barResponse struct {
+	Symbol        string  `json:"symbol"`
+	NextPageToken *string `json:"next_page_token"`
+	Bars          []Bar   `json:"bars"`
+}
+
+type multiBarResponse struct {
+	NextPageToken *string          `json:"next_page_token"`
+	Bars          map[string][]Bar `json:"bars"`
+}
+
+type latestTradeResponse struct {
+	Symbol string `json:"symbol"`
+	Trade  Trade  `json:"trade"`
+}
+
+type latestQuoteResponse struct {
+	Symbol string `json:"symbol"`
+	Quote  Quote  `json:"quote"`
+}
