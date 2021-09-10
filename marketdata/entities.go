@@ -107,6 +107,75 @@ type Snapshot struct {
 	PrevDailyBar *Bar   `json:"prevDailyBar"`
 }
 
+// CryptoTrade is a crypto trade
+type CryptoTrade struct {
+	Timestamp time.Time `json:"t"`
+	Price     float64   `json:"p"`
+	Size      float64   `json:"s"`
+	Exchange  string    `json:"x"`
+	ID        int64     `json:"i"`
+	// TakerSide is the side of the taker of the trade. It is either "B" (buy), "S" (sell) or "-" (unspecified)
+	TakerSide string `json:"tks"`
+}
+
+type CryptoTradeItem struct {
+	Trade CryptoTrade
+	Error error
+}
+
+// CryptoQuote is crypto quote
+type CryptoQuote struct {
+	Timestamp time.Time `json:"t"`
+	Exchange  string    `json:"x"`
+	BidPrice  float64   `json:"bp"`
+	BidSize   float64   `json:"bs"`
+	AskPrice  float64   `json:"ap"`
+	AskSize   float64   `json:"as"`
+}
+
+// CryptoQuoteItem contains a single crypto quote or an error
+type CryptoQuoteItem struct {
+	Quote CryptoQuote
+	Error error
+}
+
+// CryptoBar is an aggregate of crypto trades
+type CryptoBar struct {
+	Timestamp  time.Time `json:"t"`
+	Exchange   string    `json:"x"`
+	Open       float64   `json:"o"`
+	High       float64   `json:"h"`
+	Low        float64   `json:"l"`
+	Close      float64   `json:"c"`
+	Volume     float64   `json:"v"`
+	TradeCount uint64    `json:"n"`
+	VWAP       float64   `json:"vw"`
+}
+
+// CryptoBarItem contains a single crypto bar or an error
+type CryptoBarItem struct {
+	Bar   CryptoBar
+	Error error
+}
+
+// CryptoMultiBarItem contains a single crypto bar for a symbol or an error
+type CryptoMultiBarItem struct {
+	Symbol string
+	Bar    CryptoBar
+	Error  error
+}
+
+// CryptoXBBO is a cross exchange crypto BBO
+type CryptoXBBO struct {
+	Timestamp   time.Time `json:"t"`
+	BidExchange string    `json:"bx"`
+	BidPrice    float64   `json:"bp"`
+	BidSize     float64   `json:"bs"`
+	AskExchange string    `json:"ax"`
+	AskPrice    float64   `json:"ap"`
+	AskSize     float64   `json:"as"`
+}
+
 type tradeResponse struct {
 	Symbol        string  `json:"symbol"`
 	NextPageToken *string `json:"next_page_token"`
@@ -148,4 +217,42 @@ type latestTradeResponse struct {
 type latestQuoteResponse struct {
 	Symbol string `json:"symbol"`
 	Quote  Quote  `json:"quote"`
+}
+
+type cryptoTradeResponse struct {
+	Symbol        string        `json:"symbol"`
+	NextPageToken *string       `json:"next_page_token"`
+	Trades        []CryptoTrade `json:"trades"`
+}
+
+type cryptoQuoteResponse struct {
+	Symbol        string        `json:"symbol"`
+	NextPageToken *string       `json:"next_page_token"`
+	Quotes        []CryptoQuote `json:"quotes"`
+}
+
+type cryptoBarResponse struct {
+	Symbol        string      `json:"symbol"`
+	NextPageToken *string     `json:"next_page_token"`
+	Bars          []CryptoBar `json:"bars"`
+}
+
+type cryptoMultiBarResponse struct {
+	NextPageToken *string                `json:"next_page_token"`
+	Bars          map[string][]CryptoBar `json:"bars"`
+}
+
+type latestCryptoTradeResponse struct {
+	Symbol string      `json:"symbol"`
+	Trade  CryptoTrade `json:"trade"`
+}
+
+type latestCryptoQuoteResponse struct {
+	Symbol string      `json:"symbol"`
+	Quote  CryptoQuote `json:"quote"`
+}
+
+type latestCryptoXBBOResponse struct {
+	Symbol string     `json:"symbol"`
+	XBBO   CryptoXBBO `json:"xbbo"`
 }
