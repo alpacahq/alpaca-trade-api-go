@@ -245,7 +245,7 @@ type cryptoOptions struct {
 // defaultCryptoOptions are the default options for a client.
 // Don't change this in a backward incompatible way!
 func defaultCryptoOptions() *cryptoOptions {
-	baseURL := "https://stream.data.alpaca.markets/v1alpha1/crypto"
+	baseURL := "https://stream.data.alpaca.markets/v1beta1/crypto"
 	// Should this override option be removed?
 	if s := os.Getenv("DATA_CRYPTO_PROXY_WS"); s != "" {
 		baseURL = s

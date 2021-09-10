@@ -66,7 +66,7 @@ func NewClient(opts ClientOpts) Client {
 		if s := os.Getenv("APCA_API_DATA_URL"); s != "" {
 			opts.BaseURL = s
 		} else {
-			opts.BaseURL = "https://data.api.alpaca.markets"
+			opts.BaseURL = "https://data.alpaca.markets"
 		}
 	}
 	if opts.RetryLimit == 0 {
