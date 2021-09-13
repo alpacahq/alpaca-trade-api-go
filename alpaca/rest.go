@@ -36,6 +36,9 @@ type Client interface {
 	CancelAllOrders() error
 	ListAssets(status *string) ([]Asset, error)
 	GetAsset(symbol string) (*Asset, error)
+
+	// StreamTradeUpdates streams the trade updates of the account. It blocks and keeps calling the handler
+	// function for each trade update until the context is cancelled.
 	StreamTradeUpdates(ctx context.Context, handler func(TradeUpdate)) error
 }
 
@@ -56,6 +59,7 @@ type client struct {
 	do func(c *client, req *http.Request) (*http.Response, error)
 }
 
+// NewClient creates a new Alpaca trading client using the given opts.
 func NewClient(opts ClientOpts) Client {
 	if opts.ApiKey == "" {
 		opts.ApiKey = os.Getenv("APCA_API_KEY_ID")

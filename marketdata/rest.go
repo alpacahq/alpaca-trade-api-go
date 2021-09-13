@@ -63,6 +63,7 @@ type client struct {
 	do func(c *client, req *http.Request) (*http.Response, error)
 }
 
+// NewClient creates a new marketdata client using the given opts.
 func NewClient(opts ClientOpts) Client {
 	if opts.ApiKey == "" {
 		opts.ApiKey = os.Getenv("APCA_API_KEY_ID")
@@ -204,7 +205,7 @@ func (c *client) GetTrades(symbol string, params GetTradesParams) ([]Trade, erro
 	return trades, nil
 }
 
-// GetTradesAsync returns a channel that will be populated with the trades for the given symbol.
+// GetTradesAsync returns a channel that will be populated with the historical trades for the given symbol.
 func (c *client) GetTradesAsync(symbol string, params GetTradesParams) <-chan TradeItem {
 	ch := make(chan TradeItem)
 
@@ -492,7 +493,6 @@ type GetBarsParams struct {
 
 func setQueryBarParams(q url.Values, params GetBarsParams) {
 	setBaseQuery(q, params.Start, params.End, params.Feed)
-	// TODO: Replace with All once it's supported
 	adjustment := Raw
 	if params.Adjustment != "" {
 		adjustment = params.Adjustment

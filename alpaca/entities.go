@@ -298,19 +298,6 @@ const (
 
 // stream
 
-// clientMsg is the standard message sent by clients of the stream interface
-type clientMsg struct {
-	Action string      `json:"action" msgpack:"action"`
-	Data   interface{} `json:"data" msgpack:"data"`
-}
-
-// serverMsg is the standard message sent by the server to update clients
-// of the stream interface
-type serverMsg struct {
-	Stream string      `json:"stream" msgpack:"stream"`
-	Data   interface{} `json:"data"`
-}
-
 type TradeUpdate struct {
 	Event       string           `json:"event"`
 	ExecutionID string           `json:"execution_id"`
@@ -319,61 +306,4 @@ type TradeUpdate struct {
 	Price       *decimal.Decimal `json:"price"`
 	Qty         *decimal.Decimal `json:"qty"`
 	Timestamp   *time.Time       `json:"timestamp"`
-}
-
-////////////////////////////////////////////////////////////////////////////////
-// TODO: Everything under here should be removed once the old ws implementation is removed
-
-type streamAgg struct {
-	Event             string  `json:"ev"`
-	Symbol            string  `json:"T"`
-	Open              float32 `json:"o"`
-	High              float32 `json:"h"`
-	Low               float32 `json:"l"`
-	Close             float32 `json:"c"`
-	Volume            int32   `json:"v"`
-	Start             int64   `json:"s"`
-	End               int64   `json:"e"`
-	OpenPrice         float32 `json:"op"`
-	AccumulatedVolume int32   `json:"av"`
-	VWAP              float32 `json:"vw"`
-}
-
-func (s *streamAgg) Time() time.Time {
-	// milliseconds
-	return time.Unix(0, s.Start*1e6)
-}
-
-type streamQuote struct {
-	Event       string  `json:"ev"`
-	Symbol      string  `json:"T"`
-	BidPrice    float32 `json:"p"`
-	BidSize     int32   `json:"s"`
-	BidExchange int     `json:"x"`
-	AskPrice    float32 `json:"P"`
-	AskSize     int32   `json:"S"`
-	AskExchange int     `json:"X"`
-	Timestamp   int64   `json:"t"`
-}
-
-func (s *streamQuote) Time() time.Time {
-	// nanoseconds
-	return time.Unix(0, s.Timestamp)
-}
-
-type streamTrade struct {
-	Event      string  `json:"ev"`
-	Symbol     string  `json:"T"`
-	TradeID    string  `json:"i"`
-	Exchange   int     `json:"x"`
-	Price      float32 `json:"p"`
-	Size       int32   `json:"s"`
-	Timestamp  int64   `json:"t"`
-	Conditions []int   `json:"c"`
-	TapeID     int     `json:"z"`
-}
-
-func (s *streamTrade) Time() time.Time {
-	// nanoseconds
-	return time.Unix(0, s.Timestamp)
 }
