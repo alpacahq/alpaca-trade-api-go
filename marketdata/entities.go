@@ -1,6 +1,9 @@
 package marketdata
 
-import "time"
+import (
+	"fmt"
+	"time"
+)
 
 // Trade is a stock trade that happened on the market
 type Trade struct {
@@ -52,14 +55,37 @@ type MultiQuoteItem struct {
 	Error  error
 }
 
-// TimeFrame is the resolution of the bars
-type TimeFrame string
+// TimeFrameUnite is the base unit of the timeframe.
+type TimeFrameUnit string
 
-// List of time frames
+// List of timeframe units
 const (
-	Min  TimeFrame = "1Min"
-	Hour TimeFrame = "1Hour"
-	Day  TimeFrame = "1Day"
+	Min  TimeFrameUnit = "Min"
+	Hour TimeFrameUnit = "Hour"
+	Day  TimeFrameUnit = "Day"
+)
+
+// TimeFrame is the resolution of the bars
+type TimeFrame struct {
+	N    int
+	Unit TimeFrameUnit
+}
+
+func NewTimeFrame(n int, unit TimeFrameUnit) TimeFrame {
+	return TimeFrame{
+		N:    n,
+		Unit: unit,
+	}
+}
+
+func (tf TimeFrame) String() string {
+	return fmt.Sprintf("%d%s", tf.N, tf.Unit)
+}
+
+var (
+	OneMin  TimeFrame = NewTimeFrame(1, Min)
+	OneHour TimeFrame = NewTimeFrame(1, Hour)
+	OneDay  TimeFrame = NewTimeFrame(1, Day)
 )
 
 // Adjustment specifies the corporate action adjustment(s) for the bars

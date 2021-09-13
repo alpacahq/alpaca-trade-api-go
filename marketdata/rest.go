@@ -498,11 +498,11 @@ func setQueryBarParams(q url.Values, params GetBarsParams) {
 		adjustment = params.Adjustment
 	}
 	q.Set("adjustment", string(adjustment))
-	timeframe := Day
-	if params.TimeFrame != "" {
+	timeframe := OneDay
+	if params.TimeFrame.N != 0 {
 		timeframe = params.TimeFrame
 	}
-	q.Set("timeframe", string(timeframe))
+	q.Set("timeframe", timeframe.String())
 }
 
 // GetBars returns a slice of bars for the given symbol.
@@ -891,11 +891,11 @@ type GetCryptoBarsParams struct {
 
 func setQueryCryptoBarParams(q url.Values, params GetCryptoBarsParams) {
 	setCryptoBaseQuery(q, params.Start, params.End, params.Exchanges)
-	timeframe := Day
-	if params.TimeFrame != "" {
+	timeframe := OneDay
+	if params.TimeFrame.N != 0 {
 		timeframe = params.TimeFrame
 	}
-	q.Set("timeframe", string(timeframe))
+	q.Set("timeframe", timeframe.String())
 }
 
 // GetCryptoBars returns a slice of bars for the given crypto symbol.

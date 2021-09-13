@@ -38,9 +38,9 @@ func main() {
 	}
 	fmt.Println()
 
-	// Get all the IBM and GE minute bars from the first half hour of the 2021-08-09 market open
+	// Get all the IBM and GE 5-minute bars from the first half hour of the 2021-08-09 market open
 	for item := range marketdata.GetMultiBarsAsync([]string{"IBM", "GE"}, marketdata.GetBarsParams{
-		TimeFrame:  marketdata.Min,
+		TimeFrame:  marketdata.NewTimeFrame(5, marketdata.Min),
 		Adjustment: marketdata.Split,
 		Start:      time.Date(2021, 8, 9, 13, 30, 0, 0, time.UTC),
 		End:        time.Date(2021, 8, 9, 14, 0, 0, 0, time.UTC),
