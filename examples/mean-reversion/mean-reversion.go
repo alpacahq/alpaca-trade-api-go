@@ -108,7 +108,7 @@ func main() {
 		algo.movingAverage = movingaverage.New(windowSize)
 
 		for item := range algo.dataClient.GetBarsAsync(algo.stock, marketdata.GetBarsParams{
-			TimeFrame: marketdata.Min,
+			TimeFrame: marketdata.OneMin,
 			Start:     time.Now().Add(-1 * (windowSize + 1) * time.Minute),
 			End:       time.Now(),
 			Feed:      algo.feed,

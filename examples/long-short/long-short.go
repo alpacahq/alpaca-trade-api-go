@@ -462,7 +462,7 @@ func (alp longShortAlgo) getPercentChanges() error {
 		feed = "iex"
 	}
 	multiBars, err := algo.dataClient.GetMultiBars(symbols, marketdata.GetBarsParams{
-		TimeFrame: marketdata.Min,
+		TimeFrame: marketdata.OneMin,
 		Start:     start,
 		End:       end,
 		Feed:      feed,
