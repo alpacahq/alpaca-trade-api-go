@@ -36,10 +36,8 @@ type Client interface {
 	CancelAllOrders() error
 	ListAssets(status *string) ([]Asset, error)
 	GetAsset(symbol string) (*Asset, error)
-
-	// StreamTradeUpdates streams the trade updates of the account. It blocks and keeps calling the handler
-	// function for each trade update until the context is cancelled.
 	StreamTradeUpdates(ctx context.Context, handler func(TradeUpdate)) error
+	StreamTradeUpdatesInBackground(ctx context.Context, handler func(TradeUpdate))
 }
 
 // ClientOpts contains options for the alpaca client

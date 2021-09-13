@@ -5,8 +5,10 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"net"
 	"net/http"
 	"time"
@@ -59,8 +61,30 @@ func (c *client) StreamTradeUpdates(ctx context.Context, handler func(TradeUpdat
 	}
 }
 
+// StreamTradeUpdatesInBackground streams the trade updates of the account.
+// It runs in the background and keeps calling the handler function for each trade update
+// until the context is cancelled. If an error happens it logs it and retries immediately.
+func (c *client) StreamTradeUpdatesInBackground(ctx context.Context, handler func(TradeUpdate)) {
+	go func() {
+		for {
+			err := c.StreamTradeUpdates(ctx, handler)
+			if err == nil || errors.Is(err, context.Canceled) {
+				return
+			}
+			log.Printf("alpaca stream trade updates error: %v", err)
+		}
+	}()
+}
+
 // StreamTradeUpdates streams the trade updates of the account. It blocks and keeps calling the handler
 // function for each trade update until the context is cancelled.
 func StreamTradeUpdates(ctx context.Context, handler func(TradeUpdate)) error {
 	return DefaultClient.StreamTradeUpdates(ctx, handler)
+}
+
+// StreamTradeUpdatesInBackground streams the trade updates of the account.
+// It runs in the background and keeps calling the handler function for each trade update
+// until the context is cancelled. If an error happens it logs it and retries immediately.
+func StreamTradeUpdatesInBackground(ctx context.Context, handler func(TradeUpdate)) {
+	DefaultClient.StreamTradeUpdatesInBackground(ctx, handler)
 }

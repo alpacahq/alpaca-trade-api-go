@@ -55,16 +55,9 @@ the market is open.
 
 ```go
 // Listen to trade updates in the background (with unlimited reconnect)
-go func() {
-	for {
-		if err := alpaca.StreamTradeUpdates(context.TODO(), func(tu alpaca.TradeUpdate) {
-			log.Printf("TRADE UPDATE: %+v\n", tu)
-		}); err != nil {
-			log.Print("trade updates error", err)
-		}
-		time.Sleep(time.Second)
-	}
-}()
+alpaca.StreamTradeUpdatesInBackground(context.TODO(), func(tu alpaca.TradeUpdate) {
+	log.Printf("TRADE UPDATE: %+v\n", tu)
+})
 
 // Send a single AAPL order
 symbol := "AAPL"

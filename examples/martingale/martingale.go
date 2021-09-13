@@ -123,7 +123,7 @@ func main() {
 	}
 	c.SubscribeToTrades(handleTrades, alpacaClient.stock)
 
-	alpaca.StreamTradeUpdates(context.TODO(), handleTradeUpdates)
+	alpacaClient.client.StreamTradeUpdatesInBackground(context.TODO(), handleTradeUpdates)
 
 	if err := <-c.Terminated(); err != nil {
 		panic(err)
