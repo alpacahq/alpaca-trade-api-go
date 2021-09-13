@@ -37,6 +37,7 @@ type Client interface {
 	ListAssets(status *string) ([]Asset, error)
 	GetAsset(symbol string) (*Asset, error)
 	StreamTradeUpdates(ctx context.Context, handler func(TradeUpdate)) error
+	StreamTradeUpdatesInBackground(ctx context.Context, handler func(TradeUpdate))
 }
 
 // ClientOpts contains options for the alpaca client
@@ -56,6 +57,7 @@ type client struct {
 	do func(c *client, req *http.Request) (*http.Response, error)
 }
 
+// NewClient creates a new Alpaca trading client using the given opts.
 func NewClient(opts ClientOpts) Client {
 	if opts.ApiKey == "" {
 		opts.ApiKey = os.Getenv("APCA_API_KEY_ID")

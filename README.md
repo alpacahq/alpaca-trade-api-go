@@ -54,13 +54,12 @@ as soon as you submit the order, and a "fill" event soon after that, provided th
 the market is open.
 
 ```go
-ctx := context.TODO()
-if err := alpaca.StreamTradeUpdates(ctx, func(tu alpaca.TradeUpdate) {
-	log.Printf("%+v\n", tu)
-}); err != nil {
-	log.Fatalf("failed to stream trade updates: %v", err)
-}
+// Listen to trade updates in the background (with unlimited reconnect)
+alpaca.StreamTradeUpdatesInBackground(context.TODO(), func(tu alpaca.TradeUpdate) {
+	log.Printf("TRADE UPDATE: %+v\n", tu)
+})
 
+// Send a single AAPL order
 symbol := "AAPL"
 qty := decimal.NewFromInt(1)
 if _, err := alpaca.PlaceOrder(alpaca.PlaceOrderRequest{
@@ -74,7 +73,7 @@ if _, err := alpaca.PlaceOrder(alpaca.PlaceOrderRequest{
 }
 log.Println("order sent")
 
-<-ctx.Done()
+select {}
 ```
 
 ### Further examples
