@@ -359,6 +359,16 @@ func TestSubscriptionTimeout(t *testing.T) {
 	err = <-subErrCh
 	assert.Error(t, err)
 	assert.True(t, errors.Is(err, ErrSubscriptionChangeTimeout), "actual: %s", err)
+
+	// after a timeout we should be able to send a new request
+	go subFunc()
+	connection.readCh <- serializeToMsgpack(t, []subWithT{
+		{
+			Type:   "subscription",
+			Trades: []string{"ALPACA"},
+		},
+	})
+	require.NoError(t, <-subErrCh)
 }
 
 func TestSubscriptionChangeInvalid(t *testing.T) {

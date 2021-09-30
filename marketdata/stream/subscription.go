@@ -191,6 +191,9 @@ func (c *client) handleSubChange(
 	case err := <-request.result:
 		return err
 	case <-timeAfter(3 * time.Second):
+		c.pendingSubChangeMutex.Lock()
+		defer c.pendingSubChangeMutex.Unlock()
+		c.pendingSubChange = nil
 	}
 
 	return ErrSubscriptionChangeTimeout
