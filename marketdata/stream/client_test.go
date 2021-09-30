@@ -340,14 +340,17 @@ func TestSubscriptionTimeout(t *testing.T) {
 		timeAfter = time.After
 	}()
 
-	c := NewStocksClient("iex", withConnCreator(func(ctx context.Context, u url.URL) (conn, error) {
-		return connection, nil
-	}))
+	c := NewStocksClient("iex",
+		WithCredentials("a", "b"),
+		withConnCreator(func(ctx context.Context, u url.URL) (conn, error) {
+			return connection, nil
+		}))
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	err := c.Connect(ctx)
 	require.NoError(t, err)
+	checkInitialMessagesSentByClient(t, connection, "a", "b", subscriptions{})
 
 	subErrCh := make(chan error, 2)
 	subFunc := func() {
@@ -355,6 +358,10 @@ func TestSubscriptionTimeout(t *testing.T) {
 	}
 
 	go subFunc()
+	subMsg := expectWrite(t, connection)
+	require.Equal(t, "subscribe", subMsg["action"])
+	require.ElementsMatch(t, []string{"ALPACA"}, subMsg["trades"])
+
 	mockTimeAfterCh <- time.Now()
 	err = <-subErrCh
 	assert.Error(t, err)
@@ -362,6 +369,10 @@ func TestSubscriptionTimeout(t *testing.T) {
 
 	// after a timeout we should be able to send a new request
 	go subFunc()
+	subMsg = expectWrite(t, connection)
+	require.Equal(t, "subscribe", subMsg["action"])
+	require.ElementsMatch(t, []string{"ALPACA"}, subMsg["trades"])
+
 	connection.readCh <- serializeToMsgpack(t, []subWithT{
 		{
 			Type:   "subscription",
@@ -376,14 +387,17 @@ func TestSubscriptionChangeInvalid(t *testing.T) {
 	defer connection.close()
 	writeInitialFlowMessagesToConn(t, connection, subscriptions{})
 
-	c := NewStocksClient("iex", withConnCreator(func(ctx context.Context, u url.URL) (conn, error) {
-		return connection, nil
-	}))
+	c := NewStocksClient("iex",
+		WithCredentials("a", "b"),
+		withConnCreator(func(ctx context.Context, u url.URL) (conn, error) {
+			return connection, nil
+		}))
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	err := c.Connect(ctx)
 	require.NoError(t, err)
+	checkInitialMessagesSentByClient(t, connection, "a", "b", subscriptions{})
 
 	subErrCh := make(chan error, 2)
 	subFunc := func() {
@@ -391,6 +405,9 @@ func TestSubscriptionChangeInvalid(t *testing.T) {
 	}
 
 	go subFunc()
+	subMsg := expectWrite(t, connection)
+	require.Equal(t, "subscribe", subMsg["action"])
+	require.ElementsMatch(t, []string{"ALPACA"}, subMsg["trades"])
 	connection.readCh <- serializeToMsgpack(t, []errorWithT{
 		{
 			Type: "error",
