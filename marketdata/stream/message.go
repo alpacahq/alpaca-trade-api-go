@@ -481,8 +481,9 @@ var ErrSlowClient = errors.New("slow client")
 var errMessageHandler = func(c *client, e errorMessage) error {
 	// {"T":"error","code":405,"msg":"symbol limit exceeded"}
 	// {"T":"error","code":407,"msg":"slow client"}
+	// {"T":"error","code":410,"msg":"invalid subscribe action for this feed"}
 	switch e.code {
-	case 405, 407:
+	case 405, 407, 410:
 		c.pendingSubChangeMutex.Lock()
 		defer c.pendingSubChangeMutex.Unlock()
 		if c.pendingSubChange != nil {
@@ -491,6 +492,8 @@ var errMessageHandler = func(c *client, e errorMessage) error {
 				c.pendingSubChange.result <- ErrSymbolLimitExceeded
 			case 407:
 				c.pendingSubChange.result <- ErrSlowClient
+			case 410:
+				c.pendingSubChange.result <- ErrSubscriptionChangeInvalidForFeed
 			}
 			c.pendingSubChange = nil
 		}
