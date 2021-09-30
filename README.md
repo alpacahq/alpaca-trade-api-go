@@ -11,7 +11,7 @@ For details of each API behavior, please see the online API document.
 ## Installation
 
 ```bash
-go get -u github.com/alpacahq/alpaca-trade-api-go/v2
+go get -u github.com/alpacahq/alpaca-trade-api-go/v2/alpaca
 ```
 
 ## Examples
