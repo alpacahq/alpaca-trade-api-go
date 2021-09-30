@@ -327,6 +327,82 @@ func TestSubscribeCalledButClientTerminatesCrypto(t *testing.T) {
 	assert.True(t, errors.Is(err, ErrSubscriptionChangeAfterTerminated))
 }
 
+func TestSubscriptionTimeout(t *testing.T) {
+	connection := newMockConn()
+	defer connection.close()
+	writeInitialFlowMessagesToConn(t, connection, subscriptions{})
+
+	mockTimeAfterCh := make(chan time.Time)
+	timeAfter = func(d time.Duration) <-chan time.Time {
+		return mockTimeAfterCh
+	}
+	defer func() {
+		timeAfter = time.After
+	}()
+
+	c := NewStocksClient("iex", withConnCreator(func(ctx context.Context, u url.URL) (conn, error) {
+		return connection, nil
+	}))
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	err := c.Connect(ctx)
+	require.NoError(t, err)
+
+	subErrCh := make(chan error, 2)
+	subFunc := func() {
+		subErrCh <- c.SubscribeToTrades(func(trade Trade) {}, "ALPACA")
+	}
+
+	go subFunc()
+	mockTimeAfterCh <- time.Now()
+	err = <-subErrCh
+	assert.Error(t, err)
+	assert.True(t, errors.Is(err, ErrSubscriptionChangeTimeout), "actual: %s", err)
+
+	// after a timeout we should be able to send a new request
+	go subFunc()
+	connection.readCh <- serializeToMsgpack(t, []subWithT{
+		{
+			Type:   "subscription",
+			Trades: []string{"ALPACA"},
+		},
+	})
+	require.NoError(t, <-subErrCh)
+}
+
+func TestSubscriptionChangeInvalid(t *testing.T) {
+	connection := newMockConn()
+	defer connection.close()
+	writeInitialFlowMessagesToConn(t, connection, subscriptions{})
+
+	c := NewStocksClient("iex", withConnCreator(func(ctx context.Context, u url.URL) (conn, error) {
+		return connection, nil
+	}))
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	err := c.Connect(ctx)
+	require.NoError(t, err)
+
+	subErrCh := make(chan error, 2)
+	subFunc := func() {
+		subErrCh <- c.SubscribeToTrades(func(trade Trade) {}, "ALPACA")
+	}
+
+	go subFunc()
+	connection.readCh <- serializeToMsgpack(t, []errorWithT{
+		{
+			Type: "error",
+			Code: 410,
+			Msg:  "invalid subscribe action for this feed",
+		},
+	})
+	err = <-subErrCh
+	assert.Error(t, err)
+	assert.True(t, errors.Is(err, ErrSubscriptionChangeInvalidForFeed), "actual: %s", err)
+}
+
 func TestSubscripitionAcrossConnectionIssues(t *testing.T) {
 	conn1 := newMockConn()
 	writeInitialFlowMessagesToConn(t, conn1, subscriptions{})

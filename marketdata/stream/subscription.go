@@ -2,6 +2,7 @@ package stream
 
 import (
 	"errors"
+	"time"
 
 	"github.com/vmihailenco/msgpack/v5"
 )
@@ -21,6 +22,13 @@ var ErrSubscriptionChangeAlreadyInProgress = errors.New("subscription change alr
 // ErrSubscriptionChangeInterrupted is returned when a subscription change was in progress when the client
 // has terminated
 var ErrSubscriptionChangeInterrupted = errors.New("subscription change interrupted by client termination")
+
+// ErrSubscriptionChangeTimeout is returned when the server does not return a proper
+// subscription response after a subscription change request.
+var ErrSubscriptionChangeTimeout = errors.New("subscription change timeout")
+
+// ErrSubscriptionChangeTimeout is returned when a subscription change is invalid for the feed.
+var ErrSubscriptionChangeInvalidForFeed = errors.New("subscription change invalid for feed")
 
 type subChangeRequest struct {
 	msg    []byte
@@ -157,6 +165,8 @@ func (s subscriptions) noSubscribeCallNecessary() bool {
 		len(s.dailyBars) == 0 && len(s.statuses) == 0 && len(s.lulds) == 0
 }
 
+var timeAfter = time.After
+
 func (c *client) handleSubChange(
 	subscribe bool, request subChangeRequest, changes subscriptions,
 ) error {
@@ -177,7 +187,16 @@ func (c *client) handleSubChange(
 		return err
 	}
 
-	return <-request.result
+	select {
+	case err := <-request.result:
+		return err
+	case <-timeAfter(3 * time.Second):
+		c.pendingSubChangeMutex.Lock()
+		defer c.pendingSubChangeMutex.Unlock()
+		c.pendingSubChange = nil
+	}
+
+	return ErrSubscriptionChangeTimeout
 }
 
 func (c *client) setSubChangeRequest(request *subChangeRequest) error {
