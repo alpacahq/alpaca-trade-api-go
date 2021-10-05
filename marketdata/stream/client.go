@@ -401,7 +401,7 @@ func (c *client) connPinger(ctx context.Context, wg *sync.WaitGroup, closeCh <-c
 		case <-pingTicker.C():
 			if err := c.conn.ping(ctx); err != nil {
 				if ctx.Err() == nil {
-					c.logger.Errorf("datav2stream: ping failed, error: %v", err)
+					c.logger.Warnf("datav2stream: ping failed, error: %v", err)
 				}
 				return
 			}
@@ -428,7 +428,7 @@ func (c *client) connReader(
 		msg, err := c.conn.readMessage(ctx)
 		if err != nil {
 			if ctx.Err() == nil {
-				c.logger.Errorf("datav2stream: reading from conn failed, error: %v", err)
+				c.logger.Warnf("datav2stream: reading from conn failed, error: %v", err)
 			}
 			return
 		}
@@ -465,7 +465,7 @@ func (c *client) connWriter(ctx context.Context, wg *sync.WaitGroup, closeCh <-c
 		case msg := <-c.subChanges:
 			if err := c.conn.writeMessage(ctx, msg); err != nil {
 				if ctx.Err() == nil {
-					c.logger.Errorf("datav2stream: writing to conn failed, error: %v", err)
+					c.logger.Warnf("datav2stream: writing to conn failed, error: %v", err)
 				}
 				return
 			}
