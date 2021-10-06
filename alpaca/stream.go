@@ -18,7 +18,7 @@ import (
 // function for each trade update until the context is cancelled.
 func (c *client) StreamTradeUpdates(ctx context.Context, handler func(TradeUpdate)) error {
 	transport := http.Transport{
-		Dial: func(network, addr string) (net.Conn, error) {
+		DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
 			return net.DialTimeout(network, addr, 5*time.Second)
 		},
 	}
