@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"regexp"
 	"strings"
 	"sync"
 	"time"
@@ -327,6 +328,11 @@ func (c *client) maintainConnection(ctx context.Context, u url.URL, initialResul
 			conn, err := c.connCreator(ctx, u)
 			if err != nil {
 				connError = err
+				if isHttp4xx(err) {
+					c.logger.Errorf("datav2stream: %v", wrapIrrecoverable(err))
+					sendError(wrapIrrecoverable(err))
+					return
+				}
 				c.logger.Warnf("datav2stream: failed to connect, error: %v", err)
 				continue
 			}
@@ -337,9 +343,8 @@ func (c *client) maintainConnection(ctx context.Context, u url.URL, initialResul
 				connError = err
 				c.conn.close()
 				if isErrorIrrecoverable(err) {
-					c.logger.Errorf("datav2stream: irrecoverable error during connection initialization: %v", err)
-					e := fmt.Errorf("irrecoverable error during connection initialization: %w", err)
-					sendError(e)
+					c.logger.Errorf("datav2stream: %v", wrapIrrecoverable(err))
+					sendError(wrapIrrecoverable(err))
 					return
 				}
 				c.logger.Warnf("datav2stream: connection setup failed, error: %v", err)
@@ -377,6 +382,18 @@ func (c *client) maintainConnection(ctx context.Context, u url.URL, initialResul
 // not take place
 func isErrorIrrecoverable(err error) bool {
 	return errors.Is(err, ErrInvalidCredentials) || errors.Is(err, ErrInsufficientSubscription)
+}
+
+func isHttp4xx(err error) bool {
+	// Unfortunately the nhoory error is a simple formatted string, created by fmt.Errorf,
+	// so the only check we can do is string matching
+	pattern := `expected handshake response status code 101 but got 4\d\d`
+	ok, _ := regexp.MatchString(pattern, err.Error())
+	return ok
+}
+
+func wrapIrrecoverable(err error) error {
+	return fmt.Errorf("irrecoverable error: %w", err)
 }
 
 var newPingTicker = func() ticker {

@@ -12,7 +12,7 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	// Creating a client that connexts to iex
+	// Creating a client that connects to iex
 	c := stream.NewCryptoClient(
 		stream.WithLogger(&logger{}),
 		// configuring initial subscriptions and handlers
@@ -22,7 +22,7 @@ func main() {
 		stream.WithCryptoQuotes(func(cq stream.CryptoQuote) {
 			fmt.Printf("QUOTE: %+v\n", cq)
 		}, "BTCUSD"),
-		// stream.WithExchanges("EXAMPLE"),
+		// stream.WithExchanges("CBSE"),
 	)
 	if err := c.Connect(ctx); err != nil {
 		panic(err)
