@@ -1287,7 +1287,8 @@ func verify(resp *http.Response) (err error) {
 		var apiErr APIError
 		err = json.Unmarshal(body, &apiErr)
 		if err != nil {
-			return fmt.Errorf("json unmarshal error: %s", err.Error())
+			// If the error is not in our JSON format, we simply return the HTTP response
+			return fmt.Errorf("HTTP %s: %s", resp.Status, body)
 		}
 		if err == nil {
 			err = &apiErr
