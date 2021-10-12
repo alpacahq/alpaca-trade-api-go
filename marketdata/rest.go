@@ -26,8 +26,12 @@ type Client interface {
 	GetBarsAsync(symbol string, params GetBarsParams) <-chan BarItem
 	GetMultiBars(symbols []string, params GetBarsParams) (map[string][]Bar, error)
 	GetMultiBarsAsync(symbols []string, params GetBarsParams) <-chan MultiBarItem
+	GetLatestBar(symbol string) (*Bar, error)
+	GetLatestBars(symbols []string) (map[string]Bar, error)
 	GetLatestTrade(symbol string) (*Trade, error)
+	GetLatestTrades(symbols []string) (map[string]Trade, error)
 	GetLatestQuote(symbol string) (*Quote, error)
+	GetLatestQuotes(symbols []string) (map[string]Quote, error)
 	GetSnapshot(symbol string) (*Snapshot, error)
 	GetSnapshots(symbols []string) (map[string]*Snapshot, error)
 	GetCryptoTrades(symbol string, params GetCryptoTradesParams) ([]CryptoTrade, error)
@@ -55,6 +59,7 @@ type ClientOpts struct {
 	Timeout    time.Duration
 	RetryLimit int
 	RetryDelay time.Duration
+	Feed       string
 }
 
 type client struct {
@@ -131,7 +136,7 @@ func defaultDo(c *client, req *http.Request) (*http.Response, error) {
 	return resp, nil
 }
 
-func setBaseQuery(q url.Values, start, end time.Time, feed string) {
+func setBaseQuery(q url.Values, start, end time.Time, feed, defaultFeed string) {
 	if !start.IsZero() {
 		q.Set("start", start.Format(time.RFC3339))
 	}
@@ -140,6 +145,10 @@ func setBaseQuery(q url.Values, start, end time.Time, feed string) {
 	}
 	if feed != "" {
 		q.Set("feed", feed)
+	} else {
+		if defaultFeed != "" {
+			q.Set("feed", feed)
+		}
 	}
 }
 
@@ -219,7 +228,7 @@ func (c *client) GetTradesAsync(symbol string, params GetTradesParams) <-chan Tr
 		}
 
 		q := u.Query()
-		setBaseQuery(q, params.Start, params.End, params.Feed)
+		setBaseQuery(q, params.Start, params.End, params.Feed, c.opts.Feed)
 
 		received := 0
 		for params.TotalLimit == 0 || received < params.TotalLimit {
@@ -281,7 +290,7 @@ func (c *client) GetMultiTradesAsync(symbols []string, params GetTradesParams) <
 
 		q := u.Query()
 		q.Set("symbols", strings.Join(symbols, ","))
-		setBaseQuery(q, params.Start, params.End, params.Feed)
+		setBaseQuery(q, params.Start, params.End, params.Feed, c.opts.Feed)
 
 		received := 0
 		for params.TotalLimit == 0 || received < params.TotalLimit {
@@ -368,7 +377,7 @@ func (c *client) GetQuotesAsync(symbol string, params GetQuotesParams) <-chan Qu
 		}
 
 		q := u.Query()
-		setBaseQuery(q, params.Start, params.End, params.Feed)
+		setBaseQuery(q, params.Start, params.End, params.Feed, c.opts.Feed)
 
 		received := 0
 		for params.TotalLimit == 0 || received < params.TotalLimit {
@@ -430,7 +439,7 @@ func (c *client) GetMultiQuotesAsync(symbols []string, params GetQuotesParams) <
 
 		q := u.Query()
 		q.Set("symbols", strings.Join(symbols, ","))
-		setBaseQuery(q, params.Start, params.End, params.Feed)
+		setBaseQuery(q, params.Start, params.End, params.Feed, c.opts.Feed)
 
 		received := 0
 		for params.TotalLimit == 0 || received < params.TotalLimit {
@@ -488,11 +497,12 @@ type GetBarsParams struct {
 	// PageLimit is the pagination size. If empty, the default page size will be used.
 	PageLimit int
 	// Feed is the source of the data: sip or iex.
+	// If provided, it overrides the client's Feed option.
 	Feed string
 }
 
-func setQueryBarParams(q url.Values, params GetBarsParams) {
-	setBaseQuery(q, params.Start, params.End, params.Feed)
+func setQueryBarParams(q url.Values, params GetBarsParams, feed string) {
+	setBaseQuery(q, params.Start, params.End, params.Feed, feed)
 	adjustment := Raw
 	if params.Adjustment != "" {
 		adjustment = params.Adjustment
@@ -531,7 +541,7 @@ func (c *client) GetBarsAsync(symbol string, params GetBarsParams) <-chan BarIte
 		}
 
 		q := u.Query()
-		setQueryBarParams(q, params)
+		setQueryBarParams(q, params, c.opts.Feed)
 
 		received := 0
 		for params.TotalLimit == 0 || received < params.TotalLimit {
@@ -593,7 +603,7 @@ func (c *client) GetMultiBarsAsync(symbols []string, params GetBarsParams) <-cha
 
 		q := u.Query()
 		q.Set("symbols", strings.Join(symbols, ","))
-		setQueryBarParams(q, params)
+		setQueryBarParams(q, params, c.opts.Feed)
 
 		received := 0
 		for params.TotalLimit == 0 || received < params.TotalLimit {
@@ -635,12 +645,64 @@ func (c *client) GetMultiBarsAsync(symbols []string, params GetBarsParams) <-cha
 	return ch
 }
 
+func setLatestQueryParams(u *url.URL, feed string, symbols []string) {
+	q := u.Query()
+	if len(symbols) > 0 {
+		q.Set("symbols", strings.Join(symbols, ","))
+	}
+	if feed != "" {
+		q.Set("feed", feed)
+	}
+	u.RawQuery = q.Encode()
+}
+
+// GetLatestBar returns the latest minute bar for a given symbol
+func (c *client) GetLatestBar(symbol string) (*Bar, error) {
+	u, err := url.Parse(fmt.Sprintf("%s/v2/stocks/%s/bars/latest", c.opts.BaseURL, symbol))
+	if err != nil {
+		return nil, err
+	}
+	setLatestQueryParams(u, c.opts.Feed, nil)
+
+	resp, err := c.get(u)
+	if err != nil {
+		return nil, err
+	}
+
+	var latestBarResp latestBarResponse
+	if err = unmarshal(resp, &latestBarResp); err != nil {
+		return nil, err
+	}
+	return &latestBarResp.Bar, nil
+}
+
+// GetLatestBars returns the latest minute bars for the given symbols
+func (c *client) GetLatestBars(symbols []string) (map[string]Bar, error) {
+	u, err := url.Parse(fmt.Sprintf("%s/v2/stocks/bars/latest", c.opts.BaseURL))
+	if err != nil {
+		return nil, err
+	}
+	setLatestQueryParams(u, c.opts.Feed, symbols)
+
+	resp, err := c.get(u)
+	if err != nil {
+		return nil, err
+	}
+
+	var latestBarsResp latestBarsResponse
+	if err = unmarshal(resp, &latestBarsResp); err != nil {
+		return nil, err
+	}
+	return latestBarsResp.Bars, nil
+}
+
 // GetLatestTrade returns the latest trade for a given symbol
 func (c *client) GetLatestTrade(symbol string) (*Trade, error) {
 	u, err := url.Parse(fmt.Sprintf("%s/v2/stocks/%s/trades/latest", c.opts.BaseURL, symbol))
 	if err != nil {
 		return nil, err
 	}
+	setLatestQueryParams(u, c.opts.Feed, nil)
 
 	resp, err := c.get(u)
 	if err != nil {
@@ -648,12 +710,30 @@ func (c *client) GetLatestTrade(symbol string) (*Trade, error) {
 	}
 
 	var latestTradeResp latestTradeResponse
-
 	if err = unmarshal(resp, &latestTradeResp); err != nil {
 		return nil, err
 	}
-
 	return &latestTradeResp.Trade, nil
+}
+
+// GetLatestTrades returns the latest trades for the given symbols
+func (c *client) GetLatestTrades(symbols []string) (map[string]Trade, error) {
+	u, err := url.Parse(fmt.Sprintf("%s/v2/stocks/trades/latest", c.opts.BaseURL))
+	if err != nil {
+		return nil, err
+	}
+	setLatestQueryParams(u, c.opts.Feed, symbols)
+
+	resp, err := c.get(u)
+	if err != nil {
+		return nil, err
+	}
+
+	var latestTradesResp latestTradesResponse
+	if err = unmarshal(resp, &latestTradesResp); err != nil {
+		return nil, err
+	}
+	return latestTradesResp.Trades, nil
 }
 
 // GetLatestQuote returns the latest quote for a given symbol
@@ -662,6 +742,7 @@ func (c *client) GetLatestQuote(symbol string) (*Quote, error) {
 	if err != nil {
 		return nil, err
 	}
+	setLatestQueryParams(u, c.opts.Feed, nil)
 
 	resp, err := c.get(u)
 	if err != nil {
@@ -677,12 +758,33 @@ func (c *client) GetLatestQuote(symbol string) (*Quote, error) {
 	return &latestQuoteResp.Quote, nil
 }
 
+// GetLatestQuotes returns the latest quotes for the given symbols
+func (c *client) GetLatestQuotes(symbols []string) (map[string]Quote, error) {
+	u, err := url.Parse(fmt.Sprintf("%s/v2/stocks/quotes/latest", c.opts.BaseURL))
+	if err != nil {
+		return nil, err
+	}
+	setLatestQueryParams(u, c.opts.Feed, symbols)
+
+	resp, err := c.get(u)
+	if err != nil {
+		return nil, err
+	}
+
+	var latestQuotesResp latestQuotesResponse
+	if err = unmarshal(resp, &latestQuotesResp); err != nil {
+		return nil, err
+	}
+	return latestQuotesResp.Quotes, nil
+}
+
 // GetSnapshot returns the snapshot for a given symbol
 func (c *client) GetSnapshot(symbol string) (*Snapshot, error) {
 	u, err := url.Parse(fmt.Sprintf("%s/v2/stocks/%s/snapshot", c.opts.BaseURL, symbol))
 	if err != nil {
 		return nil, err
 	}
+	setLatestQueryParams(u, c.opts.Feed, nil)
 
 	resp, err := c.get(u)
 	if err != nil {
@@ -700,11 +802,11 @@ func (c *client) GetSnapshot(symbol string) (*Snapshot, error) {
 
 // GetSnapshots returns the snapshots for multiple symbol
 func (c *client) GetSnapshots(symbols []string) (map[string]*Snapshot, error) {
-	u, err := url.Parse(fmt.Sprintf("%s/v2/stocks/snapshots?symbols=%s",
-		c.opts.BaseURL, strings.Join(symbols, ",")))
+	u, err := url.Parse(fmt.Sprintf("%s/v2/stocks/snapshots", c.opts.BaseURL))
 	if err != nil {
 		return nil, err
 	}
+	setLatestQueryParams(u, c.opts.Feed, symbols)
 
 	resp, err := c.get(u)
 	if err != nil {
@@ -1173,14 +1275,34 @@ func GetMultiBarsAsync(symbols []string, params GetBarsParams) <-chan MultiBarIt
 	return DefaultClient.GetMultiBarsAsync(symbols, params)
 }
 
+// GetLatestBar returns the latest minute bar for a given symbol.
+func GetLatestBar(symbol string) (*Bar, error) {
+	return DefaultClient.GetLatestBar(symbol)
+}
+
+// GetLatestBars returns the latest minute bars for the given symbols.
+func GetLatestBars(symbols []string) (map[string]Bar, error) {
+	return DefaultClient.GetLatestBars(symbols)
+}
+
 // GetLatestTrade returns the latest trade for a given symbol.
 func GetLatestTrade(symbol string) (*Trade, error) {
 	return DefaultClient.GetLatestTrade(symbol)
 }
 
-// GetLatestTrade returns the latest quote for a given symbol.
+// GetLatestTrades returns the latest trades for the given symbols.
+func GetLatestTrades(symbols []string) (map[string]Trade, error) {
+	return DefaultClient.GetLatestTrades(symbols)
+}
+
+// GetLatestQuote returns the latest quote for a given symbol.
 func GetLatestQuote(symbol string) (*Quote, error) {
 	return DefaultClient.GetLatestQuote(symbol)
+}
+
+// GetLatestQuotes returns the latest quotes for the given symbols.
+func GetLatestQuotes(symbols []string) (map[string]Quote, error) {
+	return DefaultClient.GetLatestQuotes(symbols)
 }
 
 // GetSnapshot returns the snapshot for a given symbol
