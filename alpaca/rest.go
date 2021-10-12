@@ -783,12 +783,11 @@ func (e *APIError) Error() string {
 	return e.Message
 }
 
-func verify(resp *http.Response) (err error) {
+func verify(resp *http.Response) error {
 	if resp.StatusCode >= http.StatusMultipleChoices {
-		var body []byte
 		defer resp.Body.Close()
 
-		body, err = ioutil.ReadAll(resp.Body)
+		body, err := ioutil.ReadAll(resp.Body)
 		if err != nil {
 			return err
 		}
@@ -799,12 +798,9 @@ func verify(resp *http.Response) (err error) {
 			// If the error is not in our JSON format, we simply return the HTTP response
 			return fmt.Errorf("HTTP %s: %s", resp.Status, body)
 		}
-		if err == nil {
-			err = &apiErr
-		}
+		return &apiErr
 	}
-
-	return
+	return nil
 }
 
 func unmarshal(resp *http.Response, data interface{}) error {
