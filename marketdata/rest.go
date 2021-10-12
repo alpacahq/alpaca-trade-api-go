@@ -1296,11 +1296,5 @@ func verify(resp *http.Response) error {
 
 func unmarshal(resp *http.Response, data interface{}) error {
 	defer resp.Body.Close()
-
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return err
-	}
-
-	return json.Unmarshal(body, data)
+	return json.NewDecoder(resp.Body).Decode(data)
 }
