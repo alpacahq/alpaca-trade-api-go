@@ -235,14 +235,31 @@ type multiBarResponse struct {
 	Bars          map[string][]Bar `json:"bars"`
 }
 
+type latestBarResponse struct {
+	Symbol string `json:"symbol"`
+	Bar    Bar    `json:"bar"`
+}
+
+type latestBarsResponse struct {
+	Bars map[string]Bar `json:"bars"`
+}
+
 type latestTradeResponse struct {
 	Symbol string `json:"symbol"`
 	Trade  Trade  `json:"trade"`
 }
 
+type latestTradesResponse struct {
+	Trades map[string]Trade `json:"trades"`
+}
+
 type latestQuoteResponse struct {
 	Symbol string `json:"symbol"`
 	Quote  Quote  `json:"quote"`
+}
+
+type latestQuotesResponse struct {
+	Quotes map[string]Quote `json:"quotes"`
 }
 
 type cryptoTradeResponse struct {
