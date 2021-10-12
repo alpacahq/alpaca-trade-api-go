@@ -1274,12 +1274,11 @@ func (e *APIError) Error() string {
 	return e.Message
 }
 
-func verify(resp *http.Response) (err error) {
+func verify(resp *http.Response) error {
 	if resp.StatusCode >= http.StatusMultipleChoices {
-		var body []byte
 		defer resp.Body.Close()
 
-		body, err = ioutil.ReadAll(resp.Body)
+		body, err := ioutil.ReadAll(resp.Body)
 		if err != nil {
 			return err
 		}
@@ -1287,23 +1286,15 @@ func verify(resp *http.Response) (err error) {
 		var apiErr APIError
 		err = json.Unmarshal(body, &apiErr)
 		if err != nil {
-			return fmt.Errorf("json unmarshal error: %s", err.Error())
+			// If the error is not in our JSON format, we simply return the HTTP response
+			return fmt.Errorf("HTTP %s: %s", resp.Status, body)
 		}
-		if err == nil {
-			err = &apiErr
-		}
+		return &apiErr
 	}
-
-	return
+	return nil
 }
 
 func unmarshal(resp *http.Response, data interface{}) error {
 	defer resp.Body.Close()
-
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return err
-	}
-
-	return json.Unmarshal(body, data)
+	return json.NewDecoder(resp.Body).Decode(data)
 }
