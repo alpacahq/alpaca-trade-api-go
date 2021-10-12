@@ -1300,7 +1300,7 @@ func GetLatestQuote(symbol string) (*Quote, error) {
 	return DefaultClient.GetLatestQuote(symbol)
 }
 
-// GetLatestQuotes returns the latest quotes for a given symbols.
+// GetLatestQuotes returns the latest quotes for the given symbols.
 func GetLatestQuotes(symbols []string) (map[string]Quote, error) {
 	return DefaultClient.GetLatestQuotes(symbols)
 }
