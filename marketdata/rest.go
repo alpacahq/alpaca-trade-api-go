@@ -1,8 +1,10 @@
 package marketdata
 
 import (
+	"compress/gzip"
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -1381,6 +1383,7 @@ func (c *client) get(u *url.URL) (*http.Response, error) {
 	if err != nil {
 		return nil, err
 	}
+	req.Header.Set("Accept-Encoding", "gzip")
 
 	return c.do(c, req)
 }
@@ -1418,5 +1421,19 @@ func verify(resp *http.Response) error {
 
 func unmarshal(resp *http.Response, data interface{}) error {
 	defer resp.Body.Close()
-	return json.NewDecoder(resp.Body).Decode(data)
+	var (
+		reader io.ReadCloser
+		err    error
+	)
+	switch resp.Header.Get("Content-Encoding") {
+	case "gzip":
+		reader, err = gzip.NewReader(resp.Body)
+		if err != nil {
+			return err
+		}
+		defer reader.Close()
+	default:
+		reader = resp.Body
+	}
+	return json.NewDecoder(reader).Decode(data)
 }
