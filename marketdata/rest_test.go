@@ -36,7 +36,6 @@ func TestTradesWithGzip(t *testing.T) {
 
 	f, err := os.Open("testdata/trades.json.gz")
 	require.NoError(t, err)
-
 	c.do = func(c *client, req *http.Request) (*http.Response, error) {
 		assert.Equal(t, "gzip", req.Header.Get("Accept-Encoding"))
 		return &http.Response{
@@ -58,6 +57,28 @@ func TestTradesWithGzip(t *testing.T) {
 	assert.EqualValues(t, 140.2, trade.Price)
 	assert.EqualValues(t, 595, trade.Size)
 	assert.Equal(t, "C", trade.Tape)
+}
+
+func TestTradesWithoutGzip(t *testing.T) {
+	c := testClient()
+
+	resp := `{"trades":[{"t":"2021-10-13T08:00:00.08960768Z","x":"P","p":140.2,"s":595,"c":["@","T"],"i":1,"z":"C"}],"symbol":"AAPL","next_page_token":"QUFQTHwyMDIxLTEwLTEzVDA4OjAwOjAwLjA4OTYwNzY4MFp8UHwwOTIyMzM3MjAzNjg1NDc3NTgwOQ=="}`
+	c.do = func(c *client, req *http.Request) (*http.Response, error) {
+		assert.Equal(t, "gzip", req.Header.Get("Accept-Encoding"))
+		// Even though we request gzip encoding, the server may decide to not use it
+		return &http.Response{
+			Body: ioutil.NopCloser(strings.NewReader(resp)),
+		}, nil
+	}
+	got, err := c.GetTrades("AAPL", GetTradesParams{
+		Start:      time.Date(2021, 10, 13, 0, 0, 0, 0, time.UTC),
+		TotalLimit: 1,
+		PageLimit:  1,
+	})
+	require.NoError(t, err)
+	require.Len(t, got, 1)
+	trade := got[0]
+	assert.EqualValues(t, 1, trade.ID)
 }
 
 func TestLatestBar(t *testing.T) {
