@@ -382,7 +382,7 @@ func TestGetAssetFromJSON(t *testing.T) {
 	asset, err := c.GetAsset("APCA")
 	assert.Nil(t, err)
 	assert.Equal(t, "us_equity", asset.Class)
-	assert.Equal(t, "fractionable", true)
+	assert.True(t, asset.Fractionable)
 	assert.NotNil(t, asset)
 
 	// api failure
