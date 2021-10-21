@@ -99,6 +99,7 @@ type Asset struct {
 	Marginable   bool   `json:"marginable"`
 	Shortable    bool   `json:"shortable"`
 	EasyToBorrow bool   `json:"easy_to_borrow"`
+	Fractionable bool   `json:"fractionable"`
 }
 
 type Fundamental struct {
