@@ -121,7 +121,7 @@ func newClient() *client {
 func (c *client) configure(o options) {
 	c.logger = o.logger
 	c.baseURL = o.baseURL
-	c.key = o.key
+	c.key =   o.key
 	c.secret = o.secret
 	c.reconnectLimit = o.reconnectLimit
 	c.reconnectDelay = o.reconnectDelay
