@@ -1,7 +1,7 @@
 
 # alpaca-trade-api-go
 
-[![CircleCI Status](https://circleci.com/gh/alpacahq/alpaca-trade-api-go.svg?style=svg)](https://circleci.com/gh/alpacahq/alpaca-trade-api-go)
+[![GitHub Status](https://github.com/alpacahq/alpaca-trade-api-go/actions/workflows/go.yml/badge.svg)](https://github.com/alpacahq/alpaca-trade-api-go/actions/workflows/go.yml)
 [![Go Report Card](https://goreportcard.com/badge/github.com/alpacahq/alpaca-trade-api-go)](https://goreportcard.com/report/github.com/alpacahq/alpaca-trade-api-go)
 
 `alpaca-trade-api-go` is a Go library for the Alpaca trade and marketdata API. It allows rapid
