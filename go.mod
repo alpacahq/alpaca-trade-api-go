@@ -24,3 +24,6 @@ require (
 	gopkg.in/yaml.v3 v3.0.0-20200615113413-eeeca48fe776 // indirect
 	nhooyr.io/websocket v1.8.7
 )
+
+// TODO: Remove this once a fixed version of nhooyr.io/websocket is released
+replace nhooyr.io/websocket v1.8.7 => github.com/alpacahq/websocket v1.8.8-beta.1
