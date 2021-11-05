@@ -50,4 +50,35 @@ func main() {
 		}
 		fmt.Printf("%s: %+v\n", item.Symbol, item.Bar)
 	}
+	fmt.Println()
+
+	// Get Average Daily Trading Volume
+	start := time.Date(2021, 8, 1, 0, 0, 0, 0, time.UTC)
+	end := time.Date(2021, 9, 1, 0, 0, 0, 0, time.UTC)
+	averageVolume, count, err := getADTV("AAPL", start, end)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Printf("AAPL ADTV: %.2f (%d marketdays)\n", averageVolume, count)
+}
+
+func getADTV(symbol string, start, end time.Time) (av float64, n int, err error) {
+	var (
+		totalVolume uint64
+	)
+	for item := range marketdata.GetBarsAsync(symbol, marketdata.GetBarsParams{
+		Start: start,
+		End:   end,
+	}) {
+		if err = item.Error; err != nil {
+			return
+		}
+		totalVolume += item.Bar.Volume
+		n++
+	}
+	if n == 0 {
+		return
+	}
+	av = float64(totalVolume) / float64(n)
+	return
 }
