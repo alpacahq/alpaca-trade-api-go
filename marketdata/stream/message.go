@@ -474,8 +474,8 @@ var errMessageHandler = func(c *client, e errorMessage) error {
 	c.pendingSubChangeMutex.Lock()
 	defer c.pendingSubChangeMutex.Unlock()
 	if c.pendingSubChange != nil {
-		c.pendingSubChange = nil
 		c.pendingSubChange.result <- e
+		c.pendingSubChange = nil
 	}
 
 	if e.code == 0 || e.msg == "" {
