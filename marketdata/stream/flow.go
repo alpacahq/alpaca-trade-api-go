@@ -123,18 +123,28 @@ func (c *client) writeAuth(ctx context.Context) error {
 var ErrBadAuthResponse = errors.New("did not receive authenticated message")
 
 // ErrConnectionLimitExceeded is returned when the client has exceeded their connection limit
-var ErrConnectionLimitExceeded = errors.New("connection limit exceeded")
+var ErrConnectionLimitExceeded error = errorMessage{msg: "connection limit exceeded", code: 406}
 
-// ErrInvalidCredentials is returned when invalid credentials have been sent by the user
-var ErrInvalidCredentials = errors.New("invalid credentials")
+// ErrInvalidCredentials is returned when invalid credentials have been sent by the user.
+var ErrInvalidCredentials error = errorMessage{msg: "auth failed", code: 402}
 
 // ErrInsufficientSubscription is returned when the user does not have proper
 // subscription for the requested feed (e.g. SIP)
-var ErrInsufficientSubscription = errors.New("insufficient subscription")
+var ErrInsufficientSubscription error = errorMessage{msg: "insufficient subscription", code: 409}
 
 // ErrInsufficientScope is returned when the token used by the user doesn't have proper scopes
 // for data stream
-var ErrInsufficientScope = errors.New("insufficient scope")
+var ErrInsufficientScope error = errorMessage{msg: "insufficient scope", code: 411}
+
+// ErrSymbolLimitExceeded is returned when the client has subscribed to too many symbols
+var ErrSymbolLimitExceeded error = errorMessage{msg: "symbol limit exceeded", code: 405}
+
+// ErrSlowClient is returned when the server has detected a slow client. In this case there's no guarantee
+// that all prior messages are sent to the server so a subscription acknowledgement may not arrive
+var ErrSlowClient error = errorMessage{msg: "slow client", code: 407}
+
+// ErrSubscriptionChangeTimeout is returned when a subscription change is invalid for the feed.
+var ErrSubscriptionChangeInvalidForFeed error = errorMessage{msg: "invalid subscribe action for this feed", code: 410}
 
 // isErrorRetriable returns whether the error is considered retriable during the initialization flow
 func isErrorRetriable(err error) bool {
@@ -161,19 +171,10 @@ func (c *client) readAuthResponse(ctx context.Context) error {
 	resp := resps[0]
 
 	if resp.T == "error" {
-		switch resp.Code {
-		case 402:
-			return ErrInvalidCredentials
-		case 406:
-			// A previous connection may be "stuck" on the server so we may run into
-			// `[{"T":"error","code":406,"msg":"connection limit exceeded"}]`
-			return ErrConnectionLimitExceeded
-		case 409:
-			return ErrInsufficientSubscription
-		case 411:
-			return ErrInsufficientScope
+		return errorMessage{
+			msg:  resp.Msg,
+			code: resp.Code,
 		}
-		return errors.New(resp.Msg)
 	}
 	if resp.T != "success" || resp.Msg != "authenticated" {
 		return ErrBadAuthResponse

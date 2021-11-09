@@ -27,9 +27,6 @@ var ErrSubscriptionChangeInterrupted = errors.New("subscription change interrupt
 // subscription response after a subscription change request.
 var ErrSubscriptionChangeTimeout = errors.New("subscription change timeout")
 
-// ErrSubscriptionChangeTimeout is returned when a subscription change is invalid for the feed.
-var ErrSubscriptionChangeInvalidForFeed = errors.New("subscription change invalid for feed")
-
 type subChangeRequest struct {
 	msg    []byte
 	result chan error

@@ -102,3 +102,16 @@ type errorMessage struct {
 	msg  string
 	code int
 }
+
+func (e errorMessage) Error() string {
+	// NOTE: these special cases exist because the error message
+	// used to be different from the one sent by the server
+	switch e.code {
+	case 402:
+		return "invalid credentials"
+	case 410:
+		return "subscription change invalid for feed"
+	}
+
+	return e.msg
+}
