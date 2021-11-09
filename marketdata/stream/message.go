@@ -478,17 +478,12 @@ var errMessageHandler = func(c *client, e errorMessage) error {
 		c.pendingSubChange = nil
 	}
 
-	if e.code != 0 && e.msg != "" {
-		c.logger.Warnf("datav2stream: got error from server: %s", e)
-		return nil
+	if e.code == 0 || e.msg == "" {
+		return fmt.Errorf("code: %d, msg: %s", e.code, e.msg)
 	}
-	if e.code == 0 && e.msg == "" {
-		return fmt.Errorf("datav2stream: received unexpected error: no code or msg")
-	}
-	if e.code == 0 {
-		return fmt.Errorf("datav2stream: received unexpected error: %s", e.msg)
-	}
-	return fmt.Errorf("datav2stream: received unexpected error: %d", e.code)
+
+	c.logger.Warnf("datav2stream: got error from server: %s", e)
+	return nil
 }
 
 func (c *client) handleErrorMessage(d *msgpack.Decoder, n int) error {
