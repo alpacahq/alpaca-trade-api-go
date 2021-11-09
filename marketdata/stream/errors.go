@@ -8,7 +8,7 @@ var (
 	// ErrNoConnected is returned when the client did not receive the welcome
 	// message from the server
 	ErrNoConnected = errors.New("did not receive connected message")
-	//ErrBadAuthResponse is returned when the client could not successfully authenticate
+	// ErrBadAuthResponse is returned when the client could not successfully authenticate
 	ErrBadAuthResponse = errors.New("did not receive authenticated message")
 	// ErrSubResponse is returned when the client's subscription request was not
 	// acknowledged
