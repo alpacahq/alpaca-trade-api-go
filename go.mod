@@ -25,5 +25,4 @@ require (
 	nhooyr.io/websocket v1.8.7
 )
 
-// TODO: Remove this once a fixed version of nhooyr.io/websocket is released
-replace nhooyr.io/websocket v1.8.7 => github.com/alpacahq/websocket v1.8.8-beta.1
+replace github.com/gin-gonic/gin v1.6.3 => github.com/gin-gonic/gin v1.7.4
