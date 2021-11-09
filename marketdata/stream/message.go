@@ -497,7 +497,6 @@ var errMessageHandler = func(c *client, e errorMessage) error {
 			}
 			c.pendingSubChange = nil
 		}
-		return nil
 	}
 
 	return fmt.Errorf("datav2stream: received unexpected error: %s", e.msg)
