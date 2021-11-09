@@ -478,11 +478,11 @@ var errMessageHandler = func(c *client, e errorMessage) error {
 		c.pendingSubChange = nil
 	}
 
+	c.logger.Warnf("datav2stream: got error from server: %+v", e)
 	if e.code == 0 || e.msg == "" {
 		return fmt.Errorf("datav2stream: received unexpected error: %s", e.msg)
 	}
 
-	c.logger.Warnf("datav2stream: got error from server: %s", e)
 	return nil
 }
 
