@@ -574,6 +574,27 @@ func TestSubscribeFailsDueToError(t *testing.T) {
 	err = <-subRes
 	require.Error(t, err)
 	require.True(t, errors.Is(err, ErrSlowClient))
+
+	// attempting another sub change
+	go subFunc()
+	// wait for message to be written
+	subMsg = expectWrite(t, connection)
+	require.Equal(t, "subscribe", subMsg["action"])
+	require.ElementsMatch(t, []string{"PACOIN"}, subMsg["trades"])
+
+	// sub change request fails due to incorrect due to incorrect subscription for feed
+	connection.readCh <- serializeToMsgpack(t, []errorWithT{
+		{
+			Type: "error",
+			Code: 410,
+			Msg:  "invalid subscribe action for this feed",
+		},
+	})
+
+	// making sure the subscription request has failed
+	err = <-subRes
+	require.Error(t, err)
+	require.True(t, errors.Is(err, ErrSubscriptionChangeInvalidForFeed))
 }
 
 func TestPingFails(t *testing.T) {
