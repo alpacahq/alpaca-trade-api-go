@@ -115,7 +115,6 @@ For paper trading, set the environment variable `APCA_API_BASE_URL` or set the
 export APCA_API_BASE_URL=https://paper-api.alpaca.markets
 ```
 
-## GoDoc
+## Documentation
 
-For a more in-depth look at the SDK, see the
-[GoDoc](https://pkg.go.dev/github.com/alpacahq/alpaca-trade-api-go)
+For a more in-depth look at the SDK, see the [package documentation](https://pkg.go.dev/github.com/alpacahq/alpaca-trade-api-go/v2).
