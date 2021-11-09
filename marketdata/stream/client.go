@@ -246,9 +246,6 @@ func (cc *cryptoClient) constructURL() (url.URL, error) {
 	return url.URL{Scheme: scheme, Host: ub.Host, Path: ub.Path, RawQuery: rawQuery}, nil
 }
 
-// ErrConnectCalledMultipleTimes is returned when Connect has been called multiple times on a single client
-var ErrConnectCalledMultipleTimes = errors.New("tried to call Connect multiple times")
-
 func (c *client) connect(ctx context.Context, u url.URL) error {
 	err := ErrConnectCalledMultipleTimes
 	c.connectOnce.Do(func() {
@@ -381,7 +378,8 @@ func (c *client) maintainConnection(ctx context.Context, u url.URL, initialResul
 // isErrorIrrecoverable returns whether the error is irrecoverable and further retries should
 // not take place
 func isErrorIrrecoverable(err error) bool {
-	return errors.Is(err, ErrInvalidCredentials) || errors.Is(err, ErrInsufficientSubscription)
+	return errors.Is(err, ErrInvalidCredentials) || errors.Is(err, ErrInsufficientSubscription) ||
+		errors.Is(err, ErrInsufficientScope)
 }
 
 func isHttp4xx(err error) bool {

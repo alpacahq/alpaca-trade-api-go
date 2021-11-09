@@ -2,7 +2,6 @@ package stream
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 	"sync"
 
@@ -471,36 +470,20 @@ func discardMapContents(d *msgpack.Decoder, n int) error {
 	return nil
 }
 
-//ErrSymbolLimitExceeded is returned when the client has subscribed to too many symbols
-var ErrSymbolLimitExceeded = errors.New("symbol limit exceeded")
-
-//ErrSlowClient is returned when the server has detected a slow client. In this case there's no guarantee
-// that all prior messages are sent to the server so a subscription acknowledgement may not arrive
-var ErrSlowClient = errors.New("slow client")
-
 var errMessageHandler = func(c *client, e errorMessage) error {
-	// {"T":"error","code":405,"msg":"symbol limit exceeded"}
-	// {"T":"error","code":407,"msg":"slow client"}
-	// {"T":"error","code":410,"msg":"invalid subscribe action for this feed"}
-	switch e.code {
-	case 405, 407, 410:
-		c.pendingSubChangeMutex.Lock()
-		defer c.pendingSubChangeMutex.Unlock()
-		if c.pendingSubChange != nil {
-			switch e.code {
-			case 405:
-				c.pendingSubChange.result <- ErrSymbolLimitExceeded
-			case 407:
-				c.pendingSubChange.result <- ErrSlowClient
-			case 410:
-				c.pendingSubChange.result <- ErrSubscriptionChangeInvalidForFeed
-			}
-			c.pendingSubChange = nil
-		}
-		return nil
+	c.pendingSubChangeMutex.Lock()
+	defer c.pendingSubChangeMutex.Unlock()
+	if c.pendingSubChange != nil {
+		c.pendingSubChange.result <- e
+		c.pendingSubChange = nil
 	}
 
-	return fmt.Errorf("datav2stream: received unexpected error: %s", e.msg)
+	if e.code == 0 || e.msg == "" {
+		return fmt.Errorf("code: %d, msg: %s", e.code, e.msg)
+	}
+
+	c.logger.Warnf("datav2stream: got error from server: %s", e)
+	return nil
 }
 
 func (c *client) handleErrorMessage(d *msgpack.Decoder, n int) error {

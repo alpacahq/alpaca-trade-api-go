@@ -81,10 +81,6 @@ func (c *client) initialize(ctx context.Context) error {
 	return nil
 }
 
-// ErrNoConnected is returned when the client did not receive the welcome
-// message from the server
-var ErrNoConnected = errors.New("did not receive connected message")
-
 func (c *client) readConnected(ctx context.Context) error {
 	b, err := c.conn.readMessage(ctx)
 	if err != nil {
@@ -119,19 +115,6 @@ func (c *client) writeAuth(ctx context.Context) error {
 	return c.conn.writeMessage(ctx, msg)
 }
 
-//ErrBadAuthResponse is returned when the client could not successfully authenticate
-var ErrBadAuthResponse = errors.New("did not receive authenticated message")
-
-// ErrConnectionLimitExceeded is returned when the client has exceeded their connection limit
-var ErrConnectionLimitExceeded = errors.New("connection limit exceeded")
-
-// ErrInvalidCredentials is returned when invalid credentials have been sent by the user
-var ErrInvalidCredentials = errors.New("invalid credentials")
-
-// ErrInsufficientSubscription is returned when the user does not have proper
-// subscription for the requested feed (e.g. SIP)
-var ErrInsufficientSubscription = errors.New("insufficient subscription")
-
 // isErrorRetriable returns whether the error is considered retriable during the initialization flow
 func isErrorRetriable(err error) bool {
 	return errors.Is(err, ErrConnectionLimitExceeded)
@@ -157,17 +140,10 @@ func (c *client) readAuthResponse(ctx context.Context) error {
 	resp := resps[0]
 
 	if resp.T == "error" {
-		switch resp.Code {
-		case 402:
-			return ErrInvalidCredentials
-		case 406:
-			// A previous connection may be "stuck" on the server so we may run into
-			// `[{"T":"error","code":406,"msg":"connection limit exceeded"}]`
-			return ErrConnectionLimitExceeded
-		case 409:
-			return ErrInsufficientSubscription
+		return errorMessage{
+			msg:  resp.Msg,
+			code: resp.Code,
 		}
-		return errors.New(resp.Msg)
 	}
 	if resp.T != "success" || resp.Msg != "authenticated" {
 		return ErrBadAuthResponse
@@ -184,10 +160,6 @@ func (c *client) writeSub(ctx context.Context) error {
 
 	return c.conn.writeMessage(ctx, msg)
 }
-
-// ErrSubResponse is returned when the client's subscription request was not
-// acknowledged
-var ErrSubResponse = errors.New("did not receive subscribed message")
 
 func (c *client) readSubResponse(ctx context.Context) error {
 	b, err := c.conn.readMessage(ctx)

@@ -460,6 +460,7 @@ func TestReadAuthResponseContents(t *testing.T) {
 			message: serializeToMsgpack(t, []map[string]interface{}{
 				{
 					"T":    "error",
+					"msg":  "connection limit exceeded",
 					"code": 406,
 				},
 			}),

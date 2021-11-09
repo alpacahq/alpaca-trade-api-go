@@ -1,34 +1,10 @@
 package stream
 
 import (
-	"errors"
 	"time"
 
 	"github.com/vmihailenco/msgpack/v5"
 )
-
-// ErrSubscriptionChangeBeforeConnect is returned when the client attempts to change subscriptions before
-// calling Connect
-var ErrSubscriptionChangeBeforeConnect = errors.New("subscription change attempted before calling Connect")
-
-// ErrSubscriptionChangeAfterTerminated is returned when client attempts to change subscriptions after
-// the client has been terminated
-var ErrSubscriptionChangeAfterTerminated = errors.New("subscription change after client termination")
-
-// ErrSubscriptionChangeAlreadyInProgress is returned when a subscription change is called concurrently
-// with another
-var ErrSubscriptionChangeAlreadyInProgress = errors.New("subscription change already in progress")
-
-// ErrSubscriptionChangeInterrupted is returned when a subscription change was in progress when the client
-// has terminated
-var ErrSubscriptionChangeInterrupted = errors.New("subscription change interrupted by client termination")
-
-// ErrSubscriptionChangeTimeout is returned when the server does not return a proper
-// subscription response after a subscription change request.
-var ErrSubscriptionChangeTimeout = errors.New("subscription change timeout")
-
-// ErrSubscriptionChangeTimeout is returned when a subscription change is invalid for the feed.
-var ErrSubscriptionChangeInvalidForFeed = errors.New("subscription change invalid for feed")
 
 type subChangeRequest struct {
 	msg    []byte
