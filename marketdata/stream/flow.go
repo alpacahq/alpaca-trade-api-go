@@ -132,6 +132,10 @@ var ErrInvalidCredentials = errors.New("invalid credentials")
 // subscription for the requested feed (e.g. SIP)
 var ErrInsufficientSubscription = errors.New("insufficient subscription")
 
+// ErrInsufficientScope is returned when the token used by the user doesn't have proper scopes
+// for data stream
+var ErrInsufficientScope = errors.New("insufficient scope")
+
 // isErrorRetriable returns whether the error is considered retriable during the initialization flow
 func isErrorRetriable(err error) bool {
 	return errors.Is(err, ErrConnectionLimitExceeded)
@@ -166,6 +170,8 @@ func (c *client) readAuthResponse(ctx context.Context) error {
 			return ErrConnectionLimitExceeded
 		case 409:
 			return ErrInsufficientSubscription
+		case 411:
+			return ErrInsufficientScope
 		}
 		return errors.New(resp.Msg)
 	}
