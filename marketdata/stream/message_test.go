@@ -18,6 +18,7 @@ type tradeWithT struct {
 	Price      float64   `msgpack:"p"`
 	Size       uint32    `msgpack:"s"`
 	Timestamp  time.Time `msgpack:"t"`
+	ReceivedAt time.Time `msgpack:"r"`
 	Conditions []string  `msgpack:"c"`
 	Tape       string    `msgpack:"z"`
 	// NewField is for testing correct handling of added fields in the future
@@ -35,6 +36,7 @@ type quoteWithT struct {
 	AskPrice    float64   `msgpack:"ap"`
 	AskSize     uint32    `msgpack:"as"`
 	Timestamp   time.Time `msgpack:"t"`
+	ReceivedAt  time.Time `msgpack:"r"`
 	Conditions  []string  `msgpack:"c"`
 	Tape        string    `msgpack:"z"`
 	// NewField is for testing correct handling of added fields in the future
@@ -163,7 +165,10 @@ type subWithT struct {
 	NewField uint64 `msgpack:"N"`
 }
 
-var testTime = time.Date(2021, 3, 4, 15, 16, 17, 18, time.UTC)
+var (
+	testTime  = time.Date(2021, 3, 4, 15, 16, 17, 18, time.UTC)
+	testTime2 = time.Date(2021, 3, 4, 15, 16, 17, 165123789, time.UTC)
+)
 
 var testTrade = tradeWithT{
 	Type:       "t",
@@ -173,6 +178,7 @@ var testTrade = tradeWithT{
 	Price:      100,
 	Size:       10,
 	Timestamp:  testTime,
+	ReceivedAt: testTime2,
 	Conditions: []string{" "},
 	Tape:       "A",
 }
@@ -187,6 +193,7 @@ var testQuote = quoteWithT{
 	AskPrice:    100.1,
 	AskSize:     200,
 	Timestamp:   testTime,
+	ReceivedAt:  testTime2,
 	Conditions:  []string{"R"},
 	Tape:        "B",
 }
@@ -354,6 +361,7 @@ func TestHandleMessagesStocks(t *testing.T) {
 	assert.EqualValues(t, testTrade.Price, trade.Price)
 	assert.EqualValues(t, testTrade.Size, trade.Size)
 	assert.True(t, trade.Timestamp.Equal(testTime))
+	assert.True(t, trade.Internal().ReceivedAt.Equal(testTime2))
 	assert.EqualValues(t, testTrade.Conditions, trade.Conditions)
 	assert.EqualValues(t, testTrade.Tape, trade.Tape)
 
@@ -380,6 +388,7 @@ func TestHandleMessagesStocks(t *testing.T) {
 	assert.EqualValues(t, testQuote.AskPrice, quote.AskPrice)
 	assert.EqualValues(t, testQuote.AskSize, quote.AskSize)
 	assert.True(t, quote.Timestamp.Equal(testTime))
+	assert.True(t, quote.Internal().ReceivedAt.Equal(testTime2))
 	assert.EqualValues(t, testQuote.Conditions, quote.Conditions)
 	assert.EqualValues(t, testQuote.Tape, quote.Tape)
 

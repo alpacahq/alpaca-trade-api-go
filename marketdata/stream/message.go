@@ -112,6 +112,8 @@ func (h *stocksMsgHandler) handleTrade(d *msgpack.Decoder, n int) error {
 			trade.Size, err = d.DecodeUint32()
 		case "t":
 			trade.Timestamp, err = d.DecodeTime()
+		case "r":
+			trade.internal.ReceivedAt, err = d.DecodeTime()
 		case "c":
 			trade.Conditions, err = decodeStringSlice(d)
 		case "z":
@@ -154,6 +156,8 @@ func (h *stocksMsgHandler) handleQuote(d *msgpack.Decoder, n int) error {
 			quote.AskSize, err = d.DecodeUint32()
 		case "t":
 			quote.Timestamp, err = d.DecodeTime()
+		case "r":
+			quote.internal.ReceivedAt, err = d.DecodeTime()
 		case "c":
 			quote.Conditions, err = decodeStringSlice(d)
 		case "z":

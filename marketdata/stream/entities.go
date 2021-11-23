@@ -12,6 +12,17 @@ type Trade struct {
 	Timestamp  time.Time
 	Conditions []string
 	Tape       string
+
+	internal tradeInternal
+}
+
+type tradeInternal struct {
+	ReceivedAt time.Time
+}
+
+// Internal contains internal fields.
+func (t Trade) Internal() tradeInternal {
+	return t.internal
 }
 
 // Quote is a stock quote from the market
@@ -26,6 +37,17 @@ type Quote struct {
 	Timestamp   time.Time
 	Conditions  []string
 	Tape        string
+
+	internal quoteInternal
+}
+
+type quoteInternal struct {
+	ReceivedAt time.Time
+}
+
+// Internal contains internal fields.
+func (q Quote) Internal() quoteInternal {
+	return q.internal
 }
 
 // Bar is an aggregate of trades
