@@ -20,7 +20,8 @@ type tradeInternal struct {
 	ReceivedAt time.Time
 }
 
-// Internal contains internal fields.
+// Internal contains internal fields. There aren't any behavioural or backward compatibility
+// promises for them: they can be empty or removed in the future. You should not use them at all.
 func (t Trade) Internal() tradeInternal {
 	return t.internal
 }
@@ -45,7 +46,8 @@ type quoteInternal struct {
 	ReceivedAt time.Time
 }
 
-// Internal contains internal fields.
+// Internal contains internal fields. There aren't any behavioural or backward compatibility
+// promises for them: they can be empty or removed in the future. You should not use them at all.
 func (q Quote) Internal() quoteInternal {
 	return q.internal
 }
