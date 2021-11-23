@@ -43,7 +43,7 @@ func TestDefaultDo_InternalServerError(t *testing.T) {
 	assert.Contains(t, err.Error(), "500")
 }
 
-func TestDefaultDo_One429(t *testing.T) {
+func TestDefaultDo_Retry(t *testing.T) {
 	tryCount := 0
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch tryCount {
@@ -58,6 +58,7 @@ func TestDefaultDo_One429(t *testing.T) {
 	client := NewClient(ClientOpts{
 		BaseURL:    server.URL,
 		RetryDelay: time.Millisecond,
+		RetryLimit: 1,
 	})
 	bar, err := client.GetLatestBar("SPY")
 	require.NoError(t, err)
@@ -65,17 +66,22 @@ func TestDefaultDo_One429(t *testing.T) {
 }
 
 func TestDefaultDo_TooMany429s(t *testing.T) {
+	called := 0
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		called++
 		http.Error(w, "too many requests", http.StatusTooManyRequests)
 	}))
 	defer server.Close()
-	client := NewClient(ClientOpts{
+	opts := ClientOpts{
 		BaseURL:    server.URL,
 		RetryDelay: time.Millisecond,
-	})
+		RetryLimit: 10,
+	}
+	client := NewClient(opts)
 	_, err := client.GetLatestBar("SPY")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "429")
+	assert.Equal(t, opts.RetryLimit+1, called) // +1 for the original request
 }
 
 func TestDefaultDo_Timeout(t *testing.T) {
