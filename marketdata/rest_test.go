@@ -32,6 +32,7 @@ func TestDefaultDo_InternalServerError(t *testing.T) {
 		http.Error(w, "internal server error", http.StatusInternalServerError)
 	}))
 	defer server.Close()
+	// instead of using the BaseURL opts, we test setting the base URL via environment variables
 	originalDataURL := os.Getenv("APCA_API_DATA_URL")
 	defer func() { os.Setenv("APCA_API_DATA_URL", originalDataURL) }()
 	require.NoError(t, os.Setenv("APCA_API_DATA_URL", server.URL))
