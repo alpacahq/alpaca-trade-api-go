@@ -15,6 +15,8 @@ type msgHandler interface {
 	handleDailyBar(d *msgpack.Decoder, n int) error
 	handleTradingStatus(d *msgpack.Decoder, n int) error
 	handleLULD(d *msgpack.Decoder, n int) error
+	handleTradeCancelError(d *msgpack.Decoder, n int) error
+	handleTradeCorrection(d *msgpack.Decoder, n int) error
 }
 
 func (c *client) handleMessage(b []byte) error {
@@ -65,6 +67,10 @@ func (c *client) handleMessage(b []byte) error {
 			err = c.handler.handleTradingStatus(d, n)
 		case "l":
 			err = c.handler.handleLULD(d, n)
+		case "x":
+			err = c.handler.handleTradeCancelError(d, n)
+		case "c":
+			err = c.handler.handleTradeCorrection(d, n)
 		case "subscription":
 			err = c.handleSubscriptionMessage(d, n)
 		case "error":
@@ -88,6 +94,8 @@ type stocksMsgHandler struct {
 	dailyBarHandler      func(bar Bar)
 	tradingStatusHandler func(ts TradingStatus)
 	luldHandler          func(luld LULD)
+	cancelErrorHandler   func(tce TradeCancelError)
+	correctionHandler    func(tc TradeCorrection)
 }
 
 var _ msgHandler = (*stocksMsgHandler)(nil)
@@ -306,6 +314,90 @@ func (h *stocksMsgHandler) handleLULD(d *msgpack.Decoder, n int) error {
 	return nil
 }
 
+func (h *stocksMsgHandler) handleTradeCancelError(d *msgpack.Decoder, n int) error {
+	tce := TradeCancelError{}
+	for i := 0; i < n; i++ {
+		key, err := d.DecodeString()
+		if err != nil {
+			return err
+		}
+		switch key {
+		case "S":
+			tce.Symbol, err = d.DecodeString()
+		case "i":
+			tce.ID, err = d.DecodeInt64()
+		case "x":
+			tce.Exchange, err = d.DecodeString()
+		case "p":
+			tce.Price, err = d.DecodeFloat64()
+		case "s":
+			tce.Size, err = d.DecodeUint32()
+		case "a":
+			tce.CancelErrorAction, err = d.DecodeString()
+		case "z":
+			tce.Tape, err = d.DecodeString()
+		case "t":
+			tce.Timestamp, err = d.DecodeTime()
+		default:
+			err = d.Skip()
+		}
+		if err != nil {
+			return err
+		}
+	}
+	h.mu.RLock()
+	handler := h.cancelErrorHandler
+	h.mu.RUnlock()
+	handler(tce)
+	return nil
+}
+
+func (h *stocksMsgHandler) handleTradeCorrection(d *msgpack.Decoder, n int) error {
+	tc := TradeCorrection{}
+	for i := 0; i < n; i++ {
+		key, err := d.DecodeString()
+		if err != nil {
+			return err
+		}
+		switch key {
+		case "S":
+			tc.Symbol, err = d.DecodeString()
+		case "x":
+			tc.Exchange, err = d.DecodeString()
+		case "oi":
+			tc.OriginalID, err = d.DecodeInt64()
+		case "op":
+			tc.OriginalPrice, err = d.DecodeFloat64()
+		case "os":
+			tc.OriginalSize, err = d.DecodeUint32()
+		case "oc":
+			tc.OriginalConditions, err = decodeStringSlice(d)
+		case "ci":
+			tc.CorrectedID, err = d.DecodeInt64()
+		case "cp":
+			tc.CorrectedPrice, err = d.DecodeFloat64()
+		case "cs":
+			tc.CorrectedSize, err = d.DecodeUint32()
+		case "cc":
+			tc.CorrectedConditions, err = decodeStringSlice(d)
+		case "z":
+			tc.Tape, err = d.DecodeString()
+		case "t":
+			tc.Timestamp, err = d.DecodeTime()
+		default:
+			err = d.Skip()
+		}
+		if err != nil {
+			return err
+		}
+	}
+	h.mu.RLock()
+	handler := h.correctionHandler
+	h.mu.RUnlock()
+	handler(tc)
+	return nil
+}
+
 type cryptoMsgHandler struct {
 	mu              sync.RWMutex
 	tradeHandler    func(trade CryptoTrade)
@@ -456,6 +548,16 @@ func (h *cryptoMsgHandler) handleTradingStatus(d *msgpack.Decoder, n int) error 
 }
 
 func (h *cryptoMsgHandler) handleLULD(d *msgpack.Decoder, n int) error {
+	// should not happen!
+	return discardMapContents(d, n)
+}
+
+func (h *cryptoMsgHandler) handleTradeCancelError(d *msgpack.Decoder, n int) error {
+	// should not happen!
+	return discardMapContents(d, n)
+}
+
+func (h *cryptoMsgHandler) handleTradeCorrection(d *msgpack.Decoder, n int) error {
 	// should not happen!
 	return discardMapContents(d, n)
 }
