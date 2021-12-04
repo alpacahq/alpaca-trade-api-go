@@ -237,15 +237,15 @@ func WithLULDs(handler func(LULD), symbols ...string) StockOption {
 	})
 }
 
-// WithCancelErrors configures inital trade cancel errors symbols that need to be handled
-func WithCancelErrors(handler func(TradeCancelError), symbols ...string) StockOption {
+// WithCancelErrors configures inital trade cancel errors handler
+func WithCancelErrors(handler func(TradeCancelError)) StockOption {
 	return newFuncStockOption(func(o *stockOptions) {
 		o.cancelErrorHandler = handler
 	})
 }
 
-// WithCorrections configures inital trade corrections symbols that need to be handled
-func WithCorrections(handler func(TradeCorrection), symbols ...string) StockOption {
+// WithCorrections configures inital trade corrections handler
+func WithCorrections(handler func(TradeCorrection)) StockOption {
 	return newFuncStockOption(func(o *stockOptions) {
 		o.correctionHandler = handler
 	})

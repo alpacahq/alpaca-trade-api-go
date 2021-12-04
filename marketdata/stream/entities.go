@@ -98,7 +98,6 @@ type TradeCancelError struct {
 }
 
 type TradeCorrection struct {
-	Type                string
 	Symbol              string
 	Exchange            string
 	OriginalID          int64
