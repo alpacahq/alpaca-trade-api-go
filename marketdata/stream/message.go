@@ -15,8 +15,8 @@ type msgHandler interface {
 	handleDailyBar(d *msgpack.Decoder, n int) error
 	handleTradingStatus(d *msgpack.Decoder, n int) error
 	handleLULD(d *msgpack.Decoder, n int) error
-	handleTradeCancelError(d *msgpack.Decoder, n int) error
-	handleTradeCorrection(d *msgpack.Decoder, n int) error
+	handleCancelError(d *msgpack.Decoder, n int) error
+	handleCorrection(d *msgpack.Decoder, n int) error
 }
 
 func (c *client) handleMessage(b []byte) error {
@@ -68,9 +68,9 @@ func (c *client) handleMessage(b []byte) error {
 		case "l":
 			err = c.handler.handleLULD(d, n)
 		case "x":
-			err = c.handler.handleTradeCancelError(d, n)
+			err = c.handler.handleCancelError(d, n)
 		case "c":
-			err = c.handler.handleTradeCorrection(d, n)
+			err = c.handler.handleCorrection(d, n)
 		case "subscription":
 			err = c.handleSubscriptionMessage(d, n)
 		case "error":
@@ -314,7 +314,7 @@ func (h *stocksMsgHandler) handleLULD(d *msgpack.Decoder, n int) error {
 	return nil
 }
 
-func (h *stocksMsgHandler) handleTradeCancelError(d *msgpack.Decoder, n int) error {
+func (h *stocksMsgHandler) handleCancelError(d *msgpack.Decoder, n int) error {
 	tce := TradeCancelError{}
 	for i := 0; i < n; i++ {
 		key, err := d.DecodeString()
@@ -352,7 +352,7 @@ func (h *stocksMsgHandler) handleTradeCancelError(d *msgpack.Decoder, n int) err
 	return nil
 }
 
-func (h *stocksMsgHandler) handleTradeCorrection(d *msgpack.Decoder, n int) error {
+func (h *stocksMsgHandler) handleCorrection(d *msgpack.Decoder, n int) error {
 	tc := TradeCorrection{}
 	for i := 0; i < n; i++ {
 		key, err := d.DecodeString()
@@ -552,12 +552,12 @@ func (h *cryptoMsgHandler) handleLULD(d *msgpack.Decoder, n int) error {
 	return discardMapContents(d, n)
 }
 
-func (h *cryptoMsgHandler) handleTradeCancelError(d *msgpack.Decoder, n int) error {
+func (h *cryptoMsgHandler) handleCancelError(d *msgpack.Decoder, n int) error {
 	// should not happen!
 	return discardMapContents(d, n)
 }
 
-func (h *cryptoMsgHandler) handleTradeCorrection(d *msgpack.Decoder, n int) error {
+func (h *cryptoMsgHandler) handleCorrection(d *msgpack.Decoder, n int) error {
 	// should not happen!
 	return discardMapContents(d, n)
 }
@@ -624,6 +624,8 @@ var subMessageHandler = func(c *client, s subscriptions) error {
 	c.sub.dailyBars = s.dailyBars
 	c.sub.statuses = s.statuses
 	c.sub.lulds = s.lulds
+	c.sub.cancelErrors = s.cancelErrors
+	c.sub.corrections = s.corrections
 	if c.pendingSubChange != nil {
 		psc := c.pendingSubChange
 		psc.result <- nil
@@ -653,6 +655,10 @@ func (c *client) handleSubscriptionMessage(d *msgpack.Decoder, n int) error {
 			s.statuses, err = decodeStringSlice(d)
 		case "lulds":
 			s.lulds, err = decodeStringSlice(d)
+		case "cancelErrors":
+			s.cancelErrors, err = decodeStringSlice(d)
+		case "corrections":
+			s.corrections, err = decodeStringSlice(d)
 		default:
 			err = d.Skip()
 		}

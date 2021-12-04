@@ -124,6 +124,8 @@ type stockOptions struct {
 	dailyBarHandler      func(Bar)
 	tradingStatusHandler func(TradingStatus)
 	luldHandler          func(LULD)
+	cancelErrorHandler   func(TradeCancelError)
+	correctionHandler    func(TradeCorrection)
 }
 
 // defaultStockOptions are the default options for a client.
@@ -162,6 +164,8 @@ func defaultStockOptions() *stockOptions {
 		dailyBarHandler:      func(b Bar) {},
 		tradingStatusHandler: func(ts TradingStatus) {},
 		luldHandler:          func(l LULD) {},
+		cancelErrorHandler:   func(tce TradeCancelError) {},
+		correctionHandler:    func(tc TradeCorrection) {},
 	}
 }
 
@@ -230,6 +234,20 @@ func WithLULDs(handler func(LULD), symbols ...string) StockOption {
 	return newFuncStockOption(func(o *stockOptions) {
 		o.sub.lulds = symbols
 		o.luldHandler = handler
+	})
+}
+
+// WithCancelErrors configures inital trade cancel errors symbols that need to be handled
+func WithCancelErrors(handler func(TradeCancelError), symbols ...string) StockOption {
+	return newFuncStockOption(func(o *stockOptions) {
+		o.cancelErrorHandler = handler
+	})
+}
+
+// WithCorrections configures inital trade corrections symbols that need to be handled
+func WithCorrections(handler func(TradeCorrection), symbols ...string) StockOption {
+	return newFuncStockOption(func(o *stockOptions) {
+		o.correctionHandler = handler
 	})
 }
 
