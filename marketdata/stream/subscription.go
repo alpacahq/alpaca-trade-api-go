@@ -224,5 +224,6 @@ func getSubChangeMessage(subscribe bool, changes subscriptions) ([]byte, error) 
 		"dailyBars": changes.dailyBars,
 		"statuses":  changes.statuses,
 		"lulds":     changes.lulds,
+		// No need to subscribe to cancel errors or corrections explicitly.
 	})
 }

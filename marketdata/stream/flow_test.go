@@ -181,13 +181,15 @@ func TestInitializeAuthRetrySucceeds(t *testing.T) {
 
 	conn.readCh <- serializeToMsgpack(t, []map[string]interface{}{
 		{
-			"T":         "subscription",
-			"trades":    trades,
-			"quotes":    quotes,
-			"bars":      bars,
-			"dailyBars": dailyBars,
-			"statuses":  statuses,
-			"lulds":     lulds,
+			"T":            "subscription",
+			"trades":       trades,
+			"quotes":       quotes,
+			"bars":         bars,
+			"dailyBars":    dailyBars,
+			"statuses":     statuses,
+			"lulds":        lulds,
+			"cancelErrors": trades, // Subscribed automatically.
+			"corrections":  trades, // Subscribed automatically.
 		},
 	})
 
@@ -198,6 +200,8 @@ func TestInitializeAuthRetrySucceeds(t *testing.T) {
 	assert.ElementsMatch(t, dailyBars, c.sub.dailyBars)
 	assert.ElementsMatch(t, statuses, c.sub.statuses)
 	assert.ElementsMatch(t, lulds, c.sub.lulds)
+	assert.ElementsMatch(t, trades, c.sub.cancelErrors)
+	assert.ElementsMatch(t, trades, c.sub.corrections)
 
 	// checking whether the client sent the proper messages
 	// First auth
@@ -220,6 +224,8 @@ func TestInitializeAuthRetrySucceeds(t *testing.T) {
 	assert.ElementsMatch(t, dailyBars, sub["dailyBars"])
 	assert.ElementsMatch(t, statuses, sub["statuses"])
 	assert.ElementsMatch(t, lulds, sub["lulds"])
+	assert.NotContains(t, sub, "cancelErrors")
+	assert.NotContains(t, sub, "corrections")
 }
 
 func TestInitializeSubError(t *testing.T) {

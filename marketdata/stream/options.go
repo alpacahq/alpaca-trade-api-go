@@ -147,12 +147,14 @@ func defaultStockOptions() *stockOptions {
 			processorCount: 1,
 			bufferSize:     100000,
 			sub: subscriptions{
-				trades:    []string{},
-				quotes:    []string{},
-				bars:      []string{},
-				dailyBars: []string{},
-				statuses:  []string{},
-				lulds:     []string{},
+				trades:       []string{},
+				quotes:       []string{},
+				bars:         []string{},
+				dailyBars:    []string{},
+				statuses:     []string{},
+				lulds:        []string{},
+				cancelErrors: []string{},
+				corrections:  []string{},
 			},
 			connCreator: func(ctx context.Context, u url.URL) (conn, error) {
 				return newNhooyrWebsocketConn(ctx, u)

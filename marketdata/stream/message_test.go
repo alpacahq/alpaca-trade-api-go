@@ -86,6 +86,40 @@ type luldWithT struct {
 	NewField uint64 `msgpack:"n"`
 }
 
+// tradeCancelErrorWithT is the incoming cancel error message that also contains the T type key
+type tradeCancelErrorWithT struct {
+	Type              string    `json:"T" msgpack:"T"`
+	Symbol            string    `json:"S" msgpack:"S"`
+	ID                int64     `json:"i" msgpack:"i"`
+	Exchange          string    `json:"x" msgpack:"x"`
+	Price             float64   `json:"p" msgpack:"p"`
+	Size              uint32    `json:"s" msgpack:"s"`
+	CancelErrorAction string    `json:"a" msgpack:"a"`
+	Tape              string    `json:"z" msgpack:"z"`
+	Timestamp         time.Time `json:"t" msgpack:"t"`
+	// NewField is for testing correct handling of added fields in the future
+	NewField uint64 `msgpack:"n"`
+}
+
+// tradeCorrectionWithT is the incoming cancel error message that also contains the T type key
+type tradeCorrectionWithT struct {
+	Type                string    `json:"T"  msgpack:"T"`
+	Symbol              string    `json:"S"  msgpack:"S"`
+	Exchange            string    `json:"x"  msgpack:"x"`
+	OriginalID          int64     `json:"oi" msgpack:"oi"`
+	OriginalPrice       float64   `json:"op" msgpack:"op"`
+	OriginalSize        uint32    `json:"os" msgpack:"os"`
+	OriginalConditions  []string  `json:"oc" msgpack:"oc"`
+	CorrectedID         int64     `json:"ci" msgpack:"ci"`
+	CorrectedPrice      float64   `json:"cp" msgpack:"cp"`
+	CorrectedSize       uint32    `json:"cs" msgpack:"cs"`
+	CorrectedConditions []string  `json:"cc" msgpack:"cc"`
+	Tape                string    `json:"z"  msgpack:"z"`
+	Timestamp           time.Time `json:"t"  msgpack:"t"`
+	// NewField is for testing correct handling of added fields in the future
+	NewField uint64 `msgpack:"n"`
+}
+
 // cryptoTradeWithT is the incoming crypto trade message that also contains the T type key
 type cryptoTradeWithT struct {
 	Type      string    `msgpack:"T"`
@@ -154,13 +188,15 @@ type errorWithT struct {
 
 // subWithT is the incoming error message that also contains the T type key
 type subWithT struct {
-	Type      string   `msgpack:"T"`
-	Trades    []string `msgpack:"trades"`
-	Quotes    []string `msgpack:"quotes"`
-	Bars      []string `msgpack:"bars"`
-	DailyBars []string `msgpack:"dailyBars"`
-	Statuses  []string `msgpack:"statuses"`
-	LULDs     []string `msgpack:"lulds"`
+	Type         string   `msgpack:"T"`
+	Trades       []string `msgpack:"trades"`
+	Quotes       []string `msgpack:"quotes"`
+	Bars         []string `msgpack:"bars"`
+	DailyBars    []string `msgpack:"dailyBars"`
+	Statuses     []string `msgpack:"statuses"`
+	LULDs        []string `msgpack:"lulds"`
+	Corrections  []string `msgpack:"corrections"`
+	CancelErrors []string `msgpack:"cancelErrors"`
 	// NewField is for testing correct handling of added fields in the future
 	NewField uint64 `msgpack:"N"`
 }
@@ -232,6 +268,34 @@ var testLULD = luldWithT{
 	Tape:           "C",
 }
 
+var testCancelError = tradeCancelErrorWithT{
+	Type:              "x",
+	Symbol:            "TEST",
+	ID:                123,
+	Exchange:          "X",
+	Price:             100,
+	Size:              10,
+	CancelErrorAction: "X",
+	Tape:              "C",
+	Timestamp:         time.Date(2021, 12, 7, 13, 32, 0, 0, time.UTC),
+}
+
+var testCorrection = tradeCorrectionWithT{
+	Type:                "c",
+	Symbol:              "TEST",
+	Exchange:            "X",
+	OriginalID:          123,
+	OriginalPrice:       123.123,
+	OriginalSize:        123,
+	OriginalConditions:  []string{" ", "7", "V"},
+	CorrectedID:         124,
+	CorrectedPrice:      124.124,
+	CorrectedSize:       124,
+	CorrectedConditions: []string{" ", "7", "Z", "V"},
+	Tape:                "C",
+	Timestamp:           time.Date(2021, 12, 7, 13, 32, 0, 0, time.UTC),
+}
+
 var testCryptoTrade = cryptoTradeWithT{
 	Type:      "t",
 	Symbol:    "A",
@@ -280,18 +344,22 @@ var testError = errorWithT{
 }
 
 var testSubMessage1 = subWithT{
-	Type:   "subscription",
-	Trades: []string{"ALPACA"},
-	Quotes: []string{},
-	Bars:   []string{},
+	Type:         "subscription",
+	Trades:       []string{"ALPACA"},
+	Quotes:       []string{},
+	Bars:         []string{},
+	CancelErrors: []string{"ALPACA"},
+	Corrections:  []string{"ALPACA"},
 }
 
 var testSubMessage2 = subWithT{
-	Type:      "subscription",
-	Trades:    []string{"ALPACA"},
-	Quotes:    []string{"AL", "PACA"},
-	Bars:      []string{"ALP", "ACA"},
-	DailyBars: []string{"LPACA"},
+	Type:         "subscription",
+	Trades:       []string{"ALPACA"},
+	Quotes:       []string{"AL", "PACA"},
+	Bars:         []string{"ALP", "ACA"},
+	DailyBars:    []string{"LPACA"},
+	CancelErrors: []string{"ALPACA"},
+	Corrections:  []string{"ALPACA"},
 }
 
 func TestHandleMessagesStocks(t *testing.T) {
@@ -305,6 +373,8 @@ func TestHandleMessagesStocks(t *testing.T) {
 		testSubMessage1,
 		testSubMessage2,
 		testLULD,
+		testCancelError,
+		testCorrection,
 	})
 	require.NoError(t, err)
 
@@ -351,6 +421,14 @@ func TestHandleMessagesStocks(t *testing.T) {
 	h.luldHandler = func(l LULD) {
 		luld = l
 	}
+	var cancelError TradeCancelError
+	h.cancelErrorHandler = func(tce TradeCancelError) {
+		cancelError = tce
+	}
+	var correction TradeCorrection
+	h.correctionHandler = func(tc TradeCorrection) {
+		correction = tc
+	}
 
 	err = c.handleMessage(b)
 	require.NoError(t, err)
@@ -380,6 +458,28 @@ func TestHandleMessagesStocks(t *testing.T) {
 	assert.True(t, luld.Timestamp.Equal(testLULD.Timestamp))
 	assert.Equal(t, testLULD.Tape, luld.Tape)
 
+	assert.EqualValues(t, testCorrection.Symbol, correction.Symbol)
+	assert.EqualValues(t, testCorrection.Exchange, correction.Exchange)
+	assert.EqualValues(t, testCorrection.OriginalID, correction.OriginalID)
+	assert.EqualValues(t, testCorrection.OriginalPrice, correction.OriginalPrice)
+	assert.EqualValues(t, testCorrection.OriginalSize, correction.OriginalSize)
+	assert.EqualValues(t, testCorrection.OriginalConditions, correction.OriginalConditions)
+	assert.EqualValues(t, testCorrection.CorrectedID, correction.CorrectedID)
+	assert.EqualValues(t, testCorrection.CorrectedPrice, correction.CorrectedPrice)
+	assert.EqualValues(t, testCorrection.CorrectedSize, correction.CorrectedSize)
+	assert.EqualValues(t, testCorrection.CorrectedConditions, correction.CorrectedConditions)
+	assert.EqualValues(t, testCorrection.Tape, correction.Tape)
+	assert.True(t, testCorrection.Timestamp.Equal(correction.Timestamp))
+
+	assert.EqualValues(t, testCancelError.Symbol, cancelError.Symbol)
+	assert.EqualValues(t, testCancelError.ID, cancelError.ID)
+	assert.EqualValues(t, testCancelError.Exchange, cancelError.Exchange)
+	assert.EqualValues(t, testCancelError.Price, cancelError.Price)
+	assert.EqualValues(t, testCancelError.Size, cancelError.Size)
+	assert.EqualValues(t, testCancelError.CancelErrorAction, cancelError.CancelErrorAction)
+	assert.EqualValues(t, testCancelError.Tape, cancelError.Tape)
+	assert.True(t, testCancelError.Timestamp.Equal(cancelError.Timestamp))
+
 	assert.EqualValues(t, testQuote.Symbol, quote.Symbol)
 	assert.EqualValues(t, testQuote.BidExchange, quote.BidExchange)
 	assert.EqualValues(t, testQuote.BidPrice, quote.BidPrice)
@@ -408,10 +508,14 @@ func TestHandleMessagesStocks(t *testing.T) {
 	assert.EqualValues(t, testSubMessage1.Trades, subscriptionMessages[0].trades)
 	assert.EqualValues(t, testSubMessage1.Quotes, subscriptionMessages[0].quotes)
 	assert.EqualValues(t, testSubMessage1.Bars, subscriptionMessages[0].bars)
+	assert.EqualValues(t, testSubMessage1.CancelErrors, subscriptionMessages[0].cancelErrors)
+	assert.EqualValues(t, testSubMessage1.Corrections, subscriptionMessages[0].corrections)
 	assert.EqualValues(t, testSubMessage2.Trades, subscriptionMessages[1].trades)
 	assert.EqualValues(t, testSubMessage2.Quotes, subscriptionMessages[1].quotes)
 	assert.EqualValues(t, testSubMessage2.Bars, subscriptionMessages[1].bars)
 	assert.EqualValues(t, testSubMessage2.DailyBars, subscriptionMessages[1].dailyBars)
+	assert.EqualValues(t, testSubMessage2.CancelErrors, subscriptionMessages[1].cancelErrors)
+	assert.EqualValues(t, testSubMessage2.Corrections, subscriptionMessages[1].corrections)
 }
 
 func TestHandleMessagesCrypto(t *testing.T) {
