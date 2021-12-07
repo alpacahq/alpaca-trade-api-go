@@ -237,14 +237,18 @@ func WithLULDs(handler func(LULD), symbols ...string) StockOption {
 	})
 }
 
-// WithCancelErrors configures inital trade cancel errors handler
+// WithCancelErrors configures inital trade cancel errors handler. This does
+// not create any new subscriptions because cancel errors are subscribed
+// automatically together with trades. No need to pass in symbols.
 func WithCancelErrors(handler func(TradeCancelError)) StockOption {
 	return newFuncStockOption(func(o *stockOptions) {
 		o.cancelErrorHandler = handler
 	})
 }
 
-// WithCorrections configures inital trade corrections handler
+// WithCorrections configures inital trade corrections handler. This does
+// not create any new subscriptions because corrections are subscribed
+// automatically together with trades. No need to pass in symbols.
 func WithCorrections(handler func(TradeCorrection)) StockOption {
 	return newFuncStockOption(func(o *stockOptions) {
 		o.correctionHandler = handler

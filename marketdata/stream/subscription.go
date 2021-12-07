@@ -53,13 +53,13 @@ func (sc *stocksClient) SubscribeToLULDs(handler func(LULD), symbols ...string) 
 	return sc.client.handleSubChange(true, subscriptions{lulds: symbols})
 }
 
-func (sc *stocksClient) RegisterHandlerCancelErrors(handler func(TradeCancelError)) {
+func (sc *stocksClient) RegisterCancelErrors(handler func(TradeCancelError)) {
 	sc.handler.mu.Lock()
 	sc.handler.cancelErrorHandler = handler
 	sc.handler.mu.Unlock()
 }
 
-func (sc *stocksClient) RegisterHandlerCorrections(handler func(TradeCorrection)) {
+func (sc *stocksClient) RegisterCorrections(handler func(TradeCorrection)) {
 	sc.handler.mu.Lock()
 	sc.handler.correctionHandler = handler
 	sc.handler.mu.Unlock()
@@ -89,13 +89,13 @@ func (sc *stocksClient) UnsubscribeFromLULDs(symbols ...string) error {
 	return sc.handleSubChange(false, subscriptions{lulds: symbols})
 }
 
-func (sc *stocksClient) UnregisterHandlerCancelErrors() {
+func (sc *stocksClient) UnregisterCancelErrors() {
 	sc.handler.mu.Lock()
 	sc.handler.cancelErrorHandler = func(TradeCancelError) {}
 	sc.handler.mu.Unlock()
 }
 
-func (sc *stocksClient) UnregisterHandlerCorrections() {
+func (sc *stocksClient) UnregisterCorrections() {
 	sc.handler.mu.Lock()
 	sc.handler.correctionHandler = func(TradeCorrection) {}
 	sc.handler.mu.Unlock()
