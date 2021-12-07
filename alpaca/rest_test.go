@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"cloud.google.com/go/civil"
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -453,6 +454,67 @@ func TestOTOCOOrders(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, order)
 	assert.Equal(t, "bracket", order.Class)
+}
+
+func TestGetAccountActivities(t *testing.T) {
+	c := testClient()
+	// happy path
+	c.do = func(c *client, req *http.Request) (*http.Response, error) {
+		// https://alpaca.markets/docs/api-documentation/api-v2/account-activities/#nontradeactivity-entity
+		nta := []map[string]interface{}{
+			{
+				"activity_type":    "DIV",
+				"id":               "20190801011955195::5f596936-6f23-4cef-bdf1-3806aae57dbf",
+				"date":             "2019-08-01",
+				"net_amount":       "1.02",
+				"symbol":           "T",
+				"qty":              "2",
+				"per_share_amount": "0.51",
+			},
+			{
+				"activity_type":    "DIV",
+				"id":               "20190801011955195::5f596936-6f23-4cef-bdf1-3806aae57dbd",
+				"date":             "2019-08-01",
+				"net_amount":       "5",
+				"symbol":           "AAPL",
+				"qty":              "2",
+				"per_share_amount": "100",
+			},
+		}
+		return &http.Response{
+			Body: genBody(nta),
+		}, nil
+	}
+
+	dividendsActivityType := "DIV"
+	activities, err := c.GetAccountActivities(&dividendsActivityType, nil)
+	assert.NoError(t, err)
+	assert.Len(t, activities, 2)
+	activity1 := activities[0]
+	assert.Equal(t, civil.Date{Year: 2019, Month: 8, Day: 1}, activity1.Date)
+	assert.Equal(t, "DIV", activity1.ActivityType)
+	assert.Equal(t, "20190801011955195::5f596936-6f23-4cef-bdf1-3806aae57dbf", activity1.ID)
+	assert.True(t, decimal.NewFromFloat(1.02).Equal(activity1.NetAmount))
+	assert.Equal(t, "T", activity1.Symbol)
+	assert.Equal(t, decimal.NewFromInt(2), activity1.Qty)
+	assert.Equal(t, decimal.NewFromFloat32(0.51), activity1.PerShareAmount)
+	activity2 := activities[1]
+	assert.Equal(t, civil.Date{Year: 2019, Month: 8, Day: 1}, activity2.Date)
+	assert.Equal(t, "DIV", activity2.ActivityType)
+	assert.Equal(t, "20190801011955195::5f596936-6f23-4cef-bdf1-3806aae57dbd", activity2.ID)
+	assert.True(t, decimal.NewFromInt(5).Equal(activity2.NetAmount))
+	assert.Equal(t, "AAPL", activity2.Symbol)
+	assert.Equal(t, decimal.NewFromInt(2), activity2.Qty)
+	assert.Equal(t, decimal.NewFromInt(100), activity2.PerShareAmount)
+
+	// error was returned
+	c.do = func(c *client, req *http.Request) (*http.Response, error) {
+		return &http.Response{}, &APIError{Code: 500, Message: "internal server error"}
+	}
+
+	_, err = c.GetAccountActivities(&dividendsActivityType, nil)
+	assert.NotNil(t, err)
+	assert.EqualError(t, &APIError{Code: 500, Message: "internal server error"}, "internal server error")
 }
 
 type nopCloser struct {
