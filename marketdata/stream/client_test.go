@@ -671,6 +671,8 @@ func TestCoreFunctionalityStocks(t *testing.T) {
 	dailyBars := make(chan Bar, 10)
 	tradingStatuses := make(chan TradingStatus, 10)
 	lulds := make(chan LULD, 10)
+	cancelErrors := make(chan TradeCancelError, 10)
+	corrections := make(chan TradeCorrection, 10)
 	c := NewStocksClient("iex",
 		WithTrades(func(t Trade) { trades <- t }, "ALPACA"),
 		WithQuotes(func(q Quote) { quotes <- q }, "ALPCA"),
@@ -678,6 +680,8 @@ func TestCoreFunctionalityStocks(t *testing.T) {
 		WithDailyBars(func(b Bar) { dailyBars <- b }, "LPACA"),
 		WithStatuses(func(ts TradingStatus) { tradingStatuses <- ts }, "ALPACA"),
 		WithLULDs(func(l LULD) { lulds <- l }, "ALPACA"),
+		WithCancelErrors(func(tce TradeCancelError) { cancelErrors <- tce }),
+		WithCorrections(func(tc TradeCorrection) { corrections <- tc }),
 		withConnCreator(func(ctx context.Context, u url.URL) (conn, error) {
 			return connection, nil
 		}))
@@ -740,6 +744,32 @@ func TestCoreFunctionalityStocks(t *testing.T) {
 			Tape:           "C",
 		},
 	})
+	// sending a trade cancel error
+	connection.readCh <- serializeToMsgpack(t, []interface{}{
+		tradeCancelErrorWithT{
+			Type:              "x",
+			Symbol:            "ALPACA",
+			ID:                123,
+			CancelErrorAction: "C",
+			Tape:              "C",
+		},
+	})
+	// sending a correction
+	connection.readCh <- serializeToMsgpack(t, []interface{}{
+		tradeCorrectionWithT{
+			Type:                "c",
+			Symbol:              "ALPACA",
+			OriginalID:          123,
+			OriginalPrice:       123.123,
+			OriginalSize:        123,
+			OriginalConditions:  []string{" ", "7", "V"},
+			CorrectedID:         124,
+			CorrectedPrice:      124.124,
+			CorrectedSize:       124,
+			CorrectedConditions: []string{" ", "7", "Z", "V"},
+			Tape:                "C",
+		},
+	})
 
 	// checking contents
 	select {
@@ -790,6 +820,30 @@ func TestCoreFunctionalityStocks(t *testing.T) {
 		assert.Equal(t, "C", l.Tape)
 	case <-time.After(time.Second):
 		require.Fail(t, "no LULD received in time")
+	}
+
+	select {
+	case tce := <-cancelErrors:
+		assert.EqualValues(t, 123, tce.ID)
+		assert.Equal(t, "C", tce.CancelErrorAction)
+		assert.Equal(t, "C", tce.Tape)
+	case <-time.After(time.Second):
+		require.Fail(t, "no cancel error received in time")
+	}
+
+	select {
+	case tc := <-corrections:
+		assert.EqualValues(t, 123, tc.OriginalID)
+		assert.EqualValues(t, 123.123, tc.OriginalPrice)
+		assert.EqualValues(t, 123, tc.OriginalSize)
+		assert.EqualValues(t, []string{" ", "7", "V"}, tc.OriginalConditions)
+		assert.EqualValues(t, 124, tc.CorrectedID)
+		assert.EqualValues(t, 124.124, tc.CorrectedPrice)
+		assert.EqualValues(t, 124, tc.CorrectedSize)
+		assert.EqualValues(t, []string{" ", "7", "Z", "V"}, tc.CorrectedConditions)
+		assert.Equal(t, "C", tc.Tape)
+	case <-time.After(time.Second):
+		require.Fail(t, "no correction received in time")
 	}
 }
 
@@ -933,13 +987,15 @@ func writeInitialFlowMessagesToConn(
 	// server accepts subscription
 	conn.readCh <- serializeToMsgpack(t, []subWithT{
 		{
-			Type:      "subscription",
-			Trades:    sub.trades,
-			Quotes:    sub.quotes,
-			Bars:      sub.bars,
-			DailyBars: sub.dailyBars,
-			Statuses:  sub.statuses,
-			LULDs:     sub.lulds,
+			Type:         "subscription",
+			Trades:       sub.trades,
+			Quotes:       sub.quotes,
+			Bars:         sub.bars,
+			DailyBars:    sub.dailyBars,
+			Statuses:     sub.statuses,
+			LULDs:        sub.lulds,
+			CancelErrors: sub.trades, // Subscribe automatically.
+			Corrections:  sub.trades, // Subscribe automatically.
 		},
 	})
 }
@@ -966,6 +1022,8 @@ func checkInitialMessagesSentByClient(
 	require.ElementsMatch(t, sub.dailyBars, s["dailyBars"])
 	require.ElementsMatch(t, sub.statuses, s["statuses"])
 	require.ElementsMatch(t, sub.lulds, s["lulds"])
+	require.NotContains(t, s, "cancelErrors")
+	require.NotContains(t, s, "corrections")
 }
 
 func TestCryptoClientConstructURL(t *testing.T) {

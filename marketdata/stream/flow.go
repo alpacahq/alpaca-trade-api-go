@@ -167,15 +167,17 @@ func (c *client) readSubResponse(ctx context.Context) error {
 		return err
 	}
 	var resps []struct {
-		T         string   `msgpack:"T"`
-		Msg       string   `msgpack:"msg"`
-		Code      int      `msgpack:"code"`
-		Trades    []string `msgpack:"trades"`
-		Quotes    []string `msgpack:"quotes"`
-		Bars      []string `msgpack:"bars"`
-		DailyBars []string `msgpack:"dailyBars"`
-		Statuses  []string `msgpack:"statuses"`
-		LULDs     []string `msgpack:"lulds"`
+		T            string   `msgpack:"T"`
+		Msg          string   `msgpack:"msg"`
+		Code         int      `msgpack:"code"`
+		Trades       []string `msgpack:"trades"`
+		Quotes       []string `msgpack:"quotes"`
+		Bars         []string `msgpack:"bars"`
+		DailyBars    []string `msgpack:"dailyBars"`
+		Statuses     []string `msgpack:"statuses"`
+		LULDs        []string `msgpack:"lulds"`
+		CancelErrors []string `msgpack:"cancelErrors"`
+		Corrections  []string `msgpack:"corrections"`
 	}
 	if err := msgpack.Unmarshal(b, &resps); err != nil {
 		return err
@@ -197,5 +199,7 @@ func (c *client) readSubResponse(ctx context.Context) error {
 	c.sub.dailyBars = resps[0].DailyBars
 	c.sub.statuses = resps[0].Statuses
 	c.sub.lulds = resps[0].LULDs
+	c.sub.cancelErrors = resps[0].CancelErrors
+	c.sub.corrections = resps[0].Corrections
 	return nil
 }

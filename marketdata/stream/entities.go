@@ -86,6 +86,32 @@ type LULD struct {
 	Tape           string
 }
 
+type TradeCancelError struct {
+	Symbol            string
+	ID                int64
+	Exchange          string
+	Price             float64
+	Size              uint32
+	CancelErrorAction string
+	Tape              string
+	Timestamp         time.Time
+}
+
+type TradeCorrection struct {
+	Symbol              string
+	Exchange            string
+	OriginalID          int64
+	OriginalPrice       float64
+	OriginalSize        uint32
+	OriginalConditions  []string
+	CorrectedID         int64
+	CorrectedPrice      float64
+	CorrectedSize       uint32
+	CorrectedConditions []string
+	Tape                string
+	Timestamp           time.Time
+}
+
 type CryptoTrade struct {
 	Symbol    string
 	Exchange  string

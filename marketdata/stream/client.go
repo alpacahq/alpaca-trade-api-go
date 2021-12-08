@@ -53,6 +53,10 @@ type StocksClient interface {
 	UnsubscribeFromStatuses(symbols ...string) error
 	SubscribeToLULDs(handler func(luld LULD), symbols ...string) error
 	UnsubscribeFromLULDs(symbols ...string) error
+	RegisterCancelErrors(handler func(tce TradeCancelError))
+	UnregisterCancelErrors()
+	RegisterCorrections(handler func(tc TradeCorrection))
+	UnregisterCorrections()
 }
 
 // CryptoClient is a client that connects to an Alpaca Data V2 stream server
@@ -163,6 +167,8 @@ func (sc *stocksClient) configure(o stockOptions) {
 	sc.handler.dailyBarHandler = o.dailyBarHandler
 	sc.handler.tradingStatusHandler = o.tradingStatusHandler
 	sc.handler.luldHandler = o.luldHandler
+	sc.handler.cancelErrorHandler = o.cancelErrorHandler
+	sc.handler.correctionHandler = o.correctionHandler
 }
 
 func (sc *stocksClient) Connect(ctx context.Context) error {

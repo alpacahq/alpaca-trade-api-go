@@ -124,6 +124,8 @@ type stockOptions struct {
 	dailyBarHandler      func(Bar)
 	tradingStatusHandler func(TradingStatus)
 	luldHandler          func(LULD)
+	cancelErrorHandler   func(TradeCancelError)
+	correctionHandler    func(TradeCorrection)
 }
 
 // defaultStockOptions are the default options for a client.
@@ -145,12 +147,14 @@ func defaultStockOptions() *stockOptions {
 			processorCount: 1,
 			bufferSize:     100000,
 			sub: subscriptions{
-				trades:    []string{},
-				quotes:    []string{},
-				bars:      []string{},
-				dailyBars: []string{},
-				statuses:  []string{},
-				lulds:     []string{},
+				trades:       []string{},
+				quotes:       []string{},
+				bars:         []string{},
+				dailyBars:    []string{},
+				statuses:     []string{},
+				lulds:        []string{},
+				cancelErrors: []string{},
+				corrections:  []string{},
 			},
 			connCreator: func(ctx context.Context, u url.URL) (conn, error) {
 				return newNhooyrWebsocketConn(ctx, u)
@@ -162,6 +166,8 @@ func defaultStockOptions() *stockOptions {
 		dailyBarHandler:      func(b Bar) {},
 		tradingStatusHandler: func(ts TradingStatus) {},
 		luldHandler:          func(l LULD) {},
+		cancelErrorHandler:   func(tce TradeCancelError) {},
+		correctionHandler:    func(tc TradeCorrection) {},
 	}
 }
 
@@ -230,6 +236,24 @@ func WithLULDs(handler func(LULD), symbols ...string) StockOption {
 	return newFuncStockOption(func(o *stockOptions) {
 		o.sub.lulds = symbols
 		o.luldHandler = handler
+	})
+}
+
+// WithCancelErrors configures inital trade cancel errors handler. This does
+// not create any new subscriptions because cancel errors are subscribed
+// automatically together with trades. No need to pass in symbols.
+func WithCancelErrors(handler func(TradeCancelError)) StockOption {
+	return newFuncStockOption(func(o *stockOptions) {
+		o.cancelErrorHandler = handler
+	})
+}
+
+// WithCorrections configures inital trade corrections handler. This does
+// not create any new subscriptions because corrections are subscribed
+// automatically together with trades. No need to pass in symbols.
+func WithCorrections(handler func(TradeCorrection)) StockOption {
+	return newFuncStockOption(func(o *stockOptions) {
+		o.correctionHandler = handler
 	})
 }
 

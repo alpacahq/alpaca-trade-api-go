@@ -53,6 +53,18 @@ func (sc *stocksClient) SubscribeToLULDs(handler func(LULD), symbols ...string) 
 	return sc.client.handleSubChange(true, subscriptions{lulds: symbols})
 }
 
+func (sc *stocksClient) RegisterCancelErrors(handler func(TradeCancelError)) {
+	sc.handler.mu.Lock()
+	sc.handler.cancelErrorHandler = handler
+	sc.handler.mu.Unlock()
+}
+
+func (sc *stocksClient) RegisterCorrections(handler func(TradeCorrection)) {
+	sc.handler.mu.Lock()
+	sc.handler.correctionHandler = handler
+	sc.handler.mu.Unlock()
+}
+
 func (sc *stocksClient) UnsubscribeFromTrades(symbols ...string) error {
 	return sc.handleSubChange(false, subscriptions{trades: symbols})
 }
@@ -75,6 +87,18 @@ func (sc *stocksClient) UnsubscribeFromStatuses(symbols ...string) error {
 
 func (sc *stocksClient) UnsubscribeFromLULDs(symbols ...string) error {
 	return sc.handleSubChange(false, subscriptions{lulds: symbols})
+}
+
+func (sc *stocksClient) UnregisterCancelErrors() {
+	sc.handler.mu.Lock()
+	sc.handler.cancelErrorHandler = func(TradeCancelError) {}
+	sc.handler.mu.Unlock()
+}
+
+func (sc *stocksClient) UnregisterCorrections() {
+	sc.handler.mu.Lock()
+	sc.handler.correctionHandler = func(TradeCorrection) {}
+	sc.handler.mu.Unlock()
 }
 
 func (cc *cryptoClient) SubscribeToTrades(handler func(CryptoTrade), symbols ...string) error {
@@ -122,12 +146,14 @@ func (cc *cryptoClient) UnsubscribeFromDailyBars(symbols ...string) error {
 }
 
 type subscriptions struct {
-	trades    []string
-	quotes    []string
-	bars      []string
-	dailyBars []string
-	statuses  []string
-	lulds     []string
+	trades       []string
+	quotes       []string
+	bars         []string
+	dailyBars    []string
+	statuses     []string
+	lulds        []string
+	cancelErrors []string // Subscribed automatically.
+	corrections  []string // Subscribed automatically.
 }
 
 func (s subscriptions) noSubscribeCallNecessary() bool {
@@ -198,5 +224,6 @@ func getSubChangeMessage(subscribe bool, changes subscriptions) ([]byte, error) 
 		"dailyBars": changes.dailyBars,
 		"statuses":  changes.statuses,
 		"lulds":     changes.lulds,
+		// No need to subscribe to cancel errors or corrections explicitly.
 	})
 }
