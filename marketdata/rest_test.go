@@ -748,3 +748,70 @@ func TestLatestCryptoXBBO(t *testing.T) {
 		AskSize:     11.8787,
 	}, *got)
 }
+
+func TestCryptoSnapshot(t *testing.T) {
+	c := testClient()
+
+	// successful
+	c.do = mockResp(`{"symbol":"ETHUSD","latestTrade":{"t":"2021-12-08T19:26:58.703892Z","x":"CBSE","p":4393.18,"s":0.04299154,"tks":"S","i":191026243},"latestQuote":{"t":"2021-12-08T21:39:50.999Z","x":"CBSE","bp":4405.27,"bs":0.32420683,"ap":4405.28,"as":0.54523826},"minuteBar":{"t":"2021-12-08T19:26:00Z","x":"CBSE","o":4393.62,"h":4396.45,"l":4390.81,"c":4393.18,"v":132.02049802,"n":278,"vw":4393.9907155981},"dailyBar":{"t":"2021-12-08T06:00:00Z","x":"CBSE","o":4329.11,"h":4455.62,"l":4231.55,"c":4393.18,"v":95466.0903448,"n":186155,"vw":4367.7642299555},"prevDailyBar":{"t":"2021-12-07T06:00:00Z","x":"CBSE","o":4350.15,"h":4433.99,"l":4261.39,"c":4329.11,"v":152391.30635034,"n":326203,"vw":4344.2956259855}}`)
+	got, err := c.GetCryptoSnapshot("ETHUSD", "CBSE")
+	require.NoError(t, err)
+	require.NotNil(t, got)
+	assert.Equal(t, CryptoSnapshot{
+		LatestTrade: &CryptoTrade{
+			ID:        191026243,
+			Exchange:  "CBSE",
+			Price:     4393.18,
+			Size:      0.04299154,
+			TakerSide: "S",
+			Timestamp: time.Date(2021, 12, 8, 19, 26, 58, 703892000, time.UTC),
+		},
+		LatestQuote: &CryptoQuote{
+			Exchange:  "CBSE",
+			BidPrice:  4405.27,
+			BidSize:   0.32420683,
+			AskPrice:  4405.28,
+			AskSize:   0.54523826,
+			Timestamp: time.Date(2021, 12, 8, 21, 39, 50, 999000000, time.UTC),
+		},
+		MinuteBar: &CryptoBar{
+			Exchange:   "CBSE",
+			Open:       4393.62,
+			High:       4396.45,
+			Low:        4390.81,
+			Close:      4393.18,
+			Volume:     132.02049802,
+			TradeCount: 278,
+			VWAP:       4393.9907155981,
+			Timestamp:  time.Date(2021, 12, 8, 19, 26, 0, 0, time.UTC),
+		},
+		DailyBar: &CryptoBar{
+			Exchange:   "CBSE",
+			Open:       4329.11,
+			High:       4455.62,
+			Low:        4231.55,
+			Close:      4393.18,
+			Volume:     95466.0903448,
+			TradeCount: 186155,
+			VWAP:       4367.7642299555,
+			Timestamp:  time.Date(2021, 12, 8, 6, 0, 0, 0, time.UTC),
+		},
+		PrevDailyBar: &CryptoBar{
+			Exchange:   "CBSE",
+			Open:       4350.15,
+			High:       4433.99,
+			Low:        4261.39,
+			Close:      4329.11,
+			Volume:     152391.30635034,
+			TradeCount: 326203,
+			VWAP:       4344.2956259855,
+			Timestamp:  time.Date(2021, 12, 7, 6, 0, 0, 0, time.UTC),
+		},
+	}, *got)
+
+	// api failure
+	c.do = mockErrResp()
+	got, err = c.GetCryptoSnapshot("ETHUSD", "CBSE")
+	assert.Error(t, err)
+	assert.Nil(t, got)
+}
