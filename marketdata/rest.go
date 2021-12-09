@@ -1210,7 +1210,7 @@ func (c *client) GetLatestCryptoXBBO(symbol string, exchanges []string) (*Crypto
 	return &latestXBBOResp.XBBO, nil
 }
 
-// GetCryptoSnapshot returns the snapshot for a given crypto symbol
+// GetCryptoSnapshot returns the snapshot for a given crypto symbol on the given exhange
 func (c *client) GetCryptoSnapshot(symbol string, exchange string) (*CryptoSnapshot, error) {
 	u, err := url.Parse(fmt.Sprintf("%s/%s/%s/snapshot", c.opts.BaseURL, cryptoPrefix, symbol))
 	if err != nil {
@@ -1227,7 +1227,6 @@ func (c *client) GetCryptoSnapshot(symbol string, exchange string) (*CryptoSnaps
 	}
 
 	var snapshot CryptoSnapshot
-
 	if err = unmarshal(resp, &snapshot); err != nil {
 		return nil, err
 	}
