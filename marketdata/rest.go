@@ -47,6 +47,7 @@ type Client interface {
 	GetLatestCryptoTrade(symbol, exchange string) (*CryptoTrade, error)
 	GetLatestCryptoQuote(symbol, exchange string) (*CryptoQuote, error)
 	GetLatestCryptoXBBO(symbol string, exchanges []string) (*CryptoXBBO, error)
+	GetCryptoSnapshot(symbol string, exchange string) (*CryptoSnapshot, error)
 }
 
 // ClientOpts contains options for the alpaca marketdata client.
@@ -1209,6 +1210,30 @@ func (c *client) GetLatestCryptoXBBO(symbol string, exchanges []string) (*Crypto
 	return &latestXBBOResp.XBBO, nil
 }
 
+// GetCryptoSnapshot returns the snapshot for a given crypto symbol on the given exhange
+func (c *client) GetCryptoSnapshot(symbol string, exchange string) (*CryptoSnapshot, error) {
+	u, err := url.Parse(fmt.Sprintf("%s/%s/%s/snapshot", c.opts.BaseURL, cryptoPrefix, symbol))
+	if err != nil {
+		return nil, err
+	}
+
+	q := u.Query()
+	q.Set("exchange", exchange)
+	u.RawQuery = q.Encode()
+
+	resp, err := c.get(u)
+	if err != nil {
+		return nil, err
+	}
+
+	var snapshot CryptoSnapshot
+	if err = unmarshal(resp, &snapshot); err != nil {
+		return nil, err
+	}
+
+	return &snapshot, nil
+}
+
 // GetTrades returns the trades for the given symbol. It blocks until all the trades are collected.
 // If you want to process the incoming trades instantly, use GetTradesAsync instead!
 func GetTrades(symbol string, params GetTradesParams) ([]Trade, error) {
@@ -1376,6 +1401,11 @@ func GetLatestCryptoQuote(symbol, exchange string) (*CryptoQuote, error) {
 // GetLatestCryptoXBBO returns the latest quote for a given crypto symbol on the given exhange
 func GetLatestCryptoXBBO(symbol string, exchanges []string) (*CryptoXBBO, error) {
 	return DefaultClient.GetLatestCryptoXBBO(symbol, exchanges)
+}
+
+// GetCryptoSnapshot returns the snapshot for a given crypto symbol.
+func GetCryptoSnapshot(symbol string, exchange string) (*CryptoSnapshot, error) {
+	return DefaultClient.GetCryptoSnapshot(symbol, exchange)
 }
 
 func (c *client) get(u *url.URL) (*http.Response, error) {

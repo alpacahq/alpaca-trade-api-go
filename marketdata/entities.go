@@ -202,6 +202,15 @@ type CryptoXBBO struct {
 	AskSize     float64   `json:"as"`
 }
 
+// CryptoSnapshot is a snapshot of a crypto symbol
+type CryptoSnapshot struct {
+	LatestTrade  *CryptoTrade `json:"latestTrade"`
+	LatestQuote  *CryptoQuote `json:"latestQuote"`
+	MinuteBar    *CryptoBar   `json:"minuteBar"`
+	DailyBar     *CryptoBar   `json:"dailyBar"`
+	PrevDailyBar *CryptoBar   `json:"prevDailyBar"`
+}
+
 type tradeResponse struct {
 	Symbol        string  `json:"symbol"`
 	NextPageToken *string `json:"next_page_token"`
