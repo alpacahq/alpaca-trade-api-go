@@ -86,6 +86,12 @@ type CryptoClient interface {
 	UnsubscribeFromDailyBars(symbols ...string) error
 }
 
+type NewsClient interface {
+	StreamClient
+	SubscribeToNews(handler func(news News), symbols ...string) error
+	UnsubscribeFromNews(symbols ...string) error
+}
+
 type client struct {
 	logger Logger
 
@@ -250,6 +256,54 @@ func (cc *cryptoClient) constructURL() (url.URL, error) {
 	}
 
 	return url.URL{Scheme: scheme, Host: ub.Host, Path: ub.Path, RawQuery: rawQuery}, nil
+}
+
+type newsClient struct {
+	*client
+
+	handler *newsMsgHandler
+}
+
+var _ NewsClient = (*newsClient)(nil)
+
+// NewNewsClient returns a new NewsClient that will connect the news stream.
+func NewNewsClient(opts ...NewsOption) NewsClient {
+	nc := newsClient{
+		client:  newClient(),
+		handler: &newsMsgHandler{},
+	}
+	nc.client.handler = nc.handler
+	o := defaultNewsOptions()
+	o.applyNews(opts...)
+	nc.configure(*o)
+	return &nc
+}
+
+func (nc *newsClient) configure(o newsOptions) {
+	nc.client.configure(o.options)
+	nc.handler.newsHandler = o.newsHandler
+}
+
+func (nc *newsClient) Connect(ctx context.Context) error {
+	u, err := nc.constructURL()
+	if err != nil {
+		return err
+	}
+	return nc.connect(ctx, u)
+}
+
+func (nc *newsClient) constructURL() (url.URL, error) {
+	scheme := "wss"
+	ub, err := url.Parse(nc.baseURL)
+	if err != nil {
+		return url.URL{}, err
+	}
+	switch ub.Scheme {
+	case "http", "ws":
+		scheme = "ws"
+	}
+
+	return url.URL{Scheme: scheme, Host: ub.Host, Path: ub.Path}, nil
 }
 
 func (c *client) connect(ctx context.Context, u url.URL) error {

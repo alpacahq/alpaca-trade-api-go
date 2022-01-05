@@ -815,3 +815,56 @@ func TestCryptoSnapshot(t *testing.T) {
 	assert.Error(t, err)
 	assert.Nil(t, got)
 }
+
+func TestGetNews(t *testing.T) {
+	c := testClient()
+	firstResp := `{"news":[{"id":20472678,"headline":"CEO John Krafcik Leaves Waymo","author":"Bibhu Pattnaik","created_at":"2021-04-03T15:35:21Z","updated_at":"2021-04-03T15:35:21Z","summary":"Waymo\u0026#39;s chief technology officer and its chief operating officer will serve as co-CEOs.","url":"https://www.benzinga.com/news/21/04/20472678/ceo-john-krafcik-leaves-waymo","images":[{"size":"large","url":"https://cdn.benzinga.com/files/imagecache/2048x1536xUP/images/story/2012/waymo_2.jpeg"},{"size":"small","url":"https://cdn.benzinga.com/files/imagecache/1024x768xUP/images/story/2012/waymo_2.jpeg"},{"size":"thumb","url":"https://cdn.benzinga.com/files/imagecache/250x187xUP/images/story/2012/waymo_2.jpeg"}],"symbols":["GOOG","GOOGL","TSLA"]},{"id":20472512,"headline":"Benzinga's Bulls And Bears Of The Week: Apple, GM, JetBlue, Lululemon, Tesla And More","author":"Nelson Hem","created_at":"2021-04-03T15:20:12Z","updated_at":"2021-04-03T15:20:12Z","summary":"\n\tBenzinga has examined the prospects for many investor favorite stocks over the past week. \n\tThe past week\u0026#39;s bullish calls included airlines, Chinese EV makers and a consumer electronics giant.\n","url":"https://www.benzinga.com/trading-ideas/long-ideas/21/04/20472512/benzingas-bulls-and-bears-of-the-week-apple-gm-jetblue-lululemon-tesla-and-more","images":[{"size":"large","url":"https://cdn.benzinga.com/files/imagecache/2048x1536xUP/images/story/2012/pexels-burst-373912_0.jpg"},{"size":"small","url":"https://cdn.benzinga.com/files/imagecache/1024x768xUP/images/story/2012/pexels-burst-373912_0.jpg"},{"size":"thumb","url":"https://cdn.benzinga.com/files/imagecache/250x187xUP/images/story/2012/pexels-burst-373912_0.jpg"}],"symbols":["AAPL","ARKX","BMY","CS","GM","JBLU","JCI","LULU","NIO","TSLA","XPEV"]}],"next_page_token":"MTYxNzQ2MzIxMjAwMDAwMDAwMHwyMDQ3MjUxMg=="}`
+	secondResp := `{"news":[{"id":20471562,"headline":"Is Now The Time To Buy Stock In Tesla, Netflix, Alibaba, Ford Or Facebook?","author":"Henry Khederian","created_at":"2021-04-03T12:31:15Z","updated_at":"2021-04-03T12:31:16Z","summary":"One of the most common questions traders have about stocks is “Why Is It Moving?”\n\nThat’s why Benzinga created the Why Is It Moving, or WIIM, feature in Benzinga Pro. WIIMs are a one-sentence description as to why that stock is moving.","url":"https://www.benzinga.com/analyst-ratings/analyst-color/21/04/20471562/is-now-the-time-to-buy-stock-in-tesla-netflix-alibaba-ford-or-facebook","images":[{"size":"large","url":"https://cdn.benzinga.com/files/imagecache/2048x1536xUP/images/story/2012/freestocks-11sgh7u6tmi-unsplash_3_0_0.jpg"},{"size":"small","url":"https://cdn.benzinga.com/files/imagecache/1024x768xUP/images/story/2012/freestocks-11sgh7u6tmi-unsplash_3_0_0.jpg"},{"size":"thumb","url":"https://cdn.benzinga.com/files/imagecache/250x187xUP/images/story/2012/freestocks-11sgh7u6tmi-unsplash_3_0_0.jpg"}],"symbols":["BABA","NFLX","TSLA"]}],"next_page_token":null}`
+	c.do = func(c *client, req *http.Request) (*http.Response, error) {
+		assert.Equal(t, "data.alpaca.markets", req.URL.Host)
+		assert.Equal(t, "/v1beta1/news", req.URL.Path)
+		assert.Equal(t, "2021-04-03T00:00:00Z", req.URL.Query().Get("start"))
+		assert.Equal(t, "2021-04-04T05:00:00Z", req.URL.Query().Get("end"))
+		assert.Equal(t, "2", req.URL.Query().Get("limit"))
+		pageToken := req.URL.Query().Get("page_token")
+		resp := firstResp
+		if pageToken != "" {
+			assert.Equal(t, "MTYxNzQ2MzIxMjAwMDAwMDAwMHwyMDQ3MjUxMg==", pageToken)
+			resp = secondResp
+		}
+		return &http.Response{
+			Body: ioutil.NopCloser(strings.NewReader(resp)),
+		}, nil
+	}
+	got, err := c.GetNews(GetNewsParams{
+		Symbols:    []string{"AAPL", "TSLA"},
+		Start:      time.Date(2021, 4, 3, 0, 0, 0, 0, time.UTC),
+		End:        time.Date(2021, 4, 4, 5, 0, 0, 0, time.UTC),
+		TotalLimit: 5,
+		PageLimit:  2,
+	})
+	require.NoError(t, err)
+	require.Len(t, got, 3)
+	assert.EqualValues(t, "Bibhu Pattnaik", got[0].Author)
+	assert.EqualValues(t, "2021-04-03T15:20:12Z", got[1].CreatedAt.Format(time.RFC3339))
+	assert.EqualValues(t, "2021-04-03T12:31:16Z", got[2].UpdatedAt.Format(time.RFC3339))
+	assert.EqualValues(t, "CEO John Krafcik Leaves Waymo", got[0].Headline)
+	assert.EqualValues(t, "One of the most common questions traders have about stocks is “Why Is It Moving?”\n\nThat’s why Benzinga created the Why Is It Moving, or WIIM, feature in Benzinga Pro. WIIMs are a one-sentence description as to why that stock is moving.", got[2].Summary)
+	assert.EqualValues(t, "", got[0].Content)
+	assert.ElementsMatch(t, []NewsImage{
+		{
+			Size: "large",
+			URL:  "https://cdn.benzinga.com/files/imagecache/2048x1536xUP/images/story/2012/waymo_2.jpeg",
+		},
+		{
+			Size: "small",
+			URL:  "https://cdn.benzinga.com/files/imagecache/1024x768xUP/images/story/2012/waymo_2.jpeg",
+		},
+		{
+			Size: "thumb",
+			URL:  "https://cdn.benzinga.com/files/imagecache/250x187xUP/images/story/2012/waymo_2.jpeg",
+		},
+	}, got[0].Images)
+	assert.EqualValues(t, "https://www.benzinga.com/analyst-ratings/analyst-color/21/04/20471562/is-now-the-time-to-buy-stock-in-tesla-netflix-alibaba-ford-or-facebook", got[2].URL)
+	assert.EqualValues(t, []string{"GOOG", "GOOGL", "TSLA"}, got[0].Symbols)
+}

@@ -165,6 +165,21 @@ type cryptoBarWithT struct {
 	NewField uint64 `msgpack:"new"`
 }
 
+type newsWithT struct {
+	Type      string    `msgpack:"T"`
+	ID        int       `msgpack:"id"`
+	Author    string    `msgpack:"author"`
+	CreatedAt time.Time `msgpack:"created_at"`
+	UpdatedAt time.Time `msgpack:"updated_at"`
+	Headline  string    `msgpack:"headline"`
+	Summary   string    `msgpack:"summary"`
+	Content   string    `msgpack:"content"`
+	URL       string    `msgpack:"url"`
+	Symbols   []string  `msgpack:"symbols"`
+	// NewField is for testing correct handling of added fields in the future
+	NewField uint64 `msgpack:"new_field"`
+}
+
 type other struct {
 	Type     string `msgpack:"T"`
 	Whatever string `msgpack:"w"`
@@ -197,6 +212,7 @@ type subWithT struct {
 	LULDs        []string `msgpack:"lulds"`
 	Corrections  []string `msgpack:"corrections"`
 	CancelErrors []string `msgpack:"cancelErrors"`
+	News         []string `msgpack:"news"`
 	// NewField is for testing correct handling of added fields in the future
 	NewField uint64 `msgpack:"N"`
 }

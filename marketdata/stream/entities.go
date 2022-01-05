@@ -147,6 +147,17 @@ type CryptoBar struct {
 	VWAP       float64
 }
 
+type News struct {
+	Author    string
+	CreatedAt time.Time
+	UpdatedAt time.Time
+	Headline  string
+	Summary   string
+	Content   string
+	URL       string
+	Symbols   []string
+}
+
 // errorMessage is an error received from the server
 type errorMessage struct {
 	msg  string

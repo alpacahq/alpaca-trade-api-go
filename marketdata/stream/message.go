@@ -17,6 +17,7 @@ type msgHandler interface {
 	handleLULD(d *msgpack.Decoder, n int) error
 	handleCancelError(d *msgpack.Decoder, n int) error
 	handleCorrection(d *msgpack.Decoder, n int) error
+	handleNews(d *msgpack.Decoder, n int) error
 }
 
 func (c *client) handleMessage(b []byte) error {
@@ -71,6 +72,8 @@ func (c *client) handleMessage(b []byte) error {
 			err = c.handler.handleCancelError(d, n)
 		case "c":
 			err = c.handler.handleCorrection(d, n)
+		case "n":
+			err = c.handler.handleNews(d, n)
 		case "subscription":
 			err = c.handleSubscriptionMessage(d, n)
 		case "error":
@@ -398,6 +401,11 @@ func (h *stocksMsgHandler) handleCorrection(d *msgpack.Decoder, n int) error {
 	return nil
 }
 
+func (h *stocksMsgHandler) handleNews(d *msgpack.Decoder, n int) error {
+	// should not happen!
+	return discardMapContents(d, n)
+}
+
 type cryptoMsgHandler struct {
 	mu              sync.RWMutex
 	tradeHandler    func(trade CryptoTrade)
@@ -562,6 +570,96 @@ func (h *cryptoMsgHandler) handleCorrection(d *msgpack.Decoder, n int) error {
 	return discardMapContents(d, n)
 }
 
+func (h *cryptoMsgHandler) handleNews(d *msgpack.Decoder, n int) error {
+	// should not happen!
+	return discardMapContents(d, n)
+}
+
+type newsMsgHandler struct {
+	mu          sync.RWMutex
+	newsHandler func(news News)
+}
+
+var _ msgHandler = (*newsMsgHandler)(nil)
+
+func (h *newsMsgHandler) handleTrade(d *msgpack.Decoder, n int) error {
+	// should not happen!
+	return discardMapContents(d, n)
+}
+
+func (h *newsMsgHandler) handleQuote(d *msgpack.Decoder, n int) error {
+	// should not happen!
+	return discardMapContents(d, n)
+}
+
+func (h *newsMsgHandler) handleBar(d *msgpack.Decoder, n int) error {
+	// should not happen!
+	return discardMapContents(d, n)
+}
+
+func (h *newsMsgHandler) handleDailyBar(d *msgpack.Decoder, n int) error {
+	// should not happen!
+	return discardMapContents(d, n)
+}
+
+func (h *newsMsgHandler) handleTradingStatus(d *msgpack.Decoder, n int) error {
+	// should not happen!
+	return discardMapContents(d, n)
+}
+
+func (h *newsMsgHandler) handleLULD(d *msgpack.Decoder, n int) error {
+	// should not happen!
+	return discardMapContents(d, n)
+}
+
+func (h *newsMsgHandler) handleCancelError(d *msgpack.Decoder, n int) error {
+	// should not happen!
+	return discardMapContents(d, n)
+}
+
+func (h *newsMsgHandler) handleCorrection(d *msgpack.Decoder, n int) error {
+	// should not happen!
+	return discardMapContents(d, n)
+}
+
+func (h *newsMsgHandler) handleNews(d *msgpack.Decoder, n int) error {
+	news := News{}
+	for i := 0; i < n; i++ {
+		key, err := d.DecodeString()
+		if err != nil {
+			return err
+		}
+		switch key {
+		case "headline":
+			news.Headline, err = d.DecodeString()
+		case "summary":
+			news.Summary, err = d.DecodeString()
+		case "author":
+			news.Author, err = d.DecodeString()
+		case "content":
+			news.Content, err = d.DecodeString()
+		case "url":
+			news.URL, err = d.DecodeString()
+		case "created_at":
+			news.CreatedAt, err = d.DecodeTime()
+		case "updated_at":
+			news.UpdatedAt, err = d.DecodeTime()
+		case "symbols":
+			news.Symbols, err = decodeStringSlice(d)
+		default:
+			err = d.Skip()
+		}
+		if err != nil {
+			return err
+		}
+	}
+	h.mu.RLock()
+	newsHandler := h.newsHandler
+	h.mu.RUnlock()
+	newsHandler(news)
+	return nil
+}
+
 func discardMapContents(d *msgpack.Decoder, n int) error {
 	for i := 0; i < n; i++ {
 		// key
@@ -626,6 +724,7 @@ var subMessageHandler = func(c *client, s subscriptions) error {
 	c.sub.lulds = s.lulds
 	c.sub.cancelErrors = s.cancelErrors
 	c.sub.corrections = s.corrections
+	c.sub.news = s.news
 	if c.pendingSubChange != nil {
 		psc := c.pendingSubChange
 		psc.result <- nil

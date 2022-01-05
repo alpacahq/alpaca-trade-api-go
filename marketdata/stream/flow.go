@@ -24,7 +24,7 @@ func (c *client) initialize(ctx context.Context) error {
 	defer cancel()
 
 	if err := c.readConnected(ctxWithTimeout); err != nil {
-		return err
+		return fmt.Errorf("failed to read connected: %w", err)
 	}
 
 	var retryErr error
@@ -43,7 +43,7 @@ func (c *client) initialize(ctx context.Context) error {
 		ctxWithTimeout, cancel := context.WithTimeout(ctx, initializeTimeout)
 		defer cancel()
 		if err := c.writeAuth(ctxWithTimeout); err != nil {
-			return err
+			return fmt.Errorf("failed to write auth: %w", err)
 		}
 
 		ctxWithTimeoutResp, cancelResp := context.WithTimeout(ctx, initializeTimeout)
@@ -69,13 +69,13 @@ func (c *client) initialize(ctx context.Context) error {
 	ctxWithTimeoutWriteSub, cancelWriteSub := context.WithTimeout(ctx, initializeTimeout)
 	defer cancelWriteSub()
 	if err := c.writeSub(ctxWithTimeoutWriteSub); err != nil {
-		return err
+		return fmt.Errorf("failed to write subscribe: %w", err)
 	}
 
 	ctxWithTimeoutReadSub, cancelReadSub := context.WithTimeout(ctx, initializeTimeout)
 	defer cancelReadSub()
 	if err := c.readSubResponse(ctxWithTimeoutReadSub); err != nil {
-		return err
+		return fmt.Errorf("failed to read subscribe response: %w", err)
 	}
 
 	return nil
