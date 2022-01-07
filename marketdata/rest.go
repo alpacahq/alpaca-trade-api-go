@@ -1250,7 +1250,7 @@ var (
 	SortAsc Sort = "asc"
 )
 
-// GetNewsParams contains optional parameters for getting crypto bars.
+// GetNewsParams contains optional parameters for getting news articles.
 type GetNewsParams struct {
 	// Symbols filters the news to the related symbols.
 	// If empty or nil, all articles will be returned.
@@ -1263,7 +1263,7 @@ type GetNewsParams struct {
 	Sort Sort
 	// IncludeContent tells the server to include the article content in the response.
 	IncludeContent bool
-	// ExcludeContentless tells the server to exclude articles that has no content.
+	// ExcludeContentless tells the server to exclude articles that have no content.
 	ExcludeContentless bool
 	// TotalLimit is the limit of the total number of the returned news.
 	//
@@ -1314,7 +1314,7 @@ func (c *client) GetNews(params GetNewsParams) ([]News, error) {
 	received := 0
 	totalLimit := params.TotalLimit
 	if params.TotalLimit == 0 && !params.NoTotalLimit {
-		totalLimit = 50
+		totalLimit = newsMaxLimit
 	}
 	news := make([]News, 0, totalLimit)
 	for totalLimit == 0 || received < totalLimit {

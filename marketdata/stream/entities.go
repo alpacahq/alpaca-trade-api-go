@@ -148,6 +148,7 @@ type CryptoBar struct {
 }
 
 type News struct {
+	ID        int
 	Author    string
 	CreatedAt time.Time
 	UpdatedAt time.Time

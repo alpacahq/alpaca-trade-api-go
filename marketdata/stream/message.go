@@ -630,6 +630,8 @@ func (h *newsMsgHandler) handleNews(d *msgpack.Decoder, n int) error {
 			return err
 		}
 		switch key {
+		case "id":
+			news.ID, err = d.DecodeInt()
 		case "headline":
 			news.Headline, err = d.DecodeString()
 		case "summary":
@@ -758,6 +760,8 @@ func (c *client) handleSubscriptionMessage(d *msgpack.Decoder, n int) error {
 			s.cancelErrors, err = decodeStringSlice(d)
 		case "corrections":
 			s.corrections, err = decodeStringSlice(d)
+		case "news":
+			s.news, err = decodeStringSlice(d)
 		default:
 			err = d.Skip()
 		}

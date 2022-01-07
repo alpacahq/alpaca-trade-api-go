@@ -845,6 +845,7 @@ func TestGetNews(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.Len(t, got, 3)
+	assert.EqualValues(t, 20472678, got[0].ID)
 	assert.EqualValues(t, "Bibhu Pattnaik", got[0].Author)
 	assert.EqualValues(t, "2021-04-03T15:20:12Z", got[1].CreatedAt.Format(time.RFC3339))
 	assert.EqualValues(t, "2021-04-03T12:31:16Z", got[2].UpdatedAt.Format(time.RFC3339))
