@@ -345,7 +345,7 @@ func (c *client) maintainConnection(ctx context.Context, u url.URL, initialResul
 			if err := c.initialize(ctx); err != nil {
 				connError = err
 				c.conn.close()
-				if isErrorIrrecoverable(err) {
+				if isErrorIrrecoverableAtInit(err) {
 					c.logger.Errorf("datav2stream: %v", wrapIrrecoverable(err))
 					sendError(wrapIrrecoverable(err))
 					return
@@ -381,11 +381,30 @@ func (c *client) maintainConnection(ctx context.Context, u url.URL, initialResul
 	}
 }
 
-// isErrorIrrecoverable returns whether the error is irrecoverable and further retries should
-// not take place
-func isErrorIrrecoverable(err error) bool {
-	return errors.Is(err, ErrInvalidCredentials) || errors.Is(err, ErrInsufficientSubscription) ||
-		errors.Is(err, ErrInsufficientScope)
+// irrecoverableErrorsAtInit contains errors that are considered irrecoverable when initializing
+// the connection.
+//
+// ErrSubscriptionChangeInvalidForFeed means that the subscribe command failed and normally
+// that "only" results in less messages from the server. However at startup this fails the whole
+// flow, and can not be helped by a retry. So irrecoverableErrorsAtInit should only be used at init,
+// once the connection was successfully made, ErrSubscriptionChangeInvalidForFeed should not be
+// considered fatal.
+var irrecoverableErrorsAtInit = []error{
+	ErrInvalidCredentials,
+	ErrInsufficientSubscription,
+	ErrInsufficientScope,
+	ErrSubscriptionChangeInvalidForFeed,
+}
+
+// isErrorIrrecoverableAtInit returns whether the error is irrecoverable and further retries should
+// not take place at initalisation.
+func isErrorIrrecoverableAtInit(err error) bool {
+	for _, irrErr := range irrecoverableErrorsAtInit {
+		if errors.Is(err, irrErr) {
+			return true
+		}
+	}
+	return false
 }
 
 func isHttp4xx(err error) bool {
