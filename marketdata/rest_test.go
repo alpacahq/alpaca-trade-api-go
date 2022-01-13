@@ -869,3 +869,38 @@ func TestGetNews(t *testing.T) {
 	assert.EqualValues(t, "https://www.benzinga.com/analyst-ratings/analyst-color/21/04/20471562/is-now-the-time-to-buy-stock-in-tesla-netflix-alibaba-ford-or-facebook", got[2].URL)
 	assert.EqualValues(t, []string{"GOOG", "GOOGL", "TSLA"}, got[0].Symbols)
 }
+
+func TestGetNews_ClientSideValidationErrors(t *testing.T) {
+	c := testClient()
+	c.do = func(c *client, req *http.Request) (*http.Response, error) {
+		assert.Fail(t, "the server should not have been called")
+		return nil, nil
+	}
+	for _, tc := range []struct {
+		name          string
+		params        GetNewsParams
+		expectedError string
+	}{
+		{
+			name:          "NegativeTotalLimit",
+			params:        GetNewsParams{TotalLimit: -1},
+			expectedError: "negative total limit",
+		},
+		{
+			name:          "NegativePageLimit",
+			params:        GetNewsParams{PageLimit: -5},
+			expectedError: "negative page limit",
+		},
+		{
+			name:          "NoTotalLimitWithNonZeroTotalLimit",
+			params:        GetNewsParams{TotalLimit: 100, NoTotalLimit: true},
+			expectedError: "both NoTotalLimit and non-zero TotalLimit specified",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := c.GetNews(tc.params)
+			assert.Error(t, err)
+			assert.Contains(t, err.Error(), tc.expectedError)
+		})
+	}
+}

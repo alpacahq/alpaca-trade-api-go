@@ -1267,6 +1267,7 @@ type GetNewsParams struct {
 	ExcludeContentless bool
 	// TotalLimit is the limit of the total number of the returned news.
 	//
+	// If it's non-zero, NoTotalLimit must be false, otherwise an error well be returned.
 	// If it's zero then the NoTotalLimit parameter is considered: if NoTotalLimit is true,
 	// then all the articles in the given start-end interval are returned.
 	// If NoTotalLimit is false, then 50 articles will be returned.
@@ -1274,8 +1275,9 @@ type GetNewsParams struct {
 	// The reason for this complication is that the default (empty GetNewsParams) would
 	// not return all the news articles.
 	TotalLimit int
-	// NoTotalLimit is only evaluated if TotalLimit is 0. See the documentation on TotalLimit
-	// for more information.
+	// NoTotalLimit means all news articles will be returned from the given start-end interval.
+	//
+	// TotalLimit must be set to 0 if NoTotalLimit is true, otherwise an error well be returned.
 	NoTotalLimit bool
 	// PageLimit is the pagination size. If empty, the default page size will be used.
 	PageLimit int
@@ -1304,6 +1306,15 @@ func setNewsQuery(q url.Values, p GetNewsParams) {
 
 // GetNews returns the news articles based on the given params.
 func (c *client) GetNews(params GetNewsParams) ([]News, error) {
+	if params.TotalLimit < 0 {
+		return nil, fmt.Errorf("negative total limit")
+	}
+	if params.PageLimit < 0 {
+		return nil, fmt.Errorf("negative page limit")
+	}
+	if params.NoTotalLimit && params.TotalLimit != 0 {
+		return nil, fmt.Errorf("both NoTotalLimit and non-zero TotalLimit specified")
+	}
 	u, err := url.Parse(fmt.Sprintf("%s/v1beta1/news", c.opts.BaseURL))
 	if err != nil {
 		return nil, fmt.Errorf("invalid news url: %w", err)
@@ -1316,6 +1327,7 @@ func (c *client) GetNews(params GetNewsParams) ([]News, error) {
 	if params.TotalLimit == 0 && !params.NoTotalLimit {
 		totalLimit = newsMaxLimit
 	}
+
 	news := make([]News, 0, totalLimit)
 	for totalLimit == 0 || received < totalLimit {
 		setQueryLimit(q, totalLimit, params.PageLimit, received, newsMaxLimit)
