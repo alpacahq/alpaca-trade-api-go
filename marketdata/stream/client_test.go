@@ -94,6 +94,7 @@ func TestConnectImmediatelyFailsAfterIrrecoverableErrors(t *testing.T) {
 	}{
 		{code: 402, msg: "auth failed", err: ErrInvalidCredentials},
 		{code: 409, msg: "insufficient subscription", err: ErrInsufficientSubscription},
+		{code: 410, msg: "invalid subscribe action for this feed", err: ErrSubscriptionChangeInvalidForFeed},
 		{code: 411, msg: "insufficient scope", err: ErrInsufficientScope},
 	}
 	for _, tt := range tests {

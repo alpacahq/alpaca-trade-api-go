@@ -3,7 +3,6 @@ package stream
 import (
 	"context"
 	"errors"
-	"fmt"
 	"time"
 
 	"github.com/vmihailenco/msgpack/v5"
@@ -185,21 +184,25 @@ func (c *client) readSubResponse(ctx context.Context) error {
 	if len(resps) != 1 {
 		return ErrSubResponse
 	}
+	resp := resps[0]
 
-	if resps[0].T == "error" {
-		return fmt.Errorf("sub: error from server: %s", resps[0].Msg)
+	if resp.T == "error" {
+		return errorMessage{
+			msg:  resp.Msg,
+			code: resp.Code,
+		}
 	}
-	if resps[0].T != "subscription" {
+	if resp.T != "subscription" {
 		return ErrSubResponse
 	}
 
-	c.sub.trades = resps[0].Trades
-	c.sub.quotes = resps[0].Quotes
-	c.sub.bars = resps[0].Bars
-	c.sub.dailyBars = resps[0].DailyBars
-	c.sub.statuses = resps[0].Statuses
-	c.sub.lulds = resps[0].LULDs
-	c.sub.cancelErrors = resps[0].CancelErrors
-	c.sub.corrections = resps[0].Corrections
+	c.sub.trades = resp.Trades
+	c.sub.quotes = resp.Quotes
+	c.sub.bars = resp.Bars
+	c.sub.dailyBars = resp.DailyBars
+	c.sub.statuses = resp.Statuses
+	c.sub.lulds = resp.LULDs
+	c.sub.cancelErrors = resp.CancelErrors
+	c.sub.corrections = resp.Corrections
 	return nil
 }
