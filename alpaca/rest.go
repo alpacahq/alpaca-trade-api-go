@@ -326,6 +326,8 @@ func (c *Client) GetPosition(symbol string) (*Position, error) {
 }
 
 // GetAggregates returns the bars for the given symbol, timespan and date-range
+//
+// Deprecated: all v1 marketdata endpoints are deprecated and will be removed.
 func (c *Client) GetAggregates(symbol, timespan, from, to string) (*Aggregates, error) {
 	u, err := url.Parse(fmt.Sprintf("%s/v1/aggs/ticker/%s/range/1/%s/%s/%s",
 		dataURL, symbol, timespan, from, to))
@@ -357,6 +359,8 @@ func (c *Client) GetAggregates(symbol, timespan, from, to string) (*Aggregates, 
 }
 
 // GetLastQuote returns the last quote for the given symbol
+//
+// Deprecated: all v1 marketdata endpoints are deprecated and will be removed.
 func (c *Client) GetLastQuote(symbol string) (*LastQuoteResponse, error) {
 	u, err := url.Parse(fmt.Sprintf("%s/v1/last_quote/stocks/%s", dataURL, symbol))
 	if err != nil {
@@ -384,6 +388,8 @@ func (c *Client) GetLastQuote(symbol string) (*LastQuoteResponse, error) {
 }
 
 // GetLastTrade returns the last trade for the given symbol
+//
+// Deprecated: all v1 marketdata endpoints are deprecated and will be removed.
 func (c *Client) GetLastTrade(symbol string) (*LastTradeResponse, error) {
 	u, err := url.Parse(fmt.Sprintf("%s/v1/last/stocks/%s", dataURL, symbol))
 	if err != nil {
@@ -977,6 +983,8 @@ func (c *Client) GetAsset(symbol string) (*Asset, error) {
 
 // ListBars returns a list of bar lists corresponding to the provided
 // symbol list, and filtered by the provided parameters.
+//
+// Deprecated: all v1 marketdata endpoints are deprecated and will be removed.
 func (c *Client) ListBars(symbols []string, opts ListBarParams) (map[string][]Bar, error) {
 	vals := url.Values{}
 	vals.Add("symbols", strings.Join(symbols, ","))
@@ -1017,6 +1025,8 @@ func (c *Client) ListBars(symbols []string, opts ListBarParams) (map[string][]Ba
 
 // GetSymbolBars is a convenience method for getting the market
 // data for one symbol
+//
+// Deprecated: all v1 marketdata endpoints are deprecated and will be removed.
 func (c *Client) GetSymbolBars(symbol string, opts ListBarParams) ([]Bar, error) {
 	symbolList := []string{symbol}
 
@@ -1061,16 +1071,22 @@ func ListPositions() ([]Position, error) {
 }
 
 // GetAggregates returns the bars for the given symbol, timespan and date-range
+//
+// Deprecated: all v1 marketdata endpoints are deprecated and will be removed.
 func GetAggregates(symbol, timespan, from, to string) (*Aggregates, error) {
 	return DefaultClient.GetAggregates(symbol, timespan, from, to)
 }
 
 // GetLastQuote returns the last quote for the given symbol
+//
+// Deprecated: all v1 marketdata endpoints are deprecated and will be removed.
 func GetLastQuote(symbol string) (*LastQuoteResponse, error) {
 	return DefaultClient.GetLastQuote(symbol)
 }
 
 // GetLastTrade returns the last trade for the given symbol
+//
+// Deprecated: all v1 marketdata endpoints are deprecated and will be removed.
 func GetLastTrade(symbol string) (*LastTradeResponse, error) {
 	return DefaultClient.GetLastTrade(symbol)
 }
@@ -1187,6 +1203,8 @@ func GetAsset(symbol string) (*Asset, error) {
 // ListBars returns a map of bar lists corresponding to the provided
 // symbol list that is filtered by the provided parameters with the default
 // Alpaca client.
+//
+// Deprecated: all v1 marketdata endpoints are deprecated and will be removed.
 func ListBars(symbols []string, opts ListBarParams) (map[string][]Bar, error) {
 	return DefaultClient.ListBars(symbols, opts)
 }
@@ -1194,6 +1212,8 @@ func ListBars(symbols []string, opts ListBarParams) (map[string][]Bar, error) {
 // GetSymbolBars returns a list of bars corresponding to the provided
 // symbol that is filtered by the provided parameters with the default
 // Alpaca client.
+//
+// Deprecated: all v1 marketdata endpoints are deprecated and will be removed.
 func GetSymbolBars(symbol string, opts ListBarParams) ([]Bar, error) {
 	return DefaultClient.GetSymbolBars(symbol, opts)
 }
