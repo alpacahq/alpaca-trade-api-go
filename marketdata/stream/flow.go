@@ -3,6 +3,7 @@ package stream
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/vmihailenco/msgpack/v5"
