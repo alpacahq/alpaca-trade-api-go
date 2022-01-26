@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"os"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -48,6 +49,7 @@ type Client interface {
 	GetLatestCryptoQuote(symbol, exchange string) (*CryptoQuote, error)
 	GetLatestCryptoXBBO(symbol string, exchanges []string) (*CryptoXBBO, error)
 	GetCryptoSnapshot(symbol string, exchange string) (*CryptoSnapshot, error)
+	GetNews(params GetNewsParams) ([]News, error)
 }
 
 // ClientOpts contains options for the alpaca marketdata client.
@@ -167,9 +169,12 @@ func setCryptoBaseQuery(q url.Values, start, end time.Time, exchanges []string) 
 	}
 }
 
-const v2MaxLimit = 10000
+const (
+	v2MaxLimit   = 10000
+	newsMaxLimit = 50
+)
 
-func setQueryLimit(q url.Values, totalLimit int, pageLimit int, received int) {
+func setQueryLimit(q url.Values, totalLimit, pageLimit, received, maxLimit int) {
 	limit := 0 // use server side default if unset
 	if pageLimit != 0 {
 		limit = pageLimit
@@ -179,7 +184,7 @@ func setQueryLimit(q url.Values, totalLimit int, pageLimit int, received int) {
 		if remaining <= 0 { // this should never happen
 			return
 		}
-		if (limit == 0 || limit > remaining) && remaining <= v2MaxLimit {
+		if (limit == 0 || limit > remaining) && remaining <= maxLimit {
 			limit = remaining
 		}
 	}
@@ -235,7 +240,7 @@ func (c *client) GetTradesAsync(symbol string, params GetTradesParams) <-chan Tr
 
 		received := 0
 		for params.TotalLimit == 0 || received < params.TotalLimit {
-			setQueryLimit(q, params.TotalLimit, params.PageLimit, received)
+			setQueryLimit(q, params.TotalLimit, params.PageLimit, received, v2MaxLimit)
 			u.RawQuery = q.Encode()
 
 			resp, err := c.get(u)
@@ -297,7 +302,7 @@ func (c *client) GetMultiTradesAsync(symbols []string, params GetTradesParams) <
 
 		received := 0
 		for params.TotalLimit == 0 || received < params.TotalLimit {
-			setQueryLimit(q, params.TotalLimit, params.PageLimit, received)
+			setQueryLimit(q, params.TotalLimit, params.PageLimit, received, v2MaxLimit)
 			u.RawQuery = q.Encode()
 
 			resp, err := c.get(u)
@@ -384,7 +389,7 @@ func (c *client) GetQuotesAsync(symbol string, params GetQuotesParams) <-chan Qu
 
 		received := 0
 		for params.TotalLimit == 0 || received < params.TotalLimit {
-			setQueryLimit(q, params.TotalLimit, params.PageLimit, received)
+			setQueryLimit(q, params.TotalLimit, params.PageLimit, received, v2MaxLimit)
 			u.RawQuery = q.Encode()
 
 			resp, err := c.get(u)
@@ -446,7 +451,7 @@ func (c *client) GetMultiQuotesAsync(symbols []string, params GetQuotesParams) <
 
 		received := 0
 		for params.TotalLimit == 0 || received < params.TotalLimit {
-			setQueryLimit(q, params.TotalLimit, params.PageLimit, received)
+			setQueryLimit(q, params.TotalLimit, params.PageLimit, received, v2MaxLimit)
 			u.RawQuery = q.Encode()
 
 			resp, err := c.get(u)
@@ -548,7 +553,7 @@ func (c *client) GetBarsAsync(symbol string, params GetBarsParams) <-chan BarIte
 
 		received := 0
 		for params.TotalLimit == 0 || received < params.TotalLimit {
-			setQueryLimit(q, params.TotalLimit, params.PageLimit, received)
+			setQueryLimit(q, params.TotalLimit, params.PageLimit, received, v2MaxLimit)
 			u.RawQuery = q.Encode()
 
 			resp, err := c.get(u)
@@ -610,7 +615,7 @@ func (c *client) GetMultiBarsAsync(symbols []string, params GetBarsParams) <-cha
 
 		received := 0
 		for params.TotalLimit == 0 || received < params.TotalLimit {
-			setQueryLimit(q, params.TotalLimit, params.PageLimit, received)
+			setQueryLimit(q, params.TotalLimit, params.PageLimit, received, v2MaxLimit)
 			u.RawQuery = q.Encode()
 
 			resp, err := c.get(u)
@@ -873,7 +878,7 @@ func (c *client) GetCryptoTradesAsync(symbol string, params GetCryptoTradesParam
 
 		received := 0
 		for params.TotalLimit == 0 || received < params.TotalLimit {
-			setQueryLimit(q, params.TotalLimit, params.PageLimit, received)
+			setQueryLimit(q, params.TotalLimit, params.PageLimit, received, v2MaxLimit)
 			u.RawQuery = q.Encode()
 
 			resp, err := c.get(u)
@@ -948,7 +953,7 @@ func (c *client) GetCryptoQuotesAsync(symbol string, params GetCryptoQuotesParam
 
 		received := 0
 		for params.TotalLimit == 0 || received < params.TotalLimit {
-			setQueryLimit(q, params.TotalLimit, params.PageLimit, received)
+			setQueryLimit(q, params.TotalLimit, params.PageLimit, received, v2MaxLimit)
 			u.RawQuery = q.Encode()
 
 			resp, err := c.get(u)
@@ -1033,7 +1038,7 @@ func (c *client) GetCryptoBarsAsync(symbol string, params GetCryptoBarsParams) <
 
 		received := 0
 		for params.TotalLimit == 0 || received < params.TotalLimit {
-			setQueryLimit(q, params.TotalLimit, params.PageLimit, received)
+			setQueryLimit(q, params.TotalLimit, params.PageLimit, received, v2MaxLimit)
 			u.RawQuery = q.Encode()
 
 			resp, err := c.get(u)
@@ -1095,7 +1100,7 @@ func (c *client) GetCryptoMultiBarsAsync(symbols []string, params GetCryptoBarsP
 
 		received := 0
 		for params.TotalLimit == 0 || received < params.TotalLimit {
-			setQueryLimit(q, params.TotalLimit, params.PageLimit, received)
+			setQueryLimit(q, params.TotalLimit, params.PageLimit, received, v2MaxLimit)
 			u.RawQuery = q.Encode()
 
 			resp, err := c.get(u)
@@ -1158,7 +1163,7 @@ func (c *client) GetLatestCryptoTrade(symbol, exchange string) (*CryptoTrade, er
 	return &latestTradeResp.Trade, nil
 }
 
-// GetLatestCryptoQuote returns the latest quote for a given crypto symbol on the given exhange
+// GetLatestCryptoQuote returns the latest quote for a given crypto symbol on the given exchange
 func (c *client) GetLatestCryptoQuote(symbol, exchange string) (*CryptoQuote, error) {
 	u, err := url.Parse(fmt.Sprintf("%s/%s/%s/quotes/latest", c.opts.BaseURL, cryptoPrefix, symbol))
 	if err != nil {
@@ -1183,7 +1188,7 @@ func (c *client) GetLatestCryptoQuote(symbol, exchange string) (*CryptoQuote, er
 	return &latestQuoteResp.Quote, nil
 }
 
-// GetLatestCryptoXBBO returns the latest cross exchange BBO for a given crypto symbol on the given exhange
+// GetLatestCryptoXBBO returns the latest cross exchange BBO for a given crypto symbol on the given exchange
 func (c *client) GetLatestCryptoXBBO(symbol string, exchanges []string) (*CryptoXBBO, error) {
 	u, err := url.Parse(fmt.Sprintf("%s/%s/%s/xbbo/latest", c.opts.BaseURL, cryptoPrefix, symbol))
 	if err != nil {
@@ -1232,6 +1237,120 @@ func (c *client) GetCryptoSnapshot(symbol string, exchange string) (*CryptoSnaps
 	}
 
 	return &snapshot, nil
+}
+
+// Sort represents the sort order of the results
+type Sort string
+
+// List of sort values
+var (
+	// SortDesc means the results will be sorted in a descending order
+	SortDesc Sort = "desc"
+	// SortAsc means the results will be sorted in an ascending order
+	SortAsc Sort = "asc"
+)
+
+// GetNewsParams contains optional parameters for getting news articles.
+type GetNewsParams struct {
+	// Symbols filters the news to the related symbols.
+	// If empty or nil, all articles will be returned.
+	Symbols []string
+	// Start is the inclusive beginning of the interval
+	Start time.Time
+	// End is the inclusive end of the interval
+	End time.Time
+	// Sort sets the sort order of the results. Sorting will be done by the UpdatedAt field.
+	Sort Sort
+	// IncludeContent tells the server to include the article content in the response.
+	IncludeContent bool
+	// ExcludeContentless tells the server to exclude articles that have no content.
+	ExcludeContentless bool
+	// TotalLimit is the limit of the total number of the returned news.
+	//
+	// If it's non-zero, NoTotalLimit must be false, otherwise an error well be returned.
+	// If it's zero then the NoTotalLimit parameter is considered: if NoTotalLimit is true,
+	// then all the articles in the given start-end interval are returned.
+	// If NoTotalLimit is false, then 50 articles will be returned.
+	//
+	// The reason for this complication is that the default (empty GetNewsParams) would
+	// not return all the news articles.
+	TotalLimit int
+	// NoTotalLimit means all news articles will be returned from the given start-end interval.
+	//
+	// TotalLimit must be set to 0 if NoTotalLimit is true, otherwise an error well be returned.
+	NoTotalLimit bool
+	// PageLimit is the pagination size. If empty, the default page size will be used.
+	PageLimit int
+}
+
+func setNewsQuery(q url.Values, p GetNewsParams) {
+	if len(p.Symbols) > 0 {
+		q.Set("symbols", strings.Join(p.Symbols, ","))
+	}
+	if !p.Start.IsZero() {
+		q.Set("start", p.Start.Format(time.RFC3339))
+	}
+	if !p.End.IsZero() {
+		q.Set("end", p.End.Format(time.RFC3339))
+	}
+	if p.Sort != "" {
+		q.Set("sort", string(p.Sort))
+	}
+	if p.IncludeContent {
+		q.Set("include_content", strconv.FormatBool(p.IncludeContent))
+	}
+	if p.ExcludeContentless {
+		q.Set("exclude_contentless", strconv.FormatBool(p.ExcludeContentless))
+	}
+}
+
+// GetNews returns the news articles based on the given params.
+func (c *client) GetNews(params GetNewsParams) ([]News, error) {
+	if params.TotalLimit < 0 {
+		return nil, fmt.Errorf("negative total limit")
+	}
+	if params.PageLimit < 0 {
+		return nil, fmt.Errorf("negative page limit")
+	}
+	if params.NoTotalLimit && params.TotalLimit != 0 {
+		return nil, fmt.Errorf("both NoTotalLimit and non-zero TotalLimit specified")
+	}
+	u, err := url.Parse(fmt.Sprintf("%s/v1beta1/news", c.opts.BaseURL))
+	if err != nil {
+		return nil, fmt.Errorf("invalid news url: %w", err)
+	}
+
+	q := u.Query()
+	setNewsQuery(q, params)
+	received := 0
+	totalLimit := params.TotalLimit
+	if params.TotalLimit == 0 && !params.NoTotalLimit {
+		totalLimit = newsMaxLimit
+	}
+
+	news := make([]News, 0, totalLimit)
+	for totalLimit == 0 || received < totalLimit {
+		setQueryLimit(q, totalLimit, params.PageLimit, received, newsMaxLimit)
+		u.RawQuery = q.Encode()
+
+		resp, err := c.get(u)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get news: %w", err)
+		}
+
+		var newsResp newsResponse
+		if err = unmarshal(resp, &newsResp); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal news: %w", err)
+		}
+
+		news = append(news, newsResp.News...)
+		if newsResp.NextPageToken == nil {
+			return news, nil
+		}
+		q.Set("page_token", *newsResp.NextPageToken)
+		received += len(newsResp.News)
+	}
+	return news, nil
 }
 
 // GetTrades returns the trades for the given symbol. It blocks until all the trades are collected.
@@ -1406,6 +1525,11 @@ func GetLatestCryptoXBBO(symbol string, exchanges []string) (*CryptoXBBO, error)
 // GetCryptoSnapshot returns the snapshot for a given crypto symbol.
 func GetCryptoSnapshot(symbol string, exchange string) (*CryptoSnapshot, error) {
 	return DefaultClient.GetCryptoSnapshot(symbol, exchange)
+}
+
+// GetNews returns the news articles based on the given params.
+func GetNews(params GetNewsParams) ([]News, error) {
+	return DefaultClient.GetNews(params)
 }
 
 func (c *client) get(u *url.URL) (*http.Response, error) {

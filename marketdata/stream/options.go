@@ -17,10 +17,15 @@ type CryptoOption interface {
 	applyCrypto(*cryptoOptions)
 }
 
+type NewsOption interface {
+	applyNews(*newsOptions)
+}
+
 // Option is a configuration option that can be used for both StockClient and CryptoClient
 type Option interface {
 	StockOption
 	CryptoOption
+	NewsOption
 }
 
 type options struct {
@@ -47,6 +52,10 @@ func (fo *funcOption) applyCrypto(o *cryptoOptions) {
 }
 
 func (fo *funcOption) applyStock(o *stockOptions) {
+	fo.f(&o.options)
+}
+
+func (fo *funcOption) applyNews(o *newsOptions) {
 	fo.f(&o.options)
 }
 
@@ -358,5 +367,62 @@ func WithCryptoDailyBars(handler func(CryptoBar), symbols ...string) CryptoOptio
 func WithExchanges(exchanges ...string) CryptoOption {
 	return newFuncCryptoOption(func(o *cryptoOptions) {
 		o.exchanges = exchanges
+	})
+}
+
+type newsOptions struct {
+	options
+	newsHandler func(News)
+}
+
+// defaultNewsOptions are the default options for a client.
+// Don't change this in a backward incompatible way!
+func defaultNewsOptions() *newsOptions {
+	return &newsOptions{
+		options: options{
+			logger:         DefaultLogger(),
+			baseURL:        "https://stream.data.alpaca.markets/v1beta1/news",
+			key:            os.Getenv("APCA_API_KEY_ID"),
+			secret:         os.Getenv("APCA_API_SECRET_KEY"),
+			reconnectLimit: 20,
+			reconnectDelay: 150 * time.Millisecond,
+			processorCount: 1,
+			bufferSize:     100,
+			sub: subscriptions{
+				news: []string{},
+			},
+			connCreator: func(ctx context.Context, u url.URL) (conn, error) {
+				return newNhooyrWebsocketConn(ctx, u)
+			},
+		},
+		newsHandler: func(n News) {},
+	}
+}
+
+func (o *newsOptions) applyNews(opts ...NewsOption) {
+	for _, opt := range opts {
+		opt.applyNews(o)
+	}
+}
+
+type funcNewsOption struct {
+	f func(*newsOptions)
+}
+
+func (fo *funcNewsOption) applyNews(o *newsOptions) {
+	fo.f(o)
+}
+
+func newFuncNewsOption(f func(*newsOptions)) *funcNewsOption {
+	return &funcNewsOption{
+		f: f,
+	}
+}
+
+// WithNew configures inital symbols to subscribe to and the handler
+func WithNews(handler func(News), symbols ...string) NewsOption {
+	return newFuncNewsOption(func(o *newsOptions) {
+		o.sub.news = symbols
+		o.newsHandler = handler
 	})
 }

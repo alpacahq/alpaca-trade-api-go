@@ -211,6 +211,26 @@ type CryptoSnapshot struct {
 	PrevDailyBar *CryptoBar   `json:"prevDailyBar"`
 }
 
+// NewsImage is a single image for a news article.
+type NewsImage struct {
+	Size string `json:"size"`
+	URL  string `json:"url"`
+}
+
+// News is a single news article.
+type News struct {
+	ID        int         `json:"id"`
+	Author    string      `json:"author"`
+	CreatedAt time.Time   `json:"created_at"`
+	UpdatedAt time.Time   `json:"updated_at"`
+	Headline  string      `json:"headline"`
+	Summary   string      `json:"summary"`
+	Content   string      `json:"content"`
+	Images    []NewsImage `json:"images"`
+	URL       string      `json:"url"`
+	Symbols   []string    `json:"symbols"`
+}
+
 type tradeResponse struct {
 	Symbol        string  `json:"symbol"`
 	NextPageToken *string `json:"next_page_token"`
@@ -307,4 +327,9 @@ type latestCryptoQuoteResponse struct {
 type latestCryptoXBBOResponse struct {
 	Symbol string     `json:"symbol"`
 	XBBO   CryptoXBBO `json:"xbbo"`
+}
+
+type newsResponse struct {
+	NextPageToken *string `json:"next_page_token"`
+	News          []News  `json:"news"`
 }

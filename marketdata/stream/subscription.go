@@ -145,6 +145,17 @@ func (cc *cryptoClient) UnsubscribeFromDailyBars(symbols ...string) error {
 	return cc.handleSubChange(false, subscriptions{dailyBars: symbols})
 }
 
+func (nc *newsClient) SubscribeToNews(handler func(News), symbols ...string) error {
+	nc.handler.mu.Lock()
+	nc.handler.newsHandler = handler
+	nc.handler.mu.Unlock()
+	return nc.client.handleSubChange(true, subscriptions{news: symbols})
+}
+
+func (nc *newsClient) UnsubscribeFromNews(symbols ...string) error {
+	return nc.handleSubChange(false, subscriptions{news: symbols})
+}
+
 type subscriptions struct {
 	trades       []string
 	quotes       []string
@@ -154,11 +165,12 @@ type subscriptions struct {
 	lulds        []string
 	cancelErrors []string // Subscribed automatically.
 	corrections  []string // Subscribed automatically.
+	news         []string
 }
 
 func (s subscriptions) noSubscribeCallNecessary() bool {
 	return len(s.trades) == 0 && len(s.quotes) == 0 && len(s.bars) == 0 &&
-		len(s.dailyBars) == 0 && len(s.statuses) == 0 && len(s.lulds) == 0
+		len(s.dailyBars) == 0 && len(s.statuses) == 0 && len(s.lulds) == 0 && len(s.news) == 0
 }
 
 var timeAfter = time.After
@@ -224,6 +236,7 @@ func getSubChangeMessage(subscribe bool, changes subscriptions) ([]byte, error) 
 		"dailyBars": changes.dailyBars,
 		"statuses":  changes.statuses,
 		"lulds":     changes.lulds,
+		"news":      changes.news,
 		// No need to subscribe to cancel errors or corrections explicitly.
 	})
 }

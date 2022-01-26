@@ -963,6 +963,57 @@ func TestCoreFunctionalityCrypto(t *testing.T) {
 	}
 }
 
+func TestCoreFunctionalityNews(t *testing.T) {
+	connection := newMockConn()
+	defer connection.close()
+	writeInitialFlowMessagesToConn(t, connection, subscriptions{
+		news: []string{"AAPL"},
+	})
+
+	news := make(chan News, 10)
+	c := NewNewsClient(
+		WithNews(func(n News) { news <- n }, "AAPL"),
+		withConnCreator(func(ctx context.Context, u url.URL) (conn, error) {
+			return connection, nil
+		}))
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// connecting with the client
+	err := c.Connect(ctx)
+	require.NoError(t, err)
+
+	ts := time.Date(2021, 6, 2, 15, 12, 4, 3534, time.UTC)
+	connection.readCh <- serializeToMsgpack(t, []interface{}{
+		newsWithT{
+			Type:      "n",
+			ID:        5,
+			Author:    "author",
+			CreatedAt: ts,
+			UpdatedAt: ts,
+			Headline:  "headline",
+			Summary:   "summary",
+			Content:   "",
+			URL:       "http://example.com",
+			Symbols:   []string{"AAPL", "TSLA"},
+			NewField:  5,
+		},
+	})
+
+	// checking contents
+	select {
+	case n := <-news:
+		assert.Equal(t, "author", n.Author)
+		assert.Equal(t, "headline", n.Headline)
+		assert.Equal(t, "summary", n.Summary)
+		assert.Equal(t, "", n.Content)
+		assert.Equal(t, "http://example.com", n.URL)
+		assert.Equal(t, []string{"AAPL", "TSLA"}, n.Symbols)
+	case <-time.After(time.Second):
+		require.Fail(t, "no news received in time")
+	}
+}
+
 func writeInitialFlowMessagesToConn(
 	t *testing.T, conn *mockConn, sub subscriptions,
 ) {
@@ -997,6 +1048,7 @@ func writeInitialFlowMessagesToConn(
 			LULDs:        sub.lulds,
 			CancelErrors: sub.trades, // Subscribe automatically.
 			Corrections:  sub.trades, // Subscribe automatically.
+			News:         sub.news,
 		},
 	})
 }

@@ -60,6 +60,21 @@ func main() {
 		panic(err)
 	}
 	fmt.Printf("AAPL ADTV: %.2f (%d marketdays)\n", averageVolume, count)
+
+	// Get news
+	news, err := marketdata.GetNews(marketdata.GetNewsParams{
+		Symbols:    []string{"AAPL", "TSLA"},
+		Start:      time.Date(2021, 5, 6, 0, 0, 0, 0, time.UTC),
+		End:        time.Date(2021, 5, 7, 0, 0, 0, 0, time.UTC),
+		TotalLimit: 4,
+	})
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println("news:")
+	for _, n := range news {
+		fmt.Printf("%+v\n", n)
+	}
 }
 
 func getADTV(symbol string, start, end time.Time) (av float64, n int, err error) {
