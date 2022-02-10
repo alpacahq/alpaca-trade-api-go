@@ -2,6 +2,7 @@ package stream
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"net/url"
 	"time"
@@ -25,6 +26,10 @@ func newNhooyrWebsocketConn(ctx context.Context, u url.URL) (conn, error) {
 			"Content-Type": []string{"application/msgpack"},
 		},
 	})
+	if err != nil {
+		return nil, fmt.Errorf("websocket dial: %w", err)
+	}
+
 	// If the client receives a message larger than the read limit, the read will fail and the
 	// connection will be restarted.
 	// The normal messages (trade, quotes, etc.) are well under the 64 kB websocket single frame limit,
@@ -37,7 +42,7 @@ func newNhooyrWebsocketConn(ctx context.Context, u url.URL) (conn, error) {
 	return &nhooyrWebsocketConn{
 		conn:    conn,
 		msgType: websocket.MessageBinary,
-	}, err
+	}, nil
 }
 
 // close closes the websocket connection
