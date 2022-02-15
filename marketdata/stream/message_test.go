@@ -207,6 +207,7 @@ type subWithT struct {
 	Trades       []string `msgpack:"trades"`
 	Quotes       []string `msgpack:"quotes"`
 	Bars         []string `msgpack:"bars"`
+	UpdatedBars  []string `msgpack:"updatedBars"`
 	DailyBars    []string `msgpack:"dailyBars"`
 	Statuses     []string `msgpack:"statuses"`
 	LULDs        []string `msgpack:"lulds"`
@@ -261,6 +262,19 @@ var testBar = barWithT{
 	Timestamp:  time.Date(2021, 3, 5, 16, 0, 0, 0, time.UTC),
 	TradeCount: 1234,
 	VWAP:       100.123456,
+}
+
+var testUpdatedBar = barWithT{
+	Type:       "u",
+	Symbol:     "TEST",
+	Open:       100,
+	High:       101.2,
+	Low:        98.67,
+	Close:      101.3,
+	Volume:     2570,
+	Timestamp:  time.Date(2021, 3, 5, 16, 0, 30, 0, time.UTC),
+	TradeCount: 1235,
+	VWAP:       100.123457,
 }
 
 var testTradingStatus = tradingStatusWithT{
@@ -348,6 +362,20 @@ var testCryptoBar = cryptoBarWithT{
 	VWAP:       100.123456,
 }
 
+var testUpdatedCryptoBar = cryptoBarWithT{
+	Type:       "u",
+	Symbol:     "TEST",
+	Exchange:   "TEST",
+	Open:       100,
+	High:       101.2,
+	Low:        98.67,
+	Close:      102.78,
+	Volume:     2585,
+	Timestamp:  time.Date(2021, 03, 05, 16, 0, 30, 0, time.UTC),
+	TradeCount: 1236,
+	VWAP:       100.123487,
+}
+
 var testOther = other{
 	Type:     "o",
 	Whatever: "whatever",
@@ -385,6 +413,7 @@ func TestHandleMessagesStocks(t *testing.T) {
 		testTradingStatus,
 		testQuote,
 		testBar,
+		testUpdatedBar,
 		testError,
 		testSubMessage1,
 		testSubMessage2,
@@ -428,6 +457,10 @@ func TestHandleMessagesStocks(t *testing.T) {
 	var bar Bar
 	h.barHandler = func(b Bar) {
 		bar = b
+	}
+	var updatedBar Bar
+	h.updatedBarHandler = func(b Bar) {
+		updatedBar = b
 	}
 	var tradingStatus TradingStatus
 	h.tradingStatusHandler = func(ts TradingStatus) {
@@ -517,6 +550,15 @@ func TestHandleMessagesStocks(t *testing.T) {
 	assert.EqualValues(t, testBar.TradeCount, bar.TradeCount)
 	assert.EqualValues(t, testBar.VWAP, bar.VWAP)
 
+	assert.EqualValues(t, testUpdatedBar.Symbol, updatedBar.Symbol)
+	assert.EqualValues(t, testUpdatedBar.Open, updatedBar.Open)
+	assert.EqualValues(t, testUpdatedBar.High, updatedBar.High)
+	assert.EqualValues(t, testUpdatedBar.Low, updatedBar.Low)
+	assert.EqualValues(t, testUpdatedBar.Close, updatedBar.Close)
+	assert.EqualValues(t, testUpdatedBar.Volume, updatedBar.Volume)
+	assert.EqualValues(t, testUpdatedBar.TradeCount, updatedBar.TradeCount)
+	assert.EqualValues(t, testUpdatedBar.VWAP, updatedBar.VWAP)
+
 	assert.EqualValues(t, testError.Code, em.code)
 	assert.EqualValues(t, testError.Msg, em.msg)
 
@@ -542,6 +584,7 @@ func TestHandleMessagesCrypto(t *testing.T) {
 		testTradingStatus,
 		testCryptoQuote,
 		testCryptoBar,
+		testUpdatedCryptoBar,
 		testError,
 		testSubMessage1,
 		testSubMessage2,
@@ -583,6 +626,10 @@ func TestHandleMessagesCrypto(t *testing.T) {
 	h.barHandler = func(b CryptoBar) {
 		bar = b
 	}
+	var updatedBar CryptoBar
+	h.updatedBarHandler = func(b CryptoBar) {
+		updatedBar = b
+	}
 
 	err = c.handleMessage(b)
 	require.NoError(t, err)
@@ -612,6 +659,16 @@ func TestHandleMessagesCrypto(t *testing.T) {
 	assert.EqualValues(t, testCryptoBar.Volume, bar.Volume)
 	assert.EqualValues(t, testCryptoBar.TradeCount, bar.TradeCount)
 	assert.EqualValues(t, testCryptoBar.VWAP, bar.VWAP)
+
+	assert.EqualValues(t, testUpdatedCryptoBar.Symbol, updatedBar.Symbol)
+	assert.EqualValues(t, testUpdatedCryptoBar.Exchange, updatedBar.Exchange)
+	assert.EqualValues(t, testUpdatedCryptoBar.Open, updatedBar.Open)
+	assert.EqualValues(t, testUpdatedCryptoBar.High, updatedBar.High)
+	assert.EqualValues(t, testUpdatedCryptoBar.Low, updatedBar.Low)
+	assert.EqualValues(t, testUpdatedCryptoBar.Close, updatedBar.Close)
+	assert.EqualValues(t, testUpdatedCryptoBar.Volume, updatedBar.Volume)
+	assert.EqualValues(t, testUpdatedCryptoBar.TradeCount, updatedBar.TradeCount)
+	assert.EqualValues(t, testUpdatedCryptoBar.VWAP, updatedBar.VWAP)
 
 	assert.EqualValues(t, testError.Code, em.code)
 	assert.EqualValues(t, testError.Msg, em.msg)

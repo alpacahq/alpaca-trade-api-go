@@ -12,6 +12,7 @@ type msgHandler interface {
 	handleTrade(d *msgpack.Decoder, n int) error
 	handleQuote(d *msgpack.Decoder, n int) error
 	handleBar(d *msgpack.Decoder, n int) error
+	handleUpdatedBar(d *msgpack.Decoder, n int) error
 	handleDailyBar(d *msgpack.Decoder, n int) error
 	handleTradingStatus(d *msgpack.Decoder, n int) error
 	handleLULD(d *msgpack.Decoder, n int) error
@@ -62,6 +63,8 @@ func (c *client) handleMessage(b []byte) error {
 			err = c.handler.handleQuote(d, n)
 		case "b":
 			err = c.handler.handleBar(d, n)
+		case "u":
+			err = c.handler.handleUpdatedBar(d, n)
 		case "d":
 			err = c.handler.handleDailyBar(d, n)
 		case "s":
@@ -94,6 +97,7 @@ type stocksMsgHandler struct {
 	tradeHandler         func(trade Trade)
 	quoteHandler         func(quote Quote)
 	barHandler           func(bar Bar)
+	updatedBarHandler    func(bar Bar)
 	dailyBarHandler      func(bar Bar)
 	tradingStatusHandler func(ts TradingStatus)
 	luldHandler          func(luld LULD)
@@ -232,6 +236,18 @@ func (h *stocksMsgHandler) handleBar(d *msgpack.Decoder, n int) error {
 	barHandler := h.barHandler
 	h.mu.RUnlock()
 	barHandler(bar)
+	return nil
+}
+
+func (h *stocksMsgHandler) handleUpdatedBar(d *msgpack.Decoder, n int) error {
+	bar, err := h.decodeBar(d, n)
+	if err != nil {
+		return err
+	}
+	h.mu.RLock()
+	updatedBarHandler := h.updatedBarHandler
+	h.mu.RUnlock()
+	updatedBarHandler(bar)
 	return nil
 }
 
@@ -407,11 +423,12 @@ func (h *stocksMsgHandler) handleNews(d *msgpack.Decoder, n int) error {
 }
 
 type cryptoMsgHandler struct {
-	mu              sync.RWMutex
-	tradeHandler    func(trade CryptoTrade)
-	quoteHandler    func(quote CryptoQuote)
-	barHandler      func(bar CryptoBar)
-	dailyBarHandler func(bar CryptoBar)
+	mu                sync.RWMutex
+	tradeHandler      func(trade CryptoTrade)
+	quoteHandler      func(quote CryptoQuote)
+	barHandler        func(bar CryptoBar)
+	updatedBarHandler func(bar CryptoBar)
+	dailyBarHandler   func(bar CryptoBar)
 }
 
 var _ msgHandler = (*cryptoMsgHandler)(nil)
@@ -538,6 +555,18 @@ func (h *cryptoMsgHandler) handleBar(d *msgpack.Decoder, n int) error {
 	return nil
 }
 
+func (h *cryptoMsgHandler) handleUpdatedBar(d *msgpack.Decoder, n int) error {
+	bar, err := h.decodeBar(d, n)
+	if err != nil {
+		return err
+	}
+	h.mu.RLock()
+	updatedBarHandler := h.updatedBarHandler
+	h.mu.RUnlock()
+	updatedBarHandler(bar)
+	return nil
+}
+
 func (h *cryptoMsgHandler) handleDailyBar(d *msgpack.Decoder, n int) error {
 	bar, err := h.decodeBar(d, n)
 	if err != nil {
@@ -593,6 +622,11 @@ func (h *newsMsgHandler) handleQuote(d *msgpack.Decoder, n int) error {
 }
 
 func (h *newsMsgHandler) handleBar(d *msgpack.Decoder, n int) error {
+	// should not happen!
+	return discardMapContents(d, n)
+}
+
+func (h *newsMsgHandler) handleUpdatedBar(d *msgpack.Decoder, n int) error {
 	// should not happen!
 	return discardMapContents(d, n)
 }

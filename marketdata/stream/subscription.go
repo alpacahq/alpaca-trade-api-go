@@ -32,6 +32,13 @@ func (sc *stocksClient) SubscribeToBars(handler func(Bar), symbols ...string) er
 	return sc.client.handleSubChange(true, subscriptions{bars: symbols})
 }
 
+func (sc *stocksClient) SubscribeToUpdatedBars(handler func(Bar), symbols ...string) error {
+	sc.handler.mu.Lock()
+	sc.handler.updatedBarHandler = handler
+	sc.handler.mu.Unlock()
+	return sc.client.handleSubChange(true, subscriptions{updatedBars: symbols})
+}
+
 func (sc *stocksClient) SubscribeToDailyBars(handler func(Bar), symbols ...string) error {
 	sc.handler.mu.Lock()
 	sc.handler.dailyBarHandler = handler
@@ -75,6 +82,10 @@ func (sc *stocksClient) UnsubscribeFromQuotes(symbols ...string) error {
 
 func (sc *stocksClient) UnsubscribeFromBars(symbols ...string) error {
 	return sc.handleSubChange(false, subscriptions{bars: symbols})
+}
+
+func (sc *stocksClient) UnsubscribeFromUpdatedBars(symbols ...string) error {
+	return sc.handleSubChange(false, subscriptions{updatedBars: symbols})
 }
 
 func (sc *stocksClient) UnsubscribeFromDailyBars(symbols ...string) error {
@@ -122,6 +133,13 @@ func (cc *cryptoClient) SubscribeToBars(handler func(CryptoBar), symbols ...stri
 	return cc.client.handleSubChange(true, subscriptions{bars: symbols})
 }
 
+func (cc *cryptoClient) SubscribeToUpdatedBars(handler func(CryptoBar), symbols ...string) error {
+	cc.handler.mu.Lock()
+	cc.handler.updatedBarHandler = handler
+	cc.handler.mu.Unlock()
+	return cc.client.handleSubChange(true, subscriptions{updatedBars: symbols})
+}
+
 func (cc *cryptoClient) SubscribeToDailyBars(handler func(CryptoBar), symbols ...string) error {
 	cc.handler.mu.Lock()
 	cc.handler.dailyBarHandler = handler
@@ -139,6 +157,10 @@ func (cc *cryptoClient) UnsubscribeFromQuotes(symbols ...string) error {
 
 func (cc *cryptoClient) UnsubscribeFromBars(symbols ...string) error {
 	return cc.handleSubChange(false, subscriptions{bars: symbols})
+}
+
+func (cc *cryptoClient) UnsubscribeFromUpdatedBars(symbols ...string) error {
+	return cc.handleSubChange(false, subscriptions{updatedBars: symbols})
 }
 
 func (cc *cryptoClient) UnsubscribeFromDailyBars(symbols ...string) error {
@@ -160,6 +182,7 @@ type subscriptions struct {
 	trades       []string
 	quotes       []string
 	bars         []string
+	updatedBars  []string
 	dailyBars    []string
 	statuses     []string
 	lulds        []string
@@ -169,7 +192,7 @@ type subscriptions struct {
 }
 
 func (s subscriptions) noSubscribeCallNecessary() bool {
-	return len(s.trades) == 0 && len(s.quotes) == 0 && len(s.bars) == 0 &&
+	return len(s.trades) == 0 && len(s.quotes) == 0 && len(s.bars) == 0 && len(s.updatedBars) == 0 &&
 		len(s.dailyBars) == 0 && len(s.statuses) == 0 && len(s.lulds) == 0 && len(s.news) == 0
 }
 
@@ -229,14 +252,15 @@ func getSubChangeMessage(subscribe bool, changes subscriptions) ([]byte, error) 
 		action = "unsubscribe"
 	}
 	return msgpack.Marshal(map[string]interface{}{
-		"action":    action,
-		"trades":    changes.trades,
-		"quotes":    changes.quotes,
-		"bars":      changes.bars,
-		"dailyBars": changes.dailyBars,
-		"statuses":  changes.statuses,
-		"lulds":     changes.lulds,
-		"news":      changes.news,
+		"action":      action,
+		"trades":      changes.trades,
+		"quotes":      changes.quotes,
+		"bars":        changes.bars,
+		"updatedBars": changes.updatedBars,
+		"dailyBars":   changes.dailyBars,
+		"statuses":    changes.statuses,
+		"lulds":       changes.lulds,
+		"news":        changes.news,
 		// No need to subscribe to cancel errors or corrections explicitly.
 	})
 }
