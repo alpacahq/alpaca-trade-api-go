@@ -755,6 +755,7 @@ var subMessageHandler = func(c *client, s subscriptions) error {
 	c.sub.trades = s.trades
 	c.sub.quotes = s.quotes
 	c.sub.bars = s.bars
+	c.sub.updatedBars = s.updatedBars
 	c.sub.dailyBars = s.dailyBars
 	c.sub.statuses = s.statuses
 	c.sub.lulds = s.lulds
@@ -784,6 +785,8 @@ func (c *client) handleSubscriptionMessage(d *msgpack.Decoder, n int) error {
 			s.quotes, err = decodeStringSlice(d)
 		case "bars":
 			s.bars, err = decodeStringSlice(d)
+		case "updatedBars":
+			s.updatedBars, err = decodeStringSlice(d)
 		case "dailyBars":
 			s.dailyBars, err = decodeStringSlice(d)
 		case "statuses":

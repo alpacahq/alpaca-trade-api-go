@@ -320,7 +320,7 @@ func defaultCryptoOptions() *cryptoOptions {
 		tradeHandler:      func(t CryptoTrade) {},
 		quoteHandler:      func(q CryptoQuote) {},
 		barHandler:        func(b CryptoBar) {},
-		updatedBarHandler: func(cb CryptoBar) {},
+		updatedBarHandler: func(b CryptoBar) {},
 		dailyBarHandler:   func(b CryptoBar) {},
 	}
 }
