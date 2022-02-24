@@ -47,6 +47,8 @@ type StocksClient interface {
 	UnsubscribeFromQuotes(symbols ...string) error
 	SubscribeToBars(handler func(bar Bar), symbols ...string) error
 	UnsubscribeFromBars(symbols ...string) error
+	SubscribeToUpdatedBars(handler func(bar Bar), symbols ...string) error
+	UnsubscribeFromUpdatedBars(symbols ...string) error
 	SubscribeToDailyBars(handler func(bar Bar), symbols ...string) error
 	UnsubscribeFromDailyBars(symbols ...string) error
 	SubscribeToStatuses(handler func(ts TradingStatus), symbols ...string) error
@@ -82,6 +84,8 @@ type CryptoClient interface {
 	UnsubscribeFromQuotes(symbols ...string) error
 	SubscribeToBars(handler func(bar CryptoBar), symbols ...string) error
 	UnsubscribeFromBars(symbols ...string) error
+	SubscribeToUpdatedBars(handler func(bar CryptoBar), symbols ...string) error
+	UnsubscribeFromUpdatedBars(symbols ...string) error
 	SubscribeToDailyBars(handler func(bar CryptoBar), symbols ...string) error
 	UnsubscribeFromDailyBars(symbols ...string) error
 }
@@ -170,6 +174,7 @@ func (sc *stocksClient) configure(o stockOptions) {
 	sc.handler.tradeHandler = o.tradeHandler
 	sc.handler.quoteHandler = o.quoteHandler
 	sc.handler.barHandler = o.barHandler
+	sc.handler.updatedBarHandler = o.updatedBarHandler
 	sc.handler.dailyBarHandler = o.dailyBarHandler
 	sc.handler.tradingStatusHandler = o.tradingStatusHandler
 	sc.handler.luldHandler = o.luldHandler
@@ -227,6 +232,7 @@ func (cc *cryptoClient) configure(o cryptoOptions) {
 	cc.handler.tradeHandler = o.tradeHandler
 	cc.handler.quoteHandler = o.quoteHandler
 	cc.handler.barHandler = o.barHandler
+	cc.handler.updatedBarHandler = o.updatedBarHandler
 	cc.handler.dailyBarHandler = o.dailyBarHandler
 	cc.exchanges = o.exchanges
 }
@@ -451,7 +457,7 @@ var irrecoverableErrorsAtInit = []error{
 }
 
 // isErrorIrrecoverableAtInit returns whether the error is irrecoverable and further retries should
-// not take place at initalisation.
+// not take place at initialisation.
 func isErrorIrrecoverableAtInit(err error) bool {
 	for _, irrErr := range irrecoverableErrorsAtInit {
 		if errors.Is(err, irrErr) {

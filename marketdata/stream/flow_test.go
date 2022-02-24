@@ -120,6 +120,7 @@ func TestInitializeAuthRetrySucceeds(t *testing.T) {
 	trades := []string{"AL", "PACA"}
 	quotes := []string{"ALPACA"}
 	bars := []string{"ALP", "ACA"}
+	updatedBars := []string{"AAPL"}
 	dailyBars := []string{"CLDR"}
 	statuses := []string{"*"}
 	lulds := []string{"AL", "PACA", "ALP"}
@@ -129,6 +130,7 @@ func TestInitializeAuthRetrySucceeds(t *testing.T) {
 		WithTrades(func(t Trade) {}, trades...),
 		WithQuotes(func(q Quote) {}, quotes...),
 		WithBars(func(b Bar) {}, bars...),
+		WithUpdatedBars(func(b Bar) {}, updatedBars...),
 		WithDailyBars(func(db Bar) {}, dailyBars...),
 		WithStatuses(func(ts TradingStatus) {}, statuses...),
 		WithLULDs(func(l LULD) {}, lulds...),
@@ -185,6 +187,7 @@ func TestInitializeAuthRetrySucceeds(t *testing.T) {
 			"trades":       trades,
 			"quotes":       quotes,
 			"bars":         bars,
+			"updatedBars":  updatedBars,
 			"dailyBars":    dailyBars,
 			"statuses":     statuses,
 			"lulds":        lulds,
@@ -197,6 +200,7 @@ func TestInitializeAuthRetrySucceeds(t *testing.T) {
 	assert.ElementsMatch(t, trades, c.sub.trades)
 	assert.ElementsMatch(t, quotes, c.sub.quotes)
 	assert.ElementsMatch(t, bars, c.sub.bars)
+	assert.ElementsMatch(t, updatedBars, c.sub.updatedBars)
 	assert.ElementsMatch(t, dailyBars, c.sub.dailyBars)
 	assert.ElementsMatch(t, statuses, c.sub.statuses)
 	assert.ElementsMatch(t, lulds, c.sub.lulds)
@@ -221,6 +225,7 @@ func TestInitializeAuthRetrySucceeds(t *testing.T) {
 	assert.ElementsMatch(t, trades, sub["trades"])
 	assert.ElementsMatch(t, quotes, sub["quotes"])
 	assert.ElementsMatch(t, bars, sub["bars"])
+	assert.ElementsMatch(t, updatedBars, sub["updatedBars"])
 	assert.ElementsMatch(t, dailyBars, sub["dailyBars"])
 	assert.ElementsMatch(t, statuses, sub["statuses"])
 	assert.ElementsMatch(t, lulds, sub["lulds"])
@@ -554,23 +559,35 @@ func TestWriteSubCancelled(t *testing.T) {
 
 func TestWriteSubContents(t *testing.T) {
 	var tests = []struct {
-		name      string
-		trades    []string
-		quotes    []string
-		bars      []string
-		dailyBars []string
-		statuses  []string
-		lulds     []string
+		name        string
+		trades      []string
+		quotes      []string
+		bars        []string
+		updatedBars []string
+		dailyBars   []string
+		statuses    []string
+		lulds       []string
 	}{
-		{"empty", []string{}, []string{}, []string{}, []string{}, []string{}, []string{}},
-		{"trades_only", []string{"ALPACA"}, []string{}, []string{}, []string{}, []string{}, []string{}},
-		{"quotes_only", []string{}, []string{"AL", "PACA"}, []string{}, []string{}, []string{}, []string{}},
-		{"bars_only", []string{}, []string{}, []string{"A", "L", "PACA"}, []string{}, []string{}, []string{}},
-		{"daily_bars_only", []string{}, []string{}, []string{}, []string{"LPACA"}, []string{}, []string{}},
-		{"statuses_only", []string{}, []string{}, []string{}, []string{}, []string{"ALP", "ACA"}, []string{}},
-		{"lulds_only", []string{}, []string{}, []string{}, []string{}, []string{}, []string{"ALPA", "CA"}},
-		{"mix", []string{"ALPACA"}, []string{"A", "L", "PACA"}, []string{}, []string{}, []string{"*"}, []string{}},
-		{"complete", []string{"ALPACA"}, []string{"ALPACA"}, []string{"ALPACA"}, []string{"ALPACA"}, []string{"ALPACA"}, []string{"ALPCA"}},
+		{name: "empty"},
+		{name: "trades_only", trades: []string{"ALPACA"}},
+		{name: "quotes_only", quotes: []string{"AL", "PACA"}},
+		{name: "bars_only", bars: []string{"A", "L", "PACA"}},
+		{name: "updated_bars_only", updatedBars: []string{"AAPL"}},
+		{name: "daily_bars_only", dailyBars: []string{"LPACA"}},
+		{name: "statuses_only", statuses: []string{"ALP", "ACA"}},
+		{name: "lulds_only", lulds: []string{"ALPA", "CA"}},
+		{name: "mix",
+			trades:    []string{"ALPACA"},
+			quotes:    []string{"A", "L", "PACA"},
+			dailyBars: []string{"*"}},
+		{name: "complete",
+			trades:      []string{"ALPACA"},
+			quotes:      []string{"ALPACA"},
+			bars:        []string{"ALPACA"},
+			updatedBars: []string{"ALPACA"},
+			dailyBars:   []string{"ALPACA"},
+			statuses:    []string{"ALPACA"},
+			lulds:       []string{"ALPCA"}},
 	}
 
 	for _, test := range tests {
@@ -580,12 +597,13 @@ func TestWriteSubContents(t *testing.T) {
 			c := client{
 				conn: conn,
 				sub: subscriptions{
-					trades:    test.trades,
-					quotes:    test.quotes,
-					bars:      test.bars,
-					dailyBars: test.dailyBars,
-					statuses:  test.statuses,
-					lulds:     test.lulds,
+					trades:      test.trades,
+					quotes:      test.quotes,
+					bars:        test.bars,
+					updatedBars: test.updatedBars,
+					dailyBars:   test.dailyBars,
+					statuses:    test.statuses,
+					lulds:       test.lulds,
 				},
 			}
 
@@ -594,13 +612,14 @@ func TestWriteSubContents(t *testing.T) {
 			require.NoError(t, err)
 			msg := <-conn.writeCh
 			var got struct {
-				Action    string   `msgpack:"action"`
-				Trades    []string `msgpack:"trades"`
-				Quotes    []string `msgpack:"quotes"`
-				Bars      []string `msgpack:"bars"`
-				DailyBars []string `msgpack:"dailyBars"`
-				Statuses  []string `msgpack:"statuses"`
-				LULDs     []string `msgpack:"lulds"`
+				Action      string   `msgpack:"action"`
+				Trades      []string `msgpack:"trades"`
+				Quotes      []string `msgpack:"quotes"`
+				Bars        []string `msgpack:"bars"`
+				UpdatedBars []string `msgpack:"updatedBars"`
+				DailyBars   []string `msgpack:"dailyBars"`
+				Statuses    []string `msgpack:"statuses"`
+				LULDs       []string `msgpack:"lulds"`
 			}
 			err = msgpack.Unmarshal(msg, &got)
 			require.NoError(t, err)
@@ -608,6 +627,7 @@ func TestWriteSubContents(t *testing.T) {
 			assert.ElementsMatch(t, test.trades, got.Trades)
 			assert.ElementsMatch(t, test.quotes, got.Quotes)
 			assert.ElementsMatch(t, test.bars, got.Bars)
+			assert.ElementsMatch(t, test.updatedBars, got.UpdatedBars)
 			assert.ElementsMatch(t, test.dailyBars, got.DailyBars)
 			assert.ElementsMatch(t, test.statuses, got.Statuses)
 			assert.ElementsMatch(t, test.lulds, got.LULDs)
@@ -634,6 +654,7 @@ func TestReadSubResponseContents(t *testing.T) {
 		trades      []string
 		quotes      []string
 		bars        []string
+		updatedBars []string
 		dailyBars   []string
 	}{
 		{
@@ -642,9 +663,6 @@ func TestReadSubResponseContents(t *testing.T) {
 				"T": "subscription",
 			}),
 			expectError: true,
-			trades:      []string{},
-			quotes:      []string{},
-			bars:        []string{},
 		},
 		{
 			name: "wrong_contents",
@@ -654,9 +672,6 @@ func TestReadSubResponseContents(t *testing.T) {
 				},
 			}),
 			expectError: true,
-			trades:      []string{},
-			quotes:      []string{},
-			bars:        []string{},
 		},
 		{
 			name: "error",
@@ -668,9 +683,6 @@ func TestReadSubResponseContents(t *testing.T) {
 				},
 			}),
 			expectError: true,
-			trades:      []string{},
-			quotes:      []string{},
-			bars:        []string{},
 		},
 		{
 			name: "array_with_multiple_items",
@@ -683,9 +695,6 @@ func TestReadSubResponseContents(t *testing.T) {
 				},
 			}),
 			expectError: true,
-			trades:      []string{},
-			quotes:      []string{},
-			bars:        []string{},
 		},
 		{
 			name: "empty",
@@ -698,25 +707,24 @@ func TestReadSubResponseContents(t *testing.T) {
 				},
 			}),
 			expectError: false,
-			trades:      []string{},
-			quotes:      []string{},
-			bars:        []string{},
 		},
 		{
 			name: "success",
 			message: serializeToMsgpack(t, []map[string]interface{}{
 				{
-					"T":         "subscription",
-					"trades":    []string{"ALPACA"},
-					"quotes":    []string{"AL", "PACA"},
-					"bars":      []string{"AL", "PA", "CA"},
-					"dailyBars": []string{"LPACA"},
+					"T":           "subscription",
+					"trades":      []string{"ALPACA"},
+					"quotes":      []string{"AL", "PACA"},
+					"bars":        []string{"AL", "PA", "CA"},
+					"updatedBars": []string{"MSFT", "NIO"},
+					"dailyBars":   []string{"LPACA"},
 				},
 			}),
 			expectError: false,
 			trades:      []string{"ALPACA"},
 			quotes:      []string{"AL", "PACA"},
 			bars:        []string{"AL", "PA", "CA"},
+			updatedBars: []string{"MSFT", "NIO"},
 			dailyBars:   []string{"LPACA"},
 		},
 	}
@@ -737,6 +745,7 @@ func TestReadSubResponseContents(t *testing.T) {
 				assert.ElementsMatch(t, test.trades, c.sub.trades)
 				assert.ElementsMatch(t, test.quotes, c.sub.quotes)
 				assert.ElementsMatch(t, test.bars, c.sub.bars)
+				assert.ElementsMatch(t, test.updatedBars, c.sub.updatedBars)
 				assert.ElementsMatch(t, test.dailyBars, c.sub.dailyBars)
 			}
 		})

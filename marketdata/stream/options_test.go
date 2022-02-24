@@ -38,6 +38,7 @@ func TestDefaultOptions(t *testing.T) {
 			assert.EqualValues(t, []string{}, o.sub.trades)
 			assert.EqualValues(t, []string{}, o.sub.quotes)
 			assert.EqualValues(t, []string{}, o.sub.bars)
+			assert.EqualValues(t, []string{}, o.sub.updatedBars)
 			assert.EqualValues(t, []string{}, o.sub.dailyBars)
 			assert.EqualValues(t, []string{}, o.sub.statuses)
 			assert.EqualValues(t, []string{}, o.sub.lulds)
@@ -63,6 +64,7 @@ func TestConfigureStocks(t *testing.T) {
 		WithTrades(func(t Trade) {}, "ALPACA"),
 		WithQuotes(func(q Quote) {}, "AL", "PACA"),
 		WithBars(func(b Bar) {}, "ALP", "ACA"),
+		WithUpdatedBars(func(b Bar) {}, "AAPL"),
 		WithDailyBars(func(b Bar) {}, "LPACA"),
 		WithStatuses(func(ts TradingStatus) {}, "ALPACA"),
 		WithLULDs(func(l LULD) {}, "ALPA", "CA"),
@@ -81,6 +83,7 @@ func TestConfigureStocks(t *testing.T) {
 	assert.EqualValues(t, []string{"ALPACA"}, c.sub.trades)
 	assert.EqualValues(t, []string{"AL", "PACA"}, c.sub.quotes)
 	assert.EqualValues(t, []string{"ALP", "ACA"}, c.sub.bars)
+	assert.EqualValues(t, []string{"AAPL"}, c.sub.updatedBars)
 	assert.EqualValues(t, []string{"LPACA"}, c.sub.dailyBars)
 	assert.EqualValues(t, []string{"ALPACA"}, c.sub.statuses)
 	assert.EqualValues(t, []string{"ALPA", "CA"}, c.sub.lulds)

@@ -216,6 +216,8 @@ func TestSubscribeBeforeConnectStocks(t *testing.T) {
 	assert.Equal(t, ErrSubscriptionChangeBeforeConnect, err)
 	err = c.SubscribeToBars(func(bar Bar) {})
 	assert.Equal(t, ErrSubscriptionChangeBeforeConnect, err)
+	err = c.SubscribeToUpdatedBars(func(bar Bar) {})
+	assert.Equal(t, ErrSubscriptionChangeBeforeConnect, err)
 	err = c.SubscribeToDailyBars(func(bar Bar) {})
 	assert.Equal(t, ErrSubscriptionChangeBeforeConnect, err)
 	err = c.SubscribeToStatuses(func(ts TradingStatus) {})
@@ -245,6 +247,8 @@ func TestSubscribeBeforeConnectCrypto(t *testing.T) {
 	assert.Equal(t, ErrSubscriptionChangeBeforeConnect, err)
 	err = c.SubscribeToBars(func(bar CryptoBar) {})
 	assert.Equal(t, ErrSubscriptionChangeBeforeConnect, err)
+	err = c.SubscribeToUpdatedBars(func(bar CryptoBar) {})
+	assert.Equal(t, ErrSubscriptionChangeBeforeConnect, err)
 	err = c.SubscribeToDailyBars(func(bar CryptoBar) {})
 	assert.Equal(t, ErrSubscriptionChangeBeforeConnect, err)
 	err = c.UnsubscribeFromTrades()
@@ -252,6 +256,8 @@ func TestSubscribeBeforeConnectCrypto(t *testing.T) {
 	err = c.UnsubscribeFromQuotes()
 	assert.Equal(t, ErrSubscriptionChangeBeforeConnect, err)
 	err = c.UnsubscribeFromBars()
+	assert.Equal(t, ErrSubscriptionChangeBeforeConnect, err)
+	err = c.UnsubscribeFromUpdatedBars()
 	assert.Equal(t, ErrSubscriptionChangeBeforeConnect, err)
 	err = c.UnsubscribeFromDailyBars()
 	assert.Equal(t, ErrSubscriptionChangeBeforeConnect, err)
@@ -658,17 +664,19 @@ func TestCoreFunctionalityStocks(t *testing.T) {
 	connection := newMockConn()
 	defer connection.close()
 	writeInitialFlowMessagesToConn(t, connection, subscriptions{
-		trades:    []string{"ALPACA"},
-		quotes:    []string{"ALPACA"},
-		bars:      []string{"ALPACA"},
-		dailyBars: []string{"LPACA"},
-		statuses:  []string{"ALPACA"},
-		lulds:     []string{"ALPACA"},
+		trades:      []string{"ALPACA"},
+		quotes:      []string{"ALPACA"},
+		bars:        []string{"ALPACA"},
+		updatedBars: []string{"ALPACA"},
+		dailyBars:   []string{"LPACA"},
+		statuses:    []string{"ALPACA"},
+		lulds:       []string{"ALPACA"},
 	})
 
 	trades := make(chan Trade, 10)
 	quotes := make(chan Quote, 10)
 	bars := make(chan Bar, 10)
+	updatedBars := make(chan Bar, 10)
 	dailyBars := make(chan Bar, 10)
 	tradingStatuses := make(chan TradingStatus, 10)
 	lulds := make(chan LULD, 10)
@@ -678,6 +686,7 @@ func TestCoreFunctionalityStocks(t *testing.T) {
 		WithTrades(func(t Trade) { trades <- t }, "ALPACA"),
 		WithQuotes(func(q Quote) { quotes <- q }, "ALPCA"),
 		WithBars(func(b Bar) { bars <- b }, "ALPACA"),
+		WithUpdatedBars(func(b Bar) { updatedBars <- b }, "ALPACA"),
 		WithDailyBars(func(b Bar) { dailyBars <- b }, "LPACA"),
 		WithStatuses(func(ts TradingStatus) { tradingStatuses <- ts }, "ALPACA"),
 		WithLULDs(func(l LULD) { lulds <- l }, "ALPACA"),
@@ -722,6 +731,14 @@ func TestCoreFunctionalityStocks(t *testing.T) {
 			Type:   "t",
 			Symbol: "ALPACA",
 			ID:     123,
+		},
+	})
+	// sending an updated bar
+	connection.readCh <- serializeToMsgpack(t, []interface{}{
+		barWithT{
+			Type:   "u",
+			Symbol: "ALPACA",
+			High:   36.7,
 		},
 	})
 	// sending a trading status
@@ -780,6 +797,13 @@ func TestCoreFunctionalityStocks(t *testing.T) {
 		assert.EqualValues(t, 3.1415, bar.VWAP)
 	case <-time.After(time.Second):
 		require.Fail(t, "no bar received in time")
+	}
+
+	select {
+	case bar := <-updatedBars:
+		assert.EqualValues(t, 36.7, bar.High)
+	case <-time.After(time.Second):
+		require.Fail(t, "no updated bar received in time")
 	}
 
 	select {
@@ -852,20 +876,23 @@ func TestCoreFunctionalityCrypto(t *testing.T) {
 	connection := newMockConn()
 	defer connection.close()
 	writeInitialFlowMessagesToConn(t, connection, subscriptions{
-		trades:    []string{"BTCUSD"},
-		quotes:    []string{"ETHUSD"},
-		bars:      []string{"LTCUSD"},
-		dailyBars: []string{"BCHUSD"},
+		trades:      []string{"BTCUSD"},
+		quotes:      []string{"ETHUSD"},
+		bars:        []string{"LTCUSD"},
+		updatedBars: []string{"BCHUSD"},
+		dailyBars:   []string{"BCHUSD"},
 	})
 
 	trades := make(chan CryptoTrade, 10)
 	quotes := make(chan CryptoQuote, 10)
 	bars := make(chan CryptoBar, 10)
+	updatedBars := make(chan CryptoBar, 10)
 	dailyBars := make(chan CryptoBar, 10)
 	c := NewCryptoClient(
 		WithCryptoTrades(func(t CryptoTrade) { trades <- t }, "BTCUSD"),
 		WithCryptoQuotes(func(q CryptoQuote) { quotes <- q }, "ETHUSD"),
 		WithCryptoBars(func(b CryptoBar) { bars <- b }, "LTCUSD"),
+		WithCryptoUpdatedBars(func(b CryptoBar) { updatedBars <- b }, "BCHUSD"),
 		WithCryptoDailyBars(func(b CryptoBar) { dailyBars <- b }, "BCHUSD"),
 		withConnCreator(func(ctx context.Context, u url.URL) (conn, error) {
 			return connection, nil
@@ -895,6 +922,12 @@ func TestCoreFunctionalityCrypto(t *testing.T) {
 			High:       196.3,
 			TradeCount: 32,
 			VWAP:       196.21,
+		},
+		cryptoBarWithT{
+			Type:       "u",
+			Symbol:     "ECHUSD",
+			Exchange:   "TES7",
+			TradeCount: 33,
 		},
 		cryptoQuoteWithT{
 			Type:     "q",
@@ -930,6 +963,13 @@ func TestCoreFunctionalityCrypto(t *testing.T) {
 		assert.Equal(t, "TEST", bar.Exchange)
 	case <-time.After(time.Second):
 		require.Fail(t, "no bar received in time")
+	}
+
+	select {
+	case bar := <-updatedBars:
+		assert.EqualValues(t, 33, bar.TradeCount)
+	case <-time.After(time.Second):
+		require.Fail(t, "no updated bar received in time")
 	}
 
 	select {
@@ -1043,6 +1083,7 @@ func writeInitialFlowMessagesToConn(
 			Trades:       sub.trades,
 			Quotes:       sub.quotes,
 			Bars:         sub.bars,
+			UpdatedBars:  sub.updatedBars,
 			DailyBars:    sub.dailyBars,
 			Statuses:     sub.statuses,
 			LULDs:        sub.lulds,
@@ -1072,6 +1113,7 @@ func checkInitialMessagesSentByClient(
 	require.ElementsMatch(t, sub.trades, s["trades"])
 	require.ElementsMatch(t, sub.quotes, s["quotes"])
 	require.ElementsMatch(t, sub.bars, s["bars"])
+	require.ElementsMatch(t, sub.updatedBars, s["updatedBars"])
 	require.ElementsMatch(t, sub.dailyBars, s["dailyBars"])
 	require.ElementsMatch(t, sub.statuses, s["statuses"])
 	require.ElementsMatch(t, sub.lulds, s["lulds"])

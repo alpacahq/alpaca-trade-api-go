@@ -130,6 +130,7 @@ type stockOptions struct {
 	tradeHandler         func(Trade)
 	quoteHandler         func(Quote)
 	barHandler           func(Bar)
+	updatedBarHandler    func(Bar)
 	dailyBarHandler      func(Bar)
 	tradingStatusHandler func(TradingStatus)
 	luldHandler          func(LULD)
@@ -159,6 +160,7 @@ func defaultStockOptions() *stockOptions {
 				trades:       []string{},
 				quotes:       []string{},
 				bars:         []string{},
+				updatedBars:  []string{},
 				dailyBars:    []string{},
 				statuses:     []string{},
 				lulds:        []string{},
@@ -172,6 +174,7 @@ func defaultStockOptions() *stockOptions {
 		tradeHandler:         func(t Trade) {},
 		quoteHandler:         func(q Quote) {},
 		barHandler:           func(b Bar) {},
+		updatedBarHandler:    func(b Bar) {},
 		dailyBarHandler:      func(b Bar) {},
 		tradingStatusHandler: func(ts TradingStatus) {},
 		luldHandler:          func(l LULD) {},
@@ -200,7 +203,7 @@ func newFuncStockOption(f func(*stockOptions)) StockOption {
 	}
 }
 
-// WithTrades configures inital trade symbols to subscribe to and the handler
+// WithTrades configures initial trade symbols to subscribe to and the handler
 func WithTrades(handler func(Trade), symbols ...string) StockOption {
 	return newFuncStockOption(func(o *stockOptions) {
 		o.sub.trades = symbols
@@ -208,7 +211,7 @@ func WithTrades(handler func(Trade), symbols ...string) StockOption {
 	})
 }
 
-// WithQuotes configures inital quote symbols to subscribe to and the handler
+// WithQuotes configures initial quote symbols to subscribe to and the handler
 func WithQuotes(handler func(Quote), symbols ...string) StockOption {
 	return newFuncStockOption(func(o *stockOptions) {
 		o.sub.quotes = symbols
@@ -216,7 +219,7 @@ func WithQuotes(handler func(Quote), symbols ...string) StockOption {
 	})
 }
 
-// WithBars configures inital bar symbols to subscribe to and the handler
+// WithBars configures initial bar symbols to subscribe to and the handler
 func WithBars(handler func(Bar), symbols ...string) StockOption {
 	return newFuncStockOption(func(o *stockOptions) {
 		o.sub.bars = symbols
@@ -224,7 +227,15 @@ func WithBars(handler func(Bar), symbols ...string) StockOption {
 	})
 }
 
-// WithDailyBars configures inital daily bar symbols to subscribe to and the handler
+// WithUpdatedBars configures initial updated bar symbols to subscribe to and the handler
+func WithUpdatedBars(handler func(Bar), symbols ...string) StockOption {
+	return newFuncStockOption(func(o *stockOptions) {
+		o.sub.updatedBars = symbols
+		o.updatedBarHandler = handler
+	})
+}
+
+// WithDailyBars configures initial daily bar symbols to subscribe to and the handler
 func WithDailyBars(handler func(Bar), symbols ...string) StockOption {
 	return newFuncStockOption(func(o *stockOptions) {
 		o.sub.dailyBars = symbols
@@ -232,7 +243,7 @@ func WithDailyBars(handler func(Bar), symbols ...string) StockOption {
 	})
 }
 
-// WithStatuses configures inital trading status symbols to subscribe to and the handler
+// WithStatuses configures initial trading status symbols to subscribe to and the handler
 func WithStatuses(handler func(TradingStatus), symbols ...string) StockOption {
 	return newFuncStockOption(func(o *stockOptions) {
 		o.sub.statuses = symbols
@@ -248,7 +259,7 @@ func WithLULDs(handler func(LULD), symbols ...string) StockOption {
 	})
 }
 
-// WithCancelErrors configures inital trade cancel errors handler. This does
+// WithCancelErrors configures initial trade cancel errors handler. This does
 // not create any new subscriptions because cancel errors are subscribed
 // automatically together with trades. No need to pass in symbols.
 func WithCancelErrors(handler func(TradeCancelError)) StockOption {
@@ -257,7 +268,7 @@ func WithCancelErrors(handler func(TradeCancelError)) StockOption {
 	})
 }
 
-// WithCorrections configures inital trade corrections handler. This does
+// WithCorrections configures initial trade corrections handler. This does
 // not create any new subscriptions because corrections are subscribed
 // automatically together with trades. No need to pass in symbols.
 func WithCorrections(handler func(TradeCorrection)) StockOption {
@@ -268,11 +279,12 @@ func WithCorrections(handler func(TradeCorrection)) StockOption {
 
 type cryptoOptions struct {
 	options
-	tradeHandler    func(CryptoTrade)
-	quoteHandler    func(CryptoQuote)
-	barHandler      func(CryptoBar)
-	dailyBarHandler func(CryptoBar)
-	exchanges       []string
+	tradeHandler      func(CryptoTrade)
+	quoteHandler      func(CryptoQuote)
+	barHandler        func(CryptoBar)
+	updatedBarHandler func(CryptoBar)
+	dailyBarHandler   func(CryptoBar)
+	exchanges         []string
 }
 
 // defaultCryptoOptions are the default options for a client.
@@ -295,19 +307,21 @@ func defaultCryptoOptions() *cryptoOptions {
 			processorCount: 1,
 			bufferSize:     100000,
 			sub: subscriptions{
-				trades:    []string{},
-				quotes:    []string{},
-				bars:      []string{},
-				dailyBars: []string{},
+				trades:      []string{},
+				quotes:      []string{},
+				bars:        []string{},
+				updatedBars: []string{},
+				dailyBars:   []string{},
 			},
 			connCreator: func(ctx context.Context, u url.URL) (conn, error) {
 				return newNhooyrWebsocketConn(ctx, u)
 			},
 		},
-		tradeHandler:    func(t CryptoTrade) {},
-		quoteHandler:    func(q CryptoQuote) {},
-		barHandler:      func(b CryptoBar) {},
-		dailyBarHandler: func(b CryptoBar) {},
+		tradeHandler:      func(t CryptoTrade) {},
+		quoteHandler:      func(q CryptoQuote) {},
+		barHandler:        func(b CryptoBar) {},
+		updatedBarHandler: func(b CryptoBar) {},
+		dailyBarHandler:   func(b CryptoBar) {},
 	}
 }
 
@@ -331,7 +345,7 @@ func newFuncCryptoOption(f func(*cryptoOptions)) *funcCryptoOption {
 	}
 }
 
-// WithCryptoTrades configures inital trade symbols to subscribe to and the handler
+// WithCryptoTrades configures initial trade symbols to subscribe to and the handler
 func WithCryptoTrades(handler func(CryptoTrade), symbols ...string) CryptoOption {
 	return newFuncCryptoOption(func(o *cryptoOptions) {
 		o.sub.trades = symbols
@@ -339,7 +353,7 @@ func WithCryptoTrades(handler func(CryptoTrade), symbols ...string) CryptoOption
 	})
 }
 
-// WithCryptoQuotes configures inital quote symbols to subscribe to and the handler
+// WithCryptoQuotes configures initial quote symbols to subscribe to and the handler
 func WithCryptoQuotes(handler func(CryptoQuote), symbols ...string) CryptoOption {
 	return newFuncCryptoOption(func(o *cryptoOptions) {
 		o.sub.quotes = symbols
@@ -347,7 +361,7 @@ func WithCryptoQuotes(handler func(CryptoQuote), symbols ...string) CryptoOption
 	})
 }
 
-// WithCryptoBars configures inital bar symbols to subscribe to and the handler
+// WithCryptoBars configures initial bar symbols to subscribe to and the handler
 func WithCryptoBars(handler func(CryptoBar), symbols ...string) CryptoOption {
 	return newFuncCryptoOption(func(o *cryptoOptions) {
 		o.sub.bars = symbols
@@ -355,7 +369,15 @@ func WithCryptoBars(handler func(CryptoBar), symbols ...string) CryptoOption {
 	})
 }
 
-// WithCryptoDailyBars configures inital daily bar symbols to subscribe to and the handler
+// WithCryptoUpdatedBars configures initial updated bar symbols to subscribe to and the handler
+func WithCryptoUpdatedBars(handler func(CryptoBar), symbols ...string) CryptoOption {
+	return newFuncCryptoOption(func(o *cryptoOptions) {
+		o.sub.updatedBars = symbols
+		o.updatedBarHandler = handler
+	})
+}
+
+// WithCryptoDailyBars configures initial daily bar symbols to subscribe to and the handler
 func WithCryptoDailyBars(handler func(CryptoBar), symbols ...string) CryptoOption {
 	return newFuncCryptoOption(func(o *cryptoOptions) {
 		o.sub.dailyBars = symbols
@@ -419,7 +441,7 @@ func newFuncNewsOption(f func(*newsOptions)) *funcNewsOption {
 	}
 }
 
-// WithNew configures inital symbols to subscribe to and the handler
+// WithNew configures initial symbols to subscribe to and the handler
 func WithNews(handler func(News), symbols ...string) NewsOption {
 	return newFuncNewsOption(func(o *newsOptions) {
 		o.sub.news = symbols
