@@ -211,6 +211,11 @@ type CryptoSnapshot struct {
 	PrevDailyBar *CryptoBar   `json:"prevDailyBar"`
 }
 
+// CryptoSnapshot is a snapshots for a crypto symbols
+type CryptoSnapshots struct {
+	Snapshots map[string]CryptoSnapshot `json:"snapshots"`
+}
+
 // NewsImage is a single image for a news article.
 type NewsImage struct {
 	Size string `json:"size"`
@@ -314,9 +319,22 @@ type cryptoMultiBarResponse struct {
 	Bars          map[string][]CryptoBar `json:"bars"`
 }
 
+type latestCryptoBarResponse struct {
+	Symbol string    `json:"symbol"`
+	Bar    CryptoBar `json:"bar"`
+}
+
+type latestCryptoBarsResponse struct {
+	Bars map[string]CryptoBar `json:"bars"`
+}
+
 type latestCryptoTradeResponse struct {
 	Symbol string      `json:"symbol"`
 	Trade  CryptoTrade `json:"trade"`
+}
+
+type latestCryptoTradesResponse struct {
+	Trades map[string]CryptoTrade `json:"trades"`
 }
 
 type latestCryptoQuoteResponse struct {
@@ -324,9 +342,17 @@ type latestCryptoQuoteResponse struct {
 	Quote  CryptoQuote `json:"quote"`
 }
 
+type latestCryptoQuotesResponse struct {
+	Quotes map[string]CryptoQuote `json:"quotes"`
+}
+
 type latestCryptoXBBOResponse struct {
 	Symbol string     `json:"symbol"`
 	XBBO   CryptoXBBO `json:"xbbo"`
+}
+
+type latestCryptoXBBOsResponse struct {
+	XBBOs map[string]CryptoXBBO `json:"xbbos"`
 }
 
 type newsResponse struct {

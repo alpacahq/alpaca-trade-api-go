@@ -681,7 +681,7 @@ func TestGetCryptoBars(t *testing.T) {
 
 func TestGetCryptoMultiBars(t *testing.T) {
 	c := testClient()
-	c.do = mockResp(`{"bars":{"BCHUSD":[{"t":"2021-11-20T20:00:00Z","x":"CBSE","o":582.48,"h":583.3,"l":580.16,"c":583.29,"v":895.36742328,"n":1442,"vw":581.631507},{"t":"2021-11-20T20:00:00Z","x":"ERSX","o":581.31,"h":581.31,"l":581.31,"c":581.31,"v":4,"n":1,"vw":581.31},{"t":"2021-11-20T20:00:00Z","x":"FTX","o":581.875,"h":582.7,"l":580.05,"c":582.3,"v":315.999,"n":62,"vw":581.17328}],"BTCUSD":[{"t":"2021-11-20T20:00:00Z","x":"CBSE","o":59488.87,"h":59700,"l":59364.08,"c":59660.38,"v":542.20811667,"n":34479,"vw":59522.345185},{"t":"2021-11-20T20:00:00Z","x":"ERSX","o":59446.7,"h":59654.1,"l":59446.7,"c":59654.1,"v":1.1046,"n":4,"vw":59513.516151},{"t":"2021-11-20T20:00:00Z","x":"FTX","o":59488,"h":59683,"l":59374,"c":59638,"v":73.079,"n":264,"vw":59501.646613}],"ETHUSD":[{"t":"2021-11-20T20:00:00Z","x":"CBSE","o":4402.71,"h":4435.25,"l":4392.96,"c":4432.48,"v":9115.28075256,"n":29571,"vw":4411.486276},{"t":"2021-11-20T20:00:00Z","x":"ERSX","o":4404.11,"h":4434.87,"l":4404.11,"c":4434.87,"v":68.8337,"n":49,"vw":4412.167596},{"t":"2021-11-20T20:00:00Z","x":"FTX","o":4402.4,"h":4434,"l":4395.4,"c":4433.8,"v":643.603,"n":405,"vw":4408.340722}],"LTCUSD":[{"t":"2021-11-20T20:00:00Z","x":"CBSE","o":225.78,"h":227.09,"l":225.07,"c":225.79,"v":22495.52449682,"n":7007,"vw":226.00074},{"t":"2021-11-20T20:00:00Z","x":"ERSX","o":226.07,"h":226.67,"l":225.75,"c":225.75,"v":228.2211,"n":5,"vw":226.337181},{"t":"2021-11-20T20:00:00Z","x":"FTX","o":225.805,"h":226.975,"l":225.135,"c":225.865,"v":1792,"n":149,"vw":225.944729}]},"next_page_token":null}`)
+	c.do = mockResp(`{"bars":{"BCHUSD":[{"t":"2021-11-20T20:00:00Z","x":"CBSE","o":582.48,"h":583.3,"l":580.16,"c":583.29,"v":895.36742328,"n":1442,"vw":581.631507},{"t":"2021-11-20T20:00:00Z","x":"ERSX","o":581.31,"h":581.31,"l":581.31,"c":581.31,"v":4,"n":1,"vw":581.31},{"t":"2021-11-20T20:00:00Z","x":"FTXU","o":581.875,"h":582.7,"l":580.05,"c":582.3,"v":315.999,"n":62,"vw":581.17328}],"BTCUSD":[{"t":"2021-11-20T20:00:00Z","x":"CBSE","o":59488.87,"h":59700,"l":59364.08,"c":59660.38,"v":542.20811667,"n":34479,"vw":59522.345185},{"t":"2021-11-20T20:00:00Z","x":"ERSX","o":59446.7,"h":59654.1,"l":59446.7,"c":59654.1,"v":1.1046,"n":4,"vw":59513.516151},{"t":"2021-11-20T20:00:00Z","x":"FTXU","o":59488,"h":59683,"l":59374,"c":59638,"v":73.079,"n":264,"vw":59501.646613}],"ETHUSD":[{"t":"2021-11-20T20:00:00Z","x":"CBSE","o":4402.71,"h":4435.25,"l":4392.96,"c":4432.48,"v":9115.28075256,"n":29571,"vw":4411.486276},{"t":"2021-11-20T20:00:00Z","x":"ERSX","o":4404.11,"h":4434.87,"l":4404.11,"c":4434.87,"v":68.8337,"n":49,"vw":4412.167596},{"t":"2021-11-20T20:00:00Z","x":"FTXU","o":4402.4,"h":4434,"l":4395.4,"c":4433.8,"v":643.603,"n":405,"vw":4408.340722}],"LTCUSD":[{"t":"2021-11-20T20:00:00Z","x":"CBSE","o":225.78,"h":227.09,"l":225.07,"c":225.79,"v":22495.52449682,"n":7007,"vw":226.00074},{"t":"2021-11-20T20:00:00Z","x":"ERSX","o":226.07,"h":226.67,"l":225.75,"c":225.75,"v":228.2211,"n":5,"vw":226.337181},{"t":"2021-11-20T20:00:00Z","x":"FTXU","o":225.805,"h":226.975,"l":225.135,"c":225.865,"v":1792,"n":149,"vw":225.944729}]},"next_page_token":null}`)
 	got, err := c.GetCryptoMultiBars([]string{"BTCUSD", "LTCUSD", "BCHUSD", "ETHUSD"}, GetCryptoBarsParams{
 		TimeFrame: NewTimeFrame(2, Hour),
 		Start:     time.Date(2021, 11, 20, 0, 0, 0, 0, time.UTC),
@@ -700,20 +700,76 @@ func TestGetCryptoMultiBars(t *testing.T) {
 	assert.EqualValues(t, 226.337181, got["LTCUSD"][1].VWAP)
 }
 
+func TestLatestCryptoBar(t *testing.T) {
+	c := testClient()
+	c.do = mockResp(`{"symbol":"BTCUSD","bar":{"t":"2022-02-25T12:50:00Z","x":"CBSE","o":38899.6,"h":39300,"l":38892.2,"c":39278.88,"v":74.02830613,"n":1086,"vw":39140.0960796263}}`)
+	got, err := c.GetLatestCryptoBar("BTCUSD", "CBSE")
+	require.NoError(t, err)
+	require.NotNil(t, got)
+	assert.Equal(t, CryptoBar{
+		Timestamp:  time.Date(2022, 02, 25, 12, 50, 0, 0, time.UTC),
+		Exchange:   "CBSE",
+		Open:       38899.6,
+		High:       39300,
+		Low:        38892.2,
+		Close:      39278.88,
+		Volume:     74.02830613,
+		TradeCount: 1086,
+		VWAP:       39140.0960796263,
+	}, *got)
+}
+
+func TestLatestCryptoBars(t *testing.T) {
+	c := testClient()
+	c.do = mockResp(`{"bars":{"SUSHIUSD":{"t":"2022-02-25T12:46:00Z","x":"FTXU","o":3.2109,"h":3.2109,"l":3.2093,"c":3.2093,"v":6,"n":2,"vw":3.2105},"DOGEUSD":{"t":"2022-02-25T12:40:00Z","x":"FTXU","o":0.124078,"h":0.124078,"l":0.124078,"c":0.124078,"v":16,"n":1,"vw":0.124078},"BATUSD":{"t":"2022-02-25T12:36:00Z","x":"FTXU","o":0.67675,"h":0.67675,"l":0.67675,"c":0.67675,"v":411,"n":1,"vw":0.67675}}}`)
+	got, err := c.GetLatestCryptoBars([]string{"BATUSD", "DOGEUSD", "SUSHIUSD"}, "FTXU")
+	require.NoError(t, err)
+	require.Len(t, got, 3)
+	assert.Equal(t, CryptoBar{
+		Timestamp:  time.Date(2022, 02, 25, 12, 46, 0, 0, time.UTC),
+		Exchange:   "FTXU",
+		Open:       3.2109,
+		High:       3.2109,
+		Low:        3.2093,
+		Close:      3.2093,
+		Volume:     6,
+		TradeCount: 2,
+		VWAP:       3.2105,
+	}, got["SUSHIUSD"])
+	assert.Equal(t, 0.124078, got["DOGEUSD"].Open)
+	assert.Equal(t, 0.67675, got["BATUSD"].Low)
+}
+
 func TestLatestCryptoTrade(t *testing.T) {
 	c := testClient()
-	c.do = mockResp(`{"symbol":"BTCUSD","trade":{"t":"2021-11-22T08:32:39.313396Z","x":"FTX","p":57527,"s":0.0755,"tks":"B","i":17209535}}`)
-	got, err := c.GetLatestCryptoTrade("BTCUSD", "FTX")
+	c.do = mockResp(`{"symbol":"BTCUSD","trade":{"t":"2021-11-22T08:32:39.313396Z","x":"FTXU","p":57527,"s":0.0755,"tks":"B","i":17209535}}`)
+	got, err := c.GetLatestCryptoTrade("BTCUSD", "FTXU")
 	require.NoError(t, err)
 	require.NotNil(t, got)
 	assert.Equal(t, CryptoTrade{
 		ID:        17209535,
-		Exchange:  "FTX",
+		Exchange:  "FTXU",
 		Price:     57527,
 		Size:      0.0755,
 		Timestamp: time.Date(2021, 11, 22, 8, 32, 39, 313396000, time.UTC),
 		TakerSide: "B",
 	}, *got)
+}
+
+func TestLatestCryptoTrades(t *testing.T) {
+	c := testClient()
+	c.do = mockResp(`{"trades":{"ETHUSD":{"t":"2022-02-25T12:54:12.412144626Z","x":"ERSX","p":2709.1,"s":18,"tks":"B","i":0},"BCHUSD":{"t":"2022-02-25T10:00:07.491340366Z","x":"ERSX","p":295.42,"s":0.6223,"tks":"B","i":0}}}`)
+	got, err := c.GetLatestCryptoTrades([]string{"BCHUSD", "ETHUSD"}, "FTXU")
+	require.NoError(t, err)
+	require.Len(t, got, 2)
+	assert.Equal(t, CryptoTrade{
+		Exchange:  "ERSX",
+		Price:     295.42,
+		Size:      0.6223,
+		Timestamp: time.Date(2022, 2, 25, 10, 0, 7, 491340366, time.UTC),
+		TakerSide: "B",
+	}, got["BCHUSD"])
+	assert.Equal(t, 2709.1, got["ETHUSD"].Price)
 }
 
 func TestLatestCryptoQuote(t *testing.T) {
@@ -732,21 +788,57 @@ func TestLatestCryptoQuote(t *testing.T) {
 	}, *got)
 }
 
+func TestLatestCryptoQuotes(t *testing.T) {
+	c := testClient()
+	c.do = mockResp(`{"quotes":{"BTCUSD":{"t":"2022-02-25T12:56:22.338903764Z","x":"ERSX","bp":39381.18,"bs":1.522012,"ap":39463.42,"as":1.5},"LTCUSD":{"t":"2022-02-25T12:56:22.318022772Z","x":"ERSX","bp":105.98,"bs":377.013267,"ap":106.24,"as":376.902245}}}`)
+	got, err := c.GetLatestCryptoQuotes([]string{"BTCUSD", "LTCUSD"}, "ERSX")
+	require.NoError(t, err)
+	require.Len(t, got, 2)
+	assert.Equal(t, CryptoQuote{
+		Timestamp: time.Date(2022, 2, 25, 12, 56, 22, 318022772, time.UTC),
+		Exchange:  "ERSX",
+		BidPrice:  105.98,
+		BidSize:   377.013267,
+		AskPrice:  106.24,
+		AskSize:   376.902245,
+	}, got["LTCUSD"])
+	assert.Equal(t, 1.522012, got["BTCUSD"].BidSize)
+}
+
 func TestLatestCryptoXBBO(t *testing.T) {
 	c := testClient()
-	c.do = mockResp(`{"symbol":"ETHUSD","xbbo":{"t":"2021-11-22T08:38:40.635798272Z","ax":"ERSX","ap":4209.23,"as":11.8787,"bx":"FTX","bp":4209.3,"bs":3.9}}`)
+	c.do = mockResp(`{"symbol":"ETHUSD","xbbo":{"t":"2021-11-22T08:38:40.635798272Z","ax":"ERSX","ap":4209.23,"as":11.8787,"bx":"FTXU","bp":4209.3,"bs":3.9}}`)
 	got, err := c.GetLatestCryptoXBBO("ETHUSD", nil)
 	require.NoError(t, err)
 	require.NotNil(t, got)
 	assert.Equal(t, CryptoXBBO{
 		Timestamp:   time.Date(2021, 11, 22, 8, 38, 40, 635798272, time.UTC),
-		BidExchange: "FTX",
+		BidExchange: "FTXU",
 		BidPrice:    4209.3,
 		BidSize:     3.9,
 		AskExchange: "ERSX",
 		AskPrice:    4209.23,
 		AskSize:     11.8787,
 	}, *got)
+}
+
+func TestLatestCryptoXBBOs(t *testing.T) {
+	c := testClient()
+	c.do = mockResp(`{"xbbos":{"BTCUSD":{"t":"2022-02-25T12:58:57.906312192Z","ax":"ERSX","ap":39333.1,"as":1.525513,"bx":"FTXU","bp":39332,"bs":0.405},"DOGEUSD":{"t":"2022-02-25T12:58:57.926470656Z","ax":"FTXU","ap":0.125529,"as":82500,"bx":"FTXU","bp":0.1254155,"bs":7200},"ETHUSD":{"t":"2022-02-25T12:58:57.761083276Z","ax":"ERSX","ap":2705.14,"as":18.483345,"bx":"ERSX","bp":2705.1,"bs":18}}}`)
+	got, err := c.GetLatestCryptoXBBOs([]string{"BTCUSD", "ETHUSD", "DOGEUSD"}, nil)
+	require.NoError(t, err)
+	require.Len(t, got, 3)
+	assert.Equal(t, CryptoXBBO{
+		Timestamp:   time.Date(2022, 2, 25, 12, 58, 57, 906312192, time.UTC),
+		BidExchange: "FTXU",
+		BidPrice:    39332,
+		BidSize:     0.405,
+		AskExchange: "ERSX",
+		AskPrice:    39333.1,
+		AskSize:     1.525513,
+	}, got["BTCUSD"])
+	assert.Equal(t, "FTXU", got["DOGEUSD"].BidExchange)
+	assert.Equal(t, "ERSX", got["ETHUSD"].AskExchange)
 }
 
 func TestCryptoSnapshot(t *testing.T) {
@@ -814,6 +906,16 @@ func TestCryptoSnapshot(t *testing.T) {
 	got, err = c.GetCryptoSnapshot("ETHUSD", "CBSE")
 	assert.Error(t, err)
 	assert.Nil(t, got)
+}
+
+func TestLatestCryptoSnapshots(t *testing.T) {
+	c := testClient()
+	c.do = mockResp(`{"snapshots":{"LTCUSD":{"latestTrade":{"t":"2022-02-25T13:37:01.642928Z","x":"FTXU","p":106.8,"s":25,"tks":"S","i":25661025},"latestQuote":{"t":"2022-02-25T13:37:13.222241536Z","x":"FTXU","bp":106.745,"bs":55,"ap":106.82,"as":55.86},"minuteBar":{"t":"2022-02-25T13:36:00Z","x":"FTXU","o":106.745,"h":106.9,"l":106.745,"c":106.9,"v":11.55,"n":4,"vw":106.8133030303},"dailyBar":{"t":"2022-02-25T06:00:00Z","x":"FTXU","o":103.425,"h":106.9,"l":101.7,"c":106.9,"v":5566.94,"n":274,"vw":104.4620249455},"prevDailyBar":{"t":"2022-02-24T06:00:00Z","x":"FTXU","o":95.315,"h":107.835,"l":91.64,"c":103.455,"v":36939.92,"n":1401,"vw":98.6918021939}},"BTCUSD":{"latestTrade":{"t":"2022-02-25T13:36:40.670492Z","x":"FTXU","p":39712,"s":0.0012,"tks":"B","i":25661005},"latestQuote":{"t":"2022-02-25T13:37:13.223584768Z","x":"FTXU","bp":39651,"bs":0.405,"ap":39668,"as":0.405},"minuteBar":{"t":"2022-02-25T13:36:00Z","x":"FTXU","o":39635,"h":39721,"l":39635,"c":39712,"v":1.977,"n":9,"vw":39691.4923621649},"dailyBar":{"t":"2022-02-25T06:00:00Z","x":"FTXU","o":38453,"h":39721,"l":38001,"c":39712,"v":472.5707,"n":1989,"vw":39105.5248569156},"prevDailyBar":{"t":"2022-02-24T06:00:00Z","x":"FTXU","o":34708,"h":39810,"l":34421,"c":38379,"v":3004.0718,"n":10341,"vw":37321.0250683755}}}}`)
+	got, err := c.GetCryptoSnapshots([]string{"BTCUSD", "LTCUSD"}, "FTXU")
+	require.NoError(t, err)
+	require.Len(t, got, 2)
+	assert.Equal(t, 106.8, got["LTCUSD"].LatestTrade.Price)
+	assert.Equal(t, 0.405, got["BTCUSD"].LatestQuote.BidSize)
 }
 
 func TestGetNews(t *testing.T) {

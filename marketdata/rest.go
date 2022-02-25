@@ -45,10 +45,16 @@ type Client interface {
 	GetCryptoBarsAsync(symbol string, params GetCryptoBarsParams) <-chan CryptoBarItem
 	GetCryptoMultiBars(symbols []string, params GetCryptoBarsParams) (map[string][]CryptoBar, error)
 	GetCryptoMultiBarsAsync(symbols []string, params GetCryptoBarsParams) <-chan CryptoMultiBarItem
+	GetLatestCryptoBar(symbol, exchange string) (*CryptoBar, error)
+	GetLatestCryptoBars(symbols []string, exchange string) (map[string]CryptoBar, error)
 	GetLatestCryptoTrade(symbol, exchange string) (*CryptoTrade, error)
+	GetLatestCryptoTrades(symbols []string, exchange string) (map[string]CryptoTrade, error)
 	GetLatestCryptoQuote(symbol, exchange string) (*CryptoQuote, error)
+	GetLatestCryptoQuotes(symbols []string, exchange string) (map[string]CryptoQuote, error)
 	GetLatestCryptoXBBO(symbol string, exchanges []string) (*CryptoXBBO, error)
+	GetLatestCryptoXBBOs(symbols []string, exchanges []string) (map[string]CryptoXBBO, error)
 	GetCryptoSnapshot(symbol string, exchange string) (*CryptoSnapshot, error)
+	GetCryptoSnapshots(symbols []string, exchange string) (map[string]CryptoSnapshot, error)
 	GetNews(params GetNewsParams) ([]News, error)
 }
 
@@ -1138,6 +1144,55 @@ func (c *client) GetCryptoMultiBarsAsync(symbols []string, params GetCryptoBarsP
 	return ch
 }
 
+// GetLatestCryptoBar returns the latest bar for a given crypto symbol on the given exchange
+func (c *client) GetLatestCryptoBar(symbol, exchange string) (*CryptoBar, error) {
+	u, err := url.Parse(fmt.Sprintf("%s/%s/%s/bars/latest", c.opts.BaseURL, cryptoPrefix, symbol))
+	if err != nil {
+		return nil, err
+	}
+
+	q := u.Query()
+	q.Set("exchange", exchange)
+	u.RawQuery = q.Encode()
+
+	resp, err := c.get(u)
+	if err != nil {
+		return nil, err
+	}
+
+	var latestBarResp latestCryptoBarResponse
+
+	if err = unmarshal(resp, &latestBarResp); err != nil {
+		return nil, err
+	}
+
+	return &latestBarResp.Bar, nil
+}
+
+// GetLatestCryptoBars returns the latest bars for a given crypto symbols on the given exchange
+func (c *client) GetLatestCryptoBars(symbols []string, exchange string) (map[string]CryptoBar, error) {
+	u, err := url.Parse(fmt.Sprintf("%s/%s/bars/latest", c.opts.BaseURL, cryptoPrefix))
+	if err != nil {
+		return nil, err
+	}
+
+	q := u.Query()
+	q.Set("exchange", exchange)
+	q.Set("symbols", strings.Join(symbols, ","))
+	u.RawQuery = q.Encode()
+
+	resp, err := c.get(u)
+	if err != nil {
+		return nil, err
+	}
+
+	var latestBarsResp latestCryptoBarsResponse
+	if err = unmarshal(resp, &latestBarsResp); err != nil {
+		return nil, err
+	}
+	return latestBarsResp.Bars, nil
+}
+
 // GetLatestCryptoTrade returns the latest trade for a given crypto symbol on the given exchange
 func (c *client) GetLatestCryptoTrade(symbol, exchange string) (*CryptoTrade, error) {
 	u, err := url.Parse(fmt.Sprintf("%s/%s/%s/trades/latest", c.opts.BaseURL, cryptoPrefix, symbol))
@@ -1161,6 +1216,30 @@ func (c *client) GetLatestCryptoTrade(symbol, exchange string) (*CryptoTrade, er
 	}
 
 	return &latestTradeResp.Trade, nil
+}
+
+// GetLatestCryptoTrades returns the latest trades for a given crypto symbols on the given exchange
+func (c *client) GetLatestCryptoTrades(symbols []string, exchange string) (map[string]CryptoTrade, error) {
+	u, err := url.Parse(fmt.Sprintf("%s/%s/trades/latest", c.opts.BaseURL, cryptoPrefix))
+	if err != nil {
+		return nil, err
+	}
+
+	q := u.Query()
+	q.Set("exchange", exchange)
+	q.Set("symbols", strings.Join(symbols, ","))
+	u.RawQuery = q.Encode()
+
+	resp, err := c.get(u)
+	if err != nil {
+		return nil, err
+	}
+
+	var latestTradesResp latestCryptoTradesResponse
+	if err = unmarshal(resp, &latestTradesResp); err != nil {
+		return nil, err
+	}
+	return latestTradesResp.Trades, nil
 }
 
 // GetLatestCryptoQuote returns the latest quote for a given crypto symbol on the given exchange
@@ -1188,7 +1267,31 @@ func (c *client) GetLatestCryptoQuote(symbol, exchange string) (*CryptoQuote, er
 	return &latestQuoteResp.Quote, nil
 }
 
-// GetLatestCryptoXBBO returns the latest cross exchange BBO for a given crypto symbol on the given exchange
+// GetLatestCryptoQuotes returns the latest quotes for a given crypto symbols on the given exchange
+func (c *client) GetLatestCryptoQuotes(symbols []string, exchange string) (map[string]CryptoQuote, error) {
+	u, err := url.Parse(fmt.Sprintf("%s/%s/quotes/latest", c.opts.BaseURL, cryptoPrefix))
+	if err != nil {
+		return nil, err
+	}
+
+	q := u.Query()
+	q.Set("exchange", exchange)
+	q.Set("symbols", strings.Join(symbols, ","))
+	u.RawQuery = q.Encode()
+
+	resp, err := c.get(u)
+	if err != nil {
+		return nil, err
+	}
+
+	var latestQuotesResp latestCryptoQuotesResponse
+	if err = unmarshal(resp, &latestQuotesResp); err != nil {
+		return nil, err
+	}
+	return latestQuotesResp.Quotes, nil
+}
+
+// GetLatestCryptoXBBO returns the latest cross exchange BBO for a given crypto symbol on the given exchanges
 func (c *client) GetLatestCryptoXBBO(symbol string, exchanges []string) (*CryptoXBBO, error) {
 	u, err := url.Parse(fmt.Sprintf("%s/%s/%s/xbbo/latest", c.opts.BaseURL, cryptoPrefix, symbol))
 	if err != nil {
@@ -1215,7 +1318,33 @@ func (c *client) GetLatestCryptoXBBO(symbol string, exchanges []string) (*Crypto
 	return &latestXBBOResp.XBBO, nil
 }
 
-// GetCryptoSnapshot returns the snapshot for a given crypto symbol on the given exhange
+// GetLatestCryptoXBBOs returns the latest cross exchange BBOs for a given crypto symbols on the given exchanges
+func (c *client) GetLatestCryptoXBBOs(symbols []string, exchanges []string) (map[string]CryptoXBBO, error) {
+	u, err := url.Parse(fmt.Sprintf("%s/%s/xbbos/latest", c.opts.BaseURL, cryptoPrefix))
+	if err != nil {
+		return nil, err
+	}
+
+	q := u.Query()
+	if len(exchanges) > 0 {
+		q.Set("exchanges", strings.Join(exchanges, ","))
+	}
+	q.Set("symbols", strings.Join(symbols, ","))
+	u.RawQuery = q.Encode()
+
+	resp, err := c.get(u)
+	if err != nil {
+		return nil, err
+	}
+
+	var latestXBBOsResp latestCryptoXBBOsResponse
+	if err = unmarshal(resp, &latestXBBOsResp); err != nil {
+		return nil, err
+	}
+	return latestXBBOsResp.XBBOs, nil
+}
+
+// GetCryptoSnapshot returns the snapshot for a given crypto symbol on the given exchange
 func (c *client) GetCryptoSnapshot(symbol string, exchange string) (*CryptoSnapshot, error) {
 	u, err := url.Parse(fmt.Sprintf("%s/%s/%s/snapshot", c.opts.BaseURL, cryptoPrefix, symbol))
 	if err != nil {
@@ -1237,6 +1366,30 @@ func (c *client) GetCryptoSnapshot(symbol string, exchange string) (*CryptoSnaps
 	}
 
 	return &snapshot, nil
+}
+
+// GetCryptoSnapshots returns the snapshots for a given crypto symbols on the given exchange
+func (c *client) GetCryptoSnapshots(symbols []string, exchange string) (map[string]CryptoSnapshot, error) {
+	u, err := url.Parse(fmt.Sprintf("%s/%s/snapshots", c.opts.BaseURL, cryptoPrefix))
+	if err != nil {
+		return nil, err
+	}
+
+	q := u.Query()
+	q.Set("exchange", exchange)
+	q.Set("symbols", strings.Join(symbols, ","))
+	u.RawQuery = q.Encode()
+
+	resp, err := c.get(u)
+	if err != nil {
+		return nil, err
+	}
+
+	var snapshots CryptoSnapshots
+	if err = unmarshal(resp, &snapshots); err != nil {
+		return nil, err
+	}
+	return snapshots.Snapshots, nil
 }
 
 // Sort represents the sort order of the results
@@ -1507,24 +1660,54 @@ func GetCryptoMultiBarsAsync(symbols []string, params GetCryptoBarsParams) <-cha
 	return DefaultClient.GetCryptoMultiBarsAsync(symbols, params)
 }
 
+// GetLatestCryptoBar returns the latest bar for a given crypto symbol on the given exchange
+func GetLatestCryptoBar(symbol, exchange string) (*CryptoBar, error) {
+	return DefaultClient.GetLatestCryptoBar(symbol, exchange)
+}
+
+// GetLatestCryptoBars returns the latest bars for a given crypto symbols on the given exchange
+func GetLatestCryptoBars(symbols []string, exchange string) (map[string]CryptoBar, error) {
+	return DefaultClient.GetLatestCryptoBars(symbols, exchange)
+}
+
 // GetLatestCryptoTrade returns the latest trade for a given crypto symbol on the given exchange
 func GetLatestCryptoTrade(symbol, exchange string) (*CryptoTrade, error) {
 	return DefaultClient.GetLatestCryptoTrade(symbol, exchange)
 }
 
-// GetLatestCryptoQuote returns the latest quote for a given crypto symbol on the given exhange
+// GetLatestCryptoTrades returns the latest trades for a given crypto symbols on the given exchange
+func GetLatestCryptoTrades(symbols []string, exchange string) (map[string]CryptoTrade, error) {
+	return DefaultClient.GetLatestCryptoTrades(symbols, exchange)
+}
+
+// GetLatestCryptoQuote returns the latest quote for a given crypto symbol on the given exchange
 func GetLatestCryptoQuote(symbol, exchange string) (*CryptoQuote, error) {
 	return DefaultClient.GetLatestCryptoQuote(symbol, exchange)
 }
 
-// GetLatestCryptoXBBO returns the latest quote for a given crypto symbol on the given exhange
+// GetLatestCryptoQuotes returns the latest quotes for a given crypto symbols on the given exchange
+func GetLatestCryptoQuotes(symbols []string, exchange string) (map[string]CryptoQuote, error) {
+	return DefaultClient.GetLatestCryptoQuotes(symbols, exchange)
+}
+
+// GetLatestCryptoXBBO returns the latest cross exchange BBO for a given crypto symbol on the given exchanges
 func GetLatestCryptoXBBO(symbol string, exchanges []string) (*CryptoXBBO, error) {
 	return DefaultClient.GetLatestCryptoXBBO(symbol, exchanges)
 }
 
-// GetCryptoSnapshot returns the snapshot for a given crypto symbol.
+// GetLatestCryptoXBBOs returns the latest cross exchange BBOs for a given crypto symbols on the given exchanges
+func GetLatestCryptoXBBOs(symbols []string, exchanges []string) (map[string]CryptoXBBO, error) {
+	return DefaultClient.GetLatestCryptoXBBOs(symbols, exchanges)
+}
+
+// GetCryptoSnapshot returns the snapshot for a given crypto symbol on the given exchange
 func GetCryptoSnapshot(symbol string, exchange string) (*CryptoSnapshot, error) {
 	return DefaultClient.GetCryptoSnapshot(symbol, exchange)
+}
+
+// GetCryptoSnapshots returns the snapshots for a given crypto symbols on the given exchange
+func GetCryptoSnapshots(symbols []string, exchange string) (map[string]CryptoSnapshot, error) {
+	return DefaultClient.GetCryptoSnapshots(symbols, exchange)
 }
 
 // GetNews returns the news articles based on the given params.
