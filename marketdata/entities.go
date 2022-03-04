@@ -60,9 +60,11 @@ type TimeFrameUnit string
 
 // List of timeframe units
 const (
-	Min  TimeFrameUnit = "Min"
-	Hour TimeFrameUnit = "Hour"
-	Day  TimeFrameUnit = "Day"
+	Min   TimeFrameUnit = "Min"
+	Hour  TimeFrameUnit = "Hour"
+	Day   TimeFrameUnit = "Day"
+	Week  TimeFrameUnit = "Week"
+	Month TimeFrameUnit = "Month"
 )
 
 // TimeFrame is the resolution of the bars
@@ -83,9 +85,11 @@ func (tf TimeFrame) String() string {
 }
 
 var (
-	OneMin  TimeFrame = NewTimeFrame(1, Min)
-	OneHour TimeFrame = NewTimeFrame(1, Hour)
-	OneDay  TimeFrame = NewTimeFrame(1, Day)
+	OneMin   TimeFrame = NewTimeFrame(1, Min)
+	OneHour  TimeFrame = NewTimeFrame(1, Hour)
+	OneDay   TimeFrame = NewTimeFrame(1, Day)
+	OneWeek  TimeFrame = NewTimeFrame(1, Week)
+	OneMonth TimeFrame = NewTimeFrame(1, Month)
 )
 
 // Adjustment specifies the corporate action adjustment(s) for the bars
