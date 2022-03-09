@@ -71,10 +71,12 @@ type ClientOpts struct {
 	RetryLimit int
 	RetryDelay time.Duration
 	Feed       string
+	HttpClient *http.Client
 }
 
 type client struct {
-	opts ClientOpts
+	opts       ClientOpts
+	httpClient *http.Client
 
 	do func(c *client, req *http.Request) (*http.Response, error)
 }
@@ -103,8 +105,15 @@ func NewClient(opts ClientOpts) Client {
 	if opts.RetryDelay == 0 {
 		opts.RetryDelay = time.Second
 	}
+	httpClient := opts.HttpClient
+	if httpClient == nil {
+		httpClient = &http.Client{
+			Timeout: opts.Timeout,
+		}
+	}
 	return &client{
-		opts: opts,
+		opts:       opts,
+		httpClient: httpClient,
 
 		do: defaultDo,
 	}
@@ -121,13 +130,10 @@ func defaultDo(c *client, req *http.Request) (*http.Response, error) {
 		req.Header.Set("APCA-API-SECRET-KEY", c.opts.ApiSecret)
 	}
 
-	client := &http.Client{
-		Timeout: c.opts.Timeout,
-	}
 	var resp *http.Response
 	var err error
 	for i := 0; ; i++ {
-		resp, err = client.Do(req)
+		resp, err = c.httpClient.Do(req)
 		if err != nil {
 			return nil, err
 		}
@@ -1757,7 +1763,11 @@ func verify(resp *http.Response) error {
 }
 
 func unmarshal(resp *http.Response, data interface{}) error {
-	defer resp.Body.Close()
+	defer func() {
+		// The underlying TCP connection can not be reused if the body is not fully read
+		io.Copy(ioutil.Discard, resp.Body)
+		resp.Body.Close()
+	}()
 	var (
 		reader io.ReadCloser
 		err    error
