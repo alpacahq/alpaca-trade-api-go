@@ -63,14 +63,19 @@ type Client interface {
 // Currently it contains the exact same options as the trading alpaca client,
 // but there is no guarantee that this will remain the case.
 type ClientOpts struct {
-	ApiKey     string
-	ApiSecret  string
-	OAuth      string
-	BaseURL    string
+	ApiKey    string
+	ApiSecret string
+	OAuth     string
+	BaseURL   string
+	// Timeout sets the HTTP timeout for each request.
+	//
+	// Deprecated: use HttpClient with its Timeout set instead.
+	// If both are set, HttpClient has precedence.
 	Timeout    time.Duration
 	RetryLimit int
 	RetryDelay time.Duration
 	Feed       string
+	// HttpClient to be used for each http request.
 	HttpClient *http.Client
 }
 
