@@ -29,7 +29,7 @@ type Client interface {
 	GetClock() (*Clock, error)
 	GetCalendar(start, end *string) ([]CalendarDay, error)
 	ListOrders(status *string, until *time.Time, limit *int, nested *bool) ([]Order, error)
-	ListOrdersV2(req ListOrderRequest) ([]Order, error)
+	ListOrdersV2(req ListOrdersRequest) ([]Order, error)
 	PlaceOrder(req PlaceOrderRequest) (*Order, error)
 	GetOrder(orderID string) (*Order, error)
 	GetOrderByClientOrderID(clientOrderID string) (*Order, error)
@@ -473,7 +473,7 @@ func (c *client) ListOrders(status *string, until *time.Time, limit *int, nested
 
 // ListOrdersV2 returns the list of orders for an account,
 // filtered by the input parameters.
-func (c *client) ListOrdersV2(req ListOrderRequest) ([]Order, error) {
+func (c *client) ListOrdersV2(req ListOrdersRequest) ([]Order, error) {
 	urlString := fmt.Sprintf("%s/%s/orders", c.opts.BaseURL, apiVersion)
 	if req.Nested != nil {
 		urlString += fmt.Sprintf("?nested=%v", *req.Nested)
