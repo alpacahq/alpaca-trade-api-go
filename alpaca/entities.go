@@ -234,6 +234,16 @@ type AccountActivitiesRequest struct {
 	PageSize      *int       `json:"page_size"`
 }
 
+type ListOrdersRequest struct {
+	Status    *string    `json:"status"`
+	After     *time.Time `json:"after"`
+	Until     *time.Time `json:"until"`
+	Limit     *int       `json:"limit"`
+	Direction *string    `json:"direction"`
+	Nested    *bool      `json:"nested"`
+	Symbols   *string    `json:"symbols"`
+}
+
 type Side string
 
 const (
