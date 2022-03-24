@@ -29,7 +29,7 @@ type Client interface {
 	GetClock() (*Clock, error)
 	GetCalendar(start, end *string) ([]CalendarDay, error)
 	ListOrders(status *string, until *time.Time, limit *int, nested *bool) ([]Order, error)
-	ListOrdersV2(req ListOrdersRequest) ([]Order, error)
+	ListOrdersWithRequest(req ListOrdersRequest) ([]Order, error)
 	PlaceOrder(req PlaceOrderRequest) (*Order, error)
 	GetOrder(orderID string) (*Order, error)
 	GetOrderByClientOrderID(clientOrderID string) (*Order, error)
@@ -430,7 +430,8 @@ func (c *client) GetCalendar(start, end *string) ([]CalendarDay, error) {
 
 // ListOrders returns the list of orders for an account,
 // filtered by the input parameters.
-// Deprecated: This function is deprecated in favor of ListOrdersV2 which contains all possible parameters.
+//
+// Deprecated: This function is deprecated in favor of ListOrdersWithRequest which contains all possible parameters
 func (c *client) ListOrders(status *string, until *time.Time, limit *int, nested *bool) ([]Order, error) {
 	urlString := fmt.Sprintf("%s/%s/orders", c.opts.BaseURL, apiVersion)
 	if nested != nil {
@@ -471,19 +472,21 @@ func (c *client) ListOrders(status *string, until *time.Time, limit *int, nested
 	return orders, nil
 }
 
-// ListOrdersV2 returns the list of orders for an account,
+// ListOrdersWithRequest returns the list of orders for an account,
 // filtered by the input parameters.
-func (c *client) ListOrdersV2(req ListOrdersRequest) ([]Order, error) {
+func (c *client) ListOrdersWithRequest(req ListOrdersRequest) ([]Order, error) {
 	urlString := fmt.Sprintf("%s/%s/orders", c.opts.BaseURL, apiVersion)
-	if req.Nested != nil {
-		urlString += fmt.Sprintf("?nested=%v", *req.Nested)
-	}
+
 	u, err := url.Parse(urlString)
 	if err != nil {
 		return nil, err
 	}
 
 	q := u.Query()
+
+	if req.Nested != nil {
+		q.Set("nested", strconv.FormatBool(*req.Nested))
+	}
 
 	if req.Status != nil {
 		q.Set("status", *req.Status)
@@ -498,7 +501,7 @@ func (c *client) ListOrdersV2(req ListOrdersRequest) ([]Order, error) {
 	}
 
 	if req.Limit != nil {
-		q.Set("limit", strconv.FormatInt(int64(*req.Limit), 10))
+		q.Set("limit", strconv.Itoa(*req.Limit))
 	}
 
 	if req.Direction != nil {
