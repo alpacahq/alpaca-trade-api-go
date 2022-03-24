@@ -171,6 +171,36 @@ func TestListOrders(t *testing.T) {
 	assert.Nil(t, orders)
 }
 
+func TestListOrdersV2(t *testing.T) {
+	c := testClient()
+	c.do = func(c *client, req *http.Request) (*http.Response, error) {
+		orders := []Order{
+			{
+				ID: "some_id",
+			},
+		}
+		return &http.Response{
+			Body: genBody(orders),
+		}, nil
+	}
+
+	req := ListOrdersRequest{}
+
+	orders, err := c.ListOrdersV2(req)
+	require.NoError(t, err)
+	require.Len(t, orders, 1)
+	assert.Equal(t, "some_id", orders[0].ID)
+
+	// api failure
+	c.do = func(c *client, req *http.Request) (*http.Response, error) {
+		return &http.Response{}, fmt.Errorf("fail")
+	}
+
+	orders, err = c.ListOrdersV2(req)
+	require.Error(t, err)
+	assert.Nil(t, orders)
+}
+
 func TestPlaceOrder(t *testing.T) {
 	c := testClient()
 	// successful (w/ Qty)
