@@ -29,8 +29,12 @@ func (c *client) StreamTradeUpdates(ctx context.Context, handler func(TradeUpdat
 	if err != nil {
 		return err
 	}
-	req.Header.Add("APCA-API-KEY-ID", c.opts.ApiKey)
-	req.Header.Add("APCA-API-SECRET-KEY", c.opts.ApiSecret)
+	if c.opts.OAuth != "" {
+		req.Header.Set("Authorization", "Bearer "+c.opts.OAuth)
+	} else {
+		req.Header.Set("APCA-API-KEY-ID", c.opts.ApiKey)
+		req.Header.Set("APCA-API-SECRET-KEY", c.opts.ApiSecret)
+	}
 
 	resp, err := client.Do(req)
 	if err != nil {
