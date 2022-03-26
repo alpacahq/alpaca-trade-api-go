@@ -171,6 +171,93 @@ func TestListOrders(t *testing.T) {
 	assert.Nil(t, orders)
 }
 
+func TestListOrdersWithEmptyRequest(t *testing.T) {
+	c := testClient()
+	c.do = func(c *client, req *http.Request) (*http.Response, error) {
+		assert.Equal(t, "api.alpaca.markets", req.URL.Host)
+		assert.Equal(t, "/v2/orders", req.URL.Path)
+		assert.Equal(t, "", req.URL.Query().Get("status"))
+		assert.Equal(t, "", req.URL.Query().Get("after"))
+		assert.Equal(t, "", req.URL.Query().Get("until"))
+		assert.Equal(t, "", req.URL.Query().Get("limit"))
+		assert.Equal(t, "", req.URL.Query().Get("direction"))
+		assert.Equal(t, "", req.URL.Query().Get("nested"))
+		assert.Equal(t, "", req.URL.Query().Get("symbols"))
+
+		orders := []Order{
+			{
+				ID: "some_id",
+			},
+		}
+		return &http.Response{
+			Body: genBody(orders),
+		}, nil
+	}
+
+	req := ListOrdersRequest{}
+
+	orders, err := c.ListOrdersWithRequest(req)
+	require.NoError(t, err)
+	require.Len(t, orders, 1)
+	assert.Equal(t, "some_id", orders[0].ID)
+}
+
+func TestListOrdersWithRequest(t *testing.T) {
+	c := testClient()
+	c.do = func(c *client, req *http.Request) (*http.Response, error) {
+		assert.Equal(t, "api.alpaca.markets", req.URL.Host)
+		assert.Equal(t, "/v2/orders", req.URL.Path)
+		assert.Equal(t, "all", req.URL.Query().Get("status"))
+		assert.Equal(t, "2021-04-03T00:00:00Z", req.URL.Query().Get("after"))
+		assert.Equal(t, "2021-04-04T05:00:00Z", req.URL.Query().Get("until"))
+		assert.Equal(t, "2", req.URL.Query().Get("limit"))
+		assert.Equal(t, "asc", req.URL.Query().Get("direction"))
+		assert.Equal(t, "true", req.URL.Query().Get("nested"))
+		assert.Equal(t, "AAPL,TSLA", req.URL.Query().Get("symbols"))
+
+		orders := []Order{
+			{
+				ID: "some_id",
+			},
+		}
+		return &http.Response{
+			Body: genBody(orders),
+		}, nil
+	}
+
+	status := "all"
+	after, _ := time.Parse(time.RFC3339, "2021-04-03T00:00:00Z")
+	until, _ := time.Parse(time.RFC3339, "2021-04-04T05:00:00Z")
+	limit := 2
+	direction := "asc"
+	nested := true
+	symbols := "AAPL,TSLA"
+
+	req := ListOrdersRequest{
+		Status:    &status,
+		After:     &after,
+		Until:     &until,
+		Limit:     &limit,
+		Direction: &direction,
+		Nested:    &nested,
+		Symbols:   &symbols,
+	}
+
+	orders, err := c.ListOrdersWithRequest(req)
+	require.NoError(t, err)
+	require.Len(t, orders, 1)
+	assert.Equal(t, "some_id", orders[0].ID)
+
+	// api failure
+	c.do = func(c *client, req *http.Request) (*http.Response, error) {
+		return &http.Response{}, fmt.Errorf("fail")
+	}
+
+	orders, err = c.ListOrdersWithRequest(req)
+	require.Error(t, err)
+	assert.Nil(t, orders)
+}
+
 func TestPlaceOrder(t *testing.T) {
 	c := testClient()
 	// successful (w/ Qty)
