@@ -284,6 +284,7 @@ type cryptoOptions struct {
 	barHandler        func(CryptoBar)
 	updatedBarHandler func(CryptoBar)
 	dailyBarHandler   func(CryptoBar)
+	orderbookHandler  func(CryptoOrderbook)
 	exchanges         []string
 }
 
@@ -312,6 +313,7 @@ func defaultCryptoOptions() *cryptoOptions {
 				bars:        []string{},
 				updatedBars: []string{},
 				dailyBars:   []string{},
+				orderbooks:  []string{},
 			},
 			connCreator: func(ctx context.Context, u url.URL) (conn, error) {
 				return newNhooyrWebsocketConn(ctx, u)
@@ -322,6 +324,7 @@ func defaultCryptoOptions() *cryptoOptions {
 		barHandler:        func(b CryptoBar) {},
 		updatedBarHandler: func(b CryptoBar) {},
 		dailyBarHandler:   func(b CryptoBar) {},
+		orderbookHandler:  func(ob CryptoOrderbook) {},
 	}
 }
 
@@ -382,6 +385,14 @@ func WithCryptoDailyBars(handler func(CryptoBar), symbols ...string) CryptoOptio
 	return newFuncCryptoOption(func(o *cryptoOptions) {
 		o.sub.dailyBars = symbols
 		o.dailyBarHandler = handler
+	})
+}
+
+// WithCryptoOrderbooks configures initial orderbook symbols to subscribe to and the handler
+func WithCryptoOrderbooks(handler func(CryptoOrderbook), symbols ...string) CryptoOption {
+	return newFuncCryptoOption(func(o *cryptoOptions) {
+		o.sub.orderbooks = symbols
+		o.orderbookHandler = handler
 	})
 }
 

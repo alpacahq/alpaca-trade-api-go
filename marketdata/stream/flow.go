@@ -179,6 +179,7 @@ func (c *client) readSubResponse(ctx context.Context) error {
 		LULDs        []string `msgpack:"lulds"`
 		CancelErrors []string `msgpack:"cancelErrors"`
 		Corrections  []string `msgpack:"corrections"`
+		Orderbooks   []string `msgpack:"orderbooks"`
 	}
 	if err := msgpack.Unmarshal(b, &resps); err != nil {
 		return err
@@ -207,5 +208,6 @@ func (c *client) readSubResponse(ctx context.Context) error {
 	c.sub.lulds = resp.LULDs
 	c.sub.cancelErrors = resp.CancelErrors
 	c.sub.corrections = resp.Corrections
+	c.sub.orderbooks = resp.Orderbooks
 	return nil
 }

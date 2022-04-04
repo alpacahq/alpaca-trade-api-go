@@ -88,6 +88,8 @@ type CryptoClient interface {
 	UnsubscribeFromUpdatedBars(symbols ...string) error
 	SubscribeToDailyBars(handler func(bar CryptoBar), symbols ...string) error
 	UnsubscribeFromDailyBars(symbols ...string) error
+	SubscribeToOrderbooks(handler func(ob CryptoOrderbook), symbols ...string) error
+	UnsubscribeFromOrderbooks(symbols ...string) error
 }
 
 type NewsClient interface {
@@ -234,6 +236,7 @@ func (cc *cryptoClient) configure(o cryptoOptions) {
 	cc.handler.barHandler = o.barHandler
 	cc.handler.updatedBarHandler = o.updatedBarHandler
 	cc.handler.dailyBarHandler = o.dailyBarHandler
+	cc.handler.orderbookHandler = o.orderbookHandler
 	cc.exchanges = o.exchanges
 }
 

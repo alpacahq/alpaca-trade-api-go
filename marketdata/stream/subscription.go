@@ -147,6 +147,13 @@ func (cc *cryptoClient) SubscribeToDailyBars(handler func(CryptoBar), symbols ..
 	return cc.client.handleSubChange(true, subscriptions{dailyBars: symbols})
 }
 
+func (cc *cryptoClient) SubscribeToOrderbooks(handler func(CryptoOrderbook), symbols ...string) error {
+	cc.handler.mu.Lock()
+	cc.handler.orderbookHandler = handler
+	cc.handler.mu.Unlock()
+	return cc.client.handleSubChange(true, subscriptions{orderbooks: symbols})
+}
+
 func (cc *cryptoClient) UnsubscribeFromTrades(symbols ...string) error {
 	return cc.handleSubChange(false, subscriptions{trades: symbols})
 }
@@ -165,6 +172,10 @@ func (cc *cryptoClient) UnsubscribeFromUpdatedBars(symbols ...string) error {
 
 func (cc *cryptoClient) UnsubscribeFromDailyBars(symbols ...string) error {
 	return cc.handleSubChange(false, subscriptions{dailyBars: symbols})
+}
+
+func (cc *cryptoClient) UnsubscribeFromOrderbooks(symbols ...string) error {
+	return cc.handleSubChange(false, subscriptions{orderbooks: symbols})
 }
 
 func (nc *newsClient) SubscribeToNews(handler func(News), symbols ...string) error {
@@ -188,12 +199,14 @@ type subscriptions struct {
 	lulds        []string
 	cancelErrors []string // Subscribed automatically.
 	corrections  []string // Subscribed automatically.
+	orderbooks   []string
 	news         []string
 }
 
 func (s subscriptions) noSubscribeCallNecessary() bool {
 	return len(s.trades) == 0 && len(s.quotes) == 0 && len(s.bars) == 0 && len(s.updatedBars) == 0 &&
-		len(s.dailyBars) == 0 && len(s.statuses) == 0 && len(s.lulds) == 0 && len(s.news) == 0
+		len(s.dailyBars) == 0 && len(s.statuses) == 0 && len(s.lulds) == 0 &&
+		len(s.orderbooks) == 0 && len(s.news) == 0
 }
 
 var timeAfter = time.After
@@ -260,6 +273,7 @@ func getSubChangeMessage(subscribe bool, changes subscriptions) ([]byte, error) 
 		"dailyBars":   changes.dailyBars,
 		"statuses":    changes.statuses,
 		"lulds":       changes.lulds,
+		"orderbooks":  changes.orderbooks,
 		"news":        changes.news,
 		// No need to subscribe to cancel errors or corrections explicitly.
 	})

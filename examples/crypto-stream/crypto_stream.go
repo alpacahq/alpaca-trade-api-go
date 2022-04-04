@@ -22,6 +22,9 @@ func main() {
 		stream.WithCryptoQuotes(func(cq stream.CryptoQuote) {
 			fmt.Printf("QUOTE: %+v\n", cq)
 		}, "BTCUSD"),
+		stream.WithCryptoOrderbooks(func(cob stream.CryptoOrderbook) {
+			fmt.Printf("ORDERBOOK: %+v\n", cob)
+		}, "BTCUSD"),
 		// stream.WithExchanges("CBSE"),
 	)
 	if err := c.Connect(ctx); err != nil {

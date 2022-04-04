@@ -147,6 +147,19 @@ type CryptoBar struct {
 	VWAP       float64
 }
 
+type CryptoOrderbook struct {
+	Symbol    string
+	Exchange  string
+	Timestamp time.Time
+	Bids      []CryptoOrderbookEntry
+	Asks      []CryptoOrderbookEntry
+}
+
+type CryptoOrderbookEntry struct {
+	Price float64
+	Size  float64
+}
+
 type News struct {
 	ID        int
 	Author    string
