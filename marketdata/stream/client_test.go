@@ -966,11 +966,11 @@ func TestCoreFunctionalityCrypto(t *testing.T) {
 			Type:     "o",
 			Symbol:   "SHIBUSD",
 			Exchange: "TST",
-			Bids: []cryptoOrderbookEntryWithT{
+			Bids: []cryptoOrderbookEntry{
 				{Price: 111.1, Size: 222.2},
 				{Price: 333.3, Size: 444.4},
 			},
-			Asks: []cryptoOrderbookEntryWithT{
+			Asks: []cryptoOrderbookEntry{
 				{Price: 555.5, Size: 666.6},
 				{Price: 777.7, Size: 888.8},
 			},

@@ -167,19 +167,18 @@ type cryptoBarWithT struct {
 
 // cryptoOrderbookWithT is the incoming crypto orderbook message that also contains the T type key
 type cryptoOrderbookWithT struct {
-	Type      string                      `msgpack:"T"`
-	Symbol    string                      `msgpack:"S"`
-	Exchange  string                      `msgpack:"x"`
-	Timestamp time.Time                   `msgpack:"t"`
-	Bids      []cryptoOrderbookEntryWithT `msgpack:"b"`
-	Asks      []cryptoOrderbookEntryWithT `msgpack:"a"`
+	Type      string                 `msgpack:"T"`
+	Symbol    string                 `msgpack:"S"`
+	Exchange  string                 `msgpack:"x"`
+	Timestamp time.Time              `msgpack:"t"`
+	Bids      []cryptoOrderbookEntry `msgpack:"b"`
+	Asks      []cryptoOrderbookEntry `msgpack:"a"`
 	// NewField is for testing correct handling of added fields in the future
 	NewField uint64 `msgpack:"n"`
 }
 
-// cryptoOrderbookEntryWithT is the incoming crypto orderbook entry message that also contains the T type key
-type cryptoOrderbookEntryWithT struct {
-	Type  string  `msgpack:"T"`
+// cryptoOrderbookEntry is the incoming crypto orderbook entry message
+type cryptoOrderbookEntry struct {
 	Price float64 `msgpack:"p"`
 	Size  float64 `msgpack:"s"`
 }
@@ -401,11 +400,11 @@ var testCryptoOrderbook = cryptoOrderbookWithT{
 	Symbol:    "TEST",
 	Exchange:  "TEST",
 	Timestamp: time.Date(2022, 04, 04, 16, 0, 30, 0, time.UTC),
-	Bids: []cryptoOrderbookEntryWithT{
+	Bids: []cryptoOrderbookEntry{
 		{Price: 111.1, Size: 222.2},
 		{Price: 333.3, Size: 444.4},
 	},
-	Asks: []cryptoOrderbookEntryWithT{
+	Asks: []cryptoOrderbookEntry{
 		{Price: 555.5, Size: 666.6},
 		{Price: 777.7, Size: 888.8},
 	},
