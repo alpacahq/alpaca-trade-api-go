@@ -251,6 +251,8 @@ func TestSubscribeBeforeConnectCrypto(t *testing.T) {
 	assert.Equal(t, ErrSubscriptionChangeBeforeConnect, err)
 	err = c.SubscribeToDailyBars(func(bar CryptoBar) {})
 	assert.Equal(t, ErrSubscriptionChangeBeforeConnect, err)
+	err = c.SubscribeToOrderbooks(func(ob CryptoOrderbook) {})
+	assert.Equal(t, ErrSubscriptionChangeBeforeConnect, err)
 	err = c.UnsubscribeFromTrades()
 	assert.Equal(t, ErrSubscriptionChangeBeforeConnect, err)
 	err = c.UnsubscribeFromQuotes()
@@ -260,6 +262,8 @@ func TestSubscribeBeforeConnectCrypto(t *testing.T) {
 	err = c.UnsubscribeFromUpdatedBars()
 	assert.Equal(t, ErrSubscriptionChangeBeforeConnect, err)
 	err = c.UnsubscribeFromDailyBars()
+	assert.Equal(t, ErrSubscriptionChangeBeforeConnect, err)
+	err = c.UnsubscribeFromOrderbooks()
 	assert.Equal(t, ErrSubscriptionChangeBeforeConnect, err)
 }
 
@@ -881,6 +885,7 @@ func TestCoreFunctionalityCrypto(t *testing.T) {
 		bars:        []string{"LTCUSD"},
 		updatedBars: []string{"BCHUSD"},
 		dailyBars:   []string{"BCHUSD"},
+		orderbooks:  []string{"SHIBUSD"},
 	})
 
 	trades := make(chan CryptoTrade, 10)
@@ -888,12 +893,14 @@ func TestCoreFunctionalityCrypto(t *testing.T) {
 	bars := make(chan CryptoBar, 10)
 	updatedBars := make(chan CryptoBar, 10)
 	dailyBars := make(chan CryptoBar, 10)
+	orderbooks := make(chan CryptoOrderbook, 10)
 	c := NewCryptoClient(
 		WithCryptoTrades(func(t CryptoTrade) { trades <- t }, "BTCUSD"),
 		WithCryptoQuotes(func(q CryptoQuote) { quotes <- q }, "ETHUSD"),
 		WithCryptoBars(func(b CryptoBar) { bars <- b }, "LTCUSD"),
 		WithCryptoUpdatedBars(func(b CryptoBar) { updatedBars <- b }, "BCHUSD"),
 		WithCryptoDailyBars(func(b CryptoBar) { dailyBars <- b }, "BCHUSD"),
+		WithCryptoOrderbooks(func(ob CryptoOrderbook) { orderbooks <- ob }, "SHIBUSD"),
 		withConnCreator(func(ctx context.Context, u url.URL) (conn, error) {
 			return connection, nil
 		}))
@@ -904,7 +911,7 @@ func TestCoreFunctionalityCrypto(t *testing.T) {
 	err := c.Connect(ctx)
 	require.NoError(t, err)
 
-	// sending two bars and a quote
+	// sending three bars and a quote
 	connection.readCh <- serializeToMsgpack(t, []interface{}{
 		cryptoBarWithT{
 			Type:       "b",
@@ -951,6 +958,22 @@ func TestCoreFunctionalityCrypto(t *testing.T) {
 			Size:      34.876,
 			Id:        25,
 			TakerSide: "S",
+		},
+	})
+	// sending an orderbook
+	connection.readCh <- serializeToMsgpack(t, []interface{}{
+		cryptoOrderbookWithT{
+			Type:     "o",
+			Symbol:   "SHIBUSD",
+			Exchange: "TST",
+			Bids: []cryptoOrderbookEntry{
+				{Price: 111.1, Size: 222.2},
+				{Price: 333.3, Size: 444.4},
+			},
+			Asks: []cryptoOrderbookEntry{
+				{Price: 555.5, Size: 666.6},
+				{Price: 777.7, Size: 888.8},
+			},
 		},
 	})
 
@@ -1000,6 +1023,15 @@ func TestCoreFunctionalityCrypto(t *testing.T) {
 		assert.EqualValues(t, "S", trade.TakerSide)
 	case <-time.After(time.Second):
 		require.Fail(t, "no trade received in time")
+	}
+
+	select {
+	case ob := <-orderbooks:
+		assert.Equal(t, "SHIBUSD", ob.Symbol)
+		assert.Equal(t, 2, len(ob.Bids))
+		assert.Equal(t, 2, len(ob.Asks))
+	case <-time.After(time.Second):
+		require.Fail(t, "no orderbook received in time")
 	}
 }
 
@@ -1089,6 +1121,7 @@ func writeInitialFlowMessagesToConn(
 			LULDs:        sub.lulds,
 			CancelErrors: sub.trades, // Subscribe automatically.
 			Corrections:  sub.trades, // Subscribe automatically.
+			Orderbooks:   sub.orderbooks,
 			News:         sub.news,
 		},
 	})
@@ -1119,6 +1152,7 @@ func checkInitialMessagesSentByClient(
 	require.ElementsMatch(t, sub.lulds, s["lulds"])
 	require.NotContains(t, s, "cancelErrors")
 	require.NotContains(t, s, "corrections")
+	require.ElementsMatch(t, sub.orderbooks, s["orderbooks"])
 }
 
 func TestCryptoClientConstructURL(t *testing.T) {

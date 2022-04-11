@@ -18,6 +18,7 @@ type msgHandler interface {
 	handleLULD(d *msgpack.Decoder, n int) error
 	handleCancelError(d *msgpack.Decoder, n int) error
 	handleCorrection(d *msgpack.Decoder, n int) error
+	handleOrderbook(d *msgpack.Decoder, n int) error
 	handleNews(d *msgpack.Decoder, n int) error
 }
 
@@ -75,6 +76,8 @@ func (c *client) handleMessage(b []byte) error {
 			err = c.handler.handleCancelError(d, n)
 		case "c":
 			err = c.handler.handleCorrection(d, n)
+		case "o":
+			err = c.handler.handleOrderbook(d, n)
 		case "n":
 			err = c.handler.handleNews(d, n)
 		case "subscription":
@@ -417,6 +420,11 @@ func (h *stocksMsgHandler) handleCorrection(d *msgpack.Decoder, n int) error {
 	return nil
 }
 
+func (h *stocksMsgHandler) handleOrderbook(d *msgpack.Decoder, n int) error {
+	// should not happen!
+	return discardMapContents(d, n)
+}
+
 func (h *stocksMsgHandler) handleNews(d *msgpack.Decoder, n int) error {
 	// should not happen!
 	return discardMapContents(d, n)
@@ -429,6 +437,7 @@ type cryptoMsgHandler struct {
 	barHandler        func(bar CryptoBar)
 	updatedBarHandler func(bar CryptoBar)
 	dailyBarHandler   func(bar CryptoBar)
+	orderbookHandler  func(ob CryptoOrderbook)
 }
 
 var _ msgHandler = (*cryptoMsgHandler)(nil)
@@ -579,6 +588,38 @@ func (h *cryptoMsgHandler) handleDailyBar(d *msgpack.Decoder, n int) error {
 	return nil
 }
 
+func (h *cryptoMsgHandler) handleOrderbook(d *msgpack.Decoder, n int) error {
+	orderbook := CryptoOrderbook{}
+	for i := 0; i < n; i++ {
+		key, err := d.DecodeString()
+		if err != nil {
+			return err
+		}
+		switch key {
+		case "S":
+			orderbook.Symbol, err = d.DecodeString()
+		case "x":
+			orderbook.Exchange, err = d.DecodeString()
+		case "t":
+			orderbook.Timestamp, err = d.DecodeTime()
+		case "b":
+			orderbook.Bids, err = decodeCryptoOrderbookEntrySlice(d)
+		case "a":
+			orderbook.Asks, err = decodeCryptoOrderbookEntrySlice(d)
+		default:
+			err = d.Skip()
+		}
+		if err != nil {
+			return err
+		}
+	}
+	h.mu.RLock()
+	orderbookHandler := h.orderbookHandler
+	h.mu.RUnlock()
+	orderbookHandler(orderbook)
+	return nil
+}
+
 func (h *cryptoMsgHandler) handleTradingStatus(d *msgpack.Decoder, n int) error {
 	// should not happen!
 	return discardMapContents(d, n)
@@ -652,6 +693,11 @@ func (h *newsMsgHandler) handleCancelError(d *msgpack.Decoder, n int) error {
 }
 
 func (h *newsMsgHandler) handleCorrection(d *msgpack.Decoder, n int) error {
+	// should not happen!
+	return discardMapContents(d, n)
+}
+
+func (h *newsMsgHandler) handleOrderbook(d *msgpack.Decoder, n int) error {
 	// should not happen!
 	return discardMapContents(d, n)
 }
@@ -761,6 +807,7 @@ var subMessageHandler = func(c *client, s subscriptions) error {
 	c.sub.lulds = s.lulds
 	c.sub.cancelErrors = s.cancelErrors
 	c.sub.corrections = s.corrections
+	c.sub.orderbooks = s.orderbooks
 	c.sub.news = s.news
 	if c.pendingSubChange != nil {
 		psc := c.pendingSubChange
@@ -797,6 +844,8 @@ func (c *client) handleSubscriptionMessage(d *msgpack.Decoder, n int) error {
 			s.cancelErrors, err = decodeStringSlice(d)
 		case "corrections":
 			s.corrections, err = decodeStringSlice(d)
+		case "orderbooks":
+			s.orderbooks, err = decodeStringSlice(d)
 		case "news":
 			s.news, err = decodeStringSlice(d)
 		default:
@@ -842,4 +891,51 @@ func decodeStringSlice(d *msgpack.Decoder) ([]string, error) {
 		}
 	}
 	return res, nil
+}
+
+func decodeCryptoOrderbookEntrySlice(d *msgpack.Decoder) ([]CryptoOrderbookEntry, error) {
+	var length int
+	var err error
+	if length, err = d.DecodeArrayLen(); err != nil {
+		return nil, err
+	}
+	if length < 0 {
+		return []CryptoOrderbookEntry{}, nil
+	}
+	res := make([]CryptoOrderbookEntry, length)
+	for i := 0; i < length; i++ {
+		if e, err := decodeCryptoOrderbookEntry(d); err != nil {
+			return nil, err
+		} else {
+			res[i] = e
+		}
+	}
+	return res, nil
+}
+
+func decodeCryptoOrderbookEntry(d *msgpack.Decoder) (CryptoOrderbookEntry, error) {
+	var entry CryptoOrderbookEntry
+	var err error
+	n, err := d.DecodeMapLen()
+	if err != nil {
+		return entry, err
+	}
+	for i := 0; i < n; i++ {
+		key, err := d.DecodeString()
+		if err != nil {
+			return entry, err
+		}
+		switch key {
+		case "p":
+			entry.Price, err = d.DecodeFloat64()
+		case "s":
+			entry.Size, err = d.DecodeFloat64()
+		default:
+			err = d.Skip()
+		}
+		if err != nil {
+			return entry, err
+		}
+	}
+	return entry, err
 }

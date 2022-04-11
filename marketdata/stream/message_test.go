@@ -165,6 +165,24 @@ type cryptoBarWithT struct {
 	NewField uint64 `msgpack:"new"`
 }
 
+// cryptoOrderbookWithT is the incoming crypto orderbook message that also contains the T type key
+type cryptoOrderbookWithT struct {
+	Type      string                 `msgpack:"T"`
+	Symbol    string                 `msgpack:"S"`
+	Exchange  string                 `msgpack:"x"`
+	Timestamp time.Time              `msgpack:"t"`
+	Bids      []cryptoOrderbookEntry `msgpack:"b"`
+	Asks      []cryptoOrderbookEntry `msgpack:"a"`
+	// NewField is for testing correct handling of added fields in the future
+	NewField uint64 `msgpack:"n"`
+}
+
+// cryptoOrderbookEntry is the incoming crypto orderbook entry message
+type cryptoOrderbookEntry struct {
+	Price float64 `msgpack:"p"`
+	Size  float64 `msgpack:"s"`
+}
+
 type newsWithT struct {
 	Type      string    `msgpack:"T"`
 	ID        int       `msgpack:"id"`
@@ -213,6 +231,7 @@ type subWithT struct {
 	LULDs        []string `msgpack:"lulds"`
 	Corrections  []string `msgpack:"corrections"`
 	CancelErrors []string `msgpack:"cancelErrors"`
+	Orderbooks   []string `msgpack:"orderbooks"`
 	News         []string `msgpack:"news"`
 	// NewField is for testing correct handling of added fields in the future
 	NewField uint64 `msgpack:"N"`
@@ -376,8 +395,23 @@ var testUpdatedCryptoBar = cryptoBarWithT{
 	VWAP:       100.123487,
 }
 
+var testCryptoOrderbook = cryptoOrderbookWithT{
+	Type:      "o",
+	Symbol:    "TEST",
+	Exchange:  "TEST",
+	Timestamp: time.Date(2022, 04, 04, 16, 0, 30, 0, time.UTC),
+	Bids: []cryptoOrderbookEntry{
+		{Price: 111.1, Size: 222.2},
+		{Price: 333.3, Size: 444.4},
+	},
+	Asks: []cryptoOrderbookEntry{
+		{Price: 555.5, Size: 666.6},
+		{Price: 777.7, Size: 888.8},
+	},
+}
+
 var testOther = other{
-	Type:     "o",
+	Type:     "other",
 	Whatever: "whatever",
 }
 
@@ -482,6 +516,7 @@ func TestHandleMessagesStocks(t *testing.T) {
 	err = c.handleMessage(b)
 	require.NoError(t, err)
 
+	// Verify stock trade.
 	assert.EqualValues(t, testTrade.ID, trade.ID)
 	assert.EqualValues(t, testTrade.Symbol, trade.Symbol)
 	assert.EqualValues(t, testTrade.Exchange, trade.Exchange)
@@ -492,6 +527,7 @@ func TestHandleMessagesStocks(t *testing.T) {
 	assert.EqualValues(t, testTrade.Conditions, trade.Conditions)
 	assert.EqualValues(t, testTrade.Tape, trade.Tape)
 
+	// Verify stock trading status.
 	assert.Equal(t, testTradingStatus.Symbol, tradingStatus.Symbol)
 	assert.Equal(t, testTradingStatus.StatusCode, tradingStatus.StatusCode)
 	assert.Equal(t, testTradingStatus.StatusMsg, tradingStatus.StatusMsg)
@@ -500,6 +536,7 @@ func TestHandleMessagesStocks(t *testing.T) {
 	assert.True(t, testTradingStatus.Timestamp.Equal(tradingStatus.Timestamp))
 	assert.Equal(t, testTradingStatus.Tape, tradingStatus.Tape)
 
+	// Verify stock luld.
 	assert.Equal(t, testLULD.Symbol, luld.Symbol)
 	assert.EqualValues(t, testLULD.LimitUpPrice, luld.LimitUpPrice)
 	assert.EqualValues(t, testLULD.LimitDownPrice, luld.LimitDownPrice)
@@ -507,6 +544,7 @@ func TestHandleMessagesStocks(t *testing.T) {
 	assert.True(t, luld.Timestamp.Equal(testLULD.Timestamp))
 	assert.Equal(t, testLULD.Tape, luld.Tape)
 
+	// Verify stock trade correction.
 	assert.EqualValues(t, testCorrection.Symbol, correction.Symbol)
 	assert.EqualValues(t, testCorrection.Exchange, correction.Exchange)
 	assert.EqualValues(t, testCorrection.OriginalID, correction.OriginalID)
@@ -520,6 +558,7 @@ func TestHandleMessagesStocks(t *testing.T) {
 	assert.EqualValues(t, testCorrection.Tape, correction.Tape)
 	assert.True(t, testCorrection.Timestamp.Equal(correction.Timestamp))
 
+	// Verify stock trade cancel error.
 	assert.EqualValues(t, testCancelError.Symbol, cancelError.Symbol)
 	assert.EqualValues(t, testCancelError.ID, cancelError.ID)
 	assert.EqualValues(t, testCancelError.Exchange, cancelError.Exchange)
@@ -529,6 +568,7 @@ func TestHandleMessagesStocks(t *testing.T) {
 	assert.EqualValues(t, testCancelError.Tape, cancelError.Tape)
 	assert.True(t, testCancelError.Timestamp.Equal(cancelError.Timestamp))
 
+	// Verify stock quote.
 	assert.EqualValues(t, testQuote.Symbol, quote.Symbol)
 	assert.EqualValues(t, testQuote.BidExchange, quote.BidExchange)
 	assert.EqualValues(t, testQuote.BidPrice, quote.BidPrice)
@@ -541,6 +581,7 @@ func TestHandleMessagesStocks(t *testing.T) {
 	assert.EqualValues(t, testQuote.Conditions, quote.Conditions)
 	assert.EqualValues(t, testQuote.Tape, quote.Tape)
 
+	// Verify stock bar.
 	assert.EqualValues(t, testBar.Symbol, bar.Symbol)
 	assert.EqualValues(t, testBar.Open, bar.Open)
 	assert.EqualValues(t, testBar.High, bar.High)
@@ -550,6 +591,7 @@ func TestHandleMessagesStocks(t *testing.T) {
 	assert.EqualValues(t, testBar.TradeCount, bar.TradeCount)
 	assert.EqualValues(t, testBar.VWAP, bar.VWAP)
 
+	// Verify stock updated bar.
 	assert.EqualValues(t, testUpdatedBar.Symbol, updatedBar.Symbol)
 	assert.EqualValues(t, testUpdatedBar.Open, updatedBar.Open)
 	assert.EqualValues(t, testUpdatedBar.High, updatedBar.High)
@@ -559,9 +601,11 @@ func TestHandleMessagesStocks(t *testing.T) {
 	assert.EqualValues(t, testUpdatedBar.TradeCount, updatedBar.TradeCount)
 	assert.EqualValues(t, testUpdatedBar.VWAP, updatedBar.VWAP)
 
+	// Verify error.
 	assert.EqualValues(t, testError.Code, em.code)
 	assert.EqualValues(t, testError.Msg, em.msg)
 
+	// Verify subscription.
 	require.Len(t, subscriptionMessages, 2)
 	assert.EqualValues(t, testSubMessage1.Trades, subscriptionMessages[0].trades)
 	assert.EqualValues(t, testSubMessage1.Quotes, subscriptionMessages[0].quotes)
@@ -585,6 +629,7 @@ func TestHandleMessagesCrypto(t *testing.T) {
 		testCryptoQuote,
 		testCryptoBar,
 		testUpdatedCryptoBar,
+		testCryptoOrderbook,
 		testError,
 		testSubMessage1,
 		testSubMessage2,
@@ -630,10 +675,15 @@ func TestHandleMessagesCrypto(t *testing.T) {
 	h.updatedBarHandler = func(b CryptoBar) {
 		updatedBar = b
 	}
+	var orderbook CryptoOrderbook
+	h.orderbookHandler = func(ob CryptoOrderbook) {
+		orderbook = ob
+	}
 
 	err = c.handleMessage(b)
 	require.NoError(t, err)
 
+	// Verify crypto trade.
 	assert.EqualValues(t, testCryptoTrade.Symbol, trade.Symbol)
 	assert.EqualValues(t, testCryptoTrade.Exchange, trade.Exchange)
 	assert.EqualValues(t, testCryptoTrade.Price, trade.Price)
@@ -642,6 +692,7 @@ func TestHandleMessagesCrypto(t *testing.T) {
 	assert.EqualValues(t, testCryptoTrade.TakerSide, trade.TakerSide)
 	assert.True(t, trade.Timestamp.Equal(testTime))
 
+	// Verify crypto quote.
 	assert.EqualValues(t, testCryptoQuote.Symbol, quote.Symbol)
 	assert.EqualValues(t, testCryptoQuote.Exchange, quote.Exchange)
 	assert.EqualValues(t, testCryptoQuote.BidPrice, quote.BidPrice)
@@ -650,6 +701,7 @@ func TestHandleMessagesCrypto(t *testing.T) {
 	assert.EqualValues(t, testCryptoQuote.AskSize, quote.AskSize)
 	assert.True(t, quote.Timestamp.Equal(testTime))
 
+	// Verify crypto bar.
 	assert.EqualValues(t, testCryptoBar.Symbol, bar.Symbol)
 	assert.EqualValues(t, testCryptoBar.Exchange, bar.Exchange)
 	assert.EqualValues(t, testCryptoBar.Open, bar.Open)
@@ -660,6 +712,7 @@ func TestHandleMessagesCrypto(t *testing.T) {
 	assert.EqualValues(t, testCryptoBar.TradeCount, bar.TradeCount)
 	assert.EqualValues(t, testCryptoBar.VWAP, bar.VWAP)
 
+	// Verify crypto updated bar.
 	assert.EqualValues(t, testUpdatedCryptoBar.Symbol, updatedBar.Symbol)
 	assert.EqualValues(t, testUpdatedCryptoBar.Exchange, updatedBar.Exchange)
 	assert.EqualValues(t, testUpdatedCryptoBar.Open, updatedBar.Open)
@@ -670,9 +723,23 @@ func TestHandleMessagesCrypto(t *testing.T) {
 	assert.EqualValues(t, testUpdatedCryptoBar.TradeCount, updatedBar.TradeCount)
 	assert.EqualValues(t, testUpdatedCryptoBar.VWAP, updatedBar.VWAP)
 
+	// Verify crypto orderbook.
+	assert.EqualValues(t, testCryptoOrderbook.Symbol, orderbook.Symbol)
+	assert.EqualValues(t, testCryptoOrderbook.Exchange, orderbook.Exchange)
+	for i := range testCryptoOrderbook.Bids {
+		assert.EqualValues(t, testCryptoOrderbook.Bids[i].Price, orderbook.Bids[i].Price)
+		assert.EqualValues(t, testCryptoOrderbook.Bids[i].Size, orderbook.Bids[i].Size)
+	}
+	for i := range testCryptoOrderbook.Asks {
+		assert.EqualValues(t, testCryptoOrderbook.Asks[i].Price, orderbook.Asks[i].Price)
+		assert.EqualValues(t, testCryptoOrderbook.Asks[i].Size, orderbook.Asks[i].Size)
+	}
+
+	// Verify error.
 	assert.EqualValues(t, testError.Code, em.code)
 	assert.EqualValues(t, testError.Msg, em.msg)
 
+	// Verify subscription.
 	require.Len(t, subscriptionMessages, 2)
 	assert.EqualValues(t, testSubMessage1.Trades, subscriptionMessages[0].trades)
 	assert.EqualValues(t, testSubMessage1.Quotes, subscriptionMessages[0].quotes)
