@@ -52,6 +52,22 @@ func main() {
 	}
 	fmt.Println()
 
+	// Get Facebook bars
+	bars, err := marketdata.GetBars("META", marketdata.GetBarsParams{
+		TimeFrame: marketdata.OneDay,
+		Start:     time.Date(2022, 6, 1, 0, 0, 0, 0, time.UTC),
+		End:       time.Date(2022, 6, 22, 0, 0, 0, 0, time.UTC),
+		AsOf:      "2022-06-10", // Leaving it empty yields the same results
+	})
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println("META bars:")
+	for _, bar := range bars {
+		fmt.Printf("%+v\n", bar)
+	}
+	fmt.Println()
+
 	// Get Average Daily Trading Volume
 	start := time.Date(2021, 8, 1, 0, 0, 0, 0, time.UTC)
 	end := time.Date(2021, 9, 1, 0, 0, 0, 0, time.UTC)

@@ -158,7 +158,7 @@ func defaultDo(c *client, req *http.Request) (*http.Response, error) {
 	return resp, nil
 }
 
-func setBaseQuery(q url.Values, start, end time.Time, feed, defaultFeed string) {
+func setBaseQuery(q url.Values, start, end time.Time, feed, defaultFeed, asof string) {
 	if !start.IsZero() {
 		q.Set("start", start.Format(time.RFC3339))
 	}
@@ -171,6 +171,9 @@ func setBaseQuery(q url.Values, start, end time.Time, feed, defaultFeed string) 
 		if defaultFeed != "" {
 			q.Set("feed", feed)
 		}
+	}
+	if asof != "" {
+		q.Set("asof", asof)
 	}
 }
 
@@ -224,6 +227,8 @@ type GetTradesParams struct {
 	PageLimit int
 	// Feed is the source of the data: sip or iex.
 	Feed string
+	// AsOf defines the date when the symbols are mapped. "-" means no mapping.
+	AsOf string
 }
 
 // GetTrades returns the trades for the given symbol. It blocks until all the trades are collected.
@@ -253,7 +258,7 @@ func (c *client) GetTradesAsync(symbol string, params GetTradesParams) <-chan Tr
 		}
 
 		q := u.Query()
-		setBaseQuery(q, params.Start, params.End, params.Feed, c.opts.Feed)
+		setBaseQuery(q, params.Start, params.End, params.Feed, c.opts.Feed, params.AsOf)
 
 		received := 0
 		for params.TotalLimit == 0 || received < params.TotalLimit {
@@ -315,7 +320,7 @@ func (c *client) GetMultiTradesAsync(symbols []string, params GetTradesParams) <
 
 		q := u.Query()
 		q.Set("symbols", strings.Join(symbols, ","))
-		setBaseQuery(q, params.Start, params.End, params.Feed, c.opts.Feed)
+		setBaseQuery(q, params.Start, params.End, params.Feed, c.opts.Feed, params.AsOf)
 
 		received := 0
 		for params.TotalLimit == 0 || received < params.TotalLimit {
@@ -370,6 +375,8 @@ type GetQuotesParams struct {
 	PageLimit int
 	// Feed is the source of the data: sip or iex.
 	Feed string
+	// AsOf defines the date when the symbols are mapped. "-" means no mapping.
+	AsOf string
 }
 
 // GetQuotes returns the quotes for the given symbol. It blocks until all the quotes are collected.
@@ -402,7 +409,7 @@ func (c *client) GetQuotesAsync(symbol string, params GetQuotesParams) <-chan Qu
 		}
 
 		q := u.Query()
-		setBaseQuery(q, params.Start, params.End, params.Feed, c.opts.Feed)
+		setBaseQuery(q, params.Start, params.End, params.Feed, c.opts.Feed, params.AsOf)
 
 		received := 0
 		for params.TotalLimit == 0 || received < params.TotalLimit {
@@ -464,7 +471,7 @@ func (c *client) GetMultiQuotesAsync(symbols []string, params GetQuotesParams) <
 
 		q := u.Query()
 		q.Set("symbols", strings.Join(symbols, ","))
-		setBaseQuery(q, params.Start, params.End, params.Feed, c.opts.Feed)
+		setBaseQuery(q, params.Start, params.End, params.Feed, c.opts.Feed, params.AsOf)
 
 		received := 0
 		for params.TotalLimit == 0 || received < params.TotalLimit {
@@ -524,10 +531,12 @@ type GetBarsParams struct {
 	// Feed is the source of the data: sip or iex.
 	// If provided, it overrides the client's Feed option.
 	Feed string
+	// AsOf defines the date when the symbols are mapped. "-" means no mapping.
+	AsOf string
 }
 
 func setQueryBarParams(q url.Values, params GetBarsParams, feed string) {
-	setBaseQuery(q, params.Start, params.End, params.Feed, feed)
+	setBaseQuery(q, params.Start, params.End, params.Feed, feed, params.AsOf)
 	adjustment := Raw
 	if params.Adjustment != "" {
 		adjustment = params.Adjustment
