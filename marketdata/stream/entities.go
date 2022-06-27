@@ -153,6 +153,7 @@ type CryptoOrderbook struct {
 	Timestamp time.Time
 	Bids      []CryptoOrderbookEntry
 	Asks      []CryptoOrderbookEntry
+	Reset     bool
 }
 
 type CryptoOrderbookEntry struct {

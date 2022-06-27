@@ -606,6 +606,8 @@ func (h *cryptoMsgHandler) handleOrderbook(d *msgpack.Decoder, n int) error {
 			orderbook.Bids, err = decodeCryptoOrderbookEntrySlice(d)
 		case "a":
 			orderbook.Asks, err = decodeCryptoOrderbookEntrySlice(d)
+		case "r":
+			orderbook.Reset, err = d.DecodeBool()
 		default:
 			err = d.Skip()
 		}
