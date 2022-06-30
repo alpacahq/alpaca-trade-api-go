@@ -349,7 +349,7 @@ func TestGetOrder(t *testing.T) {
 
 func TestGetOrderWithRequest(t *testing.T) {
 	c := testClient()
-	// successful
+	// successful (nested true)
 	c.do = func(c *client, req *http.Request) (*http.Response, error) {
 		assert.Equal(t, "true", req.URL.Query().Get("nested"))
 		order := Order{
@@ -362,6 +362,38 @@ func TestGetOrderWithRequest(t *testing.T) {
 
 	nested := true
 	order, err := c.GetOrderWithRequest(GetOrderRequest{ID: "some_order_id", Nested: &nested})
+	require.NoError(t, err)
+	assert.NotNil(t, order)
+
+	// successful (nested false)
+	c.do = func(c *client, req *http.Request) (*http.Response, error) {
+		assert.Equal(t, "false", req.URL.Query().Get("nested"))
+		order := Order{
+			ID: "some_order_id",
+		}
+		return &http.Response{
+			Body: genBody(order),
+		}, nil
+	}
+
+	nested = false
+	order, err = c.GetOrderWithRequest(GetOrderRequest{ID: "some_order_id", Nested: &nested})
+	require.NoError(t, err)
+	assert.NotNil(t, order)
+
+	// successful (nested nil)
+	c.do = func(c *client, req *http.Request) (*http.Response, error) {
+		assert.False(t, req.URL.Query().Has("nested"))
+		order := Order{
+			ID: "some_order_id",
+		}
+		return &http.Response{
+			Body: genBody(order),
+		}, nil
+	}
+
+	nested = false
+	order, err = c.GetOrderWithRequest(GetOrderRequest{ID: "some_order_id", Nested: nil})
 	require.NoError(t, err)
 	assert.NotNil(t, order)
 
