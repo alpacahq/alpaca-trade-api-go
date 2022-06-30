@@ -32,6 +32,7 @@ type Client interface {
 	ListOrdersWithRequest(req ListOrdersRequest) ([]Order, error)
 	PlaceOrder(req PlaceOrderRequest) (*Order, error)
 	GetOrder(orderID string) (*Order, error)
+	GetOrderWithRequest(req GetOrderRequest) (*Order, error)
 	GetOrderByClientOrderID(clientOrderID string) (*Order, error)
 	ReplaceOrder(orderID string, req ReplaceOrderRequest) (*Order, error)
 	CancelOrder(orderID string) error
@@ -570,6 +571,35 @@ func (c *client) GetOrder(orderID string) (*Order, error) {
 	return order, nil
 }
 
+// GetOrderWithRequest submits a request to get an order by the given order request.
+func (c *client) GetOrderWithRequest(req GetOrderRequest) (*Order, error) {
+	u, err := url.Parse(fmt.Sprintf("%s/%s/orders/%s", c.opts.BaseURL, apiVersion, req.ID))
+	if err != nil {
+		return nil, err
+	}
+
+	q := u.Query()
+
+	if req.Nested != nil {
+		q.Set("nested", strconv.FormatBool(*req.Nested))
+	}
+
+	u.RawQuery = q.Encode()
+
+	resp, err := c.get(u)
+	if err != nil {
+		return nil, err
+	}
+
+	order := &Order{}
+
+	if err = unmarshal(resp, order); err != nil {
+		return nil, err
+	}
+
+	return order, nil
+}
+
 // GetOrderByClientOrderID submits a request to get an order by the client order ID.
 func (c *client) GetOrderByClientOrderID(clientOrderID string) (*Order, error) {
 	u, err := url.Parse(fmt.Sprintf("%s/%s/orders:by_client_order_id", c.opts.BaseURL, apiVersion))
@@ -765,6 +795,12 @@ func PlaceOrder(req PlaceOrderRequest) (*Order, error) {
 // `orderID` using the default Alpaca client.
 func GetOrder(orderID string) (*Order, error) {
 	return DefaultClient.GetOrder(orderID)
+}
+
+// GetOrderWithRequest returns a single order for the given
+// `GetOrderRequest` using the default Alpaca client.
+func GetOrderWithRequest(req GetOrderRequest) (*Order, error) {
+	return DefaultClient.GetOrderWithRequest(req)
 }
 
 // GetOrderByClientOrderID returns a single order for the given

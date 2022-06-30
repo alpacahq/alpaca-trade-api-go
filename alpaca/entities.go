@@ -244,6 +244,11 @@ type ListOrdersRequest struct {
 	Symbols   *string    `json:"symbols"`
 }
 
+type GetOrderRequest struct {
+	ID     string `json:"id"`
+	Nested *bool  `json:"nested"`
+}
+
 type Side string
 
 const (

@@ -347,6 +347,34 @@ func TestGetOrder(t *testing.T) {
 	assert.Nil(t, order)
 }
 
+func TestGetOrderWithRequest(t *testing.T) {
+	c := testClient()
+	// successful
+	c.do = func(c *client, req *http.Request) (*http.Response, error) {
+		assert.Equal(t, "true", req.URL.Query().Get("nested"))
+		order := Order{
+			ID: "some_order_id",
+		}
+		return &http.Response{
+			Body: genBody(order),
+		}, nil
+	}
+
+	nested := true
+	order, err := c.GetOrderWithRequest(GetOrderRequest{ID: "some_order_id", Nested: &nested})
+	require.NoError(t, err)
+	assert.NotNil(t, order)
+
+	// api failure
+	c.do = func(c *client, req *http.Request) (*http.Response, error) {
+		return &http.Response{}, fmt.Errorf("fail")
+	}
+
+	order, err = c.GetOrderWithRequest(GetOrderRequest{ID: "some_order_id"})
+	require.Error(t, err)
+	assert.Nil(t, order)
+}
+
 func TestGetOrderByClientOrderId(t *testing.T) {
 	c := testClient()
 	// successful
