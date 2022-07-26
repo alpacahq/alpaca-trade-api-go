@@ -35,8 +35,8 @@ type options struct {
 	secret             string
 	reconnectLimit     int
 	reconnectDelay     time.Duration
-	connectCallback    func() error
-	disconnectCallback func() error
+	connectCallback    func()
+	disconnectCallback func()
 	processorCount     int
 	bufferSize         int
 	sub                subscriptions
@@ -108,7 +108,7 @@ func WithReconnectSettings(limit int, delay time.Duration) Option {
 // If the stream terminates and can't reconnect, the disconnect callback will timeout one second
 // after reaching the end of the stream's maintenance (if it is still running). This is to avoid
 // the callback blocking the parent thread.
-func WithConnectCallback(callback func() error) Option {
+func WithConnectCallback(callback func()) Option {
 	return newFuncOption(func(o *options) {
 		o.connectCallback = callback
 	})
@@ -118,7 +118,7 @@ func WithConnectCallback(callback func() error) Option {
 // If the stream is terminated and can't reconnect, the disconnect callback will timeout one second
 // after reaching the end of the stream's maintenance (if it is still running). This is to avoid
 // the callback blocking the parent thread.
-func WithDisconnectCallback(callback func() error) Option {
+func WithDisconnectCallback(callback func()) Option {
 	return newFuncOption(func(o *options) {
 		o.disconnectCallback = callback
 	})
@@ -170,16 +170,14 @@ func defaultStockOptions() *stockOptions {
 
 	return &stockOptions{
 		options: options{
-			logger:             DefaultLogger(),
-			baseURL:            baseURL,
-			key:                os.Getenv("APCA_API_KEY_ID"),
-			secret:             os.Getenv("APCA_API_SECRET_KEY"),
-			reconnectLimit:     20,
-			reconnectDelay:     150 * time.Millisecond,
-			connectCallback:    nil,
-			disconnectCallback: nil,
-			processorCount:     1,
-			bufferSize:         100000,
+			logger:         DefaultLogger(),
+			baseURL:        baseURL,
+			key:            os.Getenv("APCA_API_KEY_ID"),
+			secret:         os.Getenv("APCA_API_SECRET_KEY"),
+			reconnectLimit: 20,
+			reconnectDelay: 150 * time.Millisecond,
+			processorCount: 1,
+			bufferSize:     100000,
 			sub: subscriptions{
 				trades:       []string{},
 				quotes:       []string{},
@@ -323,16 +321,14 @@ func defaultCryptoOptions() *cryptoOptions {
 
 	return &cryptoOptions{
 		options: options{
-			logger:             DefaultLogger(),
-			baseURL:            baseURL,
-			key:                os.Getenv("APCA_API_KEY_ID"),
-			secret:             os.Getenv("APCA_API_SECRET_KEY"),
-			reconnectLimit:     20,
-			reconnectDelay:     150 * time.Millisecond,
-			connectCallback:    nil,
-			disconnectCallback: nil,
-			processorCount:     1,
-			bufferSize:         100000,
+			logger:         DefaultLogger(),
+			baseURL:        baseURL,
+			key:            os.Getenv("APCA_API_KEY_ID"),
+			secret:         os.Getenv("APCA_API_SECRET_KEY"),
+			reconnectLimit: 20,
+			reconnectDelay: 150 * time.Millisecond,
+			processorCount: 1,
+			bufferSize:     100000,
 			sub: subscriptions{
 				trades:      []string{},
 				quotes:      []string{},
@@ -439,16 +435,14 @@ type newsOptions struct {
 func defaultNewsOptions() *newsOptions {
 	return &newsOptions{
 		options: options{
-			logger:             DefaultLogger(),
-			baseURL:            "https://stream.data.alpaca.markets/v1beta1/news",
-			key:                os.Getenv("APCA_API_KEY_ID"),
-			secret:             os.Getenv("APCA_API_SECRET_KEY"),
-			reconnectLimit:     20,
-			reconnectDelay:     150 * time.Millisecond,
-			connectCallback:    nil,
-			disconnectCallback: nil,
-			processorCount:     1,
-			bufferSize:         100,
+			logger:         DefaultLogger(),
+			baseURL:        "https://stream.data.alpaca.markets/v1beta1/news",
+			key:            os.Getenv("APCA_API_KEY_ID"),
+			secret:         os.Getenv("APCA_API_SECRET_KEY"),
+			reconnectLimit: 20,
+			reconnectDelay: 150 * time.Millisecond,
+			processorCount: 1,
+			bufferSize:     100,
 			sub: subscriptions{
 				news: []string{},
 			},

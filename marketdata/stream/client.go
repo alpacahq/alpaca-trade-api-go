@@ -107,8 +107,8 @@ type client struct {
 
 	reconnectLimit     int
 	reconnectDelay     time.Duration
-	connectCallback    func() error
-	disconnectCallback func() error
+	connectCallback    func()
+	disconnectCallback func()
 	processorCount     int
 	bufferSize         int
 	connectOnce        sync.Once
@@ -368,7 +368,7 @@ func (c *client) maintainConnection(ctx context.Context, u url.URL, initialResul
 		// If a disconnect/connect callback is running then wait until it finishes or times out.
 		timeout := time.Second
 		if waitTimeout(&callbackWaitGroup, timeout) {
-			c.logger.Warnf("datav2stream: timed out after waiting one second for connect/disconnect callbacks to return")
+			c.logger.Warnf("datav2stream: timed out after waiting %s for connect/disconnect callbacks to return", timeout)
 		}
 	}()
 
@@ -432,9 +432,7 @@ func (c *client) maintainConnection(ctx context.Context, u url.URL, initialResul
 				callbackWaitGroup.Add(1)
 				go func() {
 					defer callbackWaitGroup.Done()
-					if err := c.connectCallback(); err != nil {
-						c.logger.Warnf("datav2stream: connect callback failed, error: %v", err)
-					}
+					c.connectCallback()
 				}()
 			}
 
@@ -466,9 +464,7 @@ func (c *client) maintainConnection(ctx context.Context, u url.URL, initialResul
 				callbackWaitGroup.Add(1)
 				go func() {
 					defer callbackWaitGroup.Done()
-					if err := c.disconnectCallback(); err != nil {
-						c.logger.Warnf("datav2stream: disconnect callback failed, error: %v", err)
-					}
+					c.disconnectCallback()
 				}()
 			}
 		}
