@@ -207,6 +207,72 @@ func TestConnectSucceeds(t *testing.T) {
 	}
 }
 
+func TestCallbacksCalledOnConnectAndDisconnect(t *testing.T) {
+	for _, tt := range tests {
+		numConnectCalls := 0
+		connects := make(chan struct{})
+		connectCallback := func() {
+			numConnectCalls++
+			connects <- struct{}{}
+		}
+
+		numDisconnectCalls := 0
+		disconnects := make(chan struct{})
+		disconnectCallback := func() {
+			numDisconnectCalls++
+			disconnects <- struct{}{}
+		}
+
+		t.Run(tt.name, func(t *testing.T) {
+			connection := newMockConn()
+			defer connection.close()
+			connCreator := func(ctx context.Context, u url.URL) (conn, error) {
+				return connection, nil
+			}
+
+			writeInitialFlowMessagesToConn(t, connection, subscriptions{})
+
+			var c StreamClient
+			switch tt.name {
+			case stocksTests:
+				c = NewStocksClient("iex",
+					withConnCreator(connCreator),
+					WithConnectCallback(connectCallback),
+					WithDisconnectCallback(disconnectCallback))
+			case cryptoTests:
+				c = NewCryptoClient(withConnCreator(connCreator),
+					WithConnectCallback(connectCallback),
+					WithDisconnectCallback(disconnectCallback))
+			}
+
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+
+			err := c.Connect(ctx)
+			require.NoError(t, err)
+
+			select {
+			case <-connects:
+			case <-time.After(time.Second):
+				require.Fail(t, "connect callback was not called in time")
+			}
+			assert.Equal(t, 1, numConnectCalls)
+			assert.Equal(t, 0, numDisconnectCalls)
+
+			// Now force the stream to disconnect via context and assert disconnect callback is
+			// called after waiting a small amount of time to wait for the stream to shut down.
+			cancel()
+			select {
+			case <-disconnects:
+			case <-time.After(time.Second):
+				require.Fail(t, "disconnect callback was not called in time")
+			}
+			assert.Equal(t, 1, numConnectCalls)
+			assert.Equal(t, 1, numDisconnectCalls)
+		})
+	}
+}
+
 func TestSubscribeBeforeConnectStocks(t *testing.T) {
 	c := NewStocksClient("iex")
 
@@ -432,7 +498,7 @@ func TestSubscriptionChangeInvalid(t *testing.T) {
 	assert.True(t, errors.Is(err, ErrSubscriptionChangeInvalidForFeed), "actual: %s", err)
 }
 
-func TestSubscripitionAcrossConnectionIssues(t *testing.T) {
+func TestSubscriptionAcrossConnectionIssues(t *testing.T) {
 	conn1 := newMockConn()
 	writeInitialFlowMessagesToConn(t, conn1, subscriptions{})
 

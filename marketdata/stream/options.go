@@ -29,15 +29,17 @@ type Option interface {
 }
 
 type options struct {
-	logger         Logger
-	baseURL        string
-	key            string
-	secret         string
-	reconnectLimit int
-	reconnectDelay time.Duration
-	processorCount int
-	bufferSize     int
-	sub            subscriptions
+	logger             Logger
+	baseURL            string
+	key                string
+	secret             string
+	reconnectLimit     int
+	reconnectDelay     time.Duration
+	connectCallback    func()
+	disconnectCallback func()
+	processorCount     int
+	bufferSize         int
+	sub                subscriptions
 
 	// for testing only
 	connCreator func(ctx context.Context, u url.URL) (conn, error)
@@ -99,6 +101,26 @@ func WithReconnectSettings(limit int, delay time.Duration) Option {
 	return newFuncOption(func(o *options) {
 		o.reconnectLimit = limit
 		o.reconnectDelay = delay
+	})
+}
+
+// WithConnectCallback runs the callback function after the streaming connection is setup.
+// If the stream terminates and can't reconnect, the connect callback will timeout one second
+// after reaching the end of the stream's maintenance (if it is still running). This is to avoid
+// the callback blocking the parent thread.
+func WithConnectCallback(callback func()) Option {
+	return newFuncOption(func(o *options) {
+		o.connectCallback = callback
+	})
+}
+
+// WithDisconnectCallback runs the callback function after the streaming connection disconnects.
+// If the stream is terminated and can't reconnect, the disconnect callback will timeout one second
+// after reaching the end of the stream's maintenance (if it is still running). This is to avoid
+// the callback blocking the parent thread.
+func WithDisconnectCallback(callback func()) Option {
+	return newFuncOption(func(o *options) {
+		o.disconnectCallback = callback
 	})
 }
 

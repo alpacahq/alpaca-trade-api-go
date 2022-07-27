@@ -105,17 +105,19 @@ type client struct {
 	key     string
 	secret  string
 
-	reconnectLimit int
-	reconnectDelay time.Duration
-	processorCount int
-	bufferSize     int
-	connectOnce    sync.Once
-	connectCalled  bool
-	hasTerminated  bool
-	terminatedChan chan error
-	conn           conn
-	in             chan []byte
-	subChanges     chan []byte
+	reconnectLimit     int
+	reconnectDelay     time.Duration
+	connectCallback    func()
+	disconnectCallback func()
+	processorCount     int
+	bufferSize         int
+	connectOnce        sync.Once
+	connectCalled      bool
+	hasTerminated      bool
+	terminatedChan     chan error
+	conn               conn
+	in                 chan []byte
+	subChanges         chan []byte
 
 	sub subscriptions
 
@@ -141,6 +143,8 @@ func (c *client) configure(o options) {
 	c.secret = o.secret
 	c.reconnectLimit = o.reconnectLimit
 	c.reconnectDelay = o.reconnectDelay
+	c.connectCallback = o.connectCallback
+	c.disconnectCallback = o.disconnectCallback
 	c.processorCount = o.processorCount
 	c.bufferSize = o.bufferSize
 	c.sub = o.sub
@@ -347,6 +351,7 @@ func (c *client) maintainConnection(ctx context.Context, u url.URL, initialResul
 	failedAttemptsInARow := 0
 	connectedAtLeastOnce := false
 
+	callbackWaitGroup := sync.WaitGroup{}
 	defer func() {
 		// If there is a pending sub change we should terminate that
 		c.pendingSubChangeMutex.Lock()
@@ -359,6 +364,11 @@ func (c *client) maintainConnection(ctx context.Context, u url.URL, initialResul
 		// if we haven't connected at least once then Connected should close the channel
 		if connectedAtLeastOnce {
 			close(c.terminatedChan)
+		}
+		// If a disconnect/connect callback is running then wait until it finishes or times out.
+		timeout := time.Second
+		if waitTimeout(&callbackWaitGroup, timeout) {
+			c.logger.Warnf("datav2stream: timed out after waiting %s for connect/disconnect callbacks to return", timeout)
 		}
 	}()
 
@@ -417,6 +427,15 @@ func (c *client) maintainConnection(ctx context.Context, u url.URL, initialResul
 				continue
 			}
 			c.logger.Infof("datav2stream: finished connection setup")
+
+			if c.connectCallback != nil {
+				callbackWaitGroup.Add(1)
+				go func() {
+					defer callbackWaitGroup.Done()
+					c.connectCallback()
+				}()
+			}
+
 			connError = nil
 			if !connectedAtLeastOnce {
 				initialResultCh <- nil
@@ -440,7 +459,31 @@ func (c *client) maintainConnection(ctx context.Context, u url.URL, initialResul
 			} else {
 				c.logger.Warnf("datav2stream: connection lost")
 			}
+
+			if c.disconnectCallback != nil {
+				callbackWaitGroup.Add(1)
+				go func() {
+					defer callbackWaitGroup.Done()
+					c.disconnectCallback()
+				}()
+			}
 		}
+	}
+}
+
+// waitTimeout waits for the WaitGroup for the specified max timeout.
+// Returns true if waiting timed out.
+func waitTimeout(wg *sync.WaitGroup, timeout time.Duration) bool {
+	c := make(chan struct{})
+	go func() {
+		defer close(c)
+		wg.Wait()
+	}()
+	select {
+	case <-c:
+		return false // completed normally
+	case <-time.After(timeout):
+		return true // timed out
 	}
 }
 
