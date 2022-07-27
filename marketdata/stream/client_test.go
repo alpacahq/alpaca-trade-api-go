@@ -243,8 +243,8 @@ func TestCallbacksCalledOnConnectAndDisconnect(t *testing.T) {
 			assert.Equal(t, 1, numConnectCalls)
 			assert.Equal(t, 0, numDisconnectCalls)
 
-			// Now force the stream to disconnect via context and assert disconnect is called after
-			// waiting a small amount of time to wait for the stream to shut down
+			// Now force the stream to disconnect via context and assert disconnect callback is
+			// called after waiting a small amount of time to wait for the stream to shut down.
 			cancel()
 			time.Sleep(100 * time.Millisecond)
 			assert.Equal(t, 1, numConnectCalls)
