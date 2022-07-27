@@ -105,7 +105,7 @@ func WithReconnectSettings(limit int, delay time.Duration) Option {
 }
 
 // WithConnectCallback runs the callback function after the streaming connection is setup.
-// If the stream terminates and can't reconnect, the disconnect callback will timeout one second
+// If the stream terminates and can't reconnect, the connect callback will timeout one second
 // after reaching the end of the stream's maintenance (if it is still running). This is to avoid
 // the callback blocking the parent thread.
 func WithConnectCallback(callback func()) Option {
