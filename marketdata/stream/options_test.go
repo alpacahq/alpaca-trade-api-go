@@ -33,6 +33,8 @@ func TestDefaultOptions(t *testing.T) {
 			assert.EqualValues(t, "testsecret", o.secret)
 			assert.EqualValues(t, 20, o.reconnectLimit)
 			assert.EqualValues(t, 150*time.Millisecond, o.reconnectDelay)
+			assert.EqualValues(t, nil, o.connectCallback)
+			assert.EqualValues(t, nil, o.disconnectCallback)
 			assert.EqualValues(t, 1, o.processorCount)
 			assert.EqualValues(t, 100000, o.bufferSize)
 			assert.EqualValues(t, []string{}, o.sub.trades)
