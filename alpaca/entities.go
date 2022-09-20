@@ -52,12 +52,13 @@ type Order struct {
 	ReplacedBy     *string          `json:"replaced_by"`
 	AssetID        string           `json:"asset_id"`
 	Symbol         string           `json:"symbol"`
-	Exchange       string           `json:"exchange"`
 	Class          string           `json:"asset_class"`
+	OrderClass     OrderClass       `json:"order_class"`
 	Qty            *decimal.Decimal `json:"qty"`
 	Notional       *decimal.Decimal `json:"notional"`
 	FilledQty      decimal.Decimal  `json:"filled_qty"`
-	Type           OrderType        `json:"order_type"`
+	OrderType      OrderType        `json:"order_type"`
+	Type           OrderType        `json:"type"`
 	Side           Side             `json:"side"`
 	TimeInForce    TimeInForce      `json:"time_in_force"`
 	LimitPrice     *decimal.Decimal `json:"limit_price"`
