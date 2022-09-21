@@ -57,7 +57,6 @@ type Order struct {
 	Qty            *decimal.Decimal `json:"qty"`
 	Notional       *decimal.Decimal `json:"notional"`
 	FilledQty      decimal.Decimal  `json:"filled_qty"`
-	OrderType      OrderType        `json:"order_type"`
 	Type           OrderType        `json:"type"`
 	Side           Side             `json:"side"`
 	TimeInForce    TimeInForce      `json:"time_in_force"`
