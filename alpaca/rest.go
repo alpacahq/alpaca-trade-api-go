@@ -223,13 +223,13 @@ func (c *client) GetAccountActivities(activityType *string, opts *AccountActivit
 			q.Set("activity_types", strings.Join(*opts.ActivityTypes, ","))
 		}
 		if opts.Date != nil {
-			q.Set("date", opts.Date.Format(time.RFC3339))
+			q.Set("date", opts.Date.UTC().Format(time.RFC3339))
 		}
 		if opts.Until != nil {
-			q.Set("until", opts.Until.Format(time.RFC3339))
+			q.Set("until", opts.Until.UTC().Format(time.RFC3339))
 		}
 		if opts.After != nil {
-			q.Set("after", opts.After.Format(time.RFC3339))
+			q.Set("after", opts.After.UTC().Format(time.RFC3339))
 		}
 		if opts.Direction != nil {
 			q.Set("direction", *opts.Direction)
