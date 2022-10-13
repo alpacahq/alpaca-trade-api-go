@@ -627,7 +627,7 @@ func TestGetAccountActivities(t *testing.T) {
 		}, nil
 	}
 
-	afterDate := time.Date(2019, 1, 1, 0, 0, 0, 100, time.Now().Location())
+	afterDate := time.Date(2019, 1, 1, 0, 0, 0, 100, time.UTC)
 	pageSize := 10
 	req := &AccountActivitiesRequest{
 		After:    &afterDate,
