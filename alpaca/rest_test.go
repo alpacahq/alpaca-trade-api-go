@@ -608,7 +608,7 @@ func TestGetAccountActivities(t *testing.T) {
 		getQuery := req.URL.Query()
 
 		assert.Equal(t, "/v2/account/activities/DIV", req.URL.Path)
-		assert.Equal(t, "2019-01-01T07:00:00.0000001Z", getQuery.Get("after"))
+		assert.Equal(t, "2019-01-01T00:00:00.0000001Z", getQuery.Get("after"))
 		assert.Equal(t, "10", getQuery.Get("page_size"))
 
 		nta := []map[string]interface{}{
