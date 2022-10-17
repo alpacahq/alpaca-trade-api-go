@@ -602,6 +602,40 @@ func TestGetAccountActivities(t *testing.T) {
 	_, err = c.GetAccountActivities(&dividendsActivityType, nil)
 	assert.NotNil(t, err)
 	assert.EqualError(t, &APIError{Code: 500, Message: "internal server error"}, "internal server error")
+
+	// test filter by date and URI
+	c.do = func(c *client, req *http.Request) (*http.Response, error) {
+		getQuery := req.URL.Query()
+
+		assert.Equal(t, "/v2/account/activities/DIV", req.URL.Path)
+		assert.Equal(t, "2019-01-01T00:00:00.0000001Z", getQuery.Get("after"))
+		assert.Equal(t, "10", getQuery.Get("page_size"))
+
+		nta := []map[string]interface{}{
+			{
+				"activity_type":    "DIV",
+				"id":               "20190801011955195::5f596936-6f23-4cef-bdf1-3806aae57dbf",
+				"date":             "2019-08-01",
+				"net_amount":       "1.02",
+				"symbol":           "T",
+				"qty":              "2",
+				"per_share_amount": "0.51",
+			},
+		}
+		return &http.Response{
+			Body: genBody(nta),
+		}, nil
+	}
+
+	afterDate := time.Date(2019, 1, 1, 0, 0, 0, 100, time.UTC)
+	pageSize := 10
+	req := &AccountActivitiesRequest{
+		After:    &afterDate,
+		PageSize: &pageSize,
+	}
+
+	_, err = c.GetAccountActivities(&dividendsActivityType, req)
+	assert.NoError(t, err)
 }
 
 type nopCloser struct {
