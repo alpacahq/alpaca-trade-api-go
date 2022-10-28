@@ -74,7 +74,12 @@ type ClientOpts struct {
 	Timeout    time.Duration
 	RetryLimit int
 	RetryDelay time.Duration
-	Feed       string
+	// Feed is the default feed to be used by all requests. Can be overridden per request.
+	// For the latest endpoints this is the only way to set this parameter.
+	Feed string
+	// Currency is the default currency to be used by all requests. Can be overridden per request.
+	// For the latest endpoints this is the only way to set this parameter.
+	Currency string
 	// HttpClient to be used for each http request.
 	HttpClient *http.Client
 }
@@ -158,22 +163,33 @@ func defaultDo(c *client, req *http.Request) (*http.Response, error) {
 	return resp, nil
 }
 
-func setBaseQuery(q url.Values, start, end time.Time, feed, defaultFeed, asof string) {
-	if !start.IsZero() {
-		q.Set("start", start.Format(time.RFC3339))
+type baseParams struct {
+	Start    time.Time
+	End      time.Time
+	Feed     string
+	AsOf     string
+	Currency string
+}
+
+func setBaseQuery(q url.Values, p baseParams, opts ClientOpts) {
+	if !p.Start.IsZero() {
+		q.Set("start", p.Start.Format(time.RFC3339))
 	}
-	if !end.IsZero() {
-		q.Set("end", end.Format(time.RFC3339))
+	if !p.End.IsZero() {
+		q.Set("end", p.End.Format(time.RFC3339))
 	}
-	if feed != "" {
-		q.Set("feed", feed)
-	} else {
-		if defaultFeed != "" {
-			q.Set("feed", feed)
-		}
+	if p.Feed != "" {
+		q.Set("feed", p.Feed)
+	} else if opts.Feed != "" {
+		q.Set("feed", opts.Feed)
 	}
-	if asof != "" {
-		q.Set("asof", asof)
+	if p.AsOf != "" {
+		q.Set("asof", p.AsOf)
+	}
+	if p.Currency != "" {
+		q.Set("currency", p.Currency)
+	} else if opts.Currency != "" {
+		q.Set("currency", opts.Currency)
 	}
 }
 
@@ -229,6 +245,8 @@ type GetTradesParams struct {
 	Feed string
 	// AsOf defines the date when the symbols are mapped. "-" means no mapping.
 	AsOf string
+	// Currency is the currency of the displayed prices
+	Currency string
 }
 
 // GetTrades returns the trades for the given symbol. It blocks until all the trades are collected.
@@ -258,7 +276,13 @@ func (c *client) GetTradesAsync(symbol string, params GetTradesParams) <-chan Tr
 		}
 
 		q := u.Query()
-		setBaseQuery(q, params.Start, params.End, params.Feed, c.opts.Feed, params.AsOf)
+		setBaseQuery(q, baseParams{
+			Start:    params.Start,
+			End:      params.End,
+			Feed:     params.Feed,
+			AsOf:     params.AsOf,
+			Currency: params.Currency,
+		}, c.opts)
 
 		received := 0
 		for params.TotalLimit == 0 || received < params.TotalLimit {
@@ -320,7 +344,13 @@ func (c *client) GetMultiTradesAsync(symbols []string, params GetTradesParams) <
 
 		q := u.Query()
 		q.Set("symbols", strings.Join(symbols, ","))
-		setBaseQuery(q, params.Start, params.End, params.Feed, c.opts.Feed, params.AsOf)
+		setBaseQuery(q, baseParams{
+			Start:    params.Start,
+			End:      params.End,
+			Feed:     params.Feed,
+			AsOf:     params.AsOf,
+			Currency: params.Currency,
+		}, c.opts)
 
 		received := 0
 		for params.TotalLimit == 0 || received < params.TotalLimit {
@@ -377,6 +407,8 @@ type GetQuotesParams struct {
 	Feed string
 	// AsOf defines the date when the symbols are mapped. "-" means no mapping.
 	AsOf string
+	// Currency is the currency of the displayed prices
+	Currency string
 }
 
 // GetQuotes returns the quotes for the given symbol. It blocks until all the quotes are collected.
@@ -409,7 +441,13 @@ func (c *client) GetQuotesAsync(symbol string, params GetQuotesParams) <-chan Qu
 		}
 
 		q := u.Query()
-		setBaseQuery(q, params.Start, params.End, params.Feed, c.opts.Feed, params.AsOf)
+		setBaseQuery(q, baseParams{
+			Start:    params.Start,
+			End:      params.End,
+			Feed:     params.Feed,
+			AsOf:     params.AsOf,
+			Currency: params.Currency,
+		}, c.opts)
 
 		received := 0
 		for params.TotalLimit == 0 || received < params.TotalLimit {
@@ -471,7 +509,13 @@ func (c *client) GetMultiQuotesAsync(symbols []string, params GetQuotesParams) <
 
 		q := u.Query()
 		q.Set("symbols", strings.Join(symbols, ","))
-		setBaseQuery(q, params.Start, params.End, params.Feed, c.opts.Feed, params.AsOf)
+		setBaseQuery(q, baseParams{
+			Start:    params.Start,
+			End:      params.End,
+			Feed:     params.Feed,
+			AsOf:     params.AsOf,
+			Currency: params.Currency,
+		}, c.opts)
 
 		received := 0
 		for params.TotalLimit == 0 || received < params.TotalLimit {
@@ -533,10 +577,18 @@ type GetBarsParams struct {
 	Feed string
 	// AsOf defines the date when the symbols are mapped. "-" means no mapping.
 	AsOf string
+	// Currency is the currency of the displayed prices
+	Currency string
 }
 
-func setQueryBarParams(q url.Values, params GetBarsParams, feed string) {
-	setBaseQuery(q, params.Start, params.End, params.Feed, feed, params.AsOf)
+func setQueryBarParams(q url.Values, params GetBarsParams, opts ClientOpts) {
+	setBaseQuery(q, baseParams{
+		Start:    params.Start,
+		End:      params.End,
+		Feed:     params.Feed,
+		AsOf:     params.AsOf,
+		Currency: params.Currency,
+	}, opts)
 	adjustment := Raw
 	if params.Adjustment != "" {
 		adjustment = params.Adjustment
@@ -575,7 +627,7 @@ func (c *client) GetBarsAsync(symbol string, params GetBarsParams) <-chan BarIte
 		}
 
 		q := u.Query()
-		setQueryBarParams(q, params, c.opts.Feed)
+		setQueryBarParams(q, params, c.opts)
 
 		received := 0
 		for params.TotalLimit == 0 || received < params.TotalLimit {
@@ -637,7 +689,7 @@ func (c *client) GetMultiBarsAsync(symbols []string, params GetBarsParams) <-cha
 
 		q := u.Query()
 		q.Set("symbols", strings.Join(symbols, ","))
-		setQueryBarParams(q, params, c.opts.Feed)
+		setQueryBarParams(q, params, c.opts)
 
 		received := 0
 		for params.TotalLimit == 0 || received < params.TotalLimit {
@@ -679,13 +731,16 @@ func (c *client) GetMultiBarsAsync(symbols []string, params GetBarsParams) <-cha
 	return ch
 }
 
-func setLatestQueryParams(u *url.URL, feed string, symbols []string) {
+func setLatestQueryParams(u *url.URL, symbols []string, opts ClientOpts) {
 	q := u.Query()
 	if len(symbols) > 0 {
 		q.Set("symbols", strings.Join(symbols, ","))
 	}
-	if feed != "" {
-		q.Set("feed", feed)
+	if opts.Feed != "" {
+		q.Set("feed", opts.Feed)
+	}
+	if opts.Currency != "" {
+		q.Set("currency", opts.Currency)
 	}
 	u.RawQuery = q.Encode()
 }
@@ -696,7 +751,7 @@ func (c *client) GetLatestBar(symbol string) (*Bar, error) {
 	if err != nil {
 		return nil, err
 	}
-	setLatestQueryParams(u, c.opts.Feed, nil)
+	setLatestQueryParams(u, nil, c.opts)
 
 	resp, err := c.get(u)
 	if err != nil {
@@ -716,7 +771,7 @@ func (c *client) GetLatestBars(symbols []string) (map[string]Bar, error) {
 	if err != nil {
 		return nil, err
 	}
-	setLatestQueryParams(u, c.opts.Feed, symbols)
+	setLatestQueryParams(u, symbols, c.opts)
 
 	resp, err := c.get(u)
 	if err != nil {
@@ -736,7 +791,7 @@ func (c *client) GetLatestTrade(symbol string) (*Trade, error) {
 	if err != nil {
 		return nil, err
 	}
-	setLatestQueryParams(u, c.opts.Feed, nil)
+	setLatestQueryParams(u, nil, c.opts)
 
 	resp, err := c.get(u)
 	if err != nil {
@@ -756,7 +811,7 @@ func (c *client) GetLatestTrades(symbols []string) (map[string]Trade, error) {
 	if err != nil {
 		return nil, err
 	}
-	setLatestQueryParams(u, c.opts.Feed, symbols)
+	setLatestQueryParams(u, symbols, c.opts)
 
 	resp, err := c.get(u)
 	if err != nil {
@@ -776,7 +831,7 @@ func (c *client) GetLatestQuote(symbol string) (*Quote, error) {
 	if err != nil {
 		return nil, err
 	}
-	setLatestQueryParams(u, c.opts.Feed, nil)
+	setLatestQueryParams(u, nil, c.opts)
 
 	resp, err := c.get(u)
 	if err != nil {
@@ -798,7 +853,7 @@ func (c *client) GetLatestQuotes(symbols []string) (map[string]Quote, error) {
 	if err != nil {
 		return nil, err
 	}
-	setLatestQueryParams(u, c.opts.Feed, symbols)
+	setLatestQueryParams(u, symbols, c.opts)
 
 	resp, err := c.get(u)
 	if err != nil {
@@ -818,7 +873,7 @@ func (c *client) GetSnapshot(symbol string) (*Snapshot, error) {
 	if err != nil {
 		return nil, err
 	}
-	setLatestQueryParams(u, c.opts.Feed, nil)
+	setLatestQueryParams(u, nil, c.opts)
 
 	resp, err := c.get(u)
 	if err != nil {
@@ -840,7 +895,7 @@ func (c *client) GetSnapshots(symbols []string) (map[string]*Snapshot, error) {
 	if err != nil {
 		return nil, err
 	}
-	setLatestQueryParams(u, c.opts.Feed, symbols)
+	setLatestQueryParams(u, symbols, c.opts)
 
 	resp, err := c.get(u)
 	if err != nil {
