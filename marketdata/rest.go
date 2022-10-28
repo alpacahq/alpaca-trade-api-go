@@ -29,6 +29,10 @@ type Client interface {
 	GetBarsAsync(symbol string, params GetBarsParams) <-chan BarItem
 	GetMultiBars(symbols []string, params GetBarsParams) (map[string][]Bar, error)
 	GetMultiBarsAsync(symbols []string, params GetBarsParams) <-chan MultiBarItem
+	GetAuctions(symbol string, params GetAuctionsParams) ([]DailyAuctions, error)
+	GetAuctionsAsync(symbol string, params GetAuctionsParams) <-chan DailyAuctionsItem
+	GetMultiAuctions(symbols []string, params GetAuctionsParams) (map[string][]DailyAuctions, error)
+	GetMultiAuctionsAsync(symbols []string, params GetAuctionsParams) <-chan MultiDailyAuctionsItem
 	GetLatestBar(symbol string) (*Bar, error)
 	GetLatestBars(symbols []string) (map[string]Bar, error)
 	GetLatestTrade(symbol string) (*Trade, error)
@@ -173,10 +177,10 @@ type baseParams struct {
 
 func setBaseQuery(q url.Values, p baseParams, opts ClientOpts) {
 	if !p.Start.IsZero() {
-		q.Set("start", p.Start.Format(time.RFC3339))
+		q.Set("start", p.Start.Format(time.RFC3339Nano))
 	}
 	if !p.End.IsZero() {
-		q.Set("end", p.End.Format(time.RFC3339))
+		q.Set("end", p.End.Format(time.RFC3339Nano))
 	}
 	if p.Feed != "" {
 		q.Set("feed", p.Feed)
@@ -195,10 +199,10 @@ func setBaseQuery(q url.Values, p baseParams, opts ClientOpts) {
 
 func setCryptoBaseQuery(q url.Values, start, end time.Time, exchanges []string) {
 	if !start.IsZero() {
-		q.Set("start", start.Format(time.RFC3339))
+		q.Set("start", start.Format(time.RFC3339Nano))
 	}
 	if !end.IsZero() {
-		q.Set("end", end.Format(time.RFC3339))
+		q.Set("end", end.Format(time.RFC3339Nano))
 	}
 	if len(exchanges) > 0 {
 		q.Set("exchanges", strings.Join(exchanges, ","))
@@ -494,7 +498,7 @@ func (c *client) GetMultiQuotes(
 	return quotes, nil
 }
 
-// GetQuotes returns a channel that will be populated with the quotes for the requested symbols.
+// GetMultiQuotesAsync returns a channel that will be populated with the quotes for the requested symbols.
 func (c *client) GetMultiQuotesAsync(symbols []string, params GetQuotesParams) <-chan MultiQuoteItem {
 	ch := make(chan MultiQuoteItem)
 
@@ -725,6 +729,166 @@ func (c *client) GetMultiBarsAsync(symbols []string, params GetBarsParams) <-cha
 				return
 			}
 			q.Set("page_token", *barResp.NextPageToken)
+		}
+	}()
+
+	return ch
+}
+
+// GetAuctionsParams contains optional parameters for getting auctions
+type GetAuctionsParams struct {
+	// Start is the inclusive beginning of the interval
+	Start time.Time
+	// End is the inclusive end of the interval
+	End time.Time
+	// TotalLimit is the limit of the total number of the returned auctions.
+	// If missing, all auctions between start end end will be returned.
+	TotalLimit int
+	// PageLimit is the pagination size. If empty, the default page size will be used.
+	PageLimit int
+	// AsOf defines the date when the symbols are mapped. "-" means no mapping.
+	AsOf string
+	// Currency is the currency of the displayed prices
+	Currency string
+}
+
+// GetAuctions returns the auctions for the given symbol. It blocks until all the auctions are collected.
+// If you want to process the incoming auctions instantly, use GetAuctionsAsync instead!
+func (c *client) GetAuctions(symbol string, params GetAuctionsParams) ([]DailyAuctions, error) {
+	auctions := make([]DailyAuctions, 0)
+	for item := range c.GetAuctionsAsync(symbol, params) {
+		if err := item.Error; err != nil {
+			return nil, err
+		}
+		auctions = append(auctions, item.DailyAuctions)
+	}
+	return auctions, nil
+}
+
+// GetAuctionsAsync returns a channel that will be populated with the auctions for the given symbol.
+func (c *client) GetAuctionsAsync(symbol string, params GetAuctionsParams) <-chan DailyAuctionsItem {
+	ch := make(chan DailyAuctionsItem)
+
+	go func() {
+		defer close(ch)
+
+		u, err := url.Parse(fmt.Sprintf("%s/v2/stocks/%s/auctions", c.opts.BaseURL, symbol))
+		if err != nil {
+			ch <- DailyAuctionsItem{Error: err}
+			return
+		}
+
+		q := u.Query()
+		setBaseQuery(q, baseParams{
+			Start:    params.Start,
+			End:      params.End,
+			Feed:     "sip",
+			AsOf:     params.AsOf,
+			Currency: params.Currency,
+		}, c.opts)
+
+		received := 0
+		for params.TotalLimit == 0 || received < params.TotalLimit {
+			setQueryLimit(q, params.TotalLimit, params.PageLimit, received, v2MaxLimit)
+			u.RawQuery = q.Encode()
+
+			resp, err := c.get(u)
+			if err != nil {
+				ch <- DailyAuctionsItem{Error: err}
+				return
+			}
+
+			var auctionsResp auctionsResponse
+			if err = unmarshal(resp, &auctionsResp); err != nil {
+				ch <- DailyAuctionsItem{Error: err}
+				return
+			}
+
+			for _, a := range auctionsResp.Auctions {
+				ch <- DailyAuctionsItem{DailyAuctions: a}
+			}
+			if auctionsResp.NextPageToken == nil {
+				return
+			}
+			q.Set("page_token", *auctionsResp.NextPageToken)
+			received += len(auctionsResp.Auctions)
+		}
+	}()
+
+	return ch
+}
+
+// GetMultiAuctions returns auctions for the given symbols.
+func (c *client) GetMultiAuctions(
+	symbols []string, params GetAuctionsParams,
+) (map[string][]DailyAuctions, error) {
+	auctions := make(map[string][]DailyAuctions, len(symbols))
+	for item := range c.GetMultiAuctionsAsync(symbols, params) {
+		if err := item.Error; err != nil {
+			return nil, err
+		}
+		auctions[item.Symbol] = append(auctions[item.Symbol], item.DailyAuctions)
+	}
+	return auctions, nil
+}
+
+// GetMultiAuctionsAsync returns a channel that will be populated with the auctions for the requested symbols.
+func (c *client) GetMultiAuctionsAsync(symbols []string, params GetAuctionsParams) <-chan MultiDailyAuctionsItem {
+	ch := make(chan MultiDailyAuctionsItem)
+
+	go func() {
+		defer close(ch)
+
+		u, err := url.Parse(fmt.Sprintf("%s/v2/stocks/auctions", c.opts.BaseURL))
+		if err != nil {
+			ch <- MultiDailyAuctionsItem{Error: err}
+			return
+		}
+
+		q := u.Query()
+		q.Set("symbols", strings.Join(symbols, ","))
+		setBaseQuery(q, baseParams{
+			Start:    params.Start,
+			End:      params.End,
+			Feed:     "sip",
+			AsOf:     params.AsOf,
+			Currency: params.Currency,
+		}, c.opts)
+
+		received := 0
+		for params.TotalLimit == 0 || received < params.TotalLimit {
+			setQueryLimit(q, params.TotalLimit, params.PageLimit, received, v2MaxLimit)
+			u.RawQuery = q.Encode()
+
+			resp, err := c.get(u)
+			if err != nil {
+				ch <- MultiDailyAuctionsItem{Error: err}
+				return
+			}
+
+			var auctions multiAuctionsResponse
+			if err = unmarshal(resp, &auctions); err != nil {
+				ch <- MultiDailyAuctionsItem{Error: err}
+				return
+			}
+
+			sortedSymbols := make([]string, 0, len(auctions.Auctions))
+			for symbol := range auctions.Auctions {
+				sortedSymbols = append(sortedSymbols, symbol)
+			}
+			sort.Strings(sortedSymbols)
+
+			for _, symbol := range sortedSymbols {
+				dailyAuctions := auctions.Auctions[symbol]
+				for _, a := range dailyAuctions {
+					ch <- MultiDailyAuctionsItem{Symbol: symbol, DailyAuctions: a}
+				}
+				received += len(dailyAuctions)
+			}
+			if auctions.NextPageToken == nil {
+				return
+			}
+			q.Set("page_token", *auctions.NextPageToken)
 		}
 	}()
 
@@ -1647,6 +1811,28 @@ func GetMultiBars(symbols []string, params GetBarsParams) (map[string][]Bar, err
 // GetMultiBarsAsync returns a channel that will be populated with the bars for the given symbols.
 func GetMultiBarsAsync(symbols []string, params GetBarsParams) <-chan MultiBarItem {
 	return DefaultClient.GetMultiBarsAsync(symbols, params)
+}
+
+// GetAuctions returns the auctions for the given symbol. It blocks until all the auctions are collected.
+// If you want to process the incoming auctions instantly, use GetAuctionsAsync instead!
+func GetAuctions(symbol string, params GetAuctionsParams) ([]DailyAuctions, error) {
+	return DefaultClient.GetAuctions(symbol, params)
+}
+
+// GetAuctionsAsync returns a channel that will be populated with the auctions for the given symbol.
+func GetAuctionsAsync(symbol string, params GetAuctionsParams) <-chan DailyAuctionsItem {
+	return DefaultClient.GetAuctionsAsync(symbol, params)
+}
+
+// GetMultiAuctions returns the auctions for the given symbols. It blocks until all the auctions are collected.
+// If you want to process the incoming auctions instantly, use GetMultiAuctionsAsync instead!
+func GetMultiAuctions(symbols []string, params GetAuctionsParams) (map[string][]DailyAuctions, error) {
+	return DefaultClient.GetMultiAuctions(symbols, params)
+}
+
+// GetMultiAuctionsAsync returns a channel that will be populated with the auctions for the given symbols.
+func GetMultiAuctionsAsync(symbols []string, params GetAuctionsParams) <-chan MultiDailyAuctionsItem {
+	return DefaultClient.GetMultiAuctionsAsync(symbols, params)
 }
 
 // GetLatestBar returns the latest minute bar for a given symbol.

@@ -279,7 +279,7 @@ func TestGetQuotes(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.Len(t, got, 12)
-	assert.True(t, got[0].Timestamp.Equal(time.Date(2021, 10, 4, 18, 0o0, 14, 12577217, time.UTC)))
+	assert.True(t, got[0].Timestamp.Equal(time.Date(2021, 10, 4, 18, 0, 14, 12577217, time.UTC)))
 	assert.EqualValues(t, 143.68, got[0].BidPrice)
 	assert.EqualValues(t, 1, got[0].BidSize)
 	assert.EqualValues(t, "H", got[0].BidExchange)
@@ -312,6 +312,81 @@ func TestGetMultiQuotes(t *testing.T) {
 	require.Len(t, got, 1)
 	require.Len(t, got["BA"], 6)
 	assert.Equal(t, 212.59, got["BA"][2].AskPrice)
+}
+
+func TestGetAuctions(t *testing.T) {
+	c := testClient()
+	firstResp := `{"auctions":[{"d":"2022-10-17","o":[{"t":"2022-10-17T13:30:00.189598208Z","x":"P","p":141.13,"s":10,"c":"Q"},{"t":"2022-10-17T13:30:01.329947459Z","x":"Q","p":141.07,"s":1103165,"c":"O"},{"t":"2022-10-17T13:30:01.334218355Z","x":"Q","p":141.07,"s":1103165,"c":"Q"}],"c":[{"t":"2022-10-17T20:00:00.155310848Z","x":"P","p":142.4,"s":100,"c":"M"},{"t":"2022-10-17T20:00:01.135646791Z","x":"Q","p":142.41,"s":7927137,"c":"6"},{"t":"2022-10-17T20:00:01.742162179Z","x":"Q","p":142.41,"s":7927137,"c":"M"}]},{"d":"2022-10-18","o":[{"t":"2022-10-18T13:30:00.193677568Z","x":"P","p":145.42,"s":1,"c":"Q"},{"t":"2022-10-18T13:30:01.662931714Z","x":"Q","p":145.49,"s":793345,"c":"O"},{"t":"2022-10-18T13:30:01.67388499Z","x":"Q","p":145.49,"s":793345,"c":"Q"}],"c":[{"t":"2022-10-18T20:00:00.15542272Z","x":"P","p":143.79,"s":100,"c":"M"},{"t":"2022-10-18T20:00:00.63129591Z","x":"Q","p":143.75,"s":3979281,"c":"6"},{"t":"2022-10-18T20:00:00.631313365Z","x":"Q","p":143.75,"s":3979281,"c":"M"}]}],"symbol":"AAPL","next_page_token":"QUFQTHwyMDIyLTEwLTE4VDIwOjAwOjAwLjYzMTMxMzM2NVp8UXxATXwxNDMuNzU="}`
+	secondResp := `{"auctions":[{"d":"2022-10-19","o":[{"t":"2022-10-19T13:30:00.206482688Z","x":"P","p":141.69,"s":4,"c":"Q"},{"t":"2022-10-19T13:30:01.350685708Z","x":"Q","p":141.5,"s":517006,"c":"O"},{"t":"2022-10-19T13:30:01.351159286Z","x":"Q","p":141.5,"s":517006,"c":"Q"}],"c":[{"t":"2022-10-19T20:00:00.143265536Z","x":"P","p":143.9,"s":400,"c":"M"},{"t":"2022-10-19T20:00:01.384247418Z","x":"Q","p":143.86,"s":4006543,"c":"6"},{"t":"2022-10-19T20:00:01.384266818Z","x":"Q","p":143.86,"s":4006543,"c":"M"}]},{"d":"2022-10-20","o":[{"t":"2022-10-20T13:30:00.172134656Z","x":"P","p":143.03,"s":6,"c":"Q"},{"t":"2022-10-20T13:30:01.664127742Z","x":"Q","p":142.98,"s":663728,"c":"O"},{"t":"2022-10-20T13:30:01.664575417Z","x":"Q","p":142.98,"s":663728,"c":"Q"}],"c":[{"t":"2022-10-20T20:00:00.137319424Z","x":"P","p":143.33,"s":362,"c":"M"},{"t":"2022-10-20T20:00:00.212258037Z","x":"Q","p":143.39,"s":5250532,"c":"6"},{"t":"2022-10-20T20:00:00.212282215Z","x":"Q","p":143.39,"s":5250532,"c":"M"}]}],"symbol":"AAPL","next_page_token":"QUFQTHwyMDIyLTEwLTIwVDIwOjAwOjAwLjIxMjI4MjIxNVp8UXxATXwxNDMuMzk="}`
+	thirdResp := `{"auctions":[{"d":"2022-10-21","o":[{"t":"2022-10-21T13:30:00.18449664Z","x":"P","p":142.96,"s":59,"c":"Q"},{"t":"2022-10-21T13:30:01.013655041Z","x":"Q","p":142.81,"s":4643721,"c":"O"},{"t":"2022-10-21T13:30:01.025412599Z","x":"Q","p":142.81,"s":4643721,"c":"Q"}],"c":[{"t":"2022-10-21T20:00:00.151828992Z","x":"P","p":147.27,"s":8147,"c":"M"},{"t":"2022-10-21T20:00:00.551850227Z","x":"Q","p":147.27,"s":6395818,"c":"6"},{"t":"2022-10-21T20:00:00.551870027Z","x":"Q","p":147.27,"s":6395818,"c":"M"}]}],"symbol":"AAPL","next_page_token":"QUFQTHwyMDIyLTEwLTIxVDIwOjAwOjAwLjU1MTg3MDAyN1p8UXxATXwxNDcuMjc="}`
+	c.do = func(c *client, req *http.Request) (*http.Response, error) {
+		assert.Equal(t, "data.alpaca.markets", req.URL.Host)
+		assert.Equal(t, "/v2/stocks/AAPL/auctions", req.URL.Path)
+		assert.Equal(t, "2022-10-17T00:00:00Z", req.URL.Query().Get("start"))
+		assert.Equal(t, "2022-10-28T00:00:00Z", req.URL.Query().Get("end"))
+		assert.Equal(t, "sip", req.URL.Query().Get("feed"))
+		pageToken := req.URL.Query().Get("page_token")
+		var resp string
+		switch pageToken {
+		case "":
+			resp = firstResp
+			assert.Equal(t, "2", req.URL.Query().Get("limit"))
+		case "QUFQTHwyMDIyLTEwLTE4VDIwOjAwOjAwLjYzMTMxMzM2NVp8UXxATXwxNDMuNzU=":
+			resp = secondResp
+			assert.Equal(t, "2", req.URL.Query().Get("limit"))
+		case "QUFQTHwyMDIyLTEwLTIwVDIwOjAwOjAwLjIxMjI4MjIxNVp8UXxATXwxNDMuMzk=":
+			resp = thirdResp
+			assert.Equal(t, "1", req.URL.Query().Get("limit"))
+		default:
+			assert.Fail(t, "unexpected page_token: "+pageToken)
+		}
+		return &http.Response{
+			Body: ioutil.NopCloser(strings.NewReader(resp)),
+		}, nil
+	}
+	got, err := c.GetAuctions("AAPL", GetAuctionsParams{
+		Start:      time.Date(2022, 10, 17, 0, 0, 0, 0, time.UTC),
+		End:        time.Date(2022, 10, 28, 0, 0, 0, 0, time.UTC),
+		PageLimit:  2,
+		TotalLimit: 5,
+	})
+	require.NoError(t, err)
+	require.Len(t, got, 5)
+	first := got[0]
+	assert.Equal(t, "2022-10-17", first.Date.String())
+	if assert.Len(t, first.Opening, 3) {
+		a := first.Opening[0]
+		assert.Equal(t, "2022-10-17T13:30:00.189598208Z", a.Timestamp.Format(time.RFC3339Nano))
+		assert.Equal(t, "P", a.Exchange)
+		assert.Equal(t, 141.13, a.Price)
+		assert.EqualValues(t, 10, a.Size)
+		assert.Equal(t, "Q", a.Condition)
+		assert.Equal(t, "O", first.Opening[1].Condition)
+	}
+	assert.Len(t, first.Closing, 3)
+}
+
+func TestGetMultiAuctions(t *testing.T) {
+	c := testClient()
+	resp := `{"auctions":{"AAPL":[{"d":"2022-10-17","o":[{"t":"2022-10-17T13:30:00.189598208Z","x":"P","p":141.13,"s":10,"c":"Q"},{"t":"2022-10-17T13:30:01.329947459Z","x":"Q","p":141.07,"s":1103165,"c":"O"},{"t":"2022-10-17T13:30:01.334218355Z","x":"Q","p":141.07,"s":1103165,"c":"Q"}],"c":[{"t":"2022-10-17T20:00:00.155310848Z","x":"P","p":142.4,"s":100,"c":"M"},{"t":"2022-10-17T20:00:01.135646791Z","x":"Q","p":142.41,"s":7927137,"c":"6"},{"t":"2022-10-17T20:00:01.742162179Z","x":"Q","p":142.41,"s":7927137,"c":"M"}]}],"IBM":[{"d":"2022-10-17","o":[{"t":"2022-10-17T13:30:00.75936768Z","x":"P","p":121.8,"s":100,"c":"Q"},{"t":"2022-10-17T13:30:00.916387328Z","x":"N","p":121.82,"s":62168,"c":"O"},{"t":"2022-10-17T13:30:00.916387328Z","x":"N","p":121.82,"s":62168,"c":"Q"},{"t":"2022-10-17T13:30:01.093145723Z","x":"T","p":121.66,"s":100,"c":"Q"}],"c":[{"t":"2022-10-17T20:00:00.190113536Z","x":"P","p":121.595,"s":100,"c":"M"},{"t":"2022-10-17T20:00:01.746899562Z","x":"T","p":121.57,"s":4,"c":"M"},{"t":"2022-10-17T20:00:02.02300032Z","x":"N","p":121.52,"s":959421,"c":"6"},{"t":"2022-10-17T20:00:02.136344832Z","x":"N","p":121.52,"s":959421,"c":"M"}]}]},"next_page_token":"SUJNfDIwMjItMTAtMTdUMjM6MDA6MDAuMDAyMjYzODA4WnxOfCBNfDEyMS41Mg=="}`
+	c.do = func(c *client, req *http.Request) (*http.Response, error) {
+		assert.Equal(t, "data.alpaca.markets", req.URL.Host)
+		assert.Equal(t, "/v2/stocks/auctions", req.URL.Path)
+		assert.Equal(t, "2", req.URL.Query().Get("limit"))
+		assert.Equal(t, "AAPL,IBM,TSLA", req.URL.Query().Get("symbols"))
+		return &http.Response{
+			Body: ioutil.NopCloser(strings.NewReader(resp)),
+		}, nil
+	}
+	got, err := c.GetMultiAuctions([]string{"AAPL", "IBM", "TSLA"}, GetAuctionsParams{
+		Start:      time.Date(2022, 10, 17, 0, 0, 0, 0, time.UTC),
+		End:        time.Date(2022, 10, 18, 0, 0, 0, 0, time.UTC),
+		TotalLimit: 2,
+	})
+	require.NoError(t, err)
+	require.Len(t, got, 2)
+	require.Len(t, got["IBM"], 1)
+	assert.EqualValues(t, 959421, got["IBM"][0].Closing[2].Size)
 }
 
 func TestGetBars(t *testing.T) {
@@ -516,7 +591,7 @@ func TestLatestQuote(t *testing.T) {
 		AskExchange: "Q",
 		AskPrice:    134.68,
 		AskSize:     1,
-		Timestamp:   time.Date(2021, 0o4, 20, 13, 1, 57, 822745906, time.UTC),
+		Timestamp:   time.Date(2021, 4, 20, 13, 1, 57, 822745906, time.UTC),
 		Conditions:  []string{"R"},
 	}, *got)
 
@@ -749,7 +824,7 @@ func TestLatestCryptoBar(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, got)
 	assert.Equal(t, CryptoBar{
-		Timestamp:  time.Date(2022, 0o2, 25, 12, 50, 0, 0, time.UTC),
+		Timestamp:  time.Date(2022, 2, 25, 12, 50, 0, 0, time.UTC),
 		Exchange:   "CBSE",
 		Open:       38899.6,
 		High:       39300,
@@ -768,7 +843,7 @@ func TestLatestCryptoBars(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, got, 3)
 	assert.Equal(t, CryptoBar{
-		Timestamp:  time.Date(2022, 0o2, 25, 12, 46, 0, 0, time.UTC),
+		Timestamp:  time.Date(2022, 2, 25, 12, 46, 0, 0, time.UTC),
 		Exchange:   "FTXU",
 		Open:       3.2109,
 		High:       3.2109,
