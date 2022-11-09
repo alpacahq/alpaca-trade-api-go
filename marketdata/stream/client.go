@@ -13,7 +13,7 @@ import (
 
 type StreamClient interface {
 	// Connect establishes a connection and **reestablishes it when errors occur**
-	// as long as the configured number of retires has not been exceeded.
+	// as long as the configured number of retries has not been exceeded.
 	//
 	// It blocks until the connection has been established for the first time (or it failed to do so).
 	//
