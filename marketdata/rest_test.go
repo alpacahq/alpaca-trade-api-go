@@ -168,6 +168,30 @@ func TestGetTrades(t *testing.T) {
 	assert.EqualValues(t, 1, trade.ID)
 }
 
+func TestGetTrades_Currency(t *testing.T) {
+	c := NewClient(ClientOpts{
+		Feed: "sip",
+	}).(*client)
+	resp := `{"trades":[{"t":"2021-10-13T08:00:00.08960768Z","x":"P","p":15922.93,"s":595,"c":["@","T"],"i":1,"z":"C"}],"currency":"JPY","symbol":"AAPL","next_page_token":"QUFQTHwyMDIxLTEwLTEzVDA4OjAwOjAwLjA4OTYwNzY4MFp8UHwwOTIyMzM3MjAzNjg1NDc3NTgwOQ=="}`
+	c.do = func(c *client, req *http.Request) (*http.Response, error) {
+		assert.Equal(t, "sip", req.URL.Query().Get("feed"))
+		assert.Equal(t, "JPY", req.URL.Query().Get("currency"))
+		return &http.Response{
+			Body: ioutil.NopCloser(strings.NewReader(resp)),
+		}, nil
+	}
+	got, err := c.GetTrades("AAPL", GetTradesParams{
+		Start:      time.Date(2021, 10, 13, 0, 0, 0, 0, time.UTC),
+		TotalLimit: 1,
+		PageLimit:  1,
+		Currency:   "JPY",
+	})
+	require.NoError(t, err)
+	require.Len(t, got, 1)
+	trade := got[0]
+	assert.Equal(t, 15922.93, trade.Price)
+}
+
 func TestGetTrades_InvalidURL(t *testing.T) {
 	c := NewClient(ClientOpts{
 		BaseURL: string([]byte{0, 1, 2, 3}),
@@ -255,7 +279,7 @@ func TestGetQuotes(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.Len(t, got, 12)
-	assert.True(t, got[0].Timestamp.Equal(time.Date(2021, 10, 4, 18, 00, 14, 12577217, time.UTC)))
+	assert.True(t, got[0].Timestamp.Equal(time.Date(2021, 10, 4, 18, 0o0, 14, 12577217, time.UTC)))
 	assert.EqualValues(t, 143.68, got[0].BidPrice)
 	assert.EqualValues(t, 1, got[0].BidSize)
 	assert.EqualValues(t, "H", got[0].BidExchange)
@@ -364,7 +388,7 @@ func TestLatestBar(t *testing.T) {
 	assert.Nil(t, got)
 }
 
-func TestLatestBarFeed(t *testing.T) {
+func TestLatestBar_Feed(t *testing.T) {
 	c := NewClient(ClientOpts{Feed: "iex"}).(*client)
 
 	c.do = func(c *client, req *http.Request) (*http.Response, error) {
@@ -377,6 +401,24 @@ func TestLatestBarFeed(t *testing.T) {
 	}
 	_, err := c.GetLatestBar("AAPL")
 	require.NoError(t, err)
+}
+
+func TestLatestBar_Currency(t *testing.T) {
+	c := NewClient(ClientOpts{Currency: "MXN"}).(*client)
+
+	c.do = func(c *client, req *http.Request) (*http.Response, error) {
+		assert.Equal(t, "https://data.alpaca.markets/v2/stocks/AAPL/bars/latest?currency=MXN", req.URL.String())
+		return &http.Response{
+			Body: ioutil.NopCloser(strings.NewReader(
+				`{"symbol":"AAPL","bar":{"t":"2022-10-28T09:09:00Z","o":2899.06,"h":2900.25,"l":2899.06,"c":2900.06,"v":1560,"n":39,"vw":2899.39},"currency":"MXN"}`,
+			)),
+		}, nil
+	}
+	bar, err := c.GetLatestBar("AAPL")
+	require.NoError(t, err)
+	assert.Equal(t, 2899.06, bar.Open)
+	assert.Equal(t, 2900.25, bar.High)
+	assert.Equal(t, 2899.39, bar.VWAP)
 }
 
 func TestLatestBars(t *testing.T) {
@@ -474,7 +516,7 @@ func TestLatestQuote(t *testing.T) {
 		AskExchange: "Q",
 		AskPrice:    134.68,
 		AskSize:     1,
-		Timestamp:   time.Date(2021, 04, 20, 13, 1, 57, 822745906, time.UTC),
+		Timestamp:   time.Date(2021, 0o4, 20, 13, 1, 57, 822745906, time.UTC),
 		Conditions:  []string{"R"},
 	}, *got)
 
@@ -707,7 +749,7 @@ func TestLatestCryptoBar(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, got)
 	assert.Equal(t, CryptoBar{
-		Timestamp:  time.Date(2022, 02, 25, 12, 50, 0, 0, time.UTC),
+		Timestamp:  time.Date(2022, 0o2, 25, 12, 50, 0, 0, time.UTC),
 		Exchange:   "CBSE",
 		Open:       38899.6,
 		High:       39300,
@@ -726,7 +768,7 @@ func TestLatestCryptoBars(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, got, 3)
 	assert.Equal(t, CryptoBar{
-		Timestamp:  time.Date(2022, 02, 25, 12, 46, 0, 0, time.UTC),
+		Timestamp:  time.Date(2022, 0o2, 25, 12, 46, 0, 0, time.UTC),
 		Exchange:   "FTXU",
 		Open:       3.2109,
 		High:       3.2109,
