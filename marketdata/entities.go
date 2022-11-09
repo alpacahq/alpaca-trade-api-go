@@ -3,6 +3,8 @@ package marketdata
 import (
 	"fmt"
 	"time"
+
+	"cloud.google.com/go/civil"
 )
 
 // Trade is a stock trade that happened on the market
@@ -126,6 +128,35 @@ type MultiBarItem struct {
 	Symbol string
 	Bar    Bar
 	Error  error
+}
+
+// Auction is a special trade that represents a stock auction
+type Auction struct {
+	Timestamp time.Time `json:"t"`
+	Price     float64   `json:"p"`
+	Size      uint32    `json:"s"`
+	Exchange  string    `json:"x"`
+	Condition string    `json:"c"`
+}
+
+// DailyAuctions contains all the opening and closing auctions for a symbol in a single day
+type DailyAuctions struct {
+	Date    civil.Date `json:"d"`
+	Opening []Auction  `json:"o"`
+	Closing []Auction  `json:"c"`
+}
+
+// DailyAuctionsItem contains the daily auctions in a single day or an error
+type DailyAuctionsItem struct {
+	DailyAuctions DailyAuctions
+	Error         error
+}
+
+// MultiDailyAuctionsItem contains the daily auctions for a symbol in a single day or an error
+type MultiDailyAuctionsItem struct {
+	Symbol        string
+	DailyAuctions DailyAuctions
+	Error         error
 }
 
 // Snapshot is a snapshot of a symbol
@@ -271,6 +302,17 @@ type barResponse struct {
 type multiBarResponse struct {
 	NextPageToken *string          `json:"next_page_token"`
 	Bars          map[string][]Bar `json:"bars"`
+}
+
+type auctionsResponse struct {
+	Symbol        string          `json:"symbol"`
+	NextPageToken *string         `json:"next_page_token"`
+	Auctions      []DailyAuctions `json:"auctions"`
+}
+
+type multiAuctionsResponse struct {
+	NextPageToken *string                    `json:"next_page_token"`
+	Auctions      map[string][]DailyAuctions `json:"auctions"`
 }
 
 type latestBarResponse struct {
