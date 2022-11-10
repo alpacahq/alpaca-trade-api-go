@@ -204,6 +204,20 @@ func TestGetTrades_InvalidURL(t *testing.T) {
 	require.Error(t, err)
 }
 
+func TestGetTrades_Update(t *testing.T) {
+	c := testClient()
+	resp := `{"trades":[{"t":"2022-10-21T20:19:03.752176Z","x":"D","p":129.88,"s":5,"c":[" ","T","I"],"i":71697353758036,"z":"A","u":"canceled"},{"t":"2022-10-21T20:19:03.876181Z","x":"D","p":129.88,"s":2,"c":[" ","T","I"],"i":71697353815352,"z":"A","u":"canceled"}],"symbol":"A","next_page_token":null}`
+	c.do = mockResp(resp)
+	got, err := c.GetTrades("AAPL", GetTradesParams{
+		Start: time.Date(2022, 10, 21, 20, 19, 3, 0, time.UTC),
+		End:   time.Date(2022, 10, 21, 20, 19, 4, 0, time.UTC),
+	})
+	require.NoError(t, err)
+	require.Len(t, got, 2)
+	assert.Equal(t, "canceled", got[0].Update)
+	assert.Equal(t, "canceled", got[1].Update)
+}
+
 func TestGetTrades_ServerError(t *testing.T) {
 	c := testClient()
 	c.do = mockErrResp()
