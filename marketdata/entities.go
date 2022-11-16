@@ -16,6 +16,7 @@ type Trade struct {
 	ID         int64     `json:"i"`
 	Conditions []string  `json:"c"`
 	Tape       string    `json:"z"`
+	Update     string    `json:"u"`
 }
 
 // TradeItem contains a single trade or an error
@@ -87,11 +88,11 @@ func (tf TimeFrame) String() string {
 }
 
 var (
-	OneMin   TimeFrame = NewTimeFrame(1, Min)
-	OneHour  TimeFrame = NewTimeFrame(1, Hour)
-	OneDay   TimeFrame = NewTimeFrame(1, Day)
-	OneWeek  TimeFrame = NewTimeFrame(1, Week)
-	OneMonth TimeFrame = NewTimeFrame(1, Month)
+	OneMin   = NewTimeFrame(1, Min)
+	OneHour  = NewTimeFrame(1, Hour)
+	OneDay   = NewTimeFrame(1, Day)
+	OneWeek  = NewTimeFrame(1, Week)
+	OneMonth = NewTimeFrame(1, Month)
 )
 
 // Adjustment specifies the corporate action adjustment(s) for the bars
