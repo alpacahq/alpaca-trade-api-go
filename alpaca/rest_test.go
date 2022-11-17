@@ -183,6 +183,7 @@ func TestListOrdersWithEmptyRequest(t *testing.T) {
 		assert.Equal(t, "", req.URL.Query().Get("direction"))
 		assert.Equal(t, "", req.URL.Query().Get("nested"))
 		assert.Equal(t, "", req.URL.Query().Get("symbols"))
+		assert.Equal(t, "", req.URL.Query().Get("side"))
 
 		orders := []Order{
 			{
@@ -214,6 +215,7 @@ func TestListOrdersWithRequest(t *testing.T) {
 		assert.Equal(t, "asc", req.URL.Query().Get("direction"))
 		assert.Equal(t, "true", req.URL.Query().Get("nested"))
 		assert.Equal(t, "AAPL,TSLA", req.URL.Query().Get("symbols"))
+		assert.Equal(t, "buy", req.URL.Query().Get("side"))
 
 		orders := []Order{
 			{
@@ -232,6 +234,7 @@ func TestListOrdersWithRequest(t *testing.T) {
 	direction := "asc"
 	nested := true
 	symbols := "AAPL,TSLA"
+	side := "buy"
 
 	req := ListOrdersRequest{
 		Status:    &status,
@@ -241,6 +244,7 @@ func TestListOrdersWithRequest(t *testing.T) {
 		Direction: &direction,
 		Nested:    &nested,
 		Symbols:   &symbols,
+		Side:      &side,
 	}
 
 	orders, err := c.ListOrdersWithRequest(req)

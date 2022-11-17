@@ -512,6 +512,10 @@ func (c *client) ListOrdersWithRequest(req ListOrdersRequest) ([]Order, error) {
 		q.Set("symbols", *req.Symbols)
 	}
 
+	if req.Side != nil {
+		q.Set("side", *req.Side)
+	}
+
 	u.RawQuery = q.Encode()
 
 	resp, err := c.get(u)
