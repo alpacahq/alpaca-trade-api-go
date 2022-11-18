@@ -242,6 +242,7 @@ type ListOrdersRequest struct {
 	Direction *string    `json:"direction"`
 	Nested    *bool      `json:"nested"`
 	Symbols   *string    `json:"symbols"`
+	Side      *string    `json:"side"`
 }
 
 type Side string
