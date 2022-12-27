@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"strings"
 	"testing"
@@ -377,6 +376,73 @@ func TestGetOrderByClientOrderId(t *testing.T) {
 	assert.Nil(t, order)
 }
 
+func TestClient_GetAnnouncements(t *testing.T) {
+	c := testClient()
+	// successful
+	c.do = func(c *client, req *http.Request) (*http.Response, error) {
+		assert.Equal(t, "api.alpaca.markets", req.URL.Host)
+		assert.Equal(t, "/v2/corporate_actions/announcements", req.URL.Path)
+		assert.Equal(t, "GET", req.Method)
+		assert.Equal(t, "AAPL", req.URL.Query().Get("symbol"))
+		assert.Equal(t, "some_cusip", req.URL.Query().Get("cusip"))
+		assert.Equal(t, "declaration_date", req.URL.Query().Get("date_type"))
+		assert.Equal(t, "Dividend,Merger", req.URL.Query().Get("ca_types"))
+		assert.Equal(t, "2020-01-01", req.URL.Query().Get("since"))
+		assert.Equal(t, "2020-01-02", req.URL.Query().Get("until"))
+
+		announcements := []Announcement{
+			{
+				ID: "some_id",
+			},
+		}
+		return &http.Response{
+			Body: genBody(announcements),
+		}, nil
+	}
+
+	someCATypes := []string{"Dividend", "Merger"}
+	// since is date as in 1st jan 2020
+	since := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
+	// until is date as in 2nd jan 2020
+	until := time.Date(2020, 1, 2, 0, 0, 0, 0, time.UTC)
+	symbol := "AAPL"
+	cusip := "some_cusip"
+	dateType := DeclarationDate
+
+	announcements, err := c.GetAnnouncements(GetAnnouncementsRequest{
+		CATypes:  &someCATypes,
+		Since:    &since,
+		Until:    &until,
+		Symbol:   &symbol,
+		Cusip:    &cusip,
+		DateType: &dateType,
+	})
+	require.NoError(t, err)
+	require.Len(t, announcements, 1)
+}
+
+func TestClient_GetAnnouncement(t *testing.T) {
+	c := testClient()
+	// successful
+	c.do = func(c *client, req *http.Request) (*http.Response, error) {
+		assert.Equal(t, "api.alpaca.markets", req.URL.Host)
+		assert.Equal(t, "/v2/corporate_actions/announcements/123", req.URL.Path)
+		assert.Equal(t, "GET", req.Method)
+
+		announcement := Announcement{
+			ID: "some_id",
+		}
+
+		return &http.Response{
+			Body: genBody(announcement),
+		}, nil
+	}
+
+	announcement, err := c.GetAnnouncement("123")
+	require.NoError(t, err)
+	require.NotNil(t, announcement)
+}
+
 func TestCancelOrder(t *testing.T) {
 	c := testClient()
 	// successful
@@ -467,7 +533,7 @@ func TestGetAssetFromJSON(t *testing.T) {
 	// successful
 	c.do = func(c *client, req *http.Request) (*http.Response, error) {
 		return &http.Response{
-			Body: ioutil.NopCloser(strings.NewReader(assetJSON)),
+			Body: io.NopCloser(strings.NewReader(assetJSON)),
 		}, nil
 	}
 

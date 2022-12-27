@@ -320,3 +320,43 @@ type TradeUpdate struct {
 	Qty         *decimal.Decimal `json:"qty"`
 	Timestamp   *time.Time       `json:"timestamp"`
 }
+
+type GetAnnouncementsRequest struct {
+	CATypes  *[]string  `json:"ca_types"`
+	Since    *time.Time `json:"since"`
+	Until    *time.Time `json:"until"`
+	Symbol   *string    `json:"symbol"`
+	Cusip    *string    `json:"cusip"`
+	DateType *DateType  `json:"date_type"`
+}
+
+type DateType string
+
+const (
+	DeclarationDate DateType = "declaration_date"
+	RecordDate      DateType = "record_date"
+	ExDate          DateType = "ex_date"
+	PayableDate     DateType = "payable_date"
+)
+
+func (d DateType) String() string {
+	return string(d)
+}
+
+type Announcement struct {
+	ID                      string `json:"id"`
+	CorporateActionsID      string `json:"corporate_actions_id"`
+	CAType                  string `json:"ca_type"`
+	CASubType               string `json:"ca_sub_type"`
+	InitiatingSymbol        string `json:"initiating_symbol"`
+	InitiatingOriginalCusip string `json:"initiating_original_cusip"`
+	TargetSymbol            string `json:"target_symbol"`
+	TargetOriginalCusip     string `json:"target_original_cusip"`
+	DeclarationDate         string `json:"declaration_date"`
+	ExpirationDate          string `json:"expiration_date"`
+	RecordDate              string `json:"record_date"`
+	PayableDate             string `json:"payable_date"`
+	Cash                    string `json:"cash"`
+	OldRate                 string `json:"old_rate"`
+	NewRate                 string `json:"new_rate"`
+}

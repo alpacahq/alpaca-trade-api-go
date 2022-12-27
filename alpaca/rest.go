@@ -38,6 +38,8 @@ type Client interface {
 	CancelAllOrders() error
 	ListAssets(status *string) ([]Asset, error)
 	GetAsset(symbol string) (*Asset, error)
+	GetAnnouncements(req GetAnnouncementsRequest) ([]Announcement, error)
+	GetAnnouncement(announcementID string) (*Announcement, error)
 	StreamTradeUpdates(ctx context.Context, handler func(TradeUpdate)) error
 	StreamTradeUpdatesInBackground(ctx context.Context, handler func(TradeUpdate))
 }
@@ -702,6 +704,74 @@ func (c *client) GetAsset(symbol string) (*Asset, error) {
 	return asset, nil
 }
 
+func (c *client) GetAnnouncements(req GetAnnouncementsRequest) ([]Announcement, error) {
+	u, err := url.Parse(fmt.Sprintf("%s/%s/corporate_actions/announcements", c.opts.BaseURL, apiVersion))
+	if err != nil {
+		return nil, err
+	}
+
+	q := u.Query()
+
+	if req.CATypes != nil {
+		q.Set("ca_types", strings.Join(*req.CATypes, ","))
+	}
+
+	if req.Since != nil {
+		q.Set("since", (*req.Since).Format("2006-01-02"))
+	}
+
+	if req.Until != nil {
+		q.Set("until", (*req.Until).Format("2006-01-02"))
+	}
+
+	if req.Symbol != nil {
+		q.Set("symbol", *req.Symbol)
+	}
+
+	if req.Cusip != nil {
+		q.Set("cusip", *req.Cusip)
+	}
+
+	if req.DateType != nil {
+		q.Set("date_type", req.DateType.String())
+	}
+
+	u.RawQuery = q.Encode()
+
+	resp, err := c.get(u)
+	if err != nil {
+		return nil, err
+	}
+
+	var announcements []Announcement
+
+	if err = unmarshal(resp, &announcements); err != nil {
+		return nil, err
+	}
+
+	return announcements, nil
+}
+
+func (c *client) GetAnnouncement(announcementID string) (*Announcement, error) {
+	u, err := url.Parse(fmt.Sprintf("%s/%s/corporate_actions/announcements/%s", c.opts.BaseURL, apiVersion, announcementID))
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := c.get(u)
+	if err != nil {
+		return nil, err
+	}
+
+	announcement := &Announcement{}
+
+	if err = unmarshal(resp, announcement); err != nil {
+		return nil, err
+	}
+
+	return announcement, nil
+}
+
 // GetAccount returns the user's account information
 // using the default Alpaca client.
 func GetAccount() (*Account, error) {
@@ -799,6 +869,18 @@ func ListAssets(status *string) ([]Asset, error) {
 // the default Alpaca client.
 func GetAsset(symbol string) (*Asset, error) {
 	return DefaultClient.GetAsset(symbol)
+}
+
+// GetAnnouncements returns a list of announcements
+// with the default Alpaca client.
+func GetAnnouncements(req GetAnnouncementsRequest) ([]Announcement, error) {
+	return DefaultClient.GetAnnouncements(req)
+}
+
+// GetAnnouncement returns a single announcement
+// with the default Alpaca client.
+func GetAnnouncement(announcementID string) (*Announcement, error) {
+	return DefaultClient.GetAnnouncement(announcementID)
 }
 
 func (c *client) get(u *url.URL) (*http.Response, error) {
