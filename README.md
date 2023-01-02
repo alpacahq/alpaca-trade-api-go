@@ -11,7 +11,7 @@ For details of each API behavior, please see the online API document.
 ## Installation
 
 ```bash
-go get -u github.com/alpacahq/alpaca-trade-api-go/v2/alpaca
+go get -u github.com/alpacahq/alpaca-trade-api-go/v3/alpaca
 ```
 
 ## Examples
@@ -26,7 +26,7 @@ package main
 import (
 	"fmt"
 
-	"github.com/alpacahq/alpaca-trade-api-go/v2/alpaca"
+	"github.com/alpacahq/alpaca-trade-api-go/v3/alpaca"
 )
 
 func main() {
@@ -117,4 +117,4 @@ export APCA_API_BASE_URL=https://paper-api.alpaca.markets
 
 ## Documentation
 
-For a more in-depth look at the SDK, see the [package documentation](https://pkg.go.dev/github.com/alpacahq/alpaca-trade-api-go/v2).
+For a more in-depth look at the SDK, see the [package documentation](https://pkg.go.dev/github.com/alpacahq/alpaca-trade-api-go/v3).

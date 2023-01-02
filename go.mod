@@ -1,4 +1,4 @@
-module github.com/alpacahq/alpaca-trade-api-go/v2
+module github.com/alpacahq/alpaca-trade-api-go/v3
 
 go 1.14
 

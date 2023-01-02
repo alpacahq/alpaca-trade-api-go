@@ -8,9 +8,9 @@ import (
 	"time"
 
 	movingaverage "github.com/RobinUS2/golang-moving-average"
-	"github.com/alpacahq/alpaca-trade-api-go/v2/alpaca"
-	"github.com/alpacahq/alpaca-trade-api-go/v2/marketdata"
-	"github.com/alpacahq/alpaca-trade-api-go/v2/marketdata/stream"
+	"github.com/alpacahq/alpaca-trade-api-go/v3/alpaca"
+	"github.com/alpacahq/alpaca-trade-api-go/v3/marketdata"
+	"github.com/alpacahq/alpaca-trade-api-go/v3/marketdata/stream"
 	"github.com/shopspring/decimal"
 )
 
@@ -228,13 +228,13 @@ func (alp alpacaClientContainer) rebalance(currPrice, avg float64) error {
 			if amountToAdd > buyingPower {
 				amountToAdd = buyingPower
 			}
-			var qtyToBuy = int(amountToAdd / currPrice)
+			qtyToBuy := int(amountToAdd / currPrice)
 			if err := alp.submitLimitOrder(qtyToBuy, algo.stock, currPrice, "buy"); err != nil {
 				return fmt.Errorf("submit limit order: %v", err)
 			}
 		} else {
 			amountToAdd *= -1
-			var qtyToSell = int(amountToAdd / currPrice)
+			qtyToSell := int(amountToAdd / currPrice)
 			if qtyToSell > positionQty {
 				qtyToSell = positionQty
 			}
