@@ -11,8 +11,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/alpacahq/alpaca-trade-api-go/v2/alpaca"
-	"github.com/alpacahq/alpaca-trade-api-go/v2/marketdata/stream"
+	"github.com/alpacahq/alpaca-trade-api-go/v3/alpaca"
+	"github.com/alpacahq/alpaca-trade-api-go/v3/marketdata/stream"
 	"github.com/shopspring/decimal"
 )
 
@@ -234,7 +234,6 @@ func (alp alpacaClientContainer) processTick(tickOpen float64, tickClose float64
 			if int64(targetQty)-alp.position != 0 {
 				if alpacaClient.currOrder != "" {
 					err := alp.client.CancelOrder(alpacaClient.currOrder)
-
 					if err != nil {
 						panic(err)
 					}
@@ -243,7 +242,6 @@ func (alp alpacaClientContainer) processTick(tickOpen float64, tickClose float64
 				}
 
 				_, err := alp.sendOrder(targetQty)
-
 				if err != nil {
 					panic(err)
 				}

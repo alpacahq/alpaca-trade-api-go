@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/alpacahq/alpaca-trade-api-go/v2/marketdata"
+	"github.com/alpacahq/alpaca-trade-api-go/v3/marketdata"
 )
 
 // Get AAPL and MSFT trades from the tenth of a second of the 2021-08-09 market open

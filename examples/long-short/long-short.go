@@ -7,8 +7,8 @@ import (
 	"sort"
 	"time"
 
-	"github.com/alpacahq/alpaca-trade-api-go/v2/alpaca"
-	"github.com/alpacahq/alpaca-trade-api-go/v2/marketdata"
+	"github.com/alpacahq/alpaca-trade-api-go/v3/alpaca"
+	"github.com/alpacahq/alpaca-trade-api-go/v3/marketdata"
 	"github.com/shopspring/decimal"
 )
 
@@ -106,7 +106,6 @@ func main() {
 
 // Rebalance the portfolio every minute, making necessary trades.
 func (alp longShortAlgo) run() error {
-
 	// Figure out when the market will close so we can prepare to sell beforehand.
 	clock, err := algo.tradeClient.GetClock()
 	if err != nil {
