@@ -7,14 +7,15 @@ import (
 	"sort"
 	"time"
 
+	"github.com/shopspring/decimal"
+
 	"github.com/alpacahq/alpaca-trade-api-go/v3/alpaca"
 	"github.com/alpacahq/alpaca-trade-api-go/v3/marketdata"
-	"github.com/shopspring/decimal"
 )
 
 type longShortAlgo struct {
-	tradeClient alpaca.Client
-	dataClient  marketdata.Client
+	tradeClient *alpaca.Client
+	dataClient  *marketdata.Client
 	long        bucket
 	short       bucket
 	allStocks   []stockField

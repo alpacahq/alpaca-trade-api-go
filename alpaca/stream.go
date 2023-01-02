@@ -16,7 +16,7 @@ import (
 
 // StreamTradeUpdates streams the trade updates of the account. It blocks and keeps calling the handler
 // function for each trade update until the context is cancelled.
-func (c *client) StreamTradeUpdates(ctx context.Context, handler func(TradeUpdate)) error {
+func (c *Client) StreamTradeUpdates(ctx context.Context, handler func(TradeUpdate)) error {
 	transport := http.Transport{
 		DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
 			return net.DialTimeout(network, addr, 5*time.Second)
@@ -68,7 +68,7 @@ func (c *client) StreamTradeUpdates(ctx context.Context, handler func(TradeUpdat
 // StreamTradeUpdatesInBackground streams the trade updates of the account.
 // It runs in the background and keeps calling the handler function for each trade update
 // until the context is cancelled. If an error happens it logs it and retries immediately.
-func (c *client) StreamTradeUpdatesInBackground(ctx context.Context, handler func(TradeUpdate)) {
+func (c *Client) StreamTradeUpdatesInBackground(ctx context.Context, handler func(TradeUpdate)) {
 	go func() {
 		for {
 			err := c.StreamTradeUpdates(ctx, handler)
