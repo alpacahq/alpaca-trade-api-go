@@ -15,53 +15,6 @@ import (
 	"time"
 )
 
-// Client is the alpaca marketdata client.
-type Client interface {
-	GetTrades(symbol string, params GetTradesParams) ([]Trade, error)
-	GetTradesAsync(symbol string, params GetTradesParams) <-chan TradeItem
-	GetMultiTrades(symbols []string, params GetTradesParams) (map[string][]Trade, error)
-	GetMultiTradesAsync(symbols []string, params GetTradesParams) <-chan MultiTradeItem
-	GetQuotes(symbol string, params GetQuotesParams) ([]Quote, error)
-	GetQuotesAsync(symbol string, params GetQuotesParams) <-chan QuoteItem
-	GetMultiQuotes(symbols []string, params GetQuotesParams) (map[string][]Quote, error)
-	GetMultiQuotesAsync(symbols []string, params GetQuotesParams) <-chan MultiQuoteItem
-	GetBars(symbol string, params GetBarsParams) ([]Bar, error)
-	GetBarsAsync(symbol string, params GetBarsParams) <-chan BarItem
-	GetMultiBars(symbols []string, params GetBarsParams) (map[string][]Bar, error)
-	GetMultiBarsAsync(symbols []string, params GetBarsParams) <-chan MultiBarItem
-	GetAuctions(symbol string, params GetAuctionsParams) ([]DailyAuctions, error)
-	GetAuctionsAsync(symbol string, params GetAuctionsParams) <-chan DailyAuctionsItem
-	GetMultiAuctions(symbols []string, params GetAuctionsParams) (map[string][]DailyAuctions, error)
-	GetMultiAuctionsAsync(symbols []string, params GetAuctionsParams) <-chan MultiDailyAuctionsItem
-	GetLatestBar(symbol string) (*Bar, error)
-	GetLatestBars(symbols []string) (map[string]Bar, error)
-	GetLatestTrade(symbol string) (*Trade, error)
-	GetLatestTrades(symbols []string) (map[string]Trade, error)
-	GetLatestQuote(symbol string) (*Quote, error)
-	GetLatestQuotes(symbols []string) (map[string]Quote, error)
-	GetSnapshot(symbol string) (*Snapshot, error)
-	GetSnapshots(symbols []string) (map[string]*Snapshot, error)
-	GetCryptoTrades(symbol string, params GetCryptoTradesParams) ([]CryptoTrade, error)
-	GetCryptoTradesAsync(symbol string, params GetCryptoTradesParams) <-chan CryptoTradeItem
-	GetCryptoQuotes(symbol string, params GetCryptoQuotesParams) ([]CryptoQuote, error)
-	GetCryptoQuotesAsync(symbol string, params GetCryptoQuotesParams) <-chan CryptoQuoteItem
-	GetCryptoBars(symbol string, params GetCryptoBarsParams) ([]CryptoBar, error)
-	GetCryptoBarsAsync(symbol string, params GetCryptoBarsParams) <-chan CryptoBarItem
-	GetCryptoMultiBars(symbols []string, params GetCryptoBarsParams) (map[string][]CryptoBar, error)
-	GetCryptoMultiBarsAsync(symbols []string, params GetCryptoBarsParams) <-chan CryptoMultiBarItem
-	GetLatestCryptoBar(symbol, exchange string) (*CryptoBar, error)
-	GetLatestCryptoBars(symbols []string, exchange string) (map[string]CryptoBar, error)
-	GetLatestCryptoTrade(symbol, exchange string) (*CryptoTrade, error)
-	GetLatestCryptoTrades(symbols []string, exchange string) (map[string]CryptoTrade, error)
-	GetLatestCryptoQuote(symbol, exchange string) (*CryptoQuote, error)
-	GetLatestCryptoQuotes(symbols []string, exchange string) (map[string]CryptoQuote, error)
-	GetLatestCryptoXBBO(symbol string, exchanges []string) (*CryptoXBBO, error)
-	GetLatestCryptoXBBOs(symbols []string, exchanges []string) (map[string]CryptoXBBO, error)
-	GetCryptoSnapshot(symbol string, exchange string) (*CryptoSnapshot, error)
-	GetCryptoSnapshots(symbols []string, exchange string) (map[string]CryptoSnapshot, error)
-	GetNews(params GetNewsParams) ([]News, error)
-}
-
 // ClientOpts contains options for the alpaca marketdata client.
 //
 // Currently it contains the exact same options as the trading alpaca client,
@@ -88,15 +41,16 @@ type ClientOpts struct {
 	HttpClient *http.Client
 }
 
-type client struct {
+// Client is the alpaca marketdata Client.
+type Client struct {
 	opts       ClientOpts
 	httpClient *http.Client
 
-	do func(c *client, req *http.Request) (*http.Response, error)
+	do func(c *Client, req *http.Request) (*http.Response, error)
 }
 
 // NewClient creates a new marketdata client using the given opts.
-func NewClient(opts ClientOpts) Client {
+func NewClient(opts ClientOpts) *Client {
 	if opts.ApiKey == "" {
 		opts.ApiKey = os.Getenv("APCA_API_KEY_ID")
 	}
@@ -125,7 +79,7 @@ func NewClient(opts ClientOpts) Client {
 			Timeout: opts.Timeout,
 		}
 	}
-	return &client{
+	return &Client{
 		opts:       opts,
 		httpClient: httpClient,
 
@@ -136,7 +90,7 @@ func NewClient(opts ClientOpts) Client {
 // DefaultClient uses options from environment variables, or the defaults.
 var DefaultClient = NewClient(ClientOpts{})
 
-func defaultDo(c *client, req *http.Request) (*http.Response, error) {
+func defaultDo(c *Client, req *http.Request) (*http.Response, error) {
 	if c.opts.OAuth != "" {
 		req.Header.Set("Authorization", "Bearer "+c.opts.OAuth)
 	} else {
@@ -255,7 +209,7 @@ type GetTradesParams struct {
 
 // GetTrades returns the trades for the given symbol. It blocks until all the trades are collected.
 // If you want to process the incoming trades instantly, use GetTradesAsync instead!
-func (c *client) GetTrades(symbol string, params GetTradesParams) ([]Trade, error) {
+func (c *Client) GetTrades(symbol string, params GetTradesParams) ([]Trade, error) {
 	trades := make([]Trade, 0)
 	for item := range c.GetTradesAsync(symbol, params) {
 		if err := item.Error; err != nil {
@@ -267,7 +221,7 @@ func (c *client) GetTrades(symbol string, params GetTradesParams) ([]Trade, erro
 }
 
 // GetTradesAsync returns a channel that will be populated with the historical trades for the given symbol.
-func (c *client) GetTradesAsync(symbol string, params GetTradesParams) <-chan TradeItem {
+func (c *Client) GetTradesAsync(symbol string, params GetTradesParams) <-chan TradeItem {
 	ch := make(chan TradeItem)
 
 	go func() {
@@ -320,7 +274,7 @@ func (c *client) GetTradesAsync(symbol string, params GetTradesParams) <-chan Tr
 }
 
 // GetMultiTrades returns trades for the given symbols.
-func (c *client) GetMultiTrades(
+func (c *Client) GetMultiTrades(
 	symbols []string, params GetTradesParams,
 ) (map[string][]Trade, error) {
 	trades := make(map[string][]Trade, len(symbols))
@@ -334,7 +288,7 @@ func (c *client) GetMultiTrades(
 }
 
 // GetTrades returns a channel that will be populated with the trades for the requested symbols.
-func (c *client) GetMultiTradesAsync(symbols []string, params GetTradesParams) <-chan MultiTradeItem {
+func (c *Client) GetMultiTradesAsync(symbols []string, params GetTradesParams) <-chan MultiTradeItem {
 	ch := make(chan MultiTradeItem)
 
 	go func() {
@@ -417,7 +371,7 @@ type GetQuotesParams struct {
 
 // GetQuotes returns the quotes for the given symbol. It blocks until all the quotes are collected.
 // If you want to process the incoming quotes instantly, use GetQuotesAsync instead!
-func (c *client) GetQuotes(symbol string, params GetQuotesParams) ([]Quote, error) {
+func (c *Client) GetQuotes(symbol string, params GetQuotesParams) ([]Quote, error) {
 	quotes := make([]Quote, 0)
 	for item := range c.GetQuotesAsync(symbol, params) {
 		if err := item.Error; err != nil {
@@ -429,7 +383,7 @@ func (c *client) GetQuotes(symbol string, params GetQuotesParams) ([]Quote, erro
 }
 
 // GetQuotesAsync returns a channel that will be populated with the quotes for the given symbol.
-func (c *client) GetQuotesAsync(symbol string, params GetQuotesParams) <-chan QuoteItem {
+func (c *Client) GetQuotesAsync(symbol string, params GetQuotesParams) <-chan QuoteItem {
 	// NOTE: this method is very similar to GetTrades.
 	// With generics it would be almost trivial to refactor them to use a common c.opts.BaseURL method,
 	// but without them it doesn't seem to be worth it
@@ -485,7 +439,7 @@ func (c *client) GetQuotesAsync(symbol string, params GetQuotesParams) <-chan Qu
 }
 
 // GetMultiQuotes returns quotes for the given symbols.
-func (c *client) GetMultiQuotes(
+func (c *Client) GetMultiQuotes(
 	symbols []string, params GetQuotesParams,
 ) (map[string][]Quote, error) {
 	quotes := make(map[string][]Quote, len(symbols))
@@ -499,7 +453,7 @@ func (c *client) GetMultiQuotes(
 }
 
 // GetMultiQuotesAsync returns a channel that will be populated with the quotes for the requested symbols.
-func (c *client) GetMultiQuotesAsync(symbols []string, params GetQuotesParams) <-chan MultiQuoteItem {
+func (c *Client) GetMultiQuotesAsync(symbols []string, params GetQuotesParams) <-chan MultiQuoteItem {
 	ch := make(chan MultiQuoteItem)
 
 	go func() {
@@ -606,7 +560,7 @@ func setQueryBarParams(q url.Values, params GetBarsParams, opts ClientOpts) {
 }
 
 // GetBars returns a slice of bars for the given symbol.
-func (c *client) GetBars(symbol string, params GetBarsParams) ([]Bar, error) {
+func (c *Client) GetBars(symbol string, params GetBarsParams) ([]Bar, error) {
 	bars := make([]Bar, 0)
 	for item := range c.GetBarsAsync(symbol, params) {
 		if err := item.Error; err != nil {
@@ -618,7 +572,7 @@ func (c *client) GetBars(symbol string, params GetBarsParams) ([]Bar, error) {
 }
 
 // GetBarsAsync returns a channel that will be populated with the bars for the given symbol.
-func (c *client) GetBarsAsync(symbol string, params GetBarsParams) <-chan BarItem {
+func (c *Client) GetBarsAsync(symbol string, params GetBarsParams) <-chan BarItem {
 	ch := make(chan BarItem)
 
 	go func() {
@@ -665,7 +619,7 @@ func (c *client) GetBarsAsync(symbol string, params GetBarsParams) <-chan BarIte
 }
 
 // GetMultiBars returns bars for the given symbols.
-func (c *client) GetMultiBars(
+func (c *Client) GetMultiBars(
 	symbols []string, params GetBarsParams,
 ) (map[string][]Bar, error) {
 	bars := make(map[string][]Bar, len(symbols))
@@ -679,7 +633,7 @@ func (c *client) GetMultiBars(
 }
 
 // GetMultiBarsAsync returns a channel that will be populated with the bars for the requested symbols.
-func (c *client) GetMultiBarsAsync(symbols []string, params GetBarsParams) <-chan MultiBarItem {
+func (c *Client) GetMultiBarsAsync(symbols []string, params GetBarsParams) <-chan MultiBarItem {
 	ch := make(chan MultiBarItem)
 
 	go func() {
@@ -754,7 +708,7 @@ type GetAuctionsParams struct {
 
 // GetAuctions returns the auctions for the given symbol. It blocks until all the auctions are collected.
 // If you want to process the incoming auctions instantly, use GetAuctionsAsync instead!
-func (c *client) GetAuctions(symbol string, params GetAuctionsParams) ([]DailyAuctions, error) {
+func (c *Client) GetAuctions(symbol string, params GetAuctionsParams) ([]DailyAuctions, error) {
 	auctions := make([]DailyAuctions, 0)
 	for item := range c.GetAuctionsAsync(symbol, params) {
 		if err := item.Error; err != nil {
@@ -766,7 +720,7 @@ func (c *client) GetAuctions(symbol string, params GetAuctionsParams) ([]DailyAu
 }
 
 // GetAuctionsAsync returns a channel that will be populated with the auctions for the given symbol.
-func (c *client) GetAuctionsAsync(symbol string, params GetAuctionsParams) <-chan DailyAuctionsItem {
+func (c *Client) GetAuctionsAsync(symbol string, params GetAuctionsParams) <-chan DailyAuctionsItem {
 	ch := make(chan DailyAuctionsItem)
 
 	go func() {
@@ -819,7 +773,7 @@ func (c *client) GetAuctionsAsync(symbol string, params GetAuctionsParams) <-cha
 }
 
 // GetMultiAuctions returns auctions for the given symbols.
-func (c *client) GetMultiAuctions(
+func (c *Client) GetMultiAuctions(
 	symbols []string, params GetAuctionsParams,
 ) (map[string][]DailyAuctions, error) {
 	auctions := make(map[string][]DailyAuctions, len(symbols))
@@ -833,7 +787,7 @@ func (c *client) GetMultiAuctions(
 }
 
 // GetMultiAuctionsAsync returns a channel that will be populated with the auctions for the requested symbols.
-func (c *client) GetMultiAuctionsAsync(symbols []string, params GetAuctionsParams) <-chan MultiDailyAuctionsItem {
+func (c *Client) GetMultiAuctionsAsync(symbols []string, params GetAuctionsParams) <-chan MultiDailyAuctionsItem {
 	ch := make(chan MultiDailyAuctionsItem)
 
 	go func() {
@@ -910,7 +864,7 @@ func setLatestQueryParams(u *url.URL, symbols []string, opts ClientOpts) {
 }
 
 // GetLatestBar returns the latest minute bar for a given symbol
-func (c *client) GetLatestBar(symbol string) (*Bar, error) {
+func (c *Client) GetLatestBar(symbol string) (*Bar, error) {
 	u, err := url.Parse(fmt.Sprintf("%s/v2/stocks/%s/bars/latest", c.opts.BaseURL, symbol))
 	if err != nil {
 		return nil, err
@@ -930,7 +884,7 @@ func (c *client) GetLatestBar(symbol string) (*Bar, error) {
 }
 
 // GetLatestBars returns the latest minute bars for the given symbols
-func (c *client) GetLatestBars(symbols []string) (map[string]Bar, error) {
+func (c *Client) GetLatestBars(symbols []string) (map[string]Bar, error) {
 	u, err := url.Parse(fmt.Sprintf("%s/v2/stocks/bars/latest", c.opts.BaseURL))
 	if err != nil {
 		return nil, err
@@ -950,7 +904,7 @@ func (c *client) GetLatestBars(symbols []string) (map[string]Bar, error) {
 }
 
 // GetLatestTrade returns the latest trade for a given symbol
-func (c *client) GetLatestTrade(symbol string) (*Trade, error) {
+func (c *Client) GetLatestTrade(symbol string) (*Trade, error) {
 	u, err := url.Parse(fmt.Sprintf("%s/v2/stocks/%s/trades/latest", c.opts.BaseURL, symbol))
 	if err != nil {
 		return nil, err
@@ -970,7 +924,7 @@ func (c *client) GetLatestTrade(symbol string) (*Trade, error) {
 }
 
 // GetLatestTrades returns the latest trades for the given symbols
-func (c *client) GetLatestTrades(symbols []string) (map[string]Trade, error) {
+func (c *Client) GetLatestTrades(symbols []string) (map[string]Trade, error) {
 	u, err := url.Parse(fmt.Sprintf("%s/v2/stocks/trades/latest", c.opts.BaseURL))
 	if err != nil {
 		return nil, err
@@ -990,7 +944,7 @@ func (c *client) GetLatestTrades(symbols []string) (map[string]Trade, error) {
 }
 
 // GetLatestQuote returns the latest quote for a given symbol
-func (c *client) GetLatestQuote(symbol string) (*Quote, error) {
+func (c *Client) GetLatestQuote(symbol string) (*Quote, error) {
 	u, err := url.Parse(fmt.Sprintf("%s/v2/stocks/%s/quotes/latest", c.opts.BaseURL, symbol))
 	if err != nil {
 		return nil, err
@@ -1012,7 +966,7 @@ func (c *client) GetLatestQuote(symbol string) (*Quote, error) {
 }
 
 // GetLatestQuotes returns the latest quotes for the given symbols
-func (c *client) GetLatestQuotes(symbols []string) (map[string]Quote, error) {
+func (c *Client) GetLatestQuotes(symbols []string) (map[string]Quote, error) {
 	u, err := url.Parse(fmt.Sprintf("%s/v2/stocks/quotes/latest", c.opts.BaseURL))
 	if err != nil {
 		return nil, err
@@ -1032,7 +986,7 @@ func (c *client) GetLatestQuotes(symbols []string) (map[string]Quote, error) {
 }
 
 // GetSnapshot returns the snapshot for a given symbol
-func (c *client) GetSnapshot(symbol string) (*Snapshot, error) {
+func (c *Client) GetSnapshot(symbol string) (*Snapshot, error) {
 	u, err := url.Parse(fmt.Sprintf("%s/v2/stocks/%s/snapshot", c.opts.BaseURL, symbol))
 	if err != nil {
 		return nil, err
@@ -1054,7 +1008,7 @@ func (c *client) GetSnapshot(symbol string) (*Snapshot, error) {
 }
 
 // GetSnapshots returns the snapshots for multiple symbol
-func (c *client) GetSnapshots(symbols []string) (map[string]*Snapshot, error) {
+func (c *Client) GetSnapshots(symbols []string) (map[string]*Snapshot, error) {
 	u, err := url.Parse(fmt.Sprintf("%s/v2/stocks/snapshots", c.opts.BaseURL))
 	if err != nil {
 		return nil, err
@@ -1094,7 +1048,7 @@ type GetCryptoTradesParams struct {
 
 // GetCryptoTrades returns the trades for the given crypto symbol. It blocks until all the trades are collected.
 // If you want to process the incoming trades instantly, use GetCryptoTradesAsync instead!
-func (c *client) GetCryptoTrades(symbol string, params GetCryptoTradesParams) ([]CryptoTrade, error) {
+func (c *Client) GetCryptoTrades(symbol string, params GetCryptoTradesParams) ([]CryptoTrade, error) {
 	trades := make([]CryptoTrade, 0)
 	for item := range c.GetCryptoTradesAsync(symbol, params) {
 		if err := item.Error; err != nil {
@@ -1106,7 +1060,7 @@ func (c *client) GetCryptoTrades(symbol string, params GetCryptoTradesParams) ([
 }
 
 // GetCryptoTradesAsync returns a channel that will be populated with the trades for the given crypto symbol.
-func (c *client) GetCryptoTradesAsync(symbol string, params GetCryptoTradesParams) <-chan CryptoTradeItem {
+func (c *Client) GetCryptoTradesAsync(symbol string, params GetCryptoTradesParams) <-chan CryptoTradeItem {
 	ch := make(chan CryptoTradeItem)
 
 	go func() {
@@ -1169,7 +1123,7 @@ type GetCryptoQuotesParams struct {
 
 // GetCryptoQuotes returns the quotes for the given crypto symbol. It blocks until all the quotes are collected.
 // If you want to process the incoming quotes instantly, use GetCryptoQuotesAsync instead!
-func (c *client) GetCryptoQuotes(symbol string, params GetCryptoQuotesParams) ([]CryptoQuote, error) {
+func (c *Client) GetCryptoQuotes(symbol string, params GetCryptoQuotesParams) ([]CryptoQuote, error) {
 	quotes := make([]CryptoQuote, 0)
 	for item := range c.GetCryptoQuotesAsync(symbol, params) {
 		if err := item.Error; err != nil {
@@ -1181,7 +1135,7 @@ func (c *client) GetCryptoQuotes(symbol string, params GetCryptoQuotesParams) ([
 }
 
 // GetCryptoQuotesAsync returns a channel that will be populated with the quotes for the given crypto symbol.
-func (c *client) GetCryptoQuotesAsync(symbol string, params GetCryptoQuotesParams) <-chan CryptoQuoteItem {
+func (c *Client) GetCryptoQuotesAsync(symbol string, params GetCryptoQuotesParams) <-chan CryptoQuoteItem {
 	ch := make(chan CryptoQuoteItem)
 
 	go func() {
@@ -1254,7 +1208,7 @@ func setQueryCryptoBarParams(q url.Values, params GetCryptoBarsParams) {
 }
 
 // GetCryptoBars returns a slice of bars for the given crypto symbol.
-func (c *client) GetCryptoBars(symbol string, params GetCryptoBarsParams) ([]CryptoBar, error) {
+func (c *Client) GetCryptoBars(symbol string, params GetCryptoBarsParams) ([]CryptoBar, error) {
 	bars := make([]CryptoBar, 0)
 	for item := range c.GetCryptoBarsAsync(symbol, params) {
 		if err := item.Error; err != nil {
@@ -1266,7 +1220,7 @@ func (c *client) GetCryptoBars(symbol string, params GetCryptoBarsParams) ([]Cry
 }
 
 // GetCryptoBarsAsync returns a channel that will be populated with the bars for the given crypto symbol.
-func (c *client) GetCryptoBarsAsync(symbol string, params GetCryptoBarsParams) <-chan CryptoBarItem {
+func (c *Client) GetCryptoBarsAsync(symbol string, params GetCryptoBarsParams) <-chan CryptoBarItem {
 	ch := make(chan CryptoBarItem)
 
 	go func() {
@@ -1313,7 +1267,7 @@ func (c *client) GetCryptoBarsAsync(symbol string, params GetCryptoBarsParams) <
 }
 
 // GetCryptoMultiBars returns bars for the given crypto symbols.
-func (c *client) GetCryptoMultiBars(
+func (c *Client) GetCryptoMultiBars(
 	symbols []string, params GetCryptoBarsParams,
 ) (map[string][]CryptoBar, error) {
 	bars := make(map[string][]CryptoBar, len(symbols))
@@ -1327,7 +1281,7 @@ func (c *client) GetCryptoMultiBars(
 }
 
 // GetCryptoMultiBarsAsync returns a channel that will be populated with the bars for the requested crypto symbols.
-func (c *client) GetCryptoMultiBarsAsync(symbols []string, params GetCryptoBarsParams) <-chan CryptoMultiBarItem {
+func (c *Client) GetCryptoMultiBarsAsync(symbols []string, params GetCryptoBarsParams) <-chan CryptoMultiBarItem {
 	ch := make(chan CryptoMultiBarItem)
 
 	go func() {
@@ -1384,7 +1338,7 @@ func (c *client) GetCryptoMultiBarsAsync(symbols []string, params GetCryptoBarsP
 }
 
 // GetLatestCryptoBar returns the latest bar for a given crypto symbol on the given exchange
-func (c *client) GetLatestCryptoBar(symbol, exchange string) (*CryptoBar, error) {
+func (c *Client) GetLatestCryptoBar(symbol, exchange string) (*CryptoBar, error) {
 	u, err := url.Parse(fmt.Sprintf("%s/%s/%s/bars/latest", c.opts.BaseURL, cryptoPrefix, symbol))
 	if err != nil {
 		return nil, err
@@ -1409,7 +1363,7 @@ func (c *client) GetLatestCryptoBar(symbol, exchange string) (*CryptoBar, error)
 }
 
 // GetLatestCryptoBars returns the latest bars for the given crypto symbols on the given exchange
-func (c *client) GetLatestCryptoBars(symbols []string, exchange string) (map[string]CryptoBar, error) {
+func (c *Client) GetLatestCryptoBars(symbols []string, exchange string) (map[string]CryptoBar, error) {
 	u, err := url.Parse(fmt.Sprintf("%s/%s/bars/latest", c.opts.BaseURL, cryptoPrefix))
 	if err != nil {
 		return nil, err
@@ -1433,7 +1387,7 @@ func (c *client) GetLatestCryptoBars(symbols []string, exchange string) (map[str
 }
 
 // GetLatestCryptoTrade returns the latest trade for a given crypto symbol on the given exchange
-func (c *client) GetLatestCryptoTrade(symbol, exchange string) (*CryptoTrade, error) {
+func (c *Client) GetLatestCryptoTrade(symbol, exchange string) (*CryptoTrade, error) {
 	u, err := url.Parse(fmt.Sprintf("%s/%s/%s/trades/latest", c.opts.BaseURL, cryptoPrefix, symbol))
 	if err != nil {
 		return nil, err
@@ -1458,7 +1412,7 @@ func (c *client) GetLatestCryptoTrade(symbol, exchange string) (*CryptoTrade, er
 }
 
 // GetLatestCryptoTrades returns the latest trades for the given crypto symbols on the given exchange
-func (c *client) GetLatestCryptoTrades(symbols []string, exchange string) (map[string]CryptoTrade, error) {
+func (c *Client) GetLatestCryptoTrades(symbols []string, exchange string) (map[string]CryptoTrade, error) {
 	u, err := url.Parse(fmt.Sprintf("%s/%s/trades/latest", c.opts.BaseURL, cryptoPrefix))
 	if err != nil {
 		return nil, err
@@ -1482,7 +1436,7 @@ func (c *client) GetLatestCryptoTrades(symbols []string, exchange string) (map[s
 }
 
 // GetLatestCryptoQuote returns the latest quote for a given crypto symbol on the given exchange
-func (c *client) GetLatestCryptoQuote(symbol, exchange string) (*CryptoQuote, error) {
+func (c *Client) GetLatestCryptoQuote(symbol, exchange string) (*CryptoQuote, error) {
 	u, err := url.Parse(fmt.Sprintf("%s/%s/%s/quotes/latest", c.opts.BaseURL, cryptoPrefix, symbol))
 	if err != nil {
 		return nil, err
@@ -1507,7 +1461,7 @@ func (c *client) GetLatestCryptoQuote(symbol, exchange string) (*CryptoQuote, er
 }
 
 // GetLatestCryptoQuotes returns the latest quotes for the given crypto symbols on the given exchange
-func (c *client) GetLatestCryptoQuotes(symbols []string, exchange string) (map[string]CryptoQuote, error) {
+func (c *Client) GetLatestCryptoQuotes(symbols []string, exchange string) (map[string]CryptoQuote, error) {
 	u, err := url.Parse(fmt.Sprintf("%s/%s/quotes/latest", c.opts.BaseURL, cryptoPrefix))
 	if err != nil {
 		return nil, err
@@ -1531,7 +1485,7 @@ func (c *client) GetLatestCryptoQuotes(symbols []string, exchange string) (map[s
 }
 
 // GetLatestCryptoXBBO returns the latest cross exchange BBO for a given crypto symbol on the given exchanges
-func (c *client) GetLatestCryptoXBBO(symbol string, exchanges []string) (*CryptoXBBO, error) {
+func (c *Client) GetLatestCryptoXBBO(symbol string, exchanges []string) (*CryptoXBBO, error) {
 	u, err := url.Parse(fmt.Sprintf("%s/%s/%s/xbbo/latest", c.opts.BaseURL, cryptoPrefix, symbol))
 	if err != nil {
 		return nil, err
@@ -1558,7 +1512,7 @@ func (c *client) GetLatestCryptoXBBO(symbol string, exchanges []string) (*Crypto
 }
 
 // GetLatestCryptoXBBOs returns the latest cross exchange BBOs for the given crypto symbols on the given exchanges
-func (c *client) GetLatestCryptoXBBOs(symbols []string, exchanges []string) (map[string]CryptoXBBO, error) {
+func (c *Client) GetLatestCryptoXBBOs(symbols []string, exchanges []string) (map[string]CryptoXBBO, error) {
 	u, err := url.Parse(fmt.Sprintf("%s/%s/xbbos/latest", c.opts.BaseURL, cryptoPrefix))
 	if err != nil {
 		return nil, err
@@ -1584,7 +1538,7 @@ func (c *client) GetLatestCryptoXBBOs(symbols []string, exchanges []string) (map
 }
 
 // GetCryptoSnapshot returns the snapshot for a given crypto symbol on the given exchange
-func (c *client) GetCryptoSnapshot(symbol string, exchange string) (*CryptoSnapshot, error) {
+func (c *Client) GetCryptoSnapshot(symbol string, exchange string) (*CryptoSnapshot, error) {
 	u, err := url.Parse(fmt.Sprintf("%s/%s/%s/snapshot", c.opts.BaseURL, cryptoPrefix, symbol))
 	if err != nil {
 		return nil, err
@@ -1608,7 +1562,7 @@ func (c *client) GetCryptoSnapshot(symbol string, exchange string) (*CryptoSnaps
 }
 
 // GetCryptoSnapshots returns the snapshots for the given crypto symbols on the given exchange
-func (c *client) GetCryptoSnapshots(symbols []string, exchange string) (map[string]CryptoSnapshot, error) {
+func (c *Client) GetCryptoSnapshots(symbols []string, exchange string) (map[string]CryptoSnapshot, error) {
 	u, err := url.Parse(fmt.Sprintf("%s/%s/snapshots", c.opts.BaseURL, cryptoPrefix))
 	if err != nil {
 		return nil, err
@@ -1697,7 +1651,7 @@ func setNewsQuery(q url.Values, p GetNewsParams) {
 }
 
 // GetNews returns the news articles based on the given params.
-func (c *client) GetNews(params GetNewsParams) ([]News, error) {
+func (c *Client) GetNews(params GetNewsParams) ([]News, error) {
 	if params.TotalLimit < 0 {
 		return nil, fmt.Errorf("negative total limit")
 	}
@@ -1976,7 +1930,7 @@ func GetNews(params GetNewsParams) ([]News, error) {
 	return DefaultClient.GetNews(params)
 }
 
-func (c *client) get(u *url.URL) (*http.Response, error) {
+func (c *Client) get(u *url.URL) (*http.Response, error) {
 	req, err := http.NewRequest(http.MethodGet, u.String(), nil)
 	if err != nil {
 		return nil, err

@@ -11,13 +11,14 @@ import (
 	"strings"
 	"time"
 
+	"github.com/shopspring/decimal"
+
 	"github.com/alpacahq/alpaca-trade-api-go/v3/alpaca"
 	"github.com/alpacahq/alpaca-trade-api-go/v3/marketdata/stream"
-	"github.com/shopspring/decimal"
 )
 
 type alpacaClientContainer struct {
-	client        alpaca.Client
+	client        *alpaca.Client
 	tickSize      int
 	tickIndex     int
 	baseBet       float64

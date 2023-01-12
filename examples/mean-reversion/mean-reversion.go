@@ -8,10 +8,11 @@ import (
 	"time"
 
 	movingaverage "github.com/RobinUS2/golang-moving-average"
+	"github.com/shopspring/decimal"
+
 	"github.com/alpacahq/alpaca-trade-api-go/v3/alpaca"
 	"github.com/alpacahq/alpaca-trade-api-go/v3/marketdata"
 	"github.com/alpacahq/alpaca-trade-api-go/v3/marketdata/stream"
-	"github.com/shopspring/decimal"
 )
 
 const (
@@ -19,8 +20,8 @@ const (
 )
 
 type alpacaClientContainer struct {
-	tradeClient   alpaca.Client
-	dataClient    marketdata.Client
+	tradeClient   *alpaca.Client
+	dataClient    *marketdata.Client
 	streamClient  stream.StocksClient
 	feed          string
 	movingAverage *movingaverage.MovingAverage
