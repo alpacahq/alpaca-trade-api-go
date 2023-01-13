@@ -13,7 +13,7 @@ import (
 
 // Get AAPL and MSFT trades from the tenth of a second of the 2021-08-09 market open
 func trades() {
-	multiTrades, err := marketdata.GetMultiTrades([]string{"AAPL", "MSFT"}, marketdata.GetTradesParams{
+	multiTrades, err := marketdata.GetMultiTrades([]string{"AAPL", "MSFT"}, marketdata.GetTradesRequest{
 		Start: time.Date(2021, 8, 9, 13, 30, 0, 0, time.UTC),
 		End:   time.Date(2021, 8, 9, 13, 30, 0, 10000000, time.UTC),
 	})
@@ -30,7 +30,7 @@ func trades() {
 
 // Get first 30 TSLA quotes from 2021-08-09 market open
 func quotes() {
-	quotes, err := marketdata.GetQuotes("TSLA", marketdata.GetQuotesParams{
+	quotes, err := marketdata.GetQuotes("TSLA", marketdata.GetQuotesRequest{
 		Start:      time.Date(2021, 8, 9, 13, 30, 0, 0, time.UTC),
 		TotalLimit: 30,
 	})
@@ -45,7 +45,7 @@ func quotes() {
 
 // Get all the IBM and GE 5-minute bars from the first half hour of the 2021-08-09 market open
 func barsAsync() {
-	for item := range marketdata.GetMultiBarsAsync([]string{"IBM", "GE"}, marketdata.GetBarsParams{
+	for item := range marketdata.GetMultiBarsAsync([]string{"IBM", "GE"}, marketdata.GetBarsRequest{
 		TimeFrame:  marketdata.NewTimeFrame(5, marketdata.Min),
 		Adjustment: marketdata.Split,
 		Start:      time.Date(2021, 8, 9, 13, 30, 0, 0, time.UTC),
@@ -60,7 +60,7 @@ func barsAsync() {
 
 // Get Facebook bars
 func bars() {
-	bars, err := marketdata.GetBars("META", marketdata.GetBarsParams{
+	bars, err := marketdata.GetBars("META", marketdata.GetBarsRequest{
 		TimeFrame: marketdata.OneDay,
 		Start:     time.Date(2022, 6, 1, 0, 0, 0, 0, time.UTC),
 		End:       time.Date(2022, 6, 22, 0, 0, 0, 0, time.UTC),
@@ -87,7 +87,7 @@ func adtv() {
 }
 
 func news() {
-	news, err := marketdata.GetNews(marketdata.GetNewsParams{
+	news, err := marketdata.GetNews(marketdata.GetNewsRequest{
 		Symbols:    []string{"AAPL", "TSLA"},
 		Start:      time.Date(2021, 5, 6, 0, 0, 0, 0, time.UTC),
 		End:        time.Date(2021, 5, 7, 0, 0, 0, 0, time.UTC),
@@ -103,7 +103,7 @@ func news() {
 }
 
 func auctions() {
-	auctions, err := marketdata.GetAuctions("IBM", marketdata.GetAuctionsParams{
+	auctions, err := marketdata.GetAuctions("IBM", marketdata.GetAuctionsRequest{
 		Start: time.Date(2022, 10, 17, 0, 0, 0, 0, time.UTC),
 		End:   time.Date(2022, 10, 20, 0, 0, 0, 0, time.UTC),
 	})
@@ -174,7 +174,7 @@ func main() {
 
 func getADTV(symbol string, start, end time.Time) (av float64, n int, err error) {
 	var totalVolume uint64
-	for item := range marketdata.GetBarsAsync(symbol, marketdata.GetBarsParams{
+	for item := range marketdata.GetBarsAsync(symbol, marketdata.GetBarsRequest{
 		Start: start,
 		End:   end,
 	}) {

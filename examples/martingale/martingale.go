@@ -57,8 +57,8 @@ func init() {
 	}
 
 	client := alpaca.NewClient(alpaca.ClientOpts{
-		ApiKey:    apiKey,
-		ApiSecret: apiSecret,
+		APIKey:    apiKey,
+		APISecret: apiSecret,
 		BaseURL:   baseURL,
 	})
 
@@ -110,9 +110,12 @@ func init() {
 }
 
 func main() {
-	// First, cancel any existing orders so they don't impact our buying power.
-	status, until, limit := "open", time.Now(), 100
-	orders, _ := alpacaClient.client.ListOrders(&status, &until, &limit, nil)
+	// First, cancel any existing orders so they don't impact our buying power
+	orders, _ := alpacaClient.client.GetOrders(alpaca.GetOrdersRequest{
+		Status: "open",
+		Until:  time.Now(),
+		Limit:  100,
+	})
 	for _, order := range orders {
 		_ = alpacaClient.client.CancelOrder(order.ID)
 	}
@@ -286,19 +289,16 @@ func (alp alpacaClientContainer) sendOrder(targetQty int) (string, error) {
 
 	// Follow [L] instructions to use limit orders
 	if qty > 0 {
-		account, _ := alp.client.GetAccount()
-
 		// [L] Uncomment line below
 		limitPrice := decimal.NewFromFloat(alp.lastPrice)
 
 		alp.currOrder = randomString()
 		decimalQty := decimal.NewFromFloat(qty)
 		alp.client.PlaceOrder(alpaca.PlaceOrderRequest{
-			AccountID: account.ID,
-			AssetKey:  &alp.stock,
-			Qty:       &decimalQty,
-			Side:      side,
-			Type:      alpaca.Limit, // [L] Change to alpaca.Limit
+			Symbol: alp.stock,
+			Qty:    &decimalQty,
+			Side:   side,
+			Type:   alpaca.Limit, // [L] Change to alpaca.Limit
 			// [L] Uncomment line below
 			LimitPrice:    &limitPrice,
 			TimeInForce:   alpaca.Day,
