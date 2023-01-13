@@ -171,78 +171,14 @@ type PortfolioHistory struct {
 	Equity        []decimal.Decimal `json:"equity"`
 	ProfitLoss    []decimal.Decimal `json:"profit_loss"`
 	ProfitLossPct []decimal.Decimal `json:"profit_loss_pct"`
-	Timeframe     RangeFreq         `json:"timeframe"`
+	Timeframe     TimeFrame         `json:"timeframe"`
 	Timestamp     []int64           `json:"timestamp"`
-}
-
-type PlaceOrderRequest struct {
-	AccountID     string           `json:"-"`
-	AssetKey      *string          `json:"symbol"`
-	Qty           *decimal.Decimal `json:"qty"`
-	Notional      *decimal.Decimal `json:"notional"`
-	Side          Side             `json:"side"`
-	Type          OrderType        `json:"type"`
-	TimeInForce   TimeInForce      `json:"time_in_force"`
-	LimitPrice    *decimal.Decimal `json:"limit_price"`
-	ExtendedHours bool             `json:"extended_hours"`
-	StopPrice     *decimal.Decimal `json:"stop_price"`
-	ClientOrderID string           `json:"client_order_id"`
-	OrderClass    OrderClass       `json:"order_class"`
-	TakeProfit    *TakeProfit      `json:"take_profit"`
-	StopLoss      *StopLoss        `json:"stop_loss"`
-	TrailPrice    *decimal.Decimal `json:"trail_price"`
-	TrailPercent  *decimal.Decimal `json:"trail_percent"`
-}
-
-type TakeProfit struct {
-	LimitPrice *decimal.Decimal `json:"limit_price"`
-}
-
-type StopLoss struct {
-	LimitPrice *decimal.Decimal `json:"limit_price"`
-	StopPrice  *decimal.Decimal `json:"stop_price"`
 }
 
 type OrderAttributes struct {
 	TakeProfitLimitPrice *decimal.Decimal `json:"take_profit_limit_price,omitempty"`
 	StopLossStopPrice    *decimal.Decimal `json:"stop_loss_stop_price,omitempty"`
 	StopLossLimitPrice   *decimal.Decimal `json:"stop_loss_limit_price,omitempty"`
-}
-
-type ReplaceOrderRequest struct {
-	Qty           *decimal.Decimal `json:"qty"`
-	LimitPrice    *decimal.Decimal `json:"limit_price"`
-	StopPrice     *decimal.Decimal `json:"stop_price"`
-	Trail         *decimal.Decimal `json:"trail"`
-	TimeInForce   TimeInForce      `json:"time_in_force"`
-	ClientOrderID string           `json:"client_order_id"`
-}
-
-type AccountConfigurationsRequest struct {
-	DtbpCheck            *string `json:"dtbp_check"`
-	NoShorting           *bool   `json:"no_shorting"`
-	TradeConfirmEmail    *string `json:"trade_confirm_email"`
-	TradeSuspendedByUser *bool   `json:"trade_suspended_by_user"`
-}
-
-type AccountActivitiesRequest struct {
-	ActivityTypes *[]string  `json:"activity_types"`
-	Date          *time.Time `json:"date"`
-	Until         *time.Time `json:"until"`
-	After         *time.Time `json:"after"`
-	Direction     *string    `json:"direction"`
-	PageSize      *int       `json:"page_size"`
-}
-
-type ListOrdersRequest struct {
-	Status    *string    `json:"status"`
-	After     *time.Time `json:"after"`
-	Until     *time.Time `json:"until"`
-	Limit     *int       `json:"limit"`
-	Direction *string    `json:"direction"`
-	Nested    *bool      `json:"nested"`
-	Symbols   *string    `json:"symbols"`
-	Side      *string    `json:"side"`
 }
 
 type Side string
@@ -299,14 +235,14 @@ const (
 	All  TradeConfirmEmail = "all"
 )
 
-type RangeFreq string
+type TimeFrame string
 
 const (
-	Min1  RangeFreq = "1Min"
-	Min5  RangeFreq = "5Min"
-	Min15 RangeFreq = "15Min"
-	Hour1 RangeFreq = "1H"
-	Day1  RangeFreq = "1D"
+	Min1  TimeFrame = "1Min"
+	Min5  TimeFrame = "5Min"
+	Min15 TimeFrame = "15Min"
+	Hour1 TimeFrame = "1H"
+	Day1  TimeFrame = "1D"
 )
 
 // stream
@@ -321,15 +257,6 @@ type TradeUpdate struct {
 	Timestamp   *time.Time       `json:"timestamp"`
 }
 
-type GetAnnouncementsRequest struct {
-	CATypes  *[]string  `json:"ca_types"`
-	Since    *time.Time `json:"since"`
-	Until    *time.Time `json:"until"`
-	Symbol   *string    `json:"symbol"`
-	Cusip    *string    `json:"cusip"`
-	DateType *DateType  `json:"date_type"`
-}
-
 type DateType string
 
 const (
@@ -338,10 +265,6 @@ const (
 	ExDate          DateType = "ex_date"
 	PayableDate     DateType = "payable_date"
 )
-
-func (d DateType) String() string {
-	return string(d)
-}
 
 type Announcement struct {
 	ID                      string `json:"id"`

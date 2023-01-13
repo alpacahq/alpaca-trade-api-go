@@ -20,15 +20,10 @@ import (
 // Currently it contains the exact same options as the trading alpaca client,
 // but there is no guarantee that this will remain the case.
 type ClientOpts struct {
-	ApiKey    string
-	ApiSecret string
-	OAuth     string
-	BaseURL   string
-	// Timeout sets the HTTP timeout for each request.
-	//
-	// Deprecated: use HttpClient with its Timeout set instead.
-	// If both are set, HttpClient has precedence.
-	Timeout    time.Duration
+	APIKey     string
+	APISecret  string
+	OAuth      string
+	BaseURL    string
 	RetryLimit int
 	RetryDelay time.Duration
 	// Feed is the default feed to be used by all requests. Can be overridden per request.
@@ -37,8 +32,8 @@ type ClientOpts struct {
 	// Currency is the default currency to be used by all requests. Can be overridden per request.
 	// For the latest endpoints this is the only way to set this parameter.
 	Currency string
-	// HttpClient to be used for each http request.
-	HttpClient *http.Client
+	// HTTPClient to be used for each http request.
+	HTTPClient *http.Client
 }
 
 // Client is the alpaca marketdata Client.
@@ -51,11 +46,11 @@ type Client struct {
 
 // NewClient creates a new marketdata client using the given opts.
 func NewClient(opts ClientOpts) *Client {
-	if opts.ApiKey == "" {
-		opts.ApiKey = os.Getenv("APCA_API_KEY_ID")
+	if opts.APIKey == "" {
+		opts.APIKey = os.Getenv("APCA_API_KEY_ID")
 	}
-	if opts.ApiSecret == "" {
-		opts.ApiSecret = os.Getenv("APCA_API_SECRET_KEY")
+	if opts.APISecret == "" {
+		opts.APISecret = os.Getenv("APCA_API_SECRET_KEY")
 	}
 	if opts.OAuth == "" {
 		opts.OAuth = os.Getenv("APCA_API_OAUTH")
@@ -73,10 +68,10 @@ func NewClient(opts ClientOpts) *Client {
 	if opts.RetryDelay == 0 {
 		opts.RetryDelay = time.Second
 	}
-	httpClient := opts.HttpClient
+	httpClient := opts.HTTPClient
 	if httpClient == nil {
 		httpClient = &http.Client{
-			Timeout: opts.Timeout,
+			Timeout: 10 * time.Second,
 		}
 	}
 	return &Client{
@@ -94,8 +89,8 @@ func defaultDo(c *Client, req *http.Request) (*http.Response, error) {
 	if c.opts.OAuth != "" {
 		req.Header.Set("Authorization", "Bearer "+c.opts.OAuth)
 	} else {
-		req.Header.Set("APCA-API-KEY-ID", c.opts.ApiKey)
-		req.Header.Set("APCA-API-SECRET-KEY", c.opts.ApiSecret)
+		req.Header.Set("APCA-API-KEY-ID", c.opts.APIKey)
+		req.Header.Set("APCA-API-SECRET-KEY", c.opts.APISecret)
 	}
 
 	var resp *http.Response
@@ -121,7 +116,7 @@ func defaultDo(c *Client, req *http.Request) (*http.Response, error) {
 	return resp, nil
 }
 
-type baseParams struct {
+type baseRequest struct {
 	Start    time.Time
 	End      time.Time
 	Feed     string
@@ -129,7 +124,7 @@ type baseParams struct {
 	Currency string
 }
 
-func setBaseQuery(q url.Values, p baseParams, opts ClientOpts) {
+func setBaseQuery(q url.Values, p baseRequest, opts ClientOpts) {
 	if !p.Start.IsZero() {
 		q.Set("start", p.Start.Format(time.RFC3339Nano))
 	}
@@ -188,8 +183,8 @@ func setQueryLimit(q url.Values, totalLimit, pageLimit, received, maxLimit int) 
 	}
 }
 
-// GetTradesParams contains optional parameters for getting trades.
-type GetTradesParams struct {
+// GetTradesRequest contains optional parameters for getting trades.
+type GetTradesRequest struct {
 	// Start is the inclusive beginning of the interval
 	Start time.Time
 	// End is the inclusive end of the interval
@@ -209,9 +204,9 @@ type GetTradesParams struct {
 
 // GetTrades returns the trades for the given symbol. It blocks until all the trades are collected.
 // If you want to process the incoming trades instantly, use GetTradesAsync instead!
-func (c *Client) GetTrades(symbol string, params GetTradesParams) ([]Trade, error) {
+func (c *Client) GetTrades(symbol string, req GetTradesRequest) ([]Trade, error) {
 	trades := make([]Trade, 0)
-	for item := range c.GetTradesAsync(symbol, params) {
+	for item := range c.GetTradesAsync(symbol, req) {
 		if err := item.Error; err != nil {
 			return nil, err
 		}
@@ -221,7 +216,7 @@ func (c *Client) GetTrades(symbol string, params GetTradesParams) ([]Trade, erro
 }
 
 // GetTradesAsync returns a channel that will be populated with the historical trades for the given symbol.
-func (c *Client) GetTradesAsync(symbol string, params GetTradesParams) <-chan TradeItem {
+func (c *Client) GetTradesAsync(symbol string, req GetTradesRequest) <-chan TradeItem {
 	ch := make(chan TradeItem)
 
 	go func() {
@@ -234,17 +229,17 @@ func (c *Client) GetTradesAsync(symbol string, params GetTradesParams) <-chan Tr
 		}
 
 		q := u.Query()
-		setBaseQuery(q, baseParams{
-			Start:    params.Start,
-			End:      params.End,
-			Feed:     params.Feed,
-			AsOf:     params.AsOf,
-			Currency: params.Currency,
+		setBaseQuery(q, baseRequest{
+			Start:    req.Start,
+			End:      req.End,
+			Feed:     req.Feed,
+			AsOf:     req.AsOf,
+			Currency: req.Currency,
 		}, c.opts)
 
 		received := 0
-		for params.TotalLimit == 0 || received < params.TotalLimit {
-			setQueryLimit(q, params.TotalLimit, params.PageLimit, received, v2MaxLimit)
+		for req.TotalLimit == 0 || received < req.TotalLimit {
+			setQueryLimit(q, req.TotalLimit, req.PageLimit, received, v2MaxLimit)
 			u.RawQuery = q.Encode()
 
 			resp, err := c.get(u)
@@ -275,10 +270,10 @@ func (c *Client) GetTradesAsync(symbol string, params GetTradesParams) <-chan Tr
 
 // GetMultiTrades returns trades for the given symbols.
 func (c *Client) GetMultiTrades(
-	symbols []string, params GetTradesParams,
+	symbols []string, req GetTradesRequest,
 ) (map[string][]Trade, error) {
 	trades := make(map[string][]Trade, len(symbols))
-	for item := range c.GetMultiTradesAsync(symbols, params) {
+	for item := range c.GetMultiTradesAsync(symbols, req) {
 		if err := item.Error; err != nil {
 			return nil, err
 		}
@@ -288,7 +283,7 @@ func (c *Client) GetMultiTrades(
 }
 
 // GetTrades returns a channel that will be populated with the trades for the requested symbols.
-func (c *Client) GetMultiTradesAsync(symbols []string, params GetTradesParams) <-chan MultiTradeItem {
+func (c *Client) GetMultiTradesAsync(symbols []string, req GetTradesRequest) <-chan MultiTradeItem {
 	ch := make(chan MultiTradeItem)
 
 	go func() {
@@ -302,17 +297,17 @@ func (c *Client) GetMultiTradesAsync(symbols []string, params GetTradesParams) <
 
 		q := u.Query()
 		q.Set("symbols", strings.Join(symbols, ","))
-		setBaseQuery(q, baseParams{
-			Start:    params.Start,
-			End:      params.End,
-			Feed:     params.Feed,
-			AsOf:     params.AsOf,
-			Currency: params.Currency,
+		setBaseQuery(q, baseRequest{
+			Start:    req.Start,
+			End:      req.End,
+			Feed:     req.Feed,
+			AsOf:     req.AsOf,
+			Currency: req.Currency,
 		}, c.opts)
 
 		received := 0
-		for params.TotalLimit == 0 || received < params.TotalLimit {
-			setQueryLimit(q, params.TotalLimit, params.PageLimit, received, v2MaxLimit)
+		for req.TotalLimit == 0 || received < req.TotalLimit {
+			setQueryLimit(q, req.TotalLimit, req.PageLimit, received, v2MaxLimit)
 			u.RawQuery = q.Encode()
 
 			resp, err := c.get(u)
@@ -350,8 +345,8 @@ func (c *Client) GetMultiTradesAsync(symbols []string, params GetTradesParams) <
 	return ch
 }
 
-// GetQuotesParams contains optional parameters for getting quotes
-type GetQuotesParams struct {
+// GetQuotesRequest contains optional parameters for getting quotes
+type GetQuotesRequest struct {
 	// Start is the inclusive beginning of the interval
 	Start time.Time
 	// End is the inclusive end of the interval
@@ -371,9 +366,9 @@ type GetQuotesParams struct {
 
 // GetQuotes returns the quotes for the given symbol. It blocks until all the quotes are collected.
 // If you want to process the incoming quotes instantly, use GetQuotesAsync instead!
-func (c *Client) GetQuotes(symbol string, params GetQuotesParams) ([]Quote, error) {
+func (c *Client) GetQuotes(symbol string, req GetQuotesRequest) ([]Quote, error) {
 	quotes := make([]Quote, 0)
-	for item := range c.GetQuotesAsync(symbol, params) {
+	for item := range c.GetQuotesAsync(symbol, req) {
 		if err := item.Error; err != nil {
 			return nil, err
 		}
@@ -383,7 +378,7 @@ func (c *Client) GetQuotes(symbol string, params GetQuotesParams) ([]Quote, erro
 }
 
 // GetQuotesAsync returns a channel that will be populated with the quotes for the given symbol.
-func (c *Client) GetQuotesAsync(symbol string, params GetQuotesParams) <-chan QuoteItem {
+func (c *Client) GetQuotesAsync(symbol string, req GetQuotesRequest) <-chan QuoteItem {
 	// NOTE: this method is very similar to GetTrades.
 	// With generics it would be almost trivial to refactor them to use a common c.opts.BaseURL method,
 	// but without them it doesn't seem to be worth it
@@ -399,17 +394,17 @@ func (c *Client) GetQuotesAsync(symbol string, params GetQuotesParams) <-chan Qu
 		}
 
 		q := u.Query()
-		setBaseQuery(q, baseParams{
-			Start:    params.Start,
-			End:      params.End,
-			Feed:     params.Feed,
-			AsOf:     params.AsOf,
-			Currency: params.Currency,
+		setBaseQuery(q, baseRequest{
+			Start:    req.Start,
+			End:      req.End,
+			Feed:     req.Feed,
+			AsOf:     req.AsOf,
+			Currency: req.Currency,
 		}, c.opts)
 
 		received := 0
-		for params.TotalLimit == 0 || received < params.TotalLimit {
-			setQueryLimit(q, params.TotalLimit, params.PageLimit, received, v2MaxLimit)
+		for req.TotalLimit == 0 || received < req.TotalLimit {
+			setQueryLimit(q, req.TotalLimit, req.PageLimit, received, v2MaxLimit)
 			u.RawQuery = q.Encode()
 
 			resp, err := c.get(u)
@@ -440,10 +435,10 @@ func (c *Client) GetQuotesAsync(symbol string, params GetQuotesParams) <-chan Qu
 
 // GetMultiQuotes returns quotes for the given symbols.
 func (c *Client) GetMultiQuotes(
-	symbols []string, params GetQuotesParams,
+	symbols []string, req GetQuotesRequest,
 ) (map[string][]Quote, error) {
 	quotes := make(map[string][]Quote, len(symbols))
-	for item := range c.GetMultiQuotesAsync(symbols, params) {
+	for item := range c.GetMultiQuotesAsync(symbols, req) {
 		if err := item.Error; err != nil {
 			return nil, err
 		}
@@ -453,7 +448,7 @@ func (c *Client) GetMultiQuotes(
 }
 
 // GetMultiQuotesAsync returns a channel that will be populated with the quotes for the requested symbols.
-func (c *Client) GetMultiQuotesAsync(symbols []string, params GetQuotesParams) <-chan MultiQuoteItem {
+func (c *Client) GetMultiQuotesAsync(symbols []string, req GetQuotesRequest) <-chan MultiQuoteItem {
 	ch := make(chan MultiQuoteItem)
 
 	go func() {
@@ -467,17 +462,17 @@ func (c *Client) GetMultiQuotesAsync(symbols []string, params GetQuotesParams) <
 
 		q := u.Query()
 		q.Set("symbols", strings.Join(symbols, ","))
-		setBaseQuery(q, baseParams{
-			Start:    params.Start,
-			End:      params.End,
-			Feed:     params.Feed,
-			AsOf:     params.AsOf,
-			Currency: params.Currency,
+		setBaseQuery(q, baseRequest{
+			Start:    req.Start,
+			End:      req.End,
+			Feed:     req.Feed,
+			AsOf:     req.AsOf,
+			Currency: req.Currency,
 		}, c.opts)
 
 		received := 0
-		for params.TotalLimit == 0 || received < params.TotalLimit {
-			setQueryLimit(q, params.TotalLimit, params.PageLimit, received, v2MaxLimit)
+		for req.TotalLimit == 0 || received < req.TotalLimit {
+			setQueryLimit(q, req.TotalLimit, req.PageLimit, received, v2MaxLimit)
 			u.RawQuery = q.Encode()
 
 			resp, err := c.get(u)
@@ -515,8 +510,8 @@ func (c *Client) GetMultiQuotesAsync(symbols []string, params GetQuotesParams) <
 	return ch
 }
 
-// GetBarsParams contains optional parameters for getting bars
-type GetBarsParams struct {
+// GetBarsRequest contains optional parameters for getting bars
+type GetBarsRequest struct {
 	// TimeFrame is the aggregation size of the bars
 	TimeFrame TimeFrame
 	// Adjustment tells if the bars should be adjusted for corporate actions
@@ -539,30 +534,30 @@ type GetBarsParams struct {
 	Currency string
 }
 
-func setQueryBarParams(q url.Values, params GetBarsParams, opts ClientOpts) {
-	setBaseQuery(q, baseParams{
-		Start:    params.Start,
-		End:      params.End,
-		Feed:     params.Feed,
-		AsOf:     params.AsOf,
-		Currency: params.Currency,
+func setQueryBarRequest(q url.Values, req GetBarsRequest, opts ClientOpts) {
+	setBaseQuery(q, baseRequest{
+		Start:    req.Start,
+		End:      req.End,
+		Feed:     req.Feed,
+		AsOf:     req.AsOf,
+		Currency: req.Currency,
 	}, opts)
 	adjustment := Raw
-	if params.Adjustment != "" {
-		adjustment = params.Adjustment
+	if req.Adjustment != "" {
+		adjustment = req.Adjustment
 	}
 	q.Set("adjustment", string(adjustment))
 	timeframe := OneDay
-	if params.TimeFrame.N != 0 {
-		timeframe = params.TimeFrame
+	if req.TimeFrame.N != 0 {
+		timeframe = req.TimeFrame
 	}
 	q.Set("timeframe", timeframe.String())
 }
 
 // GetBars returns a slice of bars for the given symbol.
-func (c *Client) GetBars(symbol string, params GetBarsParams) ([]Bar, error) {
+func (c *Client) GetBars(symbol string, req GetBarsRequest) ([]Bar, error) {
 	bars := make([]Bar, 0)
-	for item := range c.GetBarsAsync(symbol, params) {
+	for item := range c.GetBarsAsync(symbol, req) {
 		if err := item.Error; err != nil {
 			return nil, err
 		}
@@ -572,7 +567,7 @@ func (c *Client) GetBars(symbol string, params GetBarsParams) ([]Bar, error) {
 }
 
 // GetBarsAsync returns a channel that will be populated with the bars for the given symbol.
-func (c *Client) GetBarsAsync(symbol string, params GetBarsParams) <-chan BarItem {
+func (c *Client) GetBarsAsync(symbol string, req GetBarsRequest) <-chan BarItem {
 	ch := make(chan BarItem)
 
 	go func() {
@@ -585,11 +580,11 @@ func (c *Client) GetBarsAsync(symbol string, params GetBarsParams) <-chan BarIte
 		}
 
 		q := u.Query()
-		setQueryBarParams(q, params, c.opts)
+		setQueryBarRequest(q, req, c.opts)
 
 		received := 0
-		for params.TotalLimit == 0 || received < params.TotalLimit {
-			setQueryLimit(q, params.TotalLimit, params.PageLimit, received, v2MaxLimit)
+		for req.TotalLimit == 0 || received < req.TotalLimit {
+			setQueryLimit(q, req.TotalLimit, req.PageLimit, received, v2MaxLimit)
 			u.RawQuery = q.Encode()
 
 			resp, err := c.get(u)
@@ -620,10 +615,10 @@ func (c *Client) GetBarsAsync(symbol string, params GetBarsParams) <-chan BarIte
 
 // GetMultiBars returns bars for the given symbols.
 func (c *Client) GetMultiBars(
-	symbols []string, params GetBarsParams,
+	symbols []string, req GetBarsRequest,
 ) (map[string][]Bar, error) {
 	bars := make(map[string][]Bar, len(symbols))
-	for item := range c.GetMultiBarsAsync(symbols, params) {
+	for item := range c.GetMultiBarsAsync(symbols, req) {
 		if err := item.Error; err != nil {
 			return nil, err
 		}
@@ -633,7 +628,7 @@ func (c *Client) GetMultiBars(
 }
 
 // GetMultiBarsAsync returns a channel that will be populated with the bars for the requested symbols.
-func (c *Client) GetMultiBarsAsync(symbols []string, params GetBarsParams) <-chan MultiBarItem {
+func (c *Client) GetMultiBarsAsync(symbols []string, req GetBarsRequest) <-chan MultiBarItem {
 	ch := make(chan MultiBarItem)
 
 	go func() {
@@ -647,11 +642,11 @@ func (c *Client) GetMultiBarsAsync(symbols []string, params GetBarsParams) <-cha
 
 		q := u.Query()
 		q.Set("symbols", strings.Join(symbols, ","))
-		setQueryBarParams(q, params, c.opts)
+		setQueryBarRequest(q, req, c.opts)
 
 		received := 0
-		for params.TotalLimit == 0 || received < params.TotalLimit {
-			setQueryLimit(q, params.TotalLimit, params.PageLimit, received, v2MaxLimit)
+		for req.TotalLimit == 0 || received < req.TotalLimit {
+			setQueryLimit(q, req.TotalLimit, req.PageLimit, received, v2MaxLimit)
 			u.RawQuery = q.Encode()
 
 			resp, err := c.get(u)
@@ -689,8 +684,8 @@ func (c *Client) GetMultiBarsAsync(symbols []string, params GetBarsParams) <-cha
 	return ch
 }
 
-// GetAuctionsParams contains optional parameters for getting auctions
-type GetAuctionsParams struct {
+// GetAuctionsRequest contains optional parameters for getting auctions
+type GetAuctionsRequest struct {
 	// Start is the inclusive beginning of the interval
 	Start time.Time
 	// End is the inclusive end of the interval
@@ -708,9 +703,9 @@ type GetAuctionsParams struct {
 
 // GetAuctions returns the auctions for the given symbol. It blocks until all the auctions are collected.
 // If you want to process the incoming auctions instantly, use GetAuctionsAsync instead!
-func (c *Client) GetAuctions(symbol string, params GetAuctionsParams) ([]DailyAuctions, error) {
+func (c *Client) GetAuctions(symbol string, req GetAuctionsRequest) ([]DailyAuctions, error) {
 	auctions := make([]DailyAuctions, 0)
-	for item := range c.GetAuctionsAsync(symbol, params) {
+	for item := range c.GetAuctionsAsync(symbol, req) {
 		if err := item.Error; err != nil {
 			return nil, err
 		}
@@ -720,7 +715,7 @@ func (c *Client) GetAuctions(symbol string, params GetAuctionsParams) ([]DailyAu
 }
 
 // GetAuctionsAsync returns a channel that will be populated with the auctions for the given symbol.
-func (c *Client) GetAuctionsAsync(symbol string, params GetAuctionsParams) <-chan DailyAuctionsItem {
+func (c *Client) GetAuctionsAsync(symbol string, req GetAuctionsRequest) <-chan DailyAuctionsItem {
 	ch := make(chan DailyAuctionsItem)
 
 	go func() {
@@ -733,17 +728,17 @@ func (c *Client) GetAuctionsAsync(symbol string, params GetAuctionsParams) <-cha
 		}
 
 		q := u.Query()
-		setBaseQuery(q, baseParams{
-			Start:    params.Start,
-			End:      params.End,
+		setBaseQuery(q, baseRequest{
+			Start:    req.Start,
+			End:      req.End,
 			Feed:     "sip",
-			AsOf:     params.AsOf,
-			Currency: params.Currency,
+			AsOf:     req.AsOf,
+			Currency: req.Currency,
 		}, c.opts)
 
 		received := 0
-		for params.TotalLimit == 0 || received < params.TotalLimit {
-			setQueryLimit(q, params.TotalLimit, params.PageLimit, received, v2MaxLimit)
+		for req.TotalLimit == 0 || received < req.TotalLimit {
+			setQueryLimit(q, req.TotalLimit, req.PageLimit, received, v2MaxLimit)
 			u.RawQuery = q.Encode()
 
 			resp, err := c.get(u)
@@ -774,10 +769,10 @@ func (c *Client) GetAuctionsAsync(symbol string, params GetAuctionsParams) <-cha
 
 // GetMultiAuctions returns auctions for the given symbols.
 func (c *Client) GetMultiAuctions(
-	symbols []string, params GetAuctionsParams,
+	symbols []string, req GetAuctionsRequest,
 ) (map[string][]DailyAuctions, error) {
 	auctions := make(map[string][]DailyAuctions, len(symbols))
-	for item := range c.GetMultiAuctionsAsync(symbols, params) {
+	for item := range c.GetMultiAuctionsAsync(symbols, req) {
 		if err := item.Error; err != nil {
 			return nil, err
 		}
@@ -787,7 +782,7 @@ func (c *Client) GetMultiAuctions(
 }
 
 // GetMultiAuctionsAsync returns a channel that will be populated with the auctions for the requested symbols.
-func (c *Client) GetMultiAuctionsAsync(symbols []string, params GetAuctionsParams) <-chan MultiDailyAuctionsItem {
+func (c *Client) GetMultiAuctionsAsync(symbols []string, req GetAuctionsRequest) <-chan MultiDailyAuctionsItem {
 	ch := make(chan MultiDailyAuctionsItem)
 
 	go func() {
@@ -801,17 +796,17 @@ func (c *Client) GetMultiAuctionsAsync(symbols []string, params GetAuctionsParam
 
 		q := u.Query()
 		q.Set("symbols", strings.Join(symbols, ","))
-		setBaseQuery(q, baseParams{
-			Start:    params.Start,
-			End:      params.End,
+		setBaseQuery(q, baseRequest{
+			Start:    req.Start,
+			End:      req.End,
 			Feed:     "sip",
-			AsOf:     params.AsOf,
-			Currency: params.Currency,
+			AsOf:     req.AsOf,
+			Currency: req.Currency,
 		}, c.opts)
 
 		received := 0
-		for params.TotalLimit == 0 || received < params.TotalLimit {
-			setQueryLimit(q, params.TotalLimit, params.PageLimit, received, v2MaxLimit)
+		for req.TotalLimit == 0 || received < req.TotalLimit {
+			setQueryLimit(q, req.TotalLimit, req.PageLimit, received, v2MaxLimit)
 			u.RawQuery = q.Encode()
 
 			resp, err := c.get(u)
@@ -849,7 +844,7 @@ func (c *Client) GetMultiAuctionsAsync(symbols []string, params GetAuctionsParam
 	return ch
 }
 
-func setLatestQueryParams(u *url.URL, symbols []string, opts ClientOpts) {
+func setLatestQueryRequest(u *url.URL, symbols []string, opts ClientOpts) {
 	q := u.Query()
 	if len(symbols) > 0 {
 		q.Set("symbols", strings.Join(symbols, ","))
@@ -869,7 +864,7 @@ func (c *Client) GetLatestBar(symbol string) (*Bar, error) {
 	if err != nil {
 		return nil, err
 	}
-	setLatestQueryParams(u, nil, c.opts)
+	setLatestQueryRequest(u, nil, c.opts)
 
 	resp, err := c.get(u)
 	if err != nil {
@@ -889,7 +884,7 @@ func (c *Client) GetLatestBars(symbols []string) (map[string]Bar, error) {
 	if err != nil {
 		return nil, err
 	}
-	setLatestQueryParams(u, symbols, c.opts)
+	setLatestQueryRequest(u, symbols, c.opts)
 
 	resp, err := c.get(u)
 	if err != nil {
@@ -909,7 +904,7 @@ func (c *Client) GetLatestTrade(symbol string) (*Trade, error) {
 	if err != nil {
 		return nil, err
 	}
-	setLatestQueryParams(u, nil, c.opts)
+	setLatestQueryRequest(u, nil, c.opts)
 
 	resp, err := c.get(u)
 	if err != nil {
@@ -929,7 +924,7 @@ func (c *Client) GetLatestTrades(symbols []string) (map[string]Trade, error) {
 	if err != nil {
 		return nil, err
 	}
-	setLatestQueryParams(u, symbols, c.opts)
+	setLatestQueryRequest(u, symbols, c.opts)
 
 	resp, err := c.get(u)
 	if err != nil {
@@ -949,7 +944,7 @@ func (c *Client) GetLatestQuote(symbol string) (*Quote, error) {
 	if err != nil {
 		return nil, err
 	}
-	setLatestQueryParams(u, nil, c.opts)
+	setLatestQueryRequest(u, nil, c.opts)
 
 	resp, err := c.get(u)
 	if err != nil {
@@ -971,7 +966,7 @@ func (c *Client) GetLatestQuotes(symbols []string) (map[string]Quote, error) {
 	if err != nil {
 		return nil, err
 	}
-	setLatestQueryParams(u, symbols, c.opts)
+	setLatestQueryRequest(u, symbols, c.opts)
 
 	resp, err := c.get(u)
 	if err != nil {
@@ -991,7 +986,7 @@ func (c *Client) GetSnapshot(symbol string) (*Snapshot, error) {
 	if err != nil {
 		return nil, err
 	}
-	setLatestQueryParams(u, nil, c.opts)
+	setLatestQueryRequest(u, nil, c.opts)
 
 	resp, err := c.get(u)
 	if err != nil {
@@ -1013,7 +1008,7 @@ func (c *Client) GetSnapshots(symbols []string) (map[string]*Snapshot, error) {
 	if err != nil {
 		return nil, err
 	}
-	setLatestQueryParams(u, symbols, c.opts)
+	setLatestQueryRequest(u, symbols, c.opts)
 
 	resp, err := c.get(u)
 	if err != nil {
@@ -1031,8 +1026,8 @@ func (c *Client) GetSnapshots(symbols []string) (map[string]*Snapshot, error) {
 
 const cryptoPrefix = "v1beta1/crypto"
 
-// GetCryptoTradesParams contains optional parameters for getting crypto trades
-type GetCryptoTradesParams struct {
+// GetCryptoTradesRequest contains optional parameters for getting crypto trades
+type GetCryptoTradesRequest struct {
 	// Start is the inclusive beginning of the interval
 	Start time.Time
 	// End is the inclusive end of the interval
@@ -1048,9 +1043,9 @@ type GetCryptoTradesParams struct {
 
 // GetCryptoTrades returns the trades for the given crypto symbol. It blocks until all the trades are collected.
 // If you want to process the incoming trades instantly, use GetCryptoTradesAsync instead!
-func (c *Client) GetCryptoTrades(symbol string, params GetCryptoTradesParams) ([]CryptoTrade, error) {
+func (c *Client) GetCryptoTrades(symbol string, req GetCryptoTradesRequest) ([]CryptoTrade, error) {
 	trades := make([]CryptoTrade, 0)
-	for item := range c.GetCryptoTradesAsync(symbol, params) {
+	for item := range c.GetCryptoTradesAsync(symbol, req) {
 		if err := item.Error; err != nil {
 			return nil, err
 		}
@@ -1060,7 +1055,7 @@ func (c *Client) GetCryptoTrades(symbol string, params GetCryptoTradesParams) ([
 }
 
 // GetCryptoTradesAsync returns a channel that will be populated with the trades for the given crypto symbol.
-func (c *Client) GetCryptoTradesAsync(symbol string, params GetCryptoTradesParams) <-chan CryptoTradeItem {
+func (c *Client) GetCryptoTradesAsync(symbol string, req GetCryptoTradesRequest) <-chan CryptoTradeItem {
 	ch := make(chan CryptoTradeItem)
 
 	go func() {
@@ -1073,11 +1068,11 @@ func (c *Client) GetCryptoTradesAsync(symbol string, params GetCryptoTradesParam
 		}
 
 		q := u.Query()
-		setCryptoBaseQuery(q, params.Start, params.End, params.Exchanges)
+		setCryptoBaseQuery(q, req.Start, req.End, req.Exchanges)
 
 		received := 0
-		for params.TotalLimit == 0 || received < params.TotalLimit {
-			setQueryLimit(q, params.TotalLimit, params.PageLimit, received, v2MaxLimit)
+		for req.TotalLimit == 0 || received < req.TotalLimit {
+			setQueryLimit(q, req.TotalLimit, req.PageLimit, received, v2MaxLimit)
 			u.RawQuery = q.Encode()
 
 			resp, err := c.get(u)
@@ -1106,8 +1101,8 @@ func (c *Client) GetCryptoTradesAsync(symbol string, params GetCryptoTradesParam
 	return ch
 }
 
-// GetCryptoQuotesParams contains optional parameters for getting crypto quotes
-type GetCryptoQuotesParams struct {
+// GetCryptoQuotesRequest contains optional parameters for getting crypto quotes
+type GetCryptoQuotesRequest struct {
 	// Start is the inclusive beginning of the interval
 	Start time.Time
 	// End is the inclusive end of the interval
@@ -1123,9 +1118,9 @@ type GetCryptoQuotesParams struct {
 
 // GetCryptoQuotes returns the quotes for the given crypto symbol. It blocks until all the quotes are collected.
 // If you want to process the incoming quotes instantly, use GetCryptoQuotesAsync instead!
-func (c *Client) GetCryptoQuotes(symbol string, params GetCryptoQuotesParams) ([]CryptoQuote, error) {
+func (c *Client) GetCryptoQuotes(symbol string, req GetCryptoQuotesRequest) ([]CryptoQuote, error) {
 	quotes := make([]CryptoQuote, 0)
-	for item := range c.GetCryptoQuotesAsync(symbol, params) {
+	for item := range c.GetCryptoQuotesAsync(symbol, req) {
 		if err := item.Error; err != nil {
 			return nil, err
 		}
@@ -1135,7 +1130,7 @@ func (c *Client) GetCryptoQuotes(symbol string, params GetCryptoQuotesParams) ([
 }
 
 // GetCryptoQuotesAsync returns a channel that will be populated with the quotes for the given crypto symbol.
-func (c *Client) GetCryptoQuotesAsync(symbol string, params GetCryptoQuotesParams) <-chan CryptoQuoteItem {
+func (c *Client) GetCryptoQuotesAsync(symbol string, req GetCryptoQuotesRequest) <-chan CryptoQuoteItem {
 	ch := make(chan CryptoQuoteItem)
 
 	go func() {
@@ -1148,11 +1143,11 @@ func (c *Client) GetCryptoQuotesAsync(symbol string, params GetCryptoQuotesParam
 		}
 
 		q := u.Query()
-		setCryptoBaseQuery(q, params.Start, params.End, params.Exchanges)
+		setCryptoBaseQuery(q, req.Start, req.End, req.Exchanges)
 
 		received := 0
-		for params.TotalLimit == 0 || received < params.TotalLimit {
-			setQueryLimit(q, params.TotalLimit, params.PageLimit, received, v2MaxLimit)
+		for req.TotalLimit == 0 || received < req.TotalLimit {
+			setQueryLimit(q, req.TotalLimit, req.PageLimit, received, v2MaxLimit)
 			u.RawQuery = q.Encode()
 
 			resp, err := c.get(u)
@@ -1181,8 +1176,8 @@ func (c *Client) GetCryptoQuotesAsync(symbol string, params GetCryptoQuotesParam
 	return ch
 }
 
-// GetCryptoBarsParams contains optional parameters for getting crypto bars
-type GetCryptoBarsParams struct {
+// GetCryptoBarsRequest contains optional parameters for getting crypto bars
+type GetCryptoBarsRequest struct {
 	// TimeFrame is the aggregation size of the bars
 	TimeFrame TimeFrame
 	// Start is the inclusive beginning of the interval
@@ -1198,19 +1193,19 @@ type GetCryptoBarsParams struct {
 	Exchanges []string
 }
 
-func setQueryCryptoBarParams(q url.Values, params GetCryptoBarsParams) {
-	setCryptoBaseQuery(q, params.Start, params.End, params.Exchanges)
+func setQueryCryptoBarRequest(q url.Values, req GetCryptoBarsRequest) {
+	setCryptoBaseQuery(q, req.Start, req.End, req.Exchanges)
 	timeframe := OneDay
-	if params.TimeFrame.N != 0 {
-		timeframe = params.TimeFrame
+	if req.TimeFrame.N != 0 {
+		timeframe = req.TimeFrame
 	}
 	q.Set("timeframe", timeframe.String())
 }
 
 // GetCryptoBars returns a slice of bars for the given crypto symbol.
-func (c *Client) GetCryptoBars(symbol string, params GetCryptoBarsParams) ([]CryptoBar, error) {
+func (c *Client) GetCryptoBars(symbol string, req GetCryptoBarsRequest) ([]CryptoBar, error) {
 	bars := make([]CryptoBar, 0)
-	for item := range c.GetCryptoBarsAsync(symbol, params) {
+	for item := range c.GetCryptoBarsAsync(symbol, req) {
 		if err := item.Error; err != nil {
 			return nil, err
 		}
@@ -1220,7 +1215,7 @@ func (c *Client) GetCryptoBars(symbol string, params GetCryptoBarsParams) ([]Cry
 }
 
 // GetCryptoBarsAsync returns a channel that will be populated with the bars for the given crypto symbol.
-func (c *Client) GetCryptoBarsAsync(symbol string, params GetCryptoBarsParams) <-chan CryptoBarItem {
+func (c *Client) GetCryptoBarsAsync(symbol string, req GetCryptoBarsRequest) <-chan CryptoBarItem {
 	ch := make(chan CryptoBarItem)
 
 	go func() {
@@ -1233,11 +1228,11 @@ func (c *Client) GetCryptoBarsAsync(symbol string, params GetCryptoBarsParams) <
 		}
 
 		q := u.Query()
-		setQueryCryptoBarParams(q, params)
+		setQueryCryptoBarRequest(q, req)
 
 		received := 0
-		for params.TotalLimit == 0 || received < params.TotalLimit {
-			setQueryLimit(q, params.TotalLimit, params.PageLimit, received, v2MaxLimit)
+		for req.TotalLimit == 0 || received < req.TotalLimit {
+			setQueryLimit(q, req.TotalLimit, req.PageLimit, received, v2MaxLimit)
 			u.RawQuery = q.Encode()
 
 			resp, err := c.get(u)
@@ -1268,10 +1263,10 @@ func (c *Client) GetCryptoBarsAsync(symbol string, params GetCryptoBarsParams) <
 
 // GetCryptoMultiBars returns bars for the given crypto symbols.
 func (c *Client) GetCryptoMultiBars(
-	symbols []string, params GetCryptoBarsParams,
+	symbols []string, req GetCryptoBarsRequest,
 ) (map[string][]CryptoBar, error) {
 	bars := make(map[string][]CryptoBar, len(symbols))
-	for item := range c.GetCryptoMultiBarsAsync(symbols, params) {
+	for item := range c.GetCryptoMultiBarsAsync(symbols, req) {
 		if err := item.Error; err != nil {
 			return nil, err
 		}
@@ -1281,7 +1276,7 @@ func (c *Client) GetCryptoMultiBars(
 }
 
 // GetCryptoMultiBarsAsync returns a channel that will be populated with the bars for the requested crypto symbols.
-func (c *Client) GetCryptoMultiBarsAsync(symbols []string, params GetCryptoBarsParams) <-chan CryptoMultiBarItem {
+func (c *Client) GetCryptoMultiBarsAsync(symbols []string, req GetCryptoBarsRequest) <-chan CryptoMultiBarItem {
 	ch := make(chan CryptoMultiBarItem)
 
 	go func() {
@@ -1295,11 +1290,11 @@ func (c *Client) GetCryptoMultiBarsAsync(symbols []string, params GetCryptoBarsP
 
 		q := u.Query()
 		q.Set("symbols", strings.Join(symbols, ","))
-		setQueryCryptoBarParams(q, params)
+		setQueryCryptoBarRequest(q, req)
 
 		received := 0
-		for params.TotalLimit == 0 || received < params.TotalLimit {
-			setQueryLimit(q, params.TotalLimit, params.PageLimit, received, v2MaxLimit)
+		for req.TotalLimit == 0 || received < req.TotalLimit {
+			setQueryLimit(q, req.TotalLimit, req.PageLimit, received, v2MaxLimit)
 			u.RawQuery = q.Encode()
 
 			resp, err := c.get(u)
@@ -1596,8 +1591,8 @@ var (
 	SortAsc Sort = "asc"
 )
 
-// GetNewsParams contains optional parameters for getting news articles.
-type GetNewsParams struct {
+// GetNewsRequest contains optional parameters for getting news articles.
+type GetNewsRequest struct {
 	// Symbols filters the news to the related symbols.
 	// If empty or nil, all articles will be returned.
 	Symbols []string
@@ -1618,7 +1613,7 @@ type GetNewsParams struct {
 	// then all the articles in the given start-end interval are returned.
 	// If NoTotalLimit is false, then 50 articles will be returned.
 	//
-	// The reason for this complication is that the default (empty GetNewsParams) would
+	// The reason for this complication is that the default (empty GetNewsRequest) would
 	// not return all the news articles.
 	TotalLimit int
 	// NoTotalLimit means all news articles will be returned from the given start-end interval.
@@ -1629,7 +1624,7 @@ type GetNewsParams struct {
 	PageLimit int
 }
 
-func setNewsQuery(q url.Values, p GetNewsParams) {
+func setNewsQuery(q url.Values, p GetNewsRequest) {
 	if len(p.Symbols) > 0 {
 		q.Set("symbols", strings.Join(p.Symbols, ","))
 	}
@@ -1650,15 +1645,15 @@ func setNewsQuery(q url.Values, p GetNewsParams) {
 	}
 }
 
-// GetNews returns the news articles based on the given params.
-func (c *Client) GetNews(params GetNewsParams) ([]News, error) {
-	if params.TotalLimit < 0 {
+// GetNews returns the news articles based on the given req.
+func (c *Client) GetNews(req GetNewsRequest) ([]News, error) {
+	if req.TotalLimit < 0 {
 		return nil, fmt.Errorf("negative total limit")
 	}
-	if params.PageLimit < 0 {
+	if req.PageLimit < 0 {
 		return nil, fmt.Errorf("negative page limit")
 	}
-	if params.NoTotalLimit && params.TotalLimit != 0 {
+	if req.NoTotalLimit && req.TotalLimit != 0 {
 		return nil, fmt.Errorf("both NoTotalLimit and non-zero TotalLimit specified")
 	}
 	u, err := url.Parse(fmt.Sprintf("%s/v1beta1/news", c.opts.BaseURL))
@@ -1667,16 +1662,16 @@ func (c *Client) GetNews(params GetNewsParams) ([]News, error) {
 	}
 
 	q := u.Query()
-	setNewsQuery(q, params)
+	setNewsQuery(q, req)
 	received := 0
-	totalLimit := params.TotalLimit
-	if params.TotalLimit == 0 && !params.NoTotalLimit {
+	totalLimit := req.TotalLimit
+	if req.TotalLimit == 0 && !req.NoTotalLimit {
 		totalLimit = newsMaxLimit
 	}
 
 	news := make([]News, 0, totalLimit)
 	for totalLimit == 0 || received < totalLimit {
-		setQueryLimit(q, totalLimit, params.PageLimit, received, newsMaxLimit)
+		setQueryLimit(q, totalLimit, req.PageLimit, received, newsMaxLimit)
 		u.RawQuery = q.Encode()
 
 		resp, err := c.get(u)
@@ -1701,92 +1696,92 @@ func (c *Client) GetNews(params GetNewsParams) ([]News, error) {
 
 // GetTrades returns the trades for the given symbol. It blocks until all the trades are collected.
 // If you want to process the incoming trades instantly, use GetTradesAsync instead!
-func GetTrades(symbol string, params GetTradesParams) ([]Trade, error) {
-	return DefaultClient.GetTrades(symbol, params)
+func GetTrades(symbol string, req GetTradesRequest) ([]Trade, error) {
+	return DefaultClient.GetTrades(symbol, req)
 }
 
 // GetTradesAsync returns a channel that will be populated with the trades for the given symbol
 // that happened between the given start and end times, limited to the given limit.
-func GetTradesAsync(symbol string, params GetTradesParams) <-chan TradeItem {
-	return DefaultClient.GetTradesAsync(symbol, params)
+func GetTradesAsync(symbol string, req GetTradesRequest) <-chan TradeItem {
+	return DefaultClient.GetTradesAsync(symbol, req)
 }
 
 // GetMultiTrades returns the trades for the given symbols. It blocks until all the trades are collected.
 // If you want to process the incoming trades instantly, use GetMultiTradesAsync instead!
-func GetMultiTrades(symbols []string, params GetTradesParams) (map[string][]Trade, error) {
-	return DefaultClient.GetMultiTrades(symbols, params)
+func GetMultiTrades(symbols []string, req GetTradesRequest) (map[string][]Trade, error) {
+	return DefaultClient.GetMultiTrades(symbols, req)
 }
 
 // GetMultiTradesAsync returns a channel that will be populated with the trades for the given symbols.
-func GetMultiTradesAsync(symbols []string, params GetTradesParams) <-chan MultiTradeItem {
-	return DefaultClient.GetMultiTradesAsync(symbols, params)
+func GetMultiTradesAsync(symbols []string, req GetTradesRequest) <-chan MultiTradeItem {
+	return DefaultClient.GetMultiTradesAsync(symbols, req)
 }
 
 // GetQuotes returns the quotes for the given symbol. It blocks until all the quotes are collected.
 // If you want to process the incoming quotes instantly, use GetQuotesAsync instead!
-func GetQuotes(symbol string, params GetQuotesParams) ([]Quote, error) {
-	return DefaultClient.GetQuotes(symbol, params)
+func GetQuotes(symbol string, req GetQuotesRequest) ([]Quote, error) {
+	return DefaultClient.GetQuotes(symbol, req)
 }
 
 // GetQuotesAsync returns a channel that will be populated with the quotes for the given symbol
 // that happened between the given start and end times, limited to the given limit.
-func GetQuotesAsync(symbol string, params GetQuotesParams) <-chan QuoteItem {
-	return DefaultClient.GetQuotesAsync(symbol, params)
+func GetQuotesAsync(symbol string, req GetQuotesRequest) <-chan QuoteItem {
+	return DefaultClient.GetQuotesAsync(symbol, req)
 }
 
 // GetMultiQuotes returns the quotes for the given symbols. It blocks until all the quotes are collected.
 // If you want to process the incoming quotes instantly, use GetMultiQuotesAsync instead!
-func GetMultiQuotes(symbols []string, params GetQuotesParams) (map[string][]Quote, error) {
-	return DefaultClient.GetMultiQuotes(symbols, params)
+func GetMultiQuotes(symbols []string, req GetQuotesRequest) (map[string][]Quote, error) {
+	return DefaultClient.GetMultiQuotes(symbols, req)
 }
 
 // GetMultiQuotesAsync returns a channel that will be populated with the quotes for the given symbols.
-func GetMultiQuotesAsync(symbols []string, params GetQuotesParams) <-chan MultiQuoteItem {
-	return DefaultClient.GetMultiQuotesAsync(symbols, params)
+func GetMultiQuotesAsync(symbols []string, req GetQuotesRequest) <-chan MultiQuoteItem {
+	return DefaultClient.GetMultiQuotesAsync(symbols, req)
 }
 
 // GetBars returns the bars for the given symbol. It blocks until all the bars are collected.
 // If you want to process the incoming bars instantly, use GetBarsAsync instead!
-func GetBars(symbol string, params GetBarsParams) ([]Bar, error) {
-	return DefaultClient.GetBars(symbol, params)
+func GetBars(symbol string, req GetBarsRequest) ([]Bar, error) {
+	return DefaultClient.GetBars(symbol, req)
 }
 
 // GetBarsAsync returns a channel that will be populated with the bars for the given symbol.
-func GetBarsAsync(symbol string, params GetBarsParams) <-chan BarItem {
-	return DefaultClient.GetBarsAsync(symbol, params)
+func GetBarsAsync(symbol string, req GetBarsRequest) <-chan BarItem {
+	return DefaultClient.GetBarsAsync(symbol, req)
 }
 
 // GetMultiBars returns the bars for the given symbols. It blocks until all the bars are collected.
 // If you want to process the incoming bars instantly, use GetMultiBarsAsync instead!
-func GetMultiBars(symbols []string, params GetBarsParams) (map[string][]Bar, error) {
-	return DefaultClient.GetMultiBars(symbols, params)
+func GetMultiBars(symbols []string, req GetBarsRequest) (map[string][]Bar, error) {
+	return DefaultClient.GetMultiBars(symbols, req)
 }
 
 // GetMultiBarsAsync returns a channel that will be populated with the bars for the given symbols.
-func GetMultiBarsAsync(symbols []string, params GetBarsParams) <-chan MultiBarItem {
-	return DefaultClient.GetMultiBarsAsync(symbols, params)
+func GetMultiBarsAsync(symbols []string, req GetBarsRequest) <-chan MultiBarItem {
+	return DefaultClient.GetMultiBarsAsync(symbols, req)
 }
 
 // GetAuctions returns the auctions for the given symbol. It blocks until all the auctions are collected.
 // If you want to process the incoming auctions instantly, use GetAuctionsAsync instead!
-func GetAuctions(symbol string, params GetAuctionsParams) ([]DailyAuctions, error) {
-	return DefaultClient.GetAuctions(symbol, params)
+func GetAuctions(symbol string, req GetAuctionsRequest) ([]DailyAuctions, error) {
+	return DefaultClient.GetAuctions(symbol, req)
 }
 
 // GetAuctionsAsync returns a channel that will be populated with the auctions for the given symbol.
-func GetAuctionsAsync(symbol string, params GetAuctionsParams) <-chan DailyAuctionsItem {
-	return DefaultClient.GetAuctionsAsync(symbol, params)
+func GetAuctionsAsync(symbol string, req GetAuctionsRequest) <-chan DailyAuctionsItem {
+	return DefaultClient.GetAuctionsAsync(symbol, req)
 }
 
 // GetMultiAuctions returns the auctions for the given symbols. It blocks until all the auctions are collected.
 // If you want to process the incoming auctions instantly, use GetMultiAuctionsAsync instead!
-func GetMultiAuctions(symbols []string, params GetAuctionsParams) (map[string][]DailyAuctions, error) {
-	return DefaultClient.GetMultiAuctions(symbols, params)
+func GetMultiAuctions(symbols []string, req GetAuctionsRequest) (map[string][]DailyAuctions, error) {
+	return DefaultClient.GetMultiAuctions(symbols, req)
 }
 
 // GetMultiAuctionsAsync returns a channel that will be populated with the auctions for the given symbols.
-func GetMultiAuctionsAsync(symbols []string, params GetAuctionsParams) <-chan MultiDailyAuctionsItem {
-	return DefaultClient.GetMultiAuctionsAsync(symbols, params)
+func GetMultiAuctionsAsync(symbols []string, req GetAuctionsRequest) <-chan MultiDailyAuctionsItem {
+	return DefaultClient.GetMultiAuctionsAsync(symbols, req)
 }
 
 // GetLatestBar returns the latest minute bar for a given symbol.
@@ -1831,48 +1826,48 @@ func GetSnapshots(symbols []string) (map[string]*Snapshot, error) {
 
 // GetCryptoTrades returns the trades for the given crypto symbol. It blocks until all the trades are collected.
 // If you want to process the incoming trades instantly, use GetCryptoTradesAsync instead!
-func GetCryptoTrades(symbol string, params GetCryptoTradesParams) ([]CryptoTrade, error) {
-	return DefaultClient.GetCryptoTrades(symbol, params)
+func GetCryptoTrades(symbol string, req GetCryptoTradesRequest) ([]CryptoTrade, error) {
+	return DefaultClient.GetCryptoTrades(symbol, req)
 }
 
 // GetCryptoQuotesAsync returns a channel that will be populated with the trades for the given crypto symbol
 // that happened between the given start and end times, limited to the given limit.
-func GetCryptoTradesAsync(symbol string, params GetCryptoTradesParams) <-chan CryptoTradeItem {
-	return DefaultClient.GetCryptoTradesAsync(symbol, params)
+func GetCryptoTradesAsync(symbol string, req GetCryptoTradesRequest) <-chan CryptoTradeItem {
+	return DefaultClient.GetCryptoTradesAsync(symbol, req)
 }
 
 // GetCryptoQuotes returns the quotes for the given crypto symbol. It blocks until all the quotes are collected.
 // If you want to process the incoming quotes instantly, use GetCryptoQuotesAsync instead!
-func GetCryptoQuotes(symbol string, params GetCryptoQuotesParams) ([]CryptoQuote, error) {
-	return DefaultClient.GetCryptoQuotes(symbol, params)
+func GetCryptoQuotes(symbol string, req GetCryptoQuotesRequest) ([]CryptoQuote, error) {
+	return DefaultClient.GetCryptoQuotes(symbol, req)
 }
 
 // GetCryptoQuotesAsync returns a channel that will be populated with the quotes for the given crypto symbol
 // that happened between the given start and end times, limited to the given limit.
-func GetCryptoQuotesAsync(symbol string, params GetCryptoQuotesParams) <-chan CryptoQuoteItem {
-	return DefaultClient.GetCryptoQuotesAsync(symbol, params)
+func GetCryptoQuotesAsync(symbol string, req GetCryptoQuotesRequest) <-chan CryptoQuoteItem {
+	return DefaultClient.GetCryptoQuotesAsync(symbol, req)
 }
 
 // GetCryptoBars returns the bars for the given crypto symbol. It blocks until all the bars are collected.
 // If you want to process the incoming bars instantly, use GetCryptoBarsAsync instead!
-func GetCryptoBars(symbol string, params GetCryptoBarsParams) ([]CryptoBar, error) {
-	return DefaultClient.GetCryptoBars(symbol, params)
+func GetCryptoBars(symbol string, req GetCryptoBarsRequest) ([]CryptoBar, error) {
+	return DefaultClient.GetCryptoBars(symbol, req)
 }
 
 // GetCryptoBarsAsync returns a channel that will be populated with the bars for the given crypto symbol.
-func GetCryptoBarsAsync(symbol string, params GetCryptoBarsParams) <-chan CryptoBarItem {
-	return DefaultClient.GetCryptoBarsAsync(symbol, params)
+func GetCryptoBarsAsync(symbol string, req GetCryptoBarsRequest) <-chan CryptoBarItem {
+	return DefaultClient.GetCryptoBarsAsync(symbol, req)
 }
 
 // GetCryptoMultiBars returns the bars for the given crypto symbols. It blocks until all the bars are collected.
 // If you want to process the incoming bars instantly, use GetCryptoMultiBarsAsync instead!
-func GetCryptoMultiBars(symbols []string, params GetCryptoBarsParams) (map[string][]CryptoBar, error) {
-	return DefaultClient.GetCryptoMultiBars(symbols, params)
+func GetCryptoMultiBars(symbols []string, req GetCryptoBarsRequest) (map[string][]CryptoBar, error) {
+	return DefaultClient.GetCryptoMultiBars(symbols, req)
 }
 
 // GetCryptoMultiBarsAsync returns a channel that will be populated with the bars for the given crypto symbols.
-func GetCryptoMultiBarsAsync(symbols []string, params GetCryptoBarsParams) <-chan CryptoMultiBarItem {
-	return DefaultClient.GetCryptoMultiBarsAsync(symbols, params)
+func GetCryptoMultiBarsAsync(symbols []string, req GetCryptoBarsRequest) <-chan CryptoMultiBarItem {
+	return DefaultClient.GetCryptoMultiBarsAsync(symbols, req)
 }
 
 // GetLatestCryptoBar returns the latest bar for a given crypto symbol on the given exchange
@@ -1925,9 +1920,9 @@ func GetCryptoSnapshots(symbols []string, exchange string) (map[string]CryptoSna
 	return DefaultClient.GetCryptoSnapshots(symbols, exchange)
 }
 
-// GetNews returns the news articles based on the given params.
-func GetNews(params GetNewsParams) ([]News, error) {
-	return DefaultClient.GetNews(params)
+// GetNews returns the news articles based on the given req.
+func GetNews(req GetNewsRequest) ([]News, error) {
+	return DefaultClient.GetNews(req)
 }
 
 func (c *Client) get(u *url.URL) (*http.Response, error) {

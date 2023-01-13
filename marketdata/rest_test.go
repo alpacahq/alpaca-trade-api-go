@@ -92,7 +92,9 @@ func TestDefaultDo_Timeout(t *testing.T) {
 	}))
 	defer server.Close()
 	client := NewClient(ClientOpts{
-		Timeout: time.Millisecond,
+		HTTPClient: &http.Client{
+			Timeout: time.Millisecond,
+		},
 	})
 	_, err := client.GetLatestBar("SPY")
 	require.Error(t, err)
@@ -129,7 +131,7 @@ func TestGetTrades_Gzip(t *testing.T) {
 			},
 		}, nil
 	}
-	got, err := c.GetTrades("AAPL", GetTradesParams{
+	got, err := c.GetTrades("AAPL", GetTradesRequest{
 		Start:      time.Date(2021, 10, 13, 0, 0, 0, 0, time.UTC),
 		TotalLimit: 5,
 		PageLimit:  5,
@@ -153,7 +155,7 @@ func TestGetTrades(t *testing.T) {
 			Body: ioutil.NopCloser(strings.NewReader(resp)),
 		}, nil
 	}
-	got, err := c.GetTrades("AAPL", GetTradesParams{
+	got, err := c.GetTrades("AAPL", GetTradesRequest{
 		Start:      time.Date(2021, 10, 13, 0, 0, 0, 0, time.UTC),
 		TotalLimit: 1,
 		PageLimit:  1,
@@ -176,7 +178,7 @@ func TestGetTrades_Currency(t *testing.T) {
 			Body: ioutil.NopCloser(strings.NewReader(resp)),
 		}, nil
 	}
-	got, err := c.GetTrades("AAPL", GetTradesParams{
+	got, err := c.GetTrades("AAPL", GetTradesRequest{
 		Start:      time.Date(2021, 10, 13, 0, 0, 0, 0, time.UTC),
 		TotalLimit: 1,
 		PageLimit:  1,
@@ -196,7 +198,7 @@ func TestGetTrades_InvalidURL(t *testing.T) {
 		require.Fail(t, "the server should not have been called")
 		return nil, nil
 	}
-	_, err := c.GetTrades("AAPL", GetTradesParams{})
+	_, err := c.GetTrades("AAPL", GetTradesRequest{})
 	require.Error(t, err)
 }
 
@@ -204,7 +206,7 @@ func TestGetTrades_Update(t *testing.T) {
 	c := DefaultClient
 	resp := `{"trades":[{"t":"2022-10-21T20:19:03.752176Z","x":"D","p":129.88,"s":5,"c":[" ","T","I"],"i":71697353758036,"z":"A","u":"canceled"},{"t":"2022-10-21T20:19:03.876181Z","x":"D","p":129.88,"s":2,"c":[" ","T","I"],"i":71697353815352,"z":"A","u":"canceled"}],"symbol":"A","next_page_token":null}`
 	c.do = mockResp(resp)
-	got, err := c.GetTrades("AAPL", GetTradesParams{
+	got, err := c.GetTrades("AAPL", GetTradesRequest{
 		Start: time.Date(2022, 10, 21, 20, 19, 3, 0, time.UTC),
 		End:   time.Date(2022, 10, 21, 20, 19, 4, 0, time.UTC),
 	})
@@ -217,14 +219,14 @@ func TestGetTrades_Update(t *testing.T) {
 func TestGetTrades_ServerError(t *testing.T) {
 	c := DefaultClient
 	c.do = mockErrResp()
-	_, err := c.GetTrades("SPY", GetTradesParams{})
+	_, err := c.GetTrades("SPY", GetTradesRequest{})
 	require.Error(t, err)
 }
 
 func TestGetTrades_InvalidResponse(t *testing.T) {
 	c := DefaultClient
 	c.do = mockResp("not a valid json")
-	_, err := c.GetTrades("SPY", GetTradesParams{})
+	_, err := c.GetTrades("SPY", GetTradesRequest{})
 	require.Error(t, err)
 }
 
@@ -241,7 +243,7 @@ func TestGetMultiTrades(t *testing.T) {
 			Body: ioutil.NopCloser(strings.NewReader(resp)),
 		}, nil
 	}
-	got, err := c.GetMultiTrades([]string{"F", "GE"}, GetTradesParams{
+	got, err := c.GetMultiTrades([]string{"F", "GE"}, GetTradesRequest{
 		Start: time.Date(2018, 6, 4, 19, 18, 17, 0, time.UTC),
 		End:   time.Date(2018, 6, 4, 19, 18, 19, 0, time.UTC),
 	})
@@ -282,7 +284,7 @@ func TestGetQuotes(t *testing.T) {
 			Body: ioutil.NopCloser(strings.NewReader(resp)),
 		}, nil
 	}
-	got, err := c.GetQuotes("IBM", GetQuotesParams{
+	got, err := c.GetQuotes("IBM", GetQuotesRequest{
 		Start:     time.Date(2021, 10, 4, 18, 0, 14, 0, time.UTC),
 		End:       time.Date(2021, 10, 4, 18, 0, 15, 0, time.UTC),
 		PageLimit: 10,
@@ -313,7 +315,7 @@ func TestGetMultiQuotes(t *testing.T) {
 			Body: ioutil.NopCloser(strings.NewReader(resp)),
 		}, nil
 	}
-	got, err := c.GetMultiQuotes([]string{"BA", "DIS"}, GetQuotesParams{
+	got, err := c.GetMultiQuotes([]string{"BA", "DIS"}, GetQuotesRequest{
 		Start:      time.Date(2021, 9, 15, 17, 0, 0, 0, time.UTC),
 		End:        time.Date(2021, 9, 15, 18, 0, 0, 0, time.UTC),
 		TotalLimit: 6,
@@ -354,7 +356,7 @@ func TestGetAuctions(t *testing.T) {
 			Body: ioutil.NopCloser(strings.NewReader(resp)),
 		}, nil
 	}
-	got, err := c.GetAuctions("AAPL", GetAuctionsParams{
+	got, err := c.GetAuctions("AAPL", GetAuctionsRequest{
 		Start:      time.Date(2022, 10, 17, 0, 0, 0, 0, time.UTC),
 		End:        time.Date(2022, 10, 28, 0, 0, 0, 0, time.UTC),
 		PageLimit:  2,
@@ -388,7 +390,7 @@ func TestGetMultiAuctions(t *testing.T) {
 			Body: ioutil.NopCloser(strings.NewReader(resp)),
 		}, nil
 	}
-	got, err := c.GetMultiAuctions([]string{"AAPL", "IBM", "TSLA"}, GetAuctionsParams{
+	got, err := c.GetMultiAuctions([]string{"AAPL", "IBM", "TSLA"}, GetAuctionsRequest{
 		Start:      time.Date(2022, 10, 17, 0, 0, 0, 0, time.UTC),
 		End:        time.Date(2022, 10, 18, 0, 0, 0, 0, time.UTC),
 		TotalLimit: 2,
@@ -403,7 +405,7 @@ func TestGetBars(t *testing.T) {
 	c := DefaultClient
 
 	c.do = mockResp(`{"bars":[{"t":"2021-10-15T16:00:00Z","o":3378.14,"h":3380.815,"l":3376.3001,"c":3379.72,"v":211689,"n":5435,"vw":3379.041755},{"t":"2021-10-15T16:15:00Z","o":3379.5241,"h":3383.24,"l":3376.49,"c":3377.82,"v":115850,"n":5544,"vw":3379.638266},{"t":"2021-10-15T16:30:00Z","o":3377.982,"h":3380.86,"l":3377,"c":3380,"v":58531,"n":3679,"vw":3379.100605},{"t":"2021-10-15T16:45:00Z","o":3379.73,"h":3387.17,"l":3378.7701,"c":3386.7615,"v":83180,"n":4736,"vw":3381.838113},{"t":"2021-10-15T17:00:00Z","o":3387.56,"h":3390.74,"l":3382.87,"c":3382.87,"v":134339,"n":5832,"vw":3387.086825}],"symbol":"AMZN","next_page_token":null}`)
-	got, err := c.GetBars("AMZN", GetBarsParams{
+	got, err := c.GetBars("AMZN", GetBarsRequest{
 		TimeFrame:  NewTimeFrame(15, Min),
 		Adjustment: Split,
 		Start:      time.Date(2021, 10, 15, 16, 0, 0, 0, time.UTC),
@@ -430,7 +432,7 @@ func TestGetMultiBars(t *testing.T) {
 	c := DefaultClient
 
 	c.do = mockResp(`{"bars":{"AAPL":[{"t":"2021-10-13T04:00:00Z","o":141.21,"h":141.4,"l":139.2,"c":140.91,"v":78993712,"n":595435,"vw":140.361873},{"t":"2021-10-14T04:00:00Z","o":142.08,"h":143.88,"l":141.51,"c":143.76,"v":69696731,"n":445634,"vw":143.216983},{"t":"2021-10-15T04:00:00Z","o":144.13,"h":144.895,"l":143.51,"c":144.84,"v":67393148,"n":426182,"vw":144.320565}],"NIO":[{"t":"2021-10-13T04:00:00Z","o":35.75,"h":36.68,"l":35.47,"c":36.24,"v":33394068,"n":177991,"vw":36.275125},{"t":"2021-10-14T04:00:00Z","o":36.09,"h":36.45,"l":35.605,"c":36.28,"v":29890265,"n":166379,"vw":36.00485},{"t":"2021-10-15T04:00:00Z","o":37,"h":38.29,"l":36.935,"c":37.71,"v":48138793,"n":257074,"vw":37.647123}]},"next_page_token":null}`)
-	got, err := c.GetMultiBars([]string{"AAPL", "NIO"}, GetBarsParams{
+	got, err := c.GetMultiBars([]string{"AAPL", "NIO"}, GetBarsRequest{
 		TimeFrame: OneDay,
 		Start:     time.Date(2021, 10, 13, 4, 0, 0, 0, time.UTC),
 		End:       time.Date(2021, 10, 17, 4, 0, 0, 0, time.UTC),
@@ -731,7 +733,7 @@ func TestSnapshots(t *testing.T) {
 func TestGetCryptoTrades(t *testing.T) {
 	c := DefaultClient
 	c.do = mockResp(`{"trades":[{"t":"2021-09-08T05:04:04.262Z","x":"CBSE","p":46391.58,"s":0.0523,"tks":"S","i":209199073},{"t":"2021-09-08T05:04:04.338Z","x":"CBSE","p":46388.41,"s":0.022,"tks":"S","i":209199074},{"t":"2021-09-08T05:04:04.599Z","x":"CBSE","p":46388.42,"s":0.00039732,"tks":"B","i":209199075}],"symbol":"BTCUSD","next_page_token":"QlRDVVNEfDIwMjEtMDktMDhUMDU6MDQ6MDQuNTk5MDAwMDAwWnxDQlNFfDA5MjIzMzcyMDM3MDYzOTc0ODgz"}`)
-	got, err := c.GetCryptoTrades("BTCUSD", GetCryptoTradesParams{
+	got, err := c.GetCryptoTrades("BTCUSD", GetCryptoTradesRequest{
 		Start:      time.Date(2021, 9, 8, 5, 4, 3, 0, time.UTC),
 		End:        time.Date(2021, 9, 8, 5, 6, 7, 0, time.UTC),
 		TotalLimit: 3,
@@ -768,7 +770,7 @@ func TestGetCryptoQuotes(t *testing.T) {
 			Body: ioutil.NopCloser(strings.NewReader(resp)),
 		}, nil
 	}
-	got, err := c.GetCryptoQuotes("ETHUSD", GetCryptoQuotesParams{
+	got, err := c.GetCryptoQuotes("ETHUSD", GetCryptoQuotesRequest{
 		Start:      time.Date(2021, 10, 9, 5, 4, 3, 0, time.UTC),
 		End:        time.Date(2021, 10, 9, 5, 6, 7, 0, time.UTC),
 		PageLimit:  10,
@@ -788,7 +790,7 @@ func TestGetCryptoQuotes(t *testing.T) {
 func TestGetCryptoBars(t *testing.T) {
 	c := DefaultClient
 	c.do = mockResp(`{"bars":[{"t":"2021-11-11T11:11:00Z","x":"CBSE","o":679.75,"h":679.76,"l":679.26,"c":679.26,"v":3.67960285,"n":10,"vw":679.6324449731},{"t":"2021-11-11T11:12:00Z","x":"CBSE","o":679.44,"h":679.53,"l":679.44,"c":679.53,"v":0.18841132,"n":8,"vw":679.5228170977},{"t":"2021-11-11T11:13:00Z","x":"CBSE","o":679.61,"h":679.61,"l":679.43,"c":679.49,"v":2.20062522,"n":7,"vw":679.49710414},{"t":"2021-11-11T11:14:00Z","x":"CBSE","o":679.48,"h":679.48,"l":679.22,"c":679.22,"v":1.17646198,"n":3,"vw":679.4148630646},{"t":"2021-11-11T11:15:00Z","x":"CBSE","o":679.19,"h":679.26,"l":679.04,"c":679.26,"v":0.54628614,"n":4,"vw":679.1730029087},{"t":"2021-11-11T11:16:00Z","x":"CBSE","o":679.84,"h":679.85,"l":679.65,"c":679.85,"v":10.73449374,"n":17,"vw":679.7295574889},{"t":"2021-11-11T11:17:00Z","x":"CBSE","o":679.82,"h":679.86,"l":679.23,"c":679.23,"v":10.76066555,"n":14,"vw":679.3284885697},{"t":"2021-11-11T11:18:00Z","x":"CBSE","o":679.05,"h":679.13,"l":678.66,"c":678.81,"v":2.30720435,"n":13,"vw":678.8593098348},{"t":"2021-11-11T11:19:00Z","x":"CBSE","o":678.64,"h":678.68,"l":678.37,"c":678.54,"v":3.12648447,"n":11,"vw":678.3865188897},{"t":"2021-11-11T11:20:00Z","x":"CBSE","o":678.55,"h":679.28,"l":678.41,"c":679.2,"v":1.9829005,"n":14,"vw":678.6421245625},{"t":"2021-11-11T11:21:00Z","x":"CBSE","o":679.48,"h":679.81,"l":679.39,"c":679.71,"v":3.53102371,"n":19,"vw":679.6679296305}],"symbol":"BCHUSD","next_page_token":null}`)
-	got, err := c.GetCryptoBars("BCHUSD", GetCryptoBarsParams{
+	got, err := c.GetCryptoBars("BCHUSD", GetCryptoBarsRequest{
 		TimeFrame: OneMin,
 		Start:     time.Date(2021, 11, 11, 11, 12, 0, 0, time.UTC),
 		End:       time.Date(2021, 11, 11, 11, 21, 7, 0, time.UTC),
@@ -809,7 +811,7 @@ func TestGetCryptoBars(t *testing.T) {
 func TestGetCryptoMultiBars(t *testing.T) {
 	c := DefaultClient
 	c.do = mockResp(`{"bars":{"BCHUSD":[{"t":"2021-11-20T20:00:00Z","x":"CBSE","o":582.48,"h":583.3,"l":580.16,"c":583.29,"v":895.36742328,"n":1442,"vw":581.631507},{"t":"2021-11-20T20:00:00Z","x":"ERSX","o":581.31,"h":581.31,"l":581.31,"c":581.31,"v":4,"n":1,"vw":581.31},{"t":"2021-11-20T20:00:00Z","x":"FTXU","o":581.875,"h":582.7,"l":580.05,"c":582.3,"v":315.999,"n":62,"vw":581.17328}],"BTCUSD":[{"t":"2021-11-20T20:00:00Z","x":"CBSE","o":59488.87,"h":59700,"l":59364.08,"c":59660.38,"v":542.20811667,"n":34479,"vw":59522.345185},{"t":"2021-11-20T20:00:00Z","x":"ERSX","o":59446.7,"h":59654.1,"l":59446.7,"c":59654.1,"v":1.1046,"n":4,"vw":59513.516151},{"t":"2021-11-20T20:00:00Z","x":"FTXU","o":59488,"h":59683,"l":59374,"c":59638,"v":73.079,"n":264,"vw":59501.646613}],"ETHUSD":[{"t":"2021-11-20T20:00:00Z","x":"CBSE","o":4402.71,"h":4435.25,"l":4392.96,"c":4432.48,"v":9115.28075256,"n":29571,"vw":4411.486276},{"t":"2021-11-20T20:00:00Z","x":"ERSX","o":4404.11,"h":4434.87,"l":4404.11,"c":4434.87,"v":68.8337,"n":49,"vw":4412.167596},{"t":"2021-11-20T20:00:00Z","x":"FTXU","o":4402.4,"h":4434,"l":4395.4,"c":4433.8,"v":643.603,"n":405,"vw":4408.340722}],"LTCUSD":[{"t":"2021-11-20T20:00:00Z","x":"CBSE","o":225.78,"h":227.09,"l":225.07,"c":225.79,"v":22495.52449682,"n":7007,"vw":226.00074},{"t":"2021-11-20T20:00:00Z","x":"ERSX","o":226.07,"h":226.67,"l":225.75,"c":225.75,"v":228.2211,"n":5,"vw":226.337181},{"t":"2021-11-20T20:00:00Z","x":"FTXU","o":225.805,"h":226.975,"l":225.135,"c":225.865,"v":1792,"n":149,"vw":225.944729}]},"next_page_token":null}`)
-	got, err := c.GetCryptoMultiBars([]string{"BTCUSD", "LTCUSD", "BCHUSD", "ETHUSD"}, GetCryptoBarsParams{
+	got, err := c.GetCryptoMultiBars([]string{"BTCUSD", "LTCUSD", "BCHUSD", "ETHUSD"}, GetCryptoBarsRequest{
 		TimeFrame: NewTimeFrame(2, Hour),
 		Start:     time.Date(2021, 11, 20, 0, 0, 0, 0, time.UTC),
 		End:       time.Date(2021, 11, 20, 0, 0, 0, 0, time.UTC),
@@ -1065,7 +1067,7 @@ func TestGetNews(t *testing.T) {
 			Body: ioutil.NopCloser(strings.NewReader(resp)),
 		}, nil
 	}
-	got, err := c.GetNews(GetNewsParams{
+	got, err := c.GetNews(GetNewsRequest{
 		Symbols:    []string{"AAPL", "TSLA"},
 		Start:      time.Date(2021, 4, 3, 0, 0, 0, 0, time.UTC),
 		End:        time.Date(2021, 4, 4, 5, 0, 0, 0, time.UTC),
@@ -1107,22 +1109,22 @@ func TestGetNews_ClientSideValidationErrors(t *testing.T) {
 	}
 	for _, tc := range []struct {
 		name          string
-		params        GetNewsParams
+		params        GetNewsRequest
 		expectedError string
 	}{
 		{
 			name:          "NegativeTotalLimit",
-			params:        GetNewsParams{TotalLimit: -1},
+			params:        GetNewsRequest{TotalLimit: -1},
 			expectedError: "negative total limit",
 		},
 		{
 			name:          "NegativePageLimit",
-			params:        GetNewsParams{PageLimit: -5},
+			params:        GetNewsRequest{PageLimit: -5},
 			expectedError: "negative page limit",
 		},
 		{
 			name:          "NoTotalLimitWithNonZeroTotalLimit",
-			params:        GetNewsParams{TotalLimit: 100, NoTotalLimit: true},
+			params:        GetNewsRequest{TotalLimit: 100, NoTotalLimit: true},
 			expectedError: "both NoTotalLimit and non-zero TotalLimit specified",
 		},
 	} {
