@@ -17,7 +17,7 @@ import (
 
 func TestDefaultDo(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprint(w, `{"symbol":"SPY","bar":{"t":"2021-11-20T00:59:00Z","o":469.18,"h":469.18,"l":469.11,"c":469.17,"v":740,"n":11,"vw":469.1355}}`)
+		fmt.Fprint(w, `{"bars":{"SPY":{"t":"2021-11-20T00:59:00Z","o":469.18,"h":469.18,"l":469.11,"c":469.17,"v":740,"n":11,"vw":469.1355}}}`)
 	}))
 	defer server.Close()
 	client := NewClient(ClientOpts{
@@ -52,7 +52,7 @@ func TestDefaultDo_Retry(t *testing.T) {
 		case 0:
 			http.Error(w, "too many requests", http.StatusTooManyRequests)
 		default:
-			fmt.Fprint(w, `{"symbol":"SPY","bar":{"t":"2021-11-20T00:59:00Z","o":469.18,"h":469.18,"l":469.11,"c":469.17,"v":740,"n":11,"vw":469.1355}}`)
+			fmt.Fprint(w, `{"bars":{"SPY":{"t":"2021-11-20T00:59:00Z","o":469.18,"h":469.18,"l":469.11,"c":469.17,"v":740,"n":11,"vw":469.1355}}}`)
 		}
 		tryCount++
 	}))
@@ -89,7 +89,7 @@ func TestDefaultDo_TooMany429s(t *testing.T) {
 func TestDefaultDo_Timeout(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		time.Sleep(time.Second)
-		fmt.Fprint(w, `{"symbol":"SPY","bar":{"t":"2021-11-20T00:59:00Z","o":469.18,"h":469.18,"l":469.11,"c":469.17,"v":740,"n":11,"vw":469.1355}}`)
+		fmt.Fprint(w, `{"bars":{"SPY":{"t":"2021-11-20T00:59:00Z","o":469.18,"h":469.18,"l":469.11,"c":469.17,"v":740,"n":11,"vw":469.1355}}}`)
 	}))
 	defer server.Close()
 	client := NewClient(ClientOpts{
@@ -125,6 +125,7 @@ func TestGetTrades_Gzip(t *testing.T) {
 	require.NoError(t, err)
 	c.do = func(c *Client, req *http.Request) (*http.Response, error) {
 		assert.Equal(t, "gzip", req.Header.Get("Accept-Encoding"))
+		assert.Equal(t, "sip", req.URL.Query().Get("feed"))
 		return &http.Response{
 			Body: f,
 			Header: http.Header{
@@ -150,7 +151,7 @@ func TestGetTrades(t *testing.T) {
 	c := DefaultClient
 	c.do = func(c *Client, req *http.Request) (*http.Response, error) {
 		assert.Equal(t, "gzip", req.Header.Get("Accept-Encoding"))
-		resp := `{"trades":[{"t":"2021-10-13T08:00:00.08960768Z","x":"P","p":140.2,"s":595,"c":["@","T"],"i":1,"z":"C"}],"symbol":"AAPL","next_page_token":"QUFQTHwyMDIxLTEwLTEzVDA4OjAwOjAwLjA4OTYwNzY4MFp8UHwwOTIyMzM3MjAzNjg1NDc3NTgwOQ=="}`
+		resp := `{"trades":{"AAPL":[{"t":"2021-10-13T08:00:00.08960768Z","x":"P","p":140.2,"s":595,"c":["@","T"],"i":1,"z":"C"}]},"next_page_token":"QUFQTHwyMDIxLTEwLTEzVDA4OjAwOjAwLjA4OTYwNzY4MFp8UHwwOTIyMzM3MjAzNjg1NDc3NTgwOQ=="}`
 		// Even though we request gzip encoding, the server may decide to not use it
 		return &http.Response{
 			Body: io.NopCloser(strings.NewReader(resp)),
@@ -175,7 +176,7 @@ func TestGetTrades_Currency(t *testing.T) {
 	c.do = func(c *Client, req *http.Request) (*http.Response, error) {
 		assert.Equal(t, "sip", req.URL.Query().Get("feed"))
 		assert.Equal(t, "JPY", req.URL.Query().Get("currency"))
-		resp := `{"trades":[{"t":"2021-10-13T08:00:00.08960768Z","x":"P","p":15922.93,"s":595,"c":["@","T"],"i":1,"z":"C"}],"currency":"JPY","symbol":"AAPL","next_page_token":"QUFQTHwyMDIxLTEwLTEzVDA4OjAwOjAwLjA4OTYwNzY4MFp8UHwwOTIyMzM3MjAzNjg1NDc3NTgwOQ=="}`
+		resp := `{"trades":{"AAPL":[{"t":"2021-10-13T08:00:00.08960768Z","x":"P","p":15922.93,"s":595,"c":["@","T"],"i":1,"z":"C"}]},"currency":"JPY","next_page_token":"QUFQTHwyMDIxLTEwLTEzVDA4OjAwOjAwLjA4OTYwNzY4MFp8UHwwOTIyMzM3MjAzNjg1NDc3NTgwOQ=="}`
 		return &http.Response{
 			Body: io.NopCloser(strings.NewReader(resp)),
 		}, nil
@@ -191,9 +192,9 @@ func TestGetTrades_Currency(t *testing.T) {
 	assert.Equal(t, 15922.93, trade.Price)
 
 	c.do = func(c *Client, req *http.Request) (*http.Response, error) {
-		resp := `{"trades":[],"currency":"HUF","symbol":"AAPL","next_page_token":null}`
+		resp := `{"trades":{},"currency":"MXN","next_page_token":null}`
 		assert.Equal(t, "sip", req.URL.Query().Get("feed"))
-		assert.Equal(t, "HUF", req.URL.Query().Get("currency"))
+		assert.Equal(t, "MXN", req.URL.Query().Get("currency"))
 		return &http.Response{
 			Body: io.NopCloser(strings.NewReader(resp)),
 		}, nil
@@ -203,7 +204,7 @@ func TestGetTrades_Currency(t *testing.T) {
 		End:        time.Date(2021, 10, 13, 0, 0, 0, 1, time.UTC),
 		TotalLimit: 1,
 		PageLimit:  1,
-		Currency:   "HUF",
+		Currency:   "MXN",
 	})
 	require.NoError(t, err)
 	assert.Len(t, got, 0)
@@ -223,8 +224,8 @@ func TestGetTrades_InvalidURL(t *testing.T) {
 
 func TestGetTrades_Update(t *testing.T) {
 	c := DefaultClient
-	c.do = mockResp(`{"trades":[{"t":"2022-10-21T20:19:03.752176Z","x":"D","p":129.88,"s":5,"c":[" ","T","I"],"i":71697353758036,"z":"A","u":"canceled"},{"t":"2022-10-21T20:19:03.876181Z","x":"D","p":129.88,"s":2,"c":[" ","T","I"],"i":71697353815352,"z":"A","u":"canceled"}],"symbol":"A","next_page_token":null}`)
-	got, err := c.GetTrades("AAPL", GetTradesRequest{
+	c.do = mockResp(`{"trades":{"A":[{"t":"2022-10-21T20:19:03.752176Z","x":"D","p":129.88,"s":5,"c":[" ","T","I"],"i":71697353758036,"z":"A","u":"canceled"},{"t":"2022-10-21T20:19:03.876181Z","x":"D","p":129.88,"s":2,"c":[" ","T","I"],"i":71697353815352,"z":"A","u":"canceled"}]},"next_page_token":null}`)
+	got, err := c.GetTrades("A", GetTradesRequest{
 		Start: time.Date(2022, 10, 21, 20, 19, 3, 0, time.UTC),
 		End:   time.Date(2022, 10, 21, 20, 19, 4, 0, time.UTC),
 	})
@@ -285,15 +286,16 @@ func TestGetMultiTrades(t *testing.T) {
 func TestGetQuotes(t *testing.T) {
 	c := DefaultClient
 	c.do = func(c *Client, req *http.Request) (*http.Response, error) {
-		assert.Equal(t, "/v2/stocks/IBM/quotes", req.URL.Path)
+		assert.Equal(t, "/v2/stocks/quotes", req.URL.Path)
+		assert.Equal(t, "IBM", req.URL.Query().Get("symbols"))
 		assert.Equal(t, "2021-10-04T18:00:14Z", req.URL.Query().Get("start"))
 		assert.Equal(t, "2021-10-04T18:00:15Z", req.URL.Query().Get("end"))
 		assert.Equal(t, "10", req.URL.Query().Get("limit"))
-		resp := `{"quotes":[{"t":"2021-10-04T18:00:14.012577217Z","ax":"N","ap":143.71,"as":2,"bx":"H","bp":143.68,"bs":1,"c":["R"],"z":"A"},{"t":"2021-10-04T18:00:14.016722688Z","ax":"N","ap":143.71,"as":3,"bx":"H","bp":143.68,"bs":1,"c":["R"],"z":"A"},{"t":"2021-10-04T18:00:14.020123648Z","ax":"N","ap":143.71,"as":2,"bx":"H","bp":143.68,"bs":1,"c":["R"],"z":"A"},{"t":"2021-10-04T18:00:14.070107859Z","ax":"N","ap":143.71,"as":2,"bx":"U","bp":143.69,"bs":1,"c":["R"],"z":"A"},{"t":"2021-10-04T18:00:14.0709007Z","ax":"N","ap":143.71,"as":2,"bx":"H","bp":143.68,"bs":1,"c":["R"],"z":"A"},{"t":"2021-10-04T18:00:14.179935833Z","ax":"N","ap":143.71,"as":2,"bx":"T","bp":143.69,"bs":1,"c":["R"],"z":"A"},{"t":"2021-10-04T18:00:14.179937077Z","ax":"N","ap":143.71,"as":2,"bx":"T","bp":143.69,"bs":2,"c":["R"],"z":"A"},{"t":"2021-10-04T18:00:14.180278784Z","ax":"N","ap":143.71,"as":1,"bx":"T","bp":143.69,"bs":2,"c":["R"],"z":"A"},{"t":"2021-10-04T18:00:14.180473523Z","ax":"N","ap":143.71,"as":1,"bx":"U","bp":143.69,"bs":3,"c":["R"],"z":"A"},{"t":"2021-10-04T18:00:14.180522Z","ax":"N","ap":143.71,"as":1,"bx":"Z","bp":143.69,"bs":6,"c":["R"],"z":"A"}],"symbol":"IBM","next_page_token":"SUJNfDIwMjEtMTAtMDRUMTg6MDA6MTQuMTgwNTIyMDAwWnwxMzQ0OTQ0Mw=="}`
+		resp := `{"quotes":{"IBM":[{"t":"2021-10-04T18:00:14.012577217Z","ax":"N","ap":143.71,"as":2,"bx":"H","bp":143.68,"bs":1,"c":["R"],"z":"A"},{"t":"2021-10-04T18:00:14.016722688Z","ax":"N","ap":143.71,"as":3,"bx":"H","bp":143.68,"bs":1,"c":["R"],"z":"A"},{"t":"2021-10-04T18:00:14.020123648Z","ax":"N","ap":143.71,"as":2,"bx":"H","bp":143.68,"bs":1,"c":["R"],"z":"A"},{"t":"2021-10-04T18:00:14.070107859Z","ax":"N","ap":143.71,"as":2,"bx":"U","bp":143.69,"bs":1,"c":["R"],"z":"A"},{"t":"2021-10-04T18:00:14.0709007Z","ax":"N","ap":143.71,"as":2,"bx":"H","bp":143.68,"bs":1,"c":["R"],"z":"A"},{"t":"2021-10-04T18:00:14.179935833Z","ax":"N","ap":143.71,"as":2,"bx":"T","bp":143.69,"bs":1,"c":["R"],"z":"A"},{"t":"2021-10-04T18:00:14.179937077Z","ax":"N","ap":143.71,"as":2,"bx":"T","bp":143.69,"bs":2,"c":["R"],"z":"A"},{"t":"2021-10-04T18:00:14.180278784Z","ax":"N","ap":143.71,"as":1,"bx":"T","bp":143.69,"bs":2,"c":["R"],"z":"A"},{"t":"2021-10-04T18:00:14.180473523Z","ax":"N","ap":143.71,"as":1,"bx":"U","bp":143.69,"bs":3,"c":["R"],"z":"A"},{"t":"2021-10-04T18:00:14.180522Z","ax":"N","ap":143.71,"as":1,"bx":"Z","bp":143.69,"bs":6,"c":["R"],"z":"A"}]},"next_page_token":"SUJNfDIwMjEtMTAtMDRUMTg6MDA6MTQuMTgwNTIyMDAwWnwxMzQ0OTQ0Mw=="}`
 		switch req.URL.Query().Get("page_token") {
 		case "":
 		case "SUJNfDIwMjEtMTAtMDRUMTg6MDA6MTQuMTgwNTIyMDAwWnwxMzQ0OTQ0Mw==":
-			resp = `{"quotes":[{"t":"2021-10-04T18:00:14.180608Z","ax":"N","ap":143.71,"as":1,"bx":"U","bp":143.69,"bs":3,"c":["R"],"z":"A"},{"t":"2021-10-04T18:00:14.210488488Z","ax":"N","ap":143.71,"as":1,"bx":"T","bp":143.69,"bs":2,"c":["R"],"z":"A"}],"symbol":"IBM","next_page_token":null}`
+			resp = `{"quotes":{"IBM":[{"t":"2021-10-04T18:00:14.180608Z","ax":"N","ap":143.71,"as":1,"bx":"U","bp":143.69,"bs":3,"c":["R"],"z":"A"},{"t":"2021-10-04T18:00:14.210488488Z","ax":"N","ap":143.71,"as":1,"bx":"T","bp":143.69,"bs":2,"c":["R"],"z":"A"}]},"next_page_token":null}`
 		default:
 			assert.Fail(t, "unexpected page_token")
 		}
@@ -340,16 +342,20 @@ func TestGetMultiQuotes(t *testing.T) {
 	require.Len(t, got, 1)
 	require.Len(t, got["BA"], 6)
 	assert.Equal(t, 212.59, got["BA"][2].AskPrice)
+
+	c.do = mockErrResp()
+	_, err = c.GetMultiQuotes([]string{"BA", "DIS"}, GetQuotesRequest{})
+	require.Error(t, err)
 }
 
 func TestGetAuctions(t *testing.T) {
 	c := DefaultClient
-	firstResp := `{"auctions":[{"d":"2022-10-17","o":[{"t":"2022-10-17T13:30:00.189598208Z","x":"P","p":141.13,"s":10,"c":"Q"},{"t":"2022-10-17T13:30:01.329947459Z","x":"Q","p":141.07,"s":1103165,"c":"O"},{"t":"2022-10-17T13:30:01.334218355Z","x":"Q","p":141.07,"s":1103165,"c":"Q"}],"c":[{"t":"2022-10-17T20:00:00.155310848Z","x":"P","p":142.4,"s":100,"c":"M"},{"t":"2022-10-17T20:00:01.135646791Z","x":"Q","p":142.41,"s":7927137,"c":"6"},{"t":"2022-10-17T20:00:01.742162179Z","x":"Q","p":142.41,"s":7927137,"c":"M"}]},{"d":"2022-10-18","o":[{"t":"2022-10-18T13:30:00.193677568Z","x":"P","p":145.42,"s":1,"c":"Q"},{"t":"2022-10-18T13:30:01.662931714Z","x":"Q","p":145.49,"s":793345,"c":"O"},{"t":"2022-10-18T13:30:01.67388499Z","x":"Q","p":145.49,"s":793345,"c":"Q"}],"c":[{"t":"2022-10-18T20:00:00.15542272Z","x":"P","p":143.79,"s":100,"c":"M"},{"t":"2022-10-18T20:00:00.63129591Z","x":"Q","p":143.75,"s":3979281,"c":"6"},{"t":"2022-10-18T20:00:00.631313365Z","x":"Q","p":143.75,"s":3979281,"c":"M"}]}],"symbol":"AAPL","next_page_token":"QUFQTHwyMDIyLTEwLTE4VDIwOjAwOjAwLjYzMTMxMzM2NVp8UXxATXwxNDMuNzU="}`
-	secondResp := `{"auctions":[{"d":"2022-10-19","o":[{"t":"2022-10-19T13:30:00.206482688Z","x":"P","p":141.69,"s":4,"c":"Q"},{"t":"2022-10-19T13:30:01.350685708Z","x":"Q","p":141.5,"s":517006,"c":"O"},{"t":"2022-10-19T13:30:01.351159286Z","x":"Q","p":141.5,"s":517006,"c":"Q"}],"c":[{"t":"2022-10-19T20:00:00.143265536Z","x":"P","p":143.9,"s":400,"c":"M"},{"t":"2022-10-19T20:00:01.384247418Z","x":"Q","p":143.86,"s":4006543,"c":"6"},{"t":"2022-10-19T20:00:01.384266818Z","x":"Q","p":143.86,"s":4006543,"c":"M"}]},{"d":"2022-10-20","o":[{"t":"2022-10-20T13:30:00.172134656Z","x":"P","p":143.03,"s":6,"c":"Q"},{"t":"2022-10-20T13:30:01.664127742Z","x":"Q","p":142.98,"s":663728,"c":"O"},{"t":"2022-10-20T13:30:01.664575417Z","x":"Q","p":142.98,"s":663728,"c":"Q"}],"c":[{"t":"2022-10-20T20:00:00.137319424Z","x":"P","p":143.33,"s":362,"c":"M"},{"t":"2022-10-20T20:00:00.212258037Z","x":"Q","p":143.39,"s":5250532,"c":"6"},{"t":"2022-10-20T20:00:00.212282215Z","x":"Q","p":143.39,"s":5250532,"c":"M"}]}],"symbol":"AAPL","next_page_token":"QUFQTHwyMDIyLTEwLTIwVDIwOjAwOjAwLjIxMjI4MjIxNVp8UXxATXwxNDMuMzk="}`
-	thirdResp := `{"auctions":[{"d":"2022-10-21","o":[{"t":"2022-10-21T13:30:00.18449664Z","x":"P","p":142.96,"s":59,"c":"Q"},{"t":"2022-10-21T13:30:01.013655041Z","x":"Q","p":142.81,"s":4643721,"c":"O"},{"t":"2022-10-21T13:30:01.025412599Z","x":"Q","p":142.81,"s":4643721,"c":"Q"}],"c":[{"t":"2022-10-21T20:00:00.151828992Z","x":"P","p":147.27,"s":8147,"c":"M"},{"t":"2022-10-21T20:00:00.551850227Z","x":"Q","p":147.27,"s":6395818,"c":"6"},{"t":"2022-10-21T20:00:00.551870027Z","x":"Q","p":147.27,"s":6395818,"c":"M"}]}],"symbol":"AAPL","next_page_token":"QUFQTHwyMDIyLTEwLTIxVDIwOjAwOjAwLjU1MTg3MDAyN1p8UXxATXwxNDcuMjc="}`
+	firstResp := `{"auctions":{"AAPL":[{"d":"2022-10-17","o":[{"t":"2022-10-17T13:30:00.189598208Z","x":"P","p":141.13,"s":10,"c":"Q"},{"t":"2022-10-17T13:30:01.329947459Z","x":"Q","p":141.07,"s":1103165,"c":"O"},{"t":"2022-10-17T13:30:01.334218355Z","x":"Q","p":141.07,"s":1103165,"c":"Q"}],"c":[{"t":"2022-10-17T20:00:00.155310848Z","x":"P","p":142.4,"s":100,"c":"M"},{"t":"2022-10-17T20:00:01.135646791Z","x":"Q","p":142.41,"s":7927137,"c":"6"},{"t":"2022-10-17T20:00:01.742162179Z","x":"Q","p":142.41,"s":7927137,"c":"M"}]},{"d":"2022-10-18","o":[{"t":"2022-10-18T13:30:00.193677568Z","x":"P","p":145.42,"s":1,"c":"Q"},{"t":"2022-10-18T13:30:01.662931714Z","x":"Q","p":145.49,"s":793345,"c":"O"},{"t":"2022-10-18T13:30:01.67388499Z","x":"Q","p":145.49,"s":793345,"c":"Q"}],"c":[{"t":"2022-10-18T20:00:00.15542272Z","x":"P","p":143.79,"s":100,"c":"M"},{"t":"2022-10-18T20:00:00.63129591Z","x":"Q","p":143.75,"s":3979281,"c":"6"},{"t":"2022-10-18T20:00:00.631313365Z","x":"Q","p":143.75,"s":3979281,"c":"M"}]}]},"next_page_token":"QUFQTHwyMDIyLTEwLTE4VDIwOjAwOjAwLjYzMTMxMzM2NVp8UXxATXwxNDMuNzU="}`
+	secondResp := `{"auctions":{"AAPL":[{"d":"2022-10-19","o":[{"t":"2022-10-19T13:30:00.206482688Z","x":"P","p":141.69,"s":4,"c":"Q"},{"t":"2022-10-19T13:30:01.350685708Z","x":"Q","p":141.5,"s":517006,"c":"O"},{"t":"2022-10-19T13:30:01.351159286Z","x":"Q","p":141.5,"s":517006,"c":"Q"}],"c":[{"t":"2022-10-19T20:00:00.143265536Z","x":"P","p":143.9,"s":400,"c":"M"},{"t":"2022-10-19T20:00:01.384247418Z","x":"Q","p":143.86,"s":4006543,"c":"6"},{"t":"2022-10-19T20:00:01.384266818Z","x":"Q","p":143.86,"s":4006543,"c":"M"}]},{"d":"2022-10-20","o":[{"t":"2022-10-20T13:30:00.172134656Z","x":"P","p":143.03,"s":6,"c":"Q"},{"t":"2022-10-20T13:30:01.664127742Z","x":"Q","p":142.98,"s":663728,"c":"O"},{"t":"2022-10-20T13:30:01.664575417Z","x":"Q","p":142.98,"s":663728,"c":"Q"}],"c":[{"t":"2022-10-20T20:00:00.137319424Z","x":"P","p":143.33,"s":362,"c":"M"},{"t":"2022-10-20T20:00:00.212258037Z","x":"Q","p":143.39,"s":5250532,"c":"6"},{"t":"2022-10-20T20:00:00.212282215Z","x":"Q","p":143.39,"s":5250532,"c":"M"}]}]},"next_page_token":"QUFQTHwyMDIyLTEwLTIwVDIwOjAwOjAwLjIxMjI4MjIxNVp8UXxATXwxNDMuMzk="}`
+	thirdResp := `{"auctions":{"AAPL":[{"d":"2022-10-21","o":[{"t":"2022-10-21T13:30:00.18449664Z","x":"P","p":142.96,"s":59,"c":"Q"},{"t":"2022-10-21T13:30:01.013655041Z","x":"Q","p":142.81,"s":4643721,"c":"O"},{"t":"2022-10-21T13:30:01.025412599Z","x":"Q","p":142.81,"s":4643721,"c":"Q"}],"c":[{"t":"2022-10-21T20:00:00.151828992Z","x":"P","p":147.27,"s":8147,"c":"M"},{"t":"2022-10-21T20:00:00.551850227Z","x":"Q","p":147.27,"s":6395818,"c":"6"},{"t":"2022-10-21T20:00:00.551870027Z","x":"Q","p":147.27,"s":6395818,"c":"M"}]}]},"next_page_token":"QUFQTHwyMDIyLTEwLTIxVDIwOjAwOjAwLjU1MTg3MDAyN1p8UXxATXwxNDcuMjc="}`
 	c.do = func(c *Client, req *http.Request) (*http.Response, error) {
-		assert.Equal(t, "data.alpaca.markets", req.URL.Host)
-		assert.Equal(t, "/v2/stocks/AAPL/auctions", req.URL.Path)
+		assert.Equal(t, "/v2/stocks/auctions", req.URL.Path)
+		assert.Equal(t, "AAPL", req.URL.Query().Get("symbols"))
 		assert.Equal(t, "2022-10-17T00:00:00Z", req.URL.Query().Get("start"))
 		assert.Equal(t, "2022-10-28T00:00:00Z", req.URL.Query().Get("end"))
 		assert.Equal(t, "sip", req.URL.Query().Get("feed"))
@@ -420,7 +426,7 @@ func TestGetMultiAuctions(t *testing.T) {
 func TestGetBars(t *testing.T) {
 	c := DefaultClient
 
-	c.do = mockResp(`{"bars":[{"t":"2021-10-15T16:00:00Z","o":3378.14,"h":3380.815,"l":3376.3001,"c":3379.72,"v":211689,"n":5435,"vw":3379.041755},{"t":"2021-10-15T16:15:00Z","o":3379.5241,"h":3383.24,"l":3376.49,"c":3377.82,"v":115850,"n":5544,"vw":3379.638266},{"t":"2021-10-15T16:30:00Z","o":3377.982,"h":3380.86,"l":3377,"c":3380,"v":58531,"n":3679,"vw":3379.100605},{"t":"2021-10-15T16:45:00Z","o":3379.73,"h":3387.17,"l":3378.7701,"c":3386.7615,"v":83180,"n":4736,"vw":3381.838113},{"t":"2021-10-15T17:00:00Z","o":3387.56,"h":3390.74,"l":3382.87,"c":3382.87,"v":134339,"n":5832,"vw":3387.086825}],"symbol":"AMZN","next_page_token":null}`)
+	c.do = mockResp(`{"bars":{"AMZN":[{"t":"2021-10-15T16:00:00Z","o":3378.14,"h":3380.815,"l":3376.3001,"c":3379.72,"v":211689,"n":5435,"vw":3379.041755},{"t":"2021-10-15T16:15:00Z","o":3379.5241,"h":3383.24,"l":3376.49,"c":3377.82,"v":115850,"n":5544,"vw":3379.638266},{"t":"2021-10-15T16:30:00Z","o":3377.982,"h":3380.86,"l":3377,"c":3380,"v":58531,"n":3679,"vw":3379.100605},{"t":"2021-10-15T16:45:00Z","o":3379.73,"h":3387.17,"l":3378.7701,"c":3386.7615,"v":83180,"n":4736,"vw":3381.838113},{"t":"2021-10-15T17:00:00Z","o":3387.56,"h":3390.74,"l":3382.87,"c":3382.87,"v":134339,"n":5832,"vw":3387.086825}]},"next_page_token":null}`)
 	got, err := c.GetBars("AMZN", GetBarsRequest{
 		TimeFrame:  NewTimeFrame(15, Min),
 		Adjustment: Split,
@@ -447,11 +453,12 @@ func TestGetBars(t *testing.T) {
 func TestGetBars_Asof(t *testing.T) {
 	c := DefaultClient
 	c.do = func(c *Client, req *http.Request) (*http.Response, error) {
+		assert.Equal(t, "/v2/stocks/bars", req.URL.Path)
 		assert.Equal(t, "2022-06-09", req.URL.Query().Get("asof"))
-		resp := `{"bars":[{"t":"2022-06-08T04:00:00Z","o":194.67,"h":202.03,"l":194.41,"c":196.64,"v":22211813,"n":246906,"vw":198.364578},{"t":"2022-06-09T04:00:00Z","o":194.28,"h":199.45,"l":183.68,"c":184,"v":23458984,"n":281546,"vw":190.750577}],"symbol":"META","next_page_token":"TUVUQXxEfDIwMjItMDYtMDlUMDQ6MDA6MDAuMDAwMDAwMDAwWg=="}`
+		resp := `{"bars":{"META":[{"t":"2022-06-08T04:00:00Z","o":194.67,"h":202.03,"l":194.41,"c":196.64,"v":22211813,"n":246906,"vw":198.364578},{"t":"2022-06-09T04:00:00Z","o":194.28,"h":199.45,"l":183.68,"c":184,"v":23458984,"n":281546,"vw":190.750577}]},"next_page_token":"TUVUQXxEfDIwMjItMDYtMDlUMDQ6MDA6MDAuMDAwMDAwMDAwWg=="}`
 		switch req.URL.Query().Get("page_token") {
 		case "TUVUQXxEfDIwMjItMDYtMDlUMDQ6MDA6MDAuMDAwMDAwMDAwWg==":
-			resp = `{"bars":[{"t":"2022-06-10T04:00:00Z","o":183.04,"h":183.1,"l":175.02,"c":175.57,"v":27398594,"n":365035,"vw":177.335914},{"t":"2022-06-13T04:00:00Z","o":170.59,"h":172.575,"l":164.03,"c":164.26,"v":31514255,"n":436284,"vw":167.257431}],"symbol":"META","next_page_token":"TUVUQXxEfDIwMjItMDYtMTNUMDQ6MDA6MDAuMDAwMDAwMDAwWg=="}`
+			resp = `{"bars":{"META":[{"t":"2022-06-10T04:00:00Z","o":183.04,"h":183.1,"l":175.02,"c":175.57,"v":27398594,"n":365035,"vw":177.335914},{"t":"2022-06-13T04:00:00Z","o":170.59,"h":172.575,"l":164.03,"c":164.26,"v":31514255,"n":436284,"vw":167.257431}]},"next_page_token":"TUVUQXxEfDIwMjItMDYtMTNUMDQ6MDA6MDAuMDAwMDAwMDAwWg=="}`
 		case "":
 		default:
 			assert.Fail(t, "unexpected page token")
@@ -497,7 +504,7 @@ func TestLatestBar(t *testing.T) {
 	c := DefaultClient
 
 	// successful
-	c.do = mockResp(`{"symbol":"AAPL","bar":{"t":"2021-10-11T23:59:00Z","o":142.59,"h":142.63,"l":142.57,"c":142.59,"v":2714,"n":22,"vw":142.589071}}`)
+	c.do = mockResp(`{"bars":{"AAPL":{"t":"2021-10-11T23:59:00Z","o":142.59,"h":142.63,"l":142.57,"c":142.59,"v":2714,"n":22,"vw":142.589071}}}`)
 	got, err := c.GetLatestBar("AAPL", GetLatestBarRequest{})
 	require.NoError(t, err)
 	require.NotNil(t, got)
@@ -526,7 +533,7 @@ func TestLatestBar_Feed(t *testing.T) {
 		assert.Equal(t, "iex", req.URL.Query().Get("feed"))
 		return &http.Response{
 			Body: io.NopCloser(strings.NewReader(
-				`{"symbol":"AAPL","bar":{"t":"2021-10-11T19:59:00Z","o":142.9,"h":142.91,"l":142.77,"c":142.8,"v":13886,"n":108,"vw":142.856726}}`,
+				`{"bars":{"AAPL":{"t":"2021-10-11T19:59:00Z","o":142.9,"h":142.91,"l":142.77,"c":142.8,"v":13886,"n":108,"vw":142.856726}}}`,
 			)),
 		}, nil
 	}
@@ -537,7 +544,7 @@ func TestLatestBar_Feed(t *testing.T) {
 		assert.Equal(t, "sip", req.URL.Query().Get("feed"))
 		return &http.Response{
 			Body: io.NopCloser(strings.NewReader(
-				`{"symbol":"AAPL","bar":{"t":"2021-10-11T19:59:00Z","o":142.8,"h":142.91,"l":142.77,"c":142.8,"v":13886,"n":108,"vw":142.856726}}`,
+				`{"bars":{"AAPL":{"t":"2021-10-11T19:59:00Z","o":142.8,"h":142.91,"l":142.77,"c":142.8,"v":13886,"n":108,"vw":142.856726}}}`,
 			)),
 		}, nil
 	}
@@ -554,7 +561,7 @@ func TestLatestBar_Currency(t *testing.T) {
 		assert.Equal(t, "MXN", req.URL.Query().Get("currency"))
 		return &http.Response{
 			Body: io.NopCloser(strings.NewReader(
-				`{"symbol":"AAPL","bar":{"t":"2023-01-14T00:59:00Z","o":2536.46,"h":2536.46,"l":2536.46,"c":2536.46,"v":441,"n":57,"vw":2536.19},"currency":"MXN"}`,
+				`{"bars":{"AAPL":{"t":"2023-01-14T00:59:00Z","o":2536.46,"h":2536.46,"l":2536.46,"c":2536.46,"v":441,"n":57,"vw":2536.19}},"currency":"MXN"}`,
 			)),
 		}, nil
 	}
@@ -568,7 +575,7 @@ func TestLatestBar_Currency(t *testing.T) {
 		assert.Equal(t, "JPY", req.URL.Query().Get("currency"))
 		return &http.Response{
 			Body: io.NopCloser(strings.NewReader(
-				`{"symbol":"AAPL","bar":{"t":"2023-01-14T00:59:00Z","o":17289.54,"h":17289.54,"l":17289.54,"c":17289.54,"v":441,"n":57,"vw":17287.69},"currency":"JPY"}%`,
+				`{"bars":{"AAPL":{"t":"2023-01-14T00:59:00Z","o":17289.54,"h":17289.54,"l":17289.54,"c":17289.54,"v":441,"n":57,"vw":17287.69}},"currency":"JPY"}%`,
 			)),
 		}, nil
 	}
@@ -586,7 +593,7 @@ func TestLatestBars(t *testing.T) {
 
 	// successful
 	c.do = mockResp(`{"bars":{"NIO":{"t":"2021-10-11T23:59:00Z","o":35.57,"h":35.6,"l":35.56,"c":35.6,"v":1288,"n":9,"vw":35.586483},"AAPL":{"t":"2021-10-11T23:59:00Z","o":142.59,"h":142.63,"l":142.57,"c":142.59,"v":2714,"n":22,"vw":142.589071}}}`)
-	got, err := c.GetLatestBars([]string{"AAPL", "NIO"}, GetLatestBarsRequest{})
+	got, err := c.GetLatestBars([]string{"AAPL", "NIO"}, GetLatestBarRequest{})
 	require.NoError(t, err)
 	require.NotNil(t, got)
 	require.Len(t, got, 2)
@@ -604,7 +611,7 @@ func TestLatestBars(t *testing.T) {
 
 	// api failure
 	c.do = mockErrResp()
-	got, err = c.GetLatestBars([]string{"IBM", "MSFT"}, GetLatestBarsRequest{})
+	got, err = c.GetLatestBars([]string{"IBM", "MSFT"}, GetLatestBarRequest{})
 	assert.Error(t, err)
 	assert.Nil(t, got)
 }
@@ -613,7 +620,7 @@ func TestLatestTrade(t *testing.T) {
 	c := DefaultClient
 
 	// successful
-	c.do = mockResp(`{"symbol": "AAPL","trade": {"t": "2021-04-20T12:40:34.484136Z","x": "J","p": 134.7,"s": 20,"c": ["@","T","I"],"i": 32,"z": "C"}}`)
+	c.do = mockResp(`{"trades":{"AAPL":{"t": "2021-04-20T12:40:34.484136Z","x": "J","p": 134.7,"s": 20,"c": ["@","T","I"],"i": 32,"z": "C"}}}`)
 	got, err := c.GetLatestTrade("AAPL", GetLatestTradeRequest{})
 	require.NoError(t, err)
 	require.NotNil(t, got)
@@ -639,7 +646,7 @@ func TestLatestTrades(t *testing.T) {
 
 	// successful
 	c.do = mockResp(`{"trades":{"IBM":{"t":"2021-10-11T23:42:47.895547Z","x":"K","p":142.2,"s":197,"c":[" ","F","T"],"i":52983525503560,"z":"A"},"MSFT":{"t":"2021-10-11T23:59:39.380716032Z","x":"P","p":294.1,"s":100,"c":["@","T"],"i":28693,"z":"C"}}}`)
-	got, err := c.GetLatestTrades([]string{"IBM", "MSFT"}, GetLatestTradesRequest{})
+	got, err := c.GetLatestTrades([]string{"IBM", "MSFT"}, GetLatestTradeRequest{})
 	require.NoError(t, err)
 	require.NotNil(t, got)
 	require.Len(t, got, 2)
@@ -656,7 +663,7 @@ func TestLatestTrades(t *testing.T) {
 
 	// api failure
 	c.do = mockErrResp()
-	got, err = c.GetLatestTrades([]string{"IBM", "MSFT"}, GetLatestTradesRequest{})
+	got, err = c.GetLatestTrades([]string{"IBM", "MSFT"}, GetLatestTradeRequest{})
 	assert.Error(t, err)
 	assert.Nil(t, got)
 }
@@ -665,7 +672,7 @@ func TestLatestQuote(t *testing.T) {
 	c := DefaultClient
 
 	// successful
-	c.do = mockResp(`{"symbol": "AAPL","quote": {"t": "2021-04-20T13:01:57.822745906Z","ax": "Q","ap": 134.68,"as": 1,"bx": "K","bp": 134.66,"bs": 29,"c": ["R"]}}`)
+	c.do = mockResp(`{"quotes":{"AAPL":{"t": "2021-04-20T13:01:57.822745906Z","ax": "Q","ap": 134.68,"as": 1,"bx": "K","bp": 134.66,"bs": 29,"c": ["R"]}}}`)
 	got, err := c.GetLatestQuote("AAPL", GetLatestQuoteRequest{})
 	require.NoError(t, err)
 	require.NotNil(t, got)
@@ -692,7 +699,7 @@ func TestLatestQuotes(t *testing.T) {
 
 	// successful
 	c.do = mockResp(`{"quotes":{"F":{"t":"2021-10-12T00:00:00.002071Z","ax":"P","ap":15.07,"as":3,"bx":"P","bp":15.01,"bs":3,"c":["R"],"z":"A"},"TSLA":{"t":"2021-10-11T23:59:58.02063232Z","ax":"P","ap":792.6,"as":1,"bx":"P","bp":792,"bs":67,"c":["R"],"z":"C"},"GE":{"t":"2021-10-11T23:02:28.423505152Z","ax":"P","ap":104.06,"as":2,"bx":"P","bp":104.03,"bs":5,"c":["R"],"z":"A"}}}`)
-	got, err := c.GetLatestQuotes([]string{"F", "GE", "TSLA"}, GetLatestQuotesRequest{})
+	got, err := c.GetLatestQuotes([]string{"F", "GE", "TSLA"}, GetLatestQuoteRequest{})
 	require.NoError(t, err)
 	require.NotNil(t, got)
 	require.Len(t, got, 3)
@@ -712,7 +719,7 @@ func TestLatestQuotes(t *testing.T) {
 
 	// api failure
 	c.do = mockErrResp()
-	got, err = c.GetLatestQuotes([]string{"F", "GE", "TSLA"}, GetLatestQuotesRequest{})
+	got, err = c.GetLatestQuotes([]string{"F", "GE", "TSLA"}, GetLatestQuoteRequest{})
 	assert.Error(t, err)
 	assert.Nil(t, got)
 }
@@ -721,7 +728,7 @@ func TestSnapshot(t *testing.T) {
 	c := DefaultClient
 
 	// successful
-	c.do = mockResp(`{"symbol": "AAPL","latestTrade": {"t": "2021-05-03T14:45:50.456Z","x": "D","p": 133.55,"s": 200,"c": ["@"],"i": 61462,"z": "C"},"latestQuote": {"t": "2021-05-03T14:45:50.532316972Z","ax": "P","ap": 133.55,"as": 7,"bx": "Q","bp": 133.54,"bs": 9,"c": ["R"]},"minuteBar": {"t": "2021-05-03T14:44:00Z","o": 133.485,"h": 133.4939,"l": 133.42,"c": 133.445,"v": 182818},"dailyBar": {"t": "2021-05-03T04:00:00Z","o": 132.04,"h": 134.07,"l": 131.83,"c": 133.445,"v": 25094213},"prevDailyBar": {"t": "2021-04-30T04:00:00Z","o": 131.82,"h": 133.56,"l": 131.065,"c": 131.46,"v": 109506363}}`)
+	c.do = mockResp(`{"AAPL":{"latestTrade": {"t": "2021-05-03T14:45:50.456Z","x": "D","p": 133.55,"s": 200,"c": ["@"],"i": 61462,"z": "C"},"latestQuote": {"t": "2021-05-03T14:45:50.532316972Z","ax": "P","ap": 133.55,"as": 7,"bx": "Q","bp": 133.54,"bs": 9,"c": ["R"]},"minuteBar": {"t": "2021-05-03T14:44:00Z","o": 133.485,"h": 133.4939,"l": 133.42,"c": 133.445,"v": 182818},"dailyBar": {"t": "2021-05-03T04:00:00Z","o": 132.04,"h": 134.07,"l": 131.83,"c": 133.445,"v": 25094213},"prevDailyBar": {"t": "2021-04-30T04:00:00Z","o": 131.82,"h": 133.56,"l": 131.065,"c": 131.46,"v": 109506363}}}`)
 	got, err := c.GetSnapshot("AAPL", GetSnapshotRequest{})
 	require.NoError(t, err)
 	require.NotNil(t, got)
@@ -784,7 +791,7 @@ func TestSnapshots(t *testing.T) {
 	// successful
 	c.do = mockResp(`{"AAPL": {"latestTrade": {"t": "2021-05-03T14:48:06.563Z","x": "D","p": 133.4201,"s": 145,"c": ["@"],"i": 62700,"z": "C"},"latestQuote": {"t": "2021-05-03T14:48:07.257820915Z","ax": "Q","ap": 133.43,"as": 7,"bx": "Q","bp": 133.42,"bs": 15,"c": ["R"]},"minuteBar": {"t": "2021-05-03T14:47:00Z","o": 133.4401,"h": 133.48,"l": 133.37,"c": 133.42,"v": 207020,"n": 1234,"vw": 133.3987},"dailyBar": {"t": "2021-05-03T04:00:00Z","o": 132.04,"h": 134.07,"l": 131.83,"c": 133.42,"v": 25846800,"n": 254678,"vw": 132.568},"prevDailyBar": {"t": "2021-04-30T04:00:00Z","o": 131.82,"h": 133.56,"l": 131.065,"c": 131.46,"v": 109506363,"n": 1012323,"vw": 132.025}},"MSFT": {"latestTrade": {"t": "2021-05-03T14:48:06.36Z","x": "D","p": 253.8738,"s": 100,"c": ["@"],"i": 22973,"z": "C"},"latestQuote": {"t": "2021-05-03T14:48:07.243353456Z","ax": "N","ap": 253.89,"as": 2,"bx": "Q","bp": 253.87,"bs": 2,"c": ["R"]},"minuteBar": {"t": "2021-05-03T14:47:00Z","o": 253.78,"h": 253.869,"l": 253.78,"c": 253.855,"v": 25717,"n": 137,"vw": 253.823},"dailyBar": {"t": "2021-05-03T04:00:00Z","o": 253.34,"h": 254.35,"l": 251.8,"c": 253.855,"v": 6100459,"n": 33453,"vw": 253.0534},"prevDailyBar": null},"INVALID": null}`)
 
-	got, err := c.GetSnapshots([]string{"AAPL", "MSFT", "INVALID"}, GetSnapshotsRequest{})
+	got, err := c.GetSnapshots([]string{"AAPL", "MSFT", "INVALID"}, GetSnapshotRequest{})
 	require.NoError(t, err)
 	require.NotNil(t, got)
 	assert.Len(t, got, 3)
@@ -798,7 +805,7 @@ func TestSnapshots(t *testing.T) {
 
 	// api failure
 	c.do = mockErrResp()
-	got, err = c.GetSnapshots([]string{"AAPL", "CLDR"}, GetSnapshotsRequest{})
+	got, err = c.GetSnapshots([]string{"AAPL", "CLDR"}, GetSnapshotRequest{})
 	assert.Error(t, err)
 	assert.Nil(t, got)
 }
@@ -907,7 +914,7 @@ func TestGetCryptoMultiBars(t *testing.T) {
 
 func TestLatestCryptoBar(t *testing.T) {
 	c := DefaultClient
-	c.do = mockResp(`{"symbol":"BTC/USD","bar":{"t":"2022-02-25T12:50:00Z","o":38899.6,"h":39300,"l":38892.2,"c":39278.88,"v":74.02830613,"n":1086,"vw":39140.0960796263}}`)
+	c.do = mockResp(`{"bars":{"BTC/USD":{"t":"2022-02-25T12:50:00Z","o":38899.6,"h":39300,"l":38892.2,"c":39278.88,"v":74.02830613,"n":1086,"vw":39140.0960796263}}}`)
 	got, err := c.GetLatestCryptoBar("BTC/USD", GetLatestCryptoBarRequest{})
 	require.NoError(t, err)
 	require.NotNil(t, got)
@@ -926,7 +933,7 @@ func TestLatestCryptoBar(t *testing.T) {
 func TestLatestCryptoBars(t *testing.T) {
 	c := DefaultClient
 	c.do = mockResp(`{"bars":{"SUSHI/USD":{"t":"2022-02-25T12:46:00Z","o":3.2109,"h":3.2109,"l":3.2093,"c":3.2093,"v":6,"n":2,"vw":3.2105},"DOGE/USD":{"t":"2022-02-25T12:40:00Z","o":0.124078,"h":0.124078,"l":0.124078,"c":0.124078,"v":16,"n":1,"vw":0.124078},"BAT/USD":{"t":"2022-02-25T12:36:00Z","o":0.67675,"h":0.67675,"l":0.67675,"c":0.67675,"v":411,"n":1,"vw":0.67675}}}`)
-	got, err := c.GetLatestCryptoBars([]string{"BAT/USD", "DOGE/USD", "SUSHI/USD"}, GetLatestCryptoBarsRequest{})
+	got, err := c.GetLatestCryptoBars([]string{"BAT/USD", "DOGE/USD", "SUSHI/USD"}, GetLatestCryptoBarRequest{})
 	require.NoError(t, err)
 	require.Len(t, got, 3)
 	assert.Equal(t, CryptoBar{
@@ -945,7 +952,7 @@ func TestLatestCryptoBars(t *testing.T) {
 
 func TestLatestCryptoTrade(t *testing.T) {
 	c := DefaultClient
-	c.do = mockResp(`{"symbol":"BTC/USD","trade":{"t":"2021-11-22T08:32:39.313396Z","p":57527,"s":0.0755,"tks":"B","i":17209535}}`)
+	c.do = mockResp(`{"trades":{"BTC/USD":{"t":"2021-11-22T08:32:39.313396Z","p":57527,"s":0.0755,"tks":"B","i":17209535}}}`)
 	got, err := c.GetLatestCryptoTrade("BTC/USD", GetLatestCryptoTradeRequest{})
 	require.NoError(t, err)
 	require.NotNil(t, got)
@@ -961,7 +968,7 @@ func TestLatestCryptoTrade(t *testing.T) {
 func TestLatestCryptoTrades(t *testing.T) {
 	c := DefaultClient
 	c.do = mockResp(`{"trades":{"ETH/USD":{"t":"2022-02-25T12:54:12.412144626Z","p":2709.1,"s":18,"tks":"B","i":0},"BCH/USD":{"t":"2022-02-25T10:00:07.491340366Z","p":295.42,"s":0.6223,"tks":"B","i":0}}}`)
-	got, err := c.GetLatestCryptoTrades([]string{"BCH/USD", "ETH/USD"}, GetLatestCryptoTradesRequest{})
+	got, err := c.GetLatestCryptoTrades([]string{"BCH/USD", "ETH/USD"}, GetLatestCryptoTradeRequest{})
 	require.NoError(t, err)
 	require.Len(t, got, 2)
 	assert.Equal(t, CryptoTrade{
@@ -975,7 +982,7 @@ func TestLatestCryptoTrades(t *testing.T) {
 
 func TestLatestCryptoQuote(t *testing.T) {
 	c := DefaultClient
-	c.do = mockResp(`{"symbol":"BCH/USD","quote":{"t":"2021-11-22T08:36:35.117453693Z","bp":564.52,"bs":44.2403,"ap":565.87,"as":44.2249}}`)
+	c.do = mockResp(`{"quotes":{"BCH/USD":{"t":"2021-11-22T08:36:35.117453693Z","bp":564.52,"bs":44.2403,"ap":565.87,"as":44.2249}}}`)
 	got, err := c.GetLatestCryptoQuote("BCH/USD", GetLatestCryptoQuoteRequest{})
 	require.NoError(t, err)
 	require.NotNil(t, got)
@@ -991,7 +998,7 @@ func TestLatestCryptoQuote(t *testing.T) {
 func TestLatestCryptoQuotes(t *testing.T) {
 	c := DefaultClient
 	c.do = mockResp(`{"quotes":{"BTC/USD":{"t":"2022-02-25T12:56:22.338903764Z","bp":39381.18,"bs":1.522012,"ap":39463.42,"as":1.5},"LTC/USD":{"t":"2022-02-25T12:56:22.318022772Z","bp":105.98,"bs":377.013267,"ap":106.24,"as":376.902245}}}`)
-	got, err := c.GetLatestCryptoQuotes([]string{"BTC/USD", "LTC/USD"}, GetLatestCryptoQuotesRequest{})
+	got, err := c.GetLatestCryptoQuotes([]string{"BTC/USD", "LTC/USD"}, GetLatestCryptoQuoteRequest{})
 	require.NoError(t, err)
 	require.Len(t, got, 2)
 	assert.Equal(t, CryptoQuote{
@@ -1008,7 +1015,7 @@ func TestCryptoSnapshot(t *testing.T) {
 	c := DefaultClient
 
 	// successful
-	c.do = mockResp(`{"symbol":"ETH/USD","latestTrade":{"t":"2021-12-08T19:26:58.703892Z","p":4393.18,"s":0.04299154,"tks":"S","i":191026243},"latestQuote":{"t":"2021-12-08T21:39:50.999Z","bp":4405.27,"bs":0.32420683,"ap":4405.28,"as":0.54523826},"minuteBar":{"t":"2021-12-08T19:26:00Z","o":4393.62,"h":4396.45,"l":4390.81,"c":4393.18,"v":132.02049802,"n":278,"vw":4393.9907155981},"dailyBar":{"t":"2021-12-08T06:00:00Z","o":4329.11,"h":4455.62,"l":4231.55,"c":4393.18,"v":95466.0903448,"n":186155,"vw":4367.7642299555},"prevDailyBar":{"t":"2021-12-07T06:00:00Z","o":4350.15,"h":4433.99,"l":4261.39,"c":4329.11,"v":152391.30635034,"n":326203,"vw":4344.2956259855}}`)
+	c.do = mockResp(`{"snapshots":{"ETH/USD":{"latestTrade":{"t":"2021-12-08T19:26:58.703892Z","p":4393.18,"s":0.04299154,"tks":"S","i":191026243},"latestQuote":{"t":"2021-12-08T21:39:50.999Z","bp":4405.27,"bs":0.32420683,"ap":4405.28,"as":0.54523826},"minuteBar":{"t":"2021-12-08T19:26:00Z","o":4393.62,"h":4396.45,"l":4390.81,"c":4393.18,"v":132.02049802,"n":278,"vw":4393.9907155981},"dailyBar":{"t":"2021-12-08T06:00:00Z","o":4329.11,"h":4455.62,"l":4231.55,"c":4393.18,"v":95466.0903448,"n":186155,"vw":4367.7642299555},"prevDailyBar":{"t":"2021-12-07T06:00:00Z","o":4350.15,"h":4433.99,"l":4261.39,"c":4329.11,"v":152391.30635034,"n":326203,"vw":4344.2956259855}}}}`)
 	got, err := c.GetCryptoSnapshot("ETH/USD", GetCryptoSnapshotRequest{})
 	require.NoError(t, err)
 	require.NotNil(t, got)
@@ -1069,7 +1076,7 @@ func TestCryptoSnapshot(t *testing.T) {
 func TestLatestCryptoSnapshots(t *testing.T) {
 	c := DefaultClient
 	c.do = mockResp(`{"snapshots":{"LTC/USD":{"latestTrade":{"t":"2022-02-25T13:37:01.642928Z","p":106.8,"s":25,"tks":"S","i":25661025},"latestQuote":{"t":"2022-02-25T13:37:13.222241536Z","bp":106.745,"bs":55,"ap":106.82,"as":55.86},"minuteBar":{"t":"2022-02-25T13:36:00Z","o":106.745,"h":106.9,"l":106.745,"c":106.9,"v":11.55,"n":4,"vw":106.8133030303},"dailyBar":{"t":"2022-02-25T06:00:00Z","o":103.425,"h":106.9,"l":101.7,"c":106.9,"v":5566.94,"n":274,"vw":104.4620249455},"prevDailyBar":{"t":"2022-02-24T06:00:00Z","o":95.315,"h":107.835,"l":91.64,"c":103.455,"v":36939.92,"n":1401,"vw":98.6918021939}},"BTC/USD":{"latestTrade":{"t":"2022-02-25T13:36:40.670492Z","p":39712,"s":0.0012,"tks":"B","i":25661005},"latestQuote":{"t":"2022-02-25T13:37:13.223584768Z","bp":39651,"bs":0.405,"ap":39668,"as":0.405},"minuteBar":{"t":"2022-02-25T13:36:00Z","o":39635,"h":39721,"l":39635,"c":39712,"v":1.977,"n":9,"vw":39691.4923621649},"dailyBar":{"t":"2022-02-25T06:00:00Z","o":38453,"h":39721,"l":38001,"c":39712,"v":472.5707,"n":1989,"vw":39105.5248569156},"prevDailyBar":{"t":"2022-02-24T06:00:00Z","o":34708,"h":39810,"l":34421,"c":38379,"v":3004.0718,"n":10341,"vw":37321.0250683755}}}}`)
-	got, err := c.GetCryptoSnapshots([]string{"BTC/USD", "LTC/USD"}, GetCryptoSnapshotsRequest{})
+	got, err := c.GetCryptoSnapshots([]string{"BTC/USD", "LTC/USD"}, GetCryptoSnapshotRequest{})
 	require.NoError(t, err)
 	require.Len(t, got, 2)
 	assert.Equal(t, 106.8, got["LTC/USD"].LatestTrade.Price)
