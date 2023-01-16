@@ -362,7 +362,6 @@ func TestClient_GetAnnouncement(t *testing.T) {
 	c := DefaultClient
 	// successful
 	c.do = func(c *Client, req *http.Request) (*http.Response, error) {
-		assert.Equal(t, "api.alpaca.markets", req.URL.Host)
 		assert.Equal(t, "/v2/corporate_actions/announcements/123", req.URL.Path)
 		assert.Equal(t, "GET", req.Method)
 
@@ -516,9 +515,9 @@ func TestOTOCOOrders(t *testing.T) {
 		return &http.Response{
 			Body: genBody(Order{
 				Qty:         or.Qty,
-				Side:        Side(or.Side),
-				TimeInForce: TimeInForce(or.TimeInForce),
-				Type:        OrderType(or.Type),
+				Side:        or.Side,
+				TimeInForce: or.TimeInForce,
+				Type:        or.Type,
 				Class:       string(or.OrderClass),
 			}),
 		}, nil

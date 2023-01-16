@@ -43,21 +43,6 @@ func quotes() {
 	}
 }
 
-// Get all the IBM and GE 5-minute bars from the first half hour of the 2021-08-09 market open
-func barsAsync() {
-	for item := range marketdata.GetMultiBarsAsync([]string{"IBM", "GE"}, marketdata.GetBarsRequest{
-		TimeFrame:  marketdata.NewTimeFrame(5, marketdata.Min),
-		Adjustment: marketdata.Split,
-		Start:      time.Date(2021, 8, 9, 13, 30, 0, 0, time.UTC),
-		End:        time.Date(2021, 8, 9, 14, 0, 0, 0, time.UTC),
-	}) {
-		if err := item.Error; err != nil {
-			panic(err)
-		}
-		fmt.Printf("%s: %+v\n", item.Symbol, item.Bar)
-	}
-}
-
 // Get Facebook bars
 func bars() {
 	bars, err := marketdata.GetBars("META", marketdata.GetBarsRequest{
@@ -125,6 +110,15 @@ func auctions() {
 	}
 }
 
+func cryptoQuote() {
+	quote, err := marketdata.GetLatestCryptoQuote("BTC/USD", marketdata.GetLatestCryptoQuoteRequest{})
+	if err != nil {
+		panic(err)
+	}
+	fmt.Printf("Latest crypto quote: %+v\n\n", quote)
+	fmt.Println()
+}
+
 type example struct {
 	Name string
 	Func func()
@@ -134,11 +128,11 @@ func main() {
 	examples := []example{
 		{Name: "trades", Func: trades},
 		{Name: "quotes", Func: quotes},
-		{Name: "barsAsync", Func: barsAsync},
 		{Name: "bars", Func: bars},
 		{Name: "adtv", Func: adtv},
 		{Name: "news", Func: news},
 		{Name: "auctions", Func: auctions},
+		{Name: "crypto_quote", Func: cryptoQuote},
 	}
 	for {
 		fmt.Println("Examples: ")
@@ -174,14 +168,15 @@ func main() {
 
 func getADTV(symbol string, start, end time.Time) (av float64, n int, err error) {
 	var totalVolume uint64
-	for item := range marketdata.GetBarsAsync(symbol, marketdata.GetBarsRequest{
+	bars, err := marketdata.GetBars(symbol, marketdata.GetBarsRequest{
 		Start: start,
 		End:   end,
-	}) {
-		if err = item.Error; err != nil {
-			return
-		}
-		totalVolume += item.Bar.Volume
+	})
+	if err != nil {
+		return 0, 0, err
+	}
+	for _, bar := range bars {
+		totalVolume += bar.Volume
 		n++
 	}
 	if n == 0 {

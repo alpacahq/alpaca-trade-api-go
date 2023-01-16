@@ -718,7 +718,7 @@ func TestPingFails(t *testing.T) {
 					return nil, connErr
 				}
 			}
-			// disabling ping (but not closing the connection alltogether!)
+			// disabling ping (but not closing the connection altogether!)
 			connection.pingDisabled = true
 			// triggering a ping
 			testTicker.Tick()

@@ -5,14 +5,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 	"os"
-	"sort"
 	"strconv"
 	"strings"
 	"time"
+
+	"golang.org/x/exp/maps"
 )
 
 // ClientOpts contains options for the alpaca marketdata client.
@@ -27,8 +27,9 @@ type ClientOpts struct {
 	RetryLimit int
 	RetryDelay time.Duration
 	// Feed is the default feed to be used by all requests. Can be overridden per request.
-	// For the latest endpoints this is the only way to set this parameter.
 	Feed string
+	// CryptoFeed is the default crypto feed to be used by all requests. Can be overridden per request.
+	CryptoFeed string
 	// Currency is the default currency to be used by all requests. Can be overridden per request.
 	// For the latest endpoints this is the only way to set this parameter.
 	Currency string
@@ -146,18 +147,6 @@ func setBaseQuery(q url.Values, p baseRequest, opts ClientOpts) {
 	}
 }
 
-func setCryptoBaseQuery(q url.Values, start, end time.Time, exchanges []string) {
-	if !start.IsZero() {
-		q.Set("start", start.Format(time.RFC3339Nano))
-	}
-	if !end.IsZero() {
-		q.Set("end", end.Format(time.RFC3339Nano))
-	}
-	if len(exchanges) > 0 {
-		q.Set("exchanges", strings.Join(exchanges, ","))
-	}
-}
-
 const (
 	v2MaxLimit   = 10000
 	newsMaxLimit = 50
@@ -202,147 +191,91 @@ type GetTradesRequest struct {
 	Currency string
 }
 
-// GetTrades returns the trades for the given symbol. It blocks until all the trades are collected.
-// If you want to process the incoming trades instantly, use GetTradesAsync instead!
+// GetTrades returns the trades for the given symbol.
 func (c *Client) GetTrades(symbol string, req GetTradesRequest) ([]Trade, error) {
+	u, err := url.Parse(fmt.Sprintf("%s/v2/stocks/%s/trades", c.opts.BaseURL, symbol))
+	if err != nil {
+		return nil, err
+	}
+
+	q := u.Query()
+	setBaseQuery(q, baseRequest{
+		Start:    req.Start,
+		End:      req.End,
+		Feed:     req.Feed,
+		AsOf:     req.AsOf,
+		Currency: req.Currency,
+	}, c.opts)
+
 	trades := make([]Trade, 0)
-	for item := range c.GetTradesAsync(symbol, req) {
-		if err := item.Error; err != nil {
+	for req.TotalLimit == 0 || len(trades) < req.TotalLimit {
+		setQueryLimit(q, req.TotalLimit, req.PageLimit, len(trades), v2MaxLimit)
+		u.RawQuery = q.Encode()
+
+		resp, err := c.get(u)
+		if err != nil {
 			return nil, err
 		}
-		trades = append(trades, item.Trade)
+
+		var tradeResp tradeResponse
+		if err = unmarshal(resp, &tradeResp); err != nil {
+			return nil, err
+		}
+
+		trades = append(trades, tradeResp.Trades...)
+		if tradeResp.NextPageToken == nil {
+			break
+		}
+		q.Set("page_token", *tradeResp.NextPageToken)
 	}
 	return trades, nil
-}
-
-// GetTradesAsync returns a channel that will be populated with the historical trades for the given symbol.
-func (c *Client) GetTradesAsync(symbol string, req GetTradesRequest) <-chan TradeItem {
-	ch := make(chan TradeItem)
-
-	go func() {
-		defer close(ch)
-
-		u, err := url.Parse(fmt.Sprintf("%s/v2/stocks/%s/trades", c.opts.BaseURL, symbol))
-		if err != nil {
-			ch <- TradeItem{Error: err}
-			return
-		}
-
-		q := u.Query()
-		setBaseQuery(q, baseRequest{
-			Start:    req.Start,
-			End:      req.End,
-			Feed:     req.Feed,
-			AsOf:     req.AsOf,
-			Currency: req.Currency,
-		}, c.opts)
-
-		received := 0
-		for req.TotalLimit == 0 || received < req.TotalLimit {
-			setQueryLimit(q, req.TotalLimit, req.PageLimit, received, v2MaxLimit)
-			u.RawQuery = q.Encode()
-
-			resp, err := c.get(u)
-			if err != nil {
-				ch <- TradeItem{Error: err}
-				return
-			}
-
-			var tradeResp tradeResponse
-			if err = unmarshal(resp, &tradeResp); err != nil {
-				ch <- TradeItem{Error: err}
-				return
-			}
-
-			for _, trade := range tradeResp.Trades {
-				ch <- TradeItem{Trade: trade}
-			}
-			if tradeResp.NextPageToken == nil {
-				return
-			}
-			q.Set("page_token", *tradeResp.NextPageToken)
-			received += len(tradeResp.Trades)
-		}
-	}()
-
-	return ch
 }
 
 // GetMultiTrades returns trades for the given symbols.
 func (c *Client) GetMultiTrades(
 	symbols []string, req GetTradesRequest,
 ) (map[string][]Trade, error) {
+	u, err := url.Parse(fmt.Sprintf("%s/v2/stocks/trades", c.opts.BaseURL))
+	if err != nil {
+		return nil, err
+	}
+
+	q := u.Query()
+	q.Set("symbols", strings.Join(symbols, ","))
+	setBaseQuery(q, baseRequest{
+		Start:    req.Start,
+		End:      req.End,
+		Feed:     req.Feed,
+		AsOf:     req.AsOf,
+		Currency: req.Currency,
+	}, c.opts)
+
 	trades := make(map[string][]Trade, len(symbols))
-	for item := range c.GetMultiTradesAsync(symbols, req) {
-		if err := item.Error; err != nil {
+	received := 0
+	for req.TotalLimit == 0 || received < req.TotalLimit {
+		setQueryLimit(q, req.TotalLimit, req.PageLimit, received, v2MaxLimit)
+		u.RawQuery = q.Encode()
+
+		resp, err := c.get(u)
+		if err != nil {
 			return nil, err
 		}
-		trades[item.Symbol] = append(trades[item.Symbol], item.Trade)
+
+		var tradeResp multiTradeResponse
+		if err = unmarshal(resp, &tradeResp); err != nil {
+			return nil, err
+		}
+
+		for _, symbol := range maps.Keys(tradeResp.Trades) {
+			trades[symbol] = append(trades[symbol], tradeResp.Trades[symbol]...)
+			received += len(tradeResp.Trades[symbol])
+		}
+		if tradeResp.NextPageToken == nil {
+			break
+		}
+		q.Set("page_token", *tradeResp.NextPageToken)
 	}
 	return trades, nil
-}
-
-// GetTrades returns a channel that will be populated with the trades for the requested symbols.
-func (c *Client) GetMultiTradesAsync(symbols []string, req GetTradesRequest) <-chan MultiTradeItem {
-	ch := make(chan MultiTradeItem)
-
-	go func() {
-		defer close(ch)
-
-		u, err := url.Parse(fmt.Sprintf("%s/v2/stocks/trades", c.opts.BaseURL))
-		if err != nil {
-			ch <- MultiTradeItem{Error: err}
-			return
-		}
-
-		q := u.Query()
-		q.Set("symbols", strings.Join(symbols, ","))
-		setBaseQuery(q, baseRequest{
-			Start:    req.Start,
-			End:      req.End,
-			Feed:     req.Feed,
-			AsOf:     req.AsOf,
-			Currency: req.Currency,
-		}, c.opts)
-
-		received := 0
-		for req.TotalLimit == 0 || received < req.TotalLimit {
-			setQueryLimit(q, req.TotalLimit, req.PageLimit, received, v2MaxLimit)
-			u.RawQuery = q.Encode()
-
-			resp, err := c.get(u)
-			if err != nil {
-				ch <- MultiTradeItem{Error: err}
-				return
-			}
-
-			var tradeResp multiTradeResponse
-			if err = unmarshal(resp, &tradeResp); err != nil {
-				ch <- MultiTradeItem{Error: err}
-				return
-			}
-
-			sortedSymbols := make([]string, 0, len(tradeResp.Trades))
-			for symbol := range tradeResp.Trades {
-				sortedSymbols = append(sortedSymbols, symbol)
-			}
-			sort.Strings(sortedSymbols)
-
-			for _, symbol := range sortedSymbols {
-				trades := tradeResp.Trades[symbol]
-				for _, trade := range trades {
-					ch <- MultiTradeItem{Symbol: symbol, Trade: trade}
-				}
-				received += len(trades)
-			}
-			if tradeResp.NextPageToken == nil {
-				return
-			}
-			q.Set("page_token", *tradeResp.NextPageToken)
-		}
-	}()
-
-	return ch
 }
 
 // GetQuotesRequest contains optional parameters for getting quotes
@@ -364,150 +297,91 @@ type GetQuotesRequest struct {
 	Currency string
 }
 
-// GetQuotes returns the quotes for the given symbol. It blocks until all the quotes are collected.
-// If you want to process the incoming quotes instantly, use GetQuotesAsync instead!
+// GetQuotes returns the quotes for the given symbol.
 func (c *Client) GetQuotes(symbol string, req GetQuotesRequest) ([]Quote, error) {
+	u, err := url.Parse(fmt.Sprintf("%s/v2/stocks/%s/quotes", c.opts.BaseURL, symbol))
+	if err != nil {
+		return nil, err
+	}
+
+	q := u.Query()
+	setBaseQuery(q, baseRequest{
+		Start:    req.Start,
+		End:      req.End,
+		Feed:     req.Feed,
+		AsOf:     req.AsOf,
+		Currency: req.Currency,
+	}, c.opts)
+
 	quotes := make([]Quote, 0)
-	for item := range c.GetQuotesAsync(symbol, req) {
-		if err := item.Error; err != nil {
+	for req.TotalLimit == 0 || len(quotes) < req.TotalLimit {
+		setQueryLimit(q, req.TotalLimit, req.PageLimit, len(quotes), v2MaxLimit)
+		u.RawQuery = q.Encode()
+
+		resp, err := c.get(u)
+		if err != nil {
 			return nil, err
 		}
-		quotes = append(quotes, item.Quote)
+
+		var quoteResp quoteResponse
+		if err = unmarshal(resp, &quoteResp); err != nil {
+			return nil, err
+		}
+
+		quotes = append(quotes, quoteResp.Quotes...)
+		if quoteResp.NextPageToken == nil {
+			break
+		}
+		q.Set("page_token", *quoteResp.NextPageToken)
 	}
 	return quotes, nil
-}
-
-// GetQuotesAsync returns a channel that will be populated with the quotes for the given symbol.
-func (c *Client) GetQuotesAsync(symbol string, req GetQuotesRequest) <-chan QuoteItem {
-	// NOTE: this method is very similar to GetTrades.
-	// With generics it would be almost trivial to refactor them to use a common c.opts.BaseURL method,
-	// but without them it doesn't seem to be worth it
-	ch := make(chan QuoteItem)
-
-	go func() {
-		defer close(ch)
-
-		u, err := url.Parse(fmt.Sprintf("%s/v2/stocks/%s/quotes", c.opts.BaseURL, symbol))
-		if err != nil {
-			ch <- QuoteItem{Error: err}
-			return
-		}
-
-		q := u.Query()
-		setBaseQuery(q, baseRequest{
-			Start:    req.Start,
-			End:      req.End,
-			Feed:     req.Feed,
-			AsOf:     req.AsOf,
-			Currency: req.Currency,
-		}, c.opts)
-
-		received := 0
-		for req.TotalLimit == 0 || received < req.TotalLimit {
-			setQueryLimit(q, req.TotalLimit, req.PageLimit, received, v2MaxLimit)
-			u.RawQuery = q.Encode()
-
-			resp, err := c.get(u)
-			if err != nil {
-				ch <- QuoteItem{Error: err}
-				return
-			}
-
-			var quoteResp quoteResponse
-			if err = unmarshal(resp, &quoteResp); err != nil {
-				ch <- QuoteItem{Error: err}
-				return
-			}
-
-			for _, quote := range quoteResp.Quotes {
-				ch <- QuoteItem{Quote: quote}
-			}
-			if quoteResp.NextPageToken == nil {
-				return
-			}
-			q.Set("page_token", *quoteResp.NextPageToken)
-			received += len(quoteResp.Quotes)
-		}
-	}()
-
-	return ch
 }
 
 // GetMultiQuotes returns quotes for the given symbols.
 func (c *Client) GetMultiQuotes(
 	symbols []string, req GetQuotesRequest,
 ) (map[string][]Quote, error) {
+	u, err := url.Parse(fmt.Sprintf("%s/v2/stocks/quotes", c.opts.BaseURL))
+	if err != nil {
+		return nil, err
+	}
+
+	q := u.Query()
+	q.Set("symbols", strings.Join(symbols, ","))
+	setBaseQuery(q, baseRequest{
+		Start:    req.Start,
+		End:      req.End,
+		Feed:     req.Feed,
+		AsOf:     req.AsOf,
+		Currency: req.Currency,
+	}, c.opts)
+
 	quotes := make(map[string][]Quote, len(symbols))
-	for item := range c.GetMultiQuotesAsync(symbols, req) {
-		if err := item.Error; err != nil {
+	received := 0
+	for req.TotalLimit == 0 || received < req.TotalLimit {
+		setQueryLimit(q, req.TotalLimit, req.PageLimit, received, v2MaxLimit)
+		u.RawQuery = q.Encode()
+
+		resp, err := c.get(u)
+		if err != nil {
 			return nil, err
 		}
-		quotes[item.Symbol] = append(quotes[item.Symbol], item.Quote)
+
+		var quoteResp multiQuoteResponse
+		if err = unmarshal(resp, &quoteResp); err != nil {
+			return nil, err
+		}
+
+		for _, symbol := range maps.Keys(quoteResp.Quotes) {
+			quotes[symbol] = append(quotes[symbol], quoteResp.Quotes[symbol]...)
+			received += len(quoteResp.Quotes[symbol])
+		}
+		if quoteResp.NextPageToken == nil {
+			break
+		}
+		q.Set("page_token", *quoteResp.NextPageToken)
 	}
 	return quotes, nil
-}
-
-// GetMultiQuotesAsync returns a channel that will be populated with the quotes for the requested symbols.
-func (c *Client) GetMultiQuotesAsync(symbols []string, req GetQuotesRequest) <-chan MultiQuoteItem {
-	ch := make(chan MultiQuoteItem)
-
-	go func() {
-		defer close(ch)
-
-		u, err := url.Parse(fmt.Sprintf("%s/v2/stocks/quotes", c.opts.BaseURL))
-		if err != nil {
-			ch <- MultiQuoteItem{Error: err}
-			return
-		}
-
-		q := u.Query()
-		q.Set("symbols", strings.Join(symbols, ","))
-		setBaseQuery(q, baseRequest{
-			Start:    req.Start,
-			End:      req.End,
-			Feed:     req.Feed,
-			AsOf:     req.AsOf,
-			Currency: req.Currency,
-		}, c.opts)
-
-		received := 0
-		for req.TotalLimit == 0 || received < req.TotalLimit {
-			setQueryLimit(q, req.TotalLimit, req.PageLimit, received, v2MaxLimit)
-			u.RawQuery = q.Encode()
-
-			resp, err := c.get(u)
-			if err != nil {
-				ch <- MultiQuoteItem{Error: err}
-				return
-			}
-
-			var quoteResp multiQuoteResponse
-			if err = unmarshal(resp, &quoteResp); err != nil {
-				ch <- MultiQuoteItem{Error: err}
-				return
-			}
-
-			sortedSymbols := make([]string, 0, len(quoteResp.Quotes))
-			for symbol := range quoteResp.Quotes {
-				sortedSymbols = append(sortedSymbols, symbol)
-			}
-			sort.Strings(sortedSymbols)
-
-			for _, symbol := range sortedSymbols {
-				quotes := quoteResp.Quotes[symbol]
-				for _, quote := range quotes {
-					ch <- MultiQuoteItem{Symbol: symbol, Quote: quote}
-				}
-				received += len(quotes)
-			}
-			if quoteResp.NextPageToken == nil {
-				return
-			}
-			q.Set("page_token", *quoteResp.NextPageToken)
-		}
-	}()
-
-	return ch
 }
 
 // GetBarsRequest contains optional parameters for getting bars
@@ -556,61 +430,36 @@ func setQueryBarRequest(q url.Values, req GetBarsRequest, opts ClientOpts) {
 
 // GetBars returns a slice of bars for the given symbol.
 func (c *Client) GetBars(symbol string, req GetBarsRequest) ([]Bar, error) {
+	u, err := url.Parse(fmt.Sprintf("%s/v2/stocks/%s/bars", c.opts.BaseURL, symbol))
+	if err != nil {
+		return nil, err
+	}
+
+	q := u.Query()
+	setQueryBarRequest(q, req, c.opts)
+
 	bars := make([]Bar, 0)
-	for item := range c.GetBarsAsync(symbol, req) {
-		if err := item.Error; err != nil {
+	for req.TotalLimit == 0 || len(bars) < req.TotalLimit {
+		setQueryLimit(q, req.TotalLimit, req.PageLimit, len(bars), v2MaxLimit)
+		u.RawQuery = q.Encode()
+
+		resp, err := c.get(u)
+		if err != nil {
 			return nil, err
 		}
-		bars = append(bars, item.Bar)
+
+		var barResp barResponse
+		if err = unmarshal(resp, &barResp); err != nil {
+			return nil, err
+		}
+
+		bars = append(bars, barResp.Bars...)
+		if barResp.NextPageToken == nil {
+			break
+		}
+		q.Set("page_token", *barResp.NextPageToken)
 	}
 	return bars, nil
-}
-
-// GetBarsAsync returns a channel that will be populated with the bars for the given symbol.
-func (c *Client) GetBarsAsync(symbol string, req GetBarsRequest) <-chan BarItem {
-	ch := make(chan BarItem)
-
-	go func() {
-		defer close(ch)
-
-		u, err := url.Parse(fmt.Sprintf("%s/v2/stocks/%s/bars", c.opts.BaseURL, symbol))
-		if err != nil {
-			ch <- BarItem{Error: err}
-			return
-		}
-
-		q := u.Query()
-		setQueryBarRequest(q, req, c.opts)
-
-		received := 0
-		for req.TotalLimit == 0 || received < req.TotalLimit {
-			setQueryLimit(q, req.TotalLimit, req.PageLimit, received, v2MaxLimit)
-			u.RawQuery = q.Encode()
-
-			resp, err := c.get(u)
-			if err != nil {
-				ch <- BarItem{Error: err}
-				return
-			}
-
-			var barResp barResponse
-			if err = unmarshal(resp, &barResp); err != nil {
-				ch <- BarItem{Error: err}
-				return
-			}
-
-			for _, bar := range barResp.Bars {
-				ch <- BarItem{Bar: bar}
-			}
-			if barResp.NextPageToken == nil {
-				return
-			}
-			q.Set("page_token", *barResp.NextPageToken)
-			received += len(barResp.Bars)
-		}
-	}()
-
-	return ch
 }
 
 // GetMultiBars returns bars for the given symbols.
@@ -618,70 +467,41 @@ func (c *Client) GetMultiBars(
 	symbols []string, req GetBarsRequest,
 ) (map[string][]Bar, error) {
 	bars := make(map[string][]Bar, len(symbols))
-	for item := range c.GetMultiBarsAsync(symbols, req) {
-		if err := item.Error; err != nil {
+
+	u, err := url.Parse(fmt.Sprintf("%s/v2/stocks/bars", c.opts.BaseURL))
+	if err != nil {
+		return nil, err
+	}
+
+	q := u.Query()
+	q.Set("symbols", strings.Join(symbols, ","))
+	setQueryBarRequest(q, req, c.opts)
+
+	received := 0
+	for req.TotalLimit == 0 || received < req.TotalLimit {
+		setQueryLimit(q, req.TotalLimit, req.PageLimit, received, v2MaxLimit)
+		u.RawQuery = q.Encode()
+
+		resp, err := c.get(u)
+		if err != nil {
 			return nil, err
 		}
-		bars[item.Symbol] = append(bars[item.Symbol], item.Bar)
+
+		var barResp multiBarResponse
+		if err = unmarshal(resp, &barResp); err != nil {
+			return nil, err
+		}
+
+		for _, symbol := range maps.Keys(barResp.Bars) {
+			bars[symbol] = append(bars[symbol], barResp.Bars[symbol]...)
+			received += len(barResp.Bars[symbol])
+		}
+		if barResp.NextPageToken == nil {
+			break
+		}
+		q.Set("page_token", *barResp.NextPageToken)
 	}
 	return bars, nil
-}
-
-// GetMultiBarsAsync returns a channel that will be populated with the bars for the requested symbols.
-func (c *Client) GetMultiBarsAsync(symbols []string, req GetBarsRequest) <-chan MultiBarItem {
-	ch := make(chan MultiBarItem)
-
-	go func() {
-		defer close(ch)
-
-		u, err := url.Parse(fmt.Sprintf("%s/v2/stocks/bars", c.opts.BaseURL))
-		if err != nil {
-			ch <- MultiBarItem{Error: err}
-			return
-		}
-
-		q := u.Query()
-		q.Set("symbols", strings.Join(symbols, ","))
-		setQueryBarRequest(q, req, c.opts)
-
-		received := 0
-		for req.TotalLimit == 0 || received < req.TotalLimit {
-			setQueryLimit(q, req.TotalLimit, req.PageLimit, received, v2MaxLimit)
-			u.RawQuery = q.Encode()
-
-			resp, err := c.get(u)
-			if err != nil {
-				ch <- MultiBarItem{Error: err}
-				return
-			}
-
-			var barResp multiBarResponse
-			if err = unmarshal(resp, &barResp); err != nil {
-				ch <- MultiBarItem{Error: err}
-				return
-			}
-
-			sortedSymbols := make([]string, 0, len(barResp.Bars))
-			for symbol := range barResp.Bars {
-				sortedSymbols = append(sortedSymbols, symbol)
-			}
-			sort.Strings(sortedSymbols)
-
-			for _, symbol := range sortedSymbols {
-				bars := barResp.Bars[symbol]
-				for _, bar := range bars {
-					ch <- MultiBarItem{Symbol: symbol, Bar: bar}
-				}
-				received += len(bars)
-			}
-			if barResp.NextPageToken == nil {
-				return
-			}
-			q.Set("page_token", *barResp.NextPageToken)
-		}
-	}()
-
-	return ch
 }
 
 // GetAuctionsRequest contains optional parameters for getting auctions
@@ -701,170 +521,134 @@ type GetAuctionsRequest struct {
 	Currency string
 }
 
-// GetAuctions returns the auctions for the given symbol. It blocks until all the auctions are collected.
-// If you want to process the incoming auctions instantly, use GetAuctionsAsync instead!
+// GetAuctions returns the auctions for the given symbol.
 func (c *Client) GetAuctions(symbol string, req GetAuctionsRequest) ([]DailyAuctions, error) {
+	u, err := url.Parse(fmt.Sprintf("%s/v2/stocks/%s/auctions", c.opts.BaseURL, symbol))
+	if err != nil {
+		return nil, err
+	}
+
+	q := u.Query()
+	setBaseQuery(q, baseRequest{
+		Start:    req.Start,
+		End:      req.End,
+		Feed:     "sip",
+		AsOf:     req.AsOf,
+		Currency: req.Currency,
+	}, c.opts)
+
 	auctions := make([]DailyAuctions, 0)
-	for item := range c.GetAuctionsAsync(symbol, req) {
-		if err := item.Error; err != nil {
+	for req.TotalLimit == 0 || len(auctions) < req.TotalLimit {
+		setQueryLimit(q, req.TotalLimit, req.PageLimit, len(auctions), v2MaxLimit)
+		u.RawQuery = q.Encode()
+
+		resp, err := c.get(u)
+		if err != nil {
 			return nil, err
 		}
-		auctions = append(auctions, item.DailyAuctions)
+
+		var auctionsResp auctionsResponse
+		if err = unmarshal(resp, &auctionsResp); err != nil {
+			return nil, err
+		}
+
+		auctions = append(auctions, auctionsResp.Auctions...)
+		if auctionsResp.NextPageToken == nil {
+			break
+		}
+		q.Set("page_token", *auctionsResp.NextPageToken)
 	}
+
 	return auctions, nil
-}
-
-// GetAuctionsAsync returns a channel that will be populated with the auctions for the given symbol.
-func (c *Client) GetAuctionsAsync(symbol string, req GetAuctionsRequest) <-chan DailyAuctionsItem {
-	ch := make(chan DailyAuctionsItem)
-
-	go func() {
-		defer close(ch)
-
-		u, err := url.Parse(fmt.Sprintf("%s/v2/stocks/%s/auctions", c.opts.BaseURL, symbol))
-		if err != nil {
-			ch <- DailyAuctionsItem{Error: err}
-			return
-		}
-
-		q := u.Query()
-		setBaseQuery(q, baseRequest{
-			Start:    req.Start,
-			End:      req.End,
-			Feed:     "sip",
-			AsOf:     req.AsOf,
-			Currency: req.Currency,
-		}, c.opts)
-
-		received := 0
-		for req.TotalLimit == 0 || received < req.TotalLimit {
-			setQueryLimit(q, req.TotalLimit, req.PageLimit, received, v2MaxLimit)
-			u.RawQuery = q.Encode()
-
-			resp, err := c.get(u)
-			if err != nil {
-				ch <- DailyAuctionsItem{Error: err}
-				return
-			}
-
-			var auctionsResp auctionsResponse
-			if err = unmarshal(resp, &auctionsResp); err != nil {
-				ch <- DailyAuctionsItem{Error: err}
-				return
-			}
-
-			for _, a := range auctionsResp.Auctions {
-				ch <- DailyAuctionsItem{DailyAuctions: a}
-			}
-			if auctionsResp.NextPageToken == nil {
-				return
-			}
-			q.Set("page_token", *auctionsResp.NextPageToken)
-			received += len(auctionsResp.Auctions)
-		}
-	}()
-
-	return ch
 }
 
 // GetMultiAuctions returns auctions for the given symbols.
 func (c *Client) GetMultiAuctions(
 	symbols []string, req GetAuctionsRequest,
 ) (map[string][]DailyAuctions, error) {
+	u, err := url.Parse(fmt.Sprintf("%s/v2/stocks/auctions", c.opts.BaseURL))
+	if err != nil {
+		return nil, err
+	}
+
+	q := u.Query()
+	q.Set("symbols", strings.Join(symbols, ","))
+	setBaseQuery(q, baseRequest{
+		Start:    req.Start,
+		End:      req.End,
+		Feed:     "sip",
+		AsOf:     req.AsOf,
+		Currency: req.Currency,
+	}, c.opts)
+
 	auctions := make(map[string][]DailyAuctions, len(symbols))
-	for item := range c.GetMultiAuctionsAsync(symbols, req) {
-		if err := item.Error; err != nil {
+	received := 0
+	for req.TotalLimit == 0 || received < req.TotalLimit {
+		setQueryLimit(q, req.TotalLimit, req.PageLimit, received, v2MaxLimit)
+		u.RawQuery = q.Encode()
+
+		resp, err := c.get(u)
+		if err != nil {
 			return nil, err
 		}
-		auctions[item.Symbol] = append(auctions[item.Symbol], item.DailyAuctions)
+
+		var auctionsResp multiAuctionsResponse
+		if err = unmarshal(resp, &auctionsResp); err != nil {
+			return nil, err
+		}
+
+		for _, symbol := range maps.Keys(auctionsResp.Auctions) {
+			auctions[symbol] = append(auctions[symbol], auctionsResp.Auctions[symbol]...)
+			received += len(auctionsResp.Auctions[symbol])
+		}
+		if auctionsResp.NextPageToken == nil {
+			break
+		}
+		q.Set("page_token", *auctionsResp.NextPageToken)
 	}
 	return auctions, nil
 }
 
-// GetMultiAuctionsAsync returns a channel that will be populated with the auctions for the requested symbols.
-func (c *Client) GetMultiAuctionsAsync(symbols []string, req GetAuctionsRequest) <-chan MultiDailyAuctionsItem {
-	ch := make(chan MultiDailyAuctionsItem)
-
-	go func() {
-		defer close(ch)
-
-		u, err := url.Parse(fmt.Sprintf("%s/v2/stocks/auctions", c.opts.BaseURL))
-		if err != nil {
-			ch <- MultiDailyAuctionsItem{Error: err}
-			return
-		}
-
-		q := u.Query()
-		q.Set("symbols", strings.Join(symbols, ","))
-		setBaseQuery(q, baseRequest{
-			Start:    req.Start,
-			End:      req.End,
-			Feed:     "sip",
-			AsOf:     req.AsOf,
-			Currency: req.Currency,
-		}, c.opts)
-
-		received := 0
-		for req.TotalLimit == 0 || received < req.TotalLimit {
-			setQueryLimit(q, req.TotalLimit, req.PageLimit, received, v2MaxLimit)
-			u.RawQuery = q.Encode()
-
-			resp, err := c.get(u)
-			if err != nil {
-				ch <- MultiDailyAuctionsItem{Error: err}
-				return
-			}
-
-			var auctions multiAuctionsResponse
-			if err = unmarshal(resp, &auctions); err != nil {
-				ch <- MultiDailyAuctionsItem{Error: err}
-				return
-			}
-
-			sortedSymbols := make([]string, 0, len(auctions.Auctions))
-			for symbol := range auctions.Auctions {
-				sortedSymbols = append(sortedSymbols, symbol)
-			}
-			sort.Strings(sortedSymbols)
-
-			for _, symbol := range sortedSymbols {
-				dailyAuctions := auctions.Auctions[symbol]
-				for _, a := range dailyAuctions {
-					ch <- MultiDailyAuctionsItem{Symbol: symbol, DailyAuctions: a}
-				}
-				received += len(dailyAuctions)
-			}
-			if auctions.NextPageToken == nil {
-				return
-			}
-			q.Set("page_token", *auctions.NextPageToken)
-		}
-	}()
-
-	return ch
+type baseLatestRequest struct {
+	Symbols  []string
+	Feed     string
+	Currency string
 }
 
-func setLatestQueryRequest(u *url.URL, symbols []string, opts ClientOpts) {
+func (c *Client) setLatestQueryRequest(u *url.URL, req baseLatestRequest) {
 	q := u.Query()
-	if len(symbols) > 0 {
-		q.Set("symbols", strings.Join(symbols, ","))
+	if len(req.Symbols) > 0 {
+		q.Set("symbols", strings.Join(req.Symbols, ","))
 	}
-	if opts.Feed != "" {
-		q.Set("feed", opts.Feed)
+	if req.Feed != "" {
+		// The request's feed has precedent over the client's feed
+		q.Set("feed", req.Feed)
+	} else if c.opts.Feed != "" {
+		q.Set("feed", c.opts.Feed)
 	}
-	if opts.Currency != "" {
-		q.Set("currency", opts.Currency)
+	if req.Currency != "" {
+		q.Set("currency", req.Currency)
+	} else if c.opts.Currency != "" {
+		q.Set("currency", c.opts.Currency)
 	}
 	u.RawQuery = q.Encode()
 }
 
+type GetLatestBarRequest struct {
+	Feed     string
+	Currency string
+}
+
 // GetLatestBar returns the latest minute bar for a given symbol
-func (c *Client) GetLatestBar(symbol string) (*Bar, error) {
+func (c *Client) GetLatestBar(symbol string, req GetLatestBarRequest) (*Bar, error) {
 	u, err := url.Parse(fmt.Sprintf("%s/v2/stocks/%s/bars/latest", c.opts.BaseURL, symbol))
 	if err != nil {
 		return nil, err
 	}
-	setLatestQueryRequest(u, nil, c.opts)
+	c.setLatestQueryRequest(u, baseLatestRequest{
+		Feed:     req.Feed,
+		Currency: req.Currency,
+	})
 
 	resp, err := c.get(u)
 	if err != nil {
@@ -878,13 +662,22 @@ func (c *Client) GetLatestBar(symbol string) (*Bar, error) {
 	return &latestBarResp.Bar, nil
 }
 
+type GetLatestBarsRequest struct {
+	Feed     string
+	Currency string
+}
+
 // GetLatestBars returns the latest minute bars for the given symbols
-func (c *Client) GetLatestBars(symbols []string) (map[string]Bar, error) {
+func (c *Client) GetLatestBars(symbols []string, req GetLatestBarsRequest) (map[string]Bar, error) {
 	u, err := url.Parse(fmt.Sprintf("%s/v2/stocks/bars/latest", c.opts.BaseURL))
 	if err != nil {
 		return nil, err
 	}
-	setLatestQueryRequest(u, symbols, c.opts)
+	c.setLatestQueryRequest(u, baseLatestRequest{
+		Symbols:  symbols,
+		Feed:     req.Feed,
+		Currency: req.Currency,
+	})
 
 	resp, err := c.get(u)
 	if err != nil {
@@ -898,13 +691,21 @@ func (c *Client) GetLatestBars(symbols []string) (map[string]Bar, error) {
 	return latestBarsResp.Bars, nil
 }
 
+type GetLatestTradeRequest struct {
+	Feed     string
+	Currency string
+}
+
 // GetLatestTrade returns the latest trade for a given symbol
-func (c *Client) GetLatestTrade(symbol string) (*Trade, error) {
+func (c *Client) GetLatestTrade(symbol string, req GetLatestTradeRequest) (*Trade, error) {
 	u, err := url.Parse(fmt.Sprintf("%s/v2/stocks/%s/trades/latest", c.opts.BaseURL, symbol))
 	if err != nil {
 		return nil, err
 	}
-	setLatestQueryRequest(u, nil, c.opts)
+	c.setLatestQueryRequest(u, baseLatestRequest{
+		Feed:     req.Feed,
+		Currency: req.Currency,
+	})
 
 	resp, err := c.get(u)
 	if err != nil {
@@ -918,13 +719,22 @@ func (c *Client) GetLatestTrade(symbol string) (*Trade, error) {
 	return &latestTradeResp.Trade, nil
 }
 
+type GetLatestTradesRequest struct {
+	Feed     string
+	Currency string
+}
+
 // GetLatestTrades returns the latest trades for the given symbols
-func (c *Client) GetLatestTrades(symbols []string) (map[string]Trade, error) {
+func (c *Client) GetLatestTrades(symbols []string, req GetLatestTradesRequest) (map[string]Trade, error) {
 	u, err := url.Parse(fmt.Sprintf("%s/v2/stocks/trades/latest", c.opts.BaseURL))
 	if err != nil {
 		return nil, err
 	}
-	setLatestQueryRequest(u, symbols, c.opts)
+	c.setLatestQueryRequest(u, baseLatestRequest{
+		Symbols:  symbols,
+		Feed:     req.Feed,
+		Currency: req.Currency,
+	})
 
 	resp, err := c.get(u)
 	if err != nil {
@@ -938,13 +748,21 @@ func (c *Client) GetLatestTrades(symbols []string) (map[string]Trade, error) {
 	return latestTradesResp.Trades, nil
 }
 
+type GetLatestQuoteRequest struct {
+	Feed     string
+	Currency string
+}
+
 // GetLatestQuote returns the latest quote for a given symbol
-func (c *Client) GetLatestQuote(symbol string) (*Quote, error) {
+func (c *Client) GetLatestQuote(symbol string, req GetLatestQuoteRequest) (*Quote, error) {
 	u, err := url.Parse(fmt.Sprintf("%s/v2/stocks/%s/quotes/latest", c.opts.BaseURL, symbol))
 	if err != nil {
 		return nil, err
 	}
-	setLatestQueryRequest(u, nil, c.opts)
+	c.setLatestQueryRequest(u, baseLatestRequest{
+		Feed:     req.Feed,
+		Currency: req.Currency,
+	})
 
 	resp, err := c.get(u)
 	if err != nil {
@@ -960,13 +778,22 @@ func (c *Client) GetLatestQuote(symbol string) (*Quote, error) {
 	return &latestQuoteResp.Quote, nil
 }
 
+type GetLatestQuotesRequest struct {
+	Feed     string
+	Currency string
+}
+
 // GetLatestQuotes returns the latest quotes for the given symbols
-func (c *Client) GetLatestQuotes(symbols []string) (map[string]Quote, error) {
+func (c *Client) GetLatestQuotes(symbols []string, req GetLatestQuotesRequest) (map[string]Quote, error) {
 	u, err := url.Parse(fmt.Sprintf("%s/v2/stocks/quotes/latest", c.opts.BaseURL))
 	if err != nil {
 		return nil, err
 	}
-	setLatestQueryRequest(u, symbols, c.opts)
+	c.setLatestQueryRequest(u, baseLatestRequest{
+		Symbols:  symbols,
+		Feed:     req.Feed,
+		Currency: req.Currency,
+	})
 
 	resp, err := c.get(u)
 	if err != nil {
@@ -980,13 +807,21 @@ func (c *Client) GetLatestQuotes(symbols []string) (map[string]Quote, error) {
 	return latestQuotesResp.Quotes, nil
 }
 
+type GetSnapshotRequest struct {
+	Feed     string
+	Currency string
+}
+
 // GetSnapshot returns the snapshot for a given symbol
-func (c *Client) GetSnapshot(symbol string) (*Snapshot, error) {
+func (c *Client) GetSnapshot(symbol string, req GetSnapshotRequest) (*Snapshot, error) {
 	u, err := url.Parse(fmt.Sprintf("%s/v2/stocks/%s/snapshot", c.opts.BaseURL, symbol))
 	if err != nil {
 		return nil, err
 	}
-	setLatestQueryRequest(u, nil, c.opts)
+	c.setLatestQueryRequest(u, baseLatestRequest{
+		Feed:     req.Feed,
+		Currency: req.Currency,
+	})
 
 	resp, err := c.get(u)
 	if err != nil {
@@ -1002,13 +837,22 @@ func (c *Client) GetSnapshot(symbol string) (*Snapshot, error) {
 	return &snapshot, nil
 }
 
+type GetSnapshotsRequest struct {
+	Feed     string
+	Currency string
+}
+
 // GetSnapshots returns the snapshots for multiple symbol
-func (c *Client) GetSnapshots(symbols []string) (map[string]*Snapshot, error) {
+func (c *Client) GetSnapshots(symbols []string, req GetSnapshotsRequest) (map[string]*Snapshot, error) {
 	u, err := url.Parse(fmt.Sprintf("%s/v2/stocks/snapshots", c.opts.BaseURL))
 	if err != nil {
 		return nil, err
 	}
-	setLatestQueryRequest(u, symbols, c.opts)
+	c.setLatestQueryRequest(u, baseLatestRequest{
+		Symbols:  symbols,
+		Feed:     req.Feed,
+		Currency: req.Currency,
+	})
 
 	resp, err := c.get(u)
 	if err != nil {
@@ -1024,7 +868,17 @@ func (c *Client) GetSnapshots(symbols []string) (map[string]*Snapshot, error) {
 	return snapshots, nil
 }
 
-const cryptoPrefix = "v1beta1/crypto"
+const cryptoPrefix = "v1beta3/crypto"
+
+func setCryptoBaseQuery(q url.Values, symbols []string, start, end time.Time) {
+	q.Set("symbols", strings.Join(symbols, ","))
+	if !start.IsZero() {
+		q.Set("start", start.Format(time.RFC3339Nano))
+	}
+	if !end.IsZero() {
+		q.Set("end", end.Format(time.RFC3339Nano))
+	}
+}
 
 // GetCryptoTradesRequest contains optional parameters for getting crypto trades
 type GetCryptoTradesRequest struct {
@@ -1037,68 +891,84 @@ type GetCryptoTradesRequest struct {
 	TotalLimit int
 	// PageLimit is the pagination size. If empty, the default page size will be used.
 	PageLimit int
-	// Exchanges is the list of exchanges to query. If empty, the default exchanges will be used.
-	Exchanges []string
+	// CryptoFeed is the crypto feed. Default is "us".
+	CryptoFeed string
 }
 
-// GetCryptoTrades returns the trades for the given crypto symbol. It blocks until all the trades are collected.
-// If you want to process the incoming trades instantly, use GetCryptoTradesAsync instead!
+// GetCryptoTrades returns the trades for the given crypto symbol.
 func (c *Client) GetCryptoTrades(symbol string, req GetCryptoTradesRequest) ([]CryptoTrade, error) {
+	u, err := url.Parse(fmt.Sprintf("%s/%s/%s/trades",
+		c.opts.BaseURL, cryptoPrefix, c.cryptoFeed(req.CryptoFeed)))
+	if err != nil {
+		return nil, err
+	}
+
+	q := u.Query()
+	setCryptoBaseQuery(q, []string{symbol}, req.Start, req.End)
+
 	trades := make([]CryptoTrade, 0)
-	for item := range c.GetCryptoTradesAsync(symbol, req) {
-		if err := item.Error; err != nil {
+	for req.TotalLimit == 0 || len(trades) < req.TotalLimit {
+		setQueryLimit(q, req.TotalLimit, req.PageLimit, len(trades), v2MaxLimit)
+		u.RawQuery = q.Encode()
+
+		resp, err := c.get(u)
+		if err != nil {
 			return nil, err
 		}
-		trades = append(trades, item.Trade)
+
+		var tradeResp cryptoMultiTradeResponse
+		if err = unmarshal(resp, &tradeResp); err != nil {
+			return nil, err
+		}
+
+		trades = append(trades, tradeResp.Trades[symbol]...)
+		if tradeResp.NextPageToken == nil {
+			break
+		}
+		q.Set("page_token", *tradeResp.NextPageToken)
 	}
+
 	return trades, nil
 }
 
-// GetCryptoTradesAsync returns a channel that will be populated with the trades for the given crypto symbol.
-func (c *Client) GetCryptoTradesAsync(symbol string, req GetCryptoTradesRequest) <-chan CryptoTradeItem {
-	ch := make(chan CryptoTradeItem)
+// GetMultiTrades returns trades for the given crypto symbols.
+func (c *Client) GetCryptoMultiTrades(
+	symbols []string, req GetCryptoTradesRequest,
+) (map[string][]CryptoTrade, error) {
+	u, err := url.Parse(fmt.Sprintf("%s/%s/%s/trades", c.opts.BaseURL, cryptoPrefix, c.cryptoFeed(req.CryptoFeed)))
+	if err != nil {
+		return nil, err
+	}
 
-	go func() {
-		defer close(ch)
+	q := u.Query()
+	setCryptoBaseQuery(q, symbols, req.Start, req.End)
 
-		u, err := url.Parse(fmt.Sprintf("%s/%s/%s/trades", c.opts.BaseURL, cryptoPrefix, symbol))
+	trades := make(map[string][]CryptoTrade, len(symbols))
+	received := 0
+	for req.TotalLimit == 0 || received < req.TotalLimit {
+		setQueryLimit(q, req.TotalLimit, req.PageLimit, received, v2MaxLimit)
+		u.RawQuery = q.Encode()
+
+		resp, err := c.get(u)
 		if err != nil {
-			ch <- CryptoTradeItem{Error: err}
-			return
+			return nil, err
 		}
 
-		q := u.Query()
-		setCryptoBaseQuery(q, req.Start, req.End, req.Exchanges)
-
-		received := 0
-		for req.TotalLimit == 0 || received < req.TotalLimit {
-			setQueryLimit(q, req.TotalLimit, req.PageLimit, received, v2MaxLimit)
-			u.RawQuery = q.Encode()
-
-			resp, err := c.get(u)
-			if err != nil {
-				ch <- CryptoTradeItem{Error: err}
-				return
-			}
-
-			var tradeResp cryptoTradeResponse
-			if err = unmarshal(resp, &tradeResp); err != nil {
-				ch <- CryptoTradeItem{Error: err}
-				return
-			}
-
-			for _, trade := range tradeResp.Trades {
-				ch <- CryptoTradeItem{Trade: trade}
-			}
-			if tradeResp.NextPageToken == nil {
-				return
-			}
-			q.Set("page_token", *tradeResp.NextPageToken)
-			received += len(tradeResp.Trades)
+		var tradeResp cryptoMultiTradeResponse
+		if err = unmarshal(resp, &tradeResp); err != nil {
+			return nil, err
 		}
-	}()
 
-	return ch
+		for _, symbol := range maps.Keys(tradeResp.Trades) {
+			trades[symbol] = append(trades[symbol], tradeResp.Trades[symbol]...)
+			received += len(tradeResp.Trades[symbol])
+		}
+		if tradeResp.NextPageToken == nil {
+			break
+		}
+		q.Set("page_token", *tradeResp.NextPageToken)
+	}
+	return trades, nil
 }
 
 // GetCryptoQuotesRequest contains optional parameters for getting crypto quotes
@@ -1112,68 +982,8 @@ type GetCryptoQuotesRequest struct {
 	TotalLimit int
 	// PageLimit is the pagination size. If empty, the default page size will be used.
 	PageLimit int
-	// Exchanges is the list of exchanges to query. If empty, the default exchanges will be used.
-	Exchanges []string
-}
-
-// GetCryptoQuotes returns the quotes for the given crypto symbol. It blocks until all the quotes are collected.
-// If you want to process the incoming quotes instantly, use GetCryptoQuotesAsync instead!
-func (c *Client) GetCryptoQuotes(symbol string, req GetCryptoQuotesRequest) ([]CryptoQuote, error) {
-	quotes := make([]CryptoQuote, 0)
-	for item := range c.GetCryptoQuotesAsync(symbol, req) {
-		if err := item.Error; err != nil {
-			return nil, err
-		}
-		quotes = append(quotes, item.Quote)
-	}
-	return quotes, nil
-}
-
-// GetCryptoQuotesAsync returns a channel that will be populated with the quotes for the given crypto symbol.
-func (c *Client) GetCryptoQuotesAsync(symbol string, req GetCryptoQuotesRequest) <-chan CryptoQuoteItem {
-	ch := make(chan CryptoQuoteItem)
-
-	go func() {
-		defer close(ch)
-
-		u, err := url.Parse(fmt.Sprintf("%s/%s/%s/quotes", c.opts.BaseURL, cryptoPrefix, symbol))
-		if err != nil {
-			ch <- CryptoQuoteItem{Error: err}
-			return
-		}
-
-		q := u.Query()
-		setCryptoBaseQuery(q, req.Start, req.End, req.Exchanges)
-
-		received := 0
-		for req.TotalLimit == 0 || received < req.TotalLimit {
-			setQueryLimit(q, req.TotalLimit, req.PageLimit, received, v2MaxLimit)
-			u.RawQuery = q.Encode()
-
-			resp, err := c.get(u)
-			if err != nil {
-				ch <- CryptoQuoteItem{Error: err}
-				return
-			}
-
-			var quoteResp cryptoQuoteResponse
-			if err = unmarshal(resp, &quoteResp); err != nil {
-				ch <- CryptoQuoteItem{Error: err}
-				return
-			}
-
-			for _, quote := range quoteResp.Quotes {
-				ch <- CryptoQuoteItem{Quote: quote}
-			}
-			if quoteResp.NextPageToken == nil {
-				return
-			}
-			q.Set("page_token", *quoteResp.NextPageToken)
-			received += len(quoteResp.Quotes)
-		}
-	}()
-
-	return ch
+	// CryptoFeed is the crypto feed. Default is "us".
+	CryptoFeed string
 }
 
 // GetCryptoBarsRequest contains optional parameters for getting crypto bars
@@ -1189,12 +999,12 @@ type GetCryptoBarsRequest struct {
 	TotalLimit int
 	// PageLimit is the pagination size. If empty, the default page size will be used.
 	PageLimit int
-	// Exchanges is the list of exchanges to query. If empty, the default exchanges will be used.
-	Exchanges []string
+	// CryptoFeed is the crypto feed. Default is "us".
+	CryptoFeed string
 }
 
-func setQueryCryptoBarRequest(q url.Values, req GetCryptoBarsRequest) {
-	setCryptoBaseQuery(q, req.Start, req.End, req.Exchanges)
+func setQueryCryptoBarRequest(q url.Values, symbols []string, req GetCryptoBarsRequest) {
+	setCryptoBaseQuery(q, symbols, req.Start, req.End)
 	timeframe := OneDay
 	if req.TimeFrame.N != 0 {
 		timeframe = req.TimeFrame
@@ -1204,144 +1014,114 @@ func setQueryCryptoBarRequest(q url.Values, req GetCryptoBarsRequest) {
 
 // GetCryptoBars returns a slice of bars for the given crypto symbol.
 func (c *Client) GetCryptoBars(symbol string, req GetCryptoBarsRequest) ([]CryptoBar, error) {
+	u, err := url.Parse(fmt.Sprintf("%s/%s/%s/bars",
+		c.opts.BaseURL, cryptoPrefix, c.cryptoFeed(req.CryptoFeed)))
+	if err != nil {
+		return nil, err
+	}
+
+	q := u.Query()
+	setQueryCryptoBarRequest(q, []string{symbol}, req)
+
 	bars := make([]CryptoBar, 0)
-	for item := range c.GetCryptoBarsAsync(symbol, req) {
-		if err := item.Error; err != nil {
+	for req.TotalLimit == 0 || len(bars) < req.TotalLimit {
+		setQueryLimit(q, req.TotalLimit, req.PageLimit, len(bars), v2MaxLimit)
+		u.RawQuery = q.Encode()
+
+		resp, err := c.get(u)
+		if err != nil {
 			return nil, err
 		}
-		bars = append(bars, item.Bar)
+
+		var barResp cryptoMultiBarResponse
+		if err = unmarshal(resp, &barResp); err != nil {
+			return nil, err
+		}
+
+		bars = append(bars, barResp.Bars[symbol]...)
+		if barResp.NextPageToken == nil {
+			break
+		}
+		q.Set("page_token", *barResp.NextPageToken)
 	}
 	return bars, nil
-}
-
-// GetCryptoBarsAsync returns a channel that will be populated with the bars for the given crypto symbol.
-func (c *Client) GetCryptoBarsAsync(symbol string, req GetCryptoBarsRequest) <-chan CryptoBarItem {
-	ch := make(chan CryptoBarItem)
-
-	go func() {
-		defer close(ch)
-
-		u, err := url.Parse(fmt.Sprintf("%s/%s/%s/bars", c.opts.BaseURL, cryptoPrefix, symbol))
-		if err != nil {
-			ch <- CryptoBarItem{Error: err}
-			return
-		}
-
-		q := u.Query()
-		setQueryCryptoBarRequest(q, req)
-
-		received := 0
-		for req.TotalLimit == 0 || received < req.TotalLimit {
-			setQueryLimit(q, req.TotalLimit, req.PageLimit, received, v2MaxLimit)
-			u.RawQuery = q.Encode()
-
-			resp, err := c.get(u)
-			if err != nil {
-				ch <- CryptoBarItem{Error: err}
-				return
-			}
-
-			var cryptoBarResp cryptoBarResponse
-			if err = unmarshal(resp, &cryptoBarResp); err != nil {
-				ch <- CryptoBarItem{Error: err}
-				return
-			}
-
-			for _, bar := range cryptoBarResp.Bars {
-				ch <- CryptoBarItem{Bar: bar}
-			}
-			if cryptoBarResp.NextPageToken == nil {
-				return
-			}
-			q.Set("page_token", *cryptoBarResp.NextPageToken)
-			received += len(cryptoBarResp.Bars)
-		}
-	}()
-
-	return ch
 }
 
 // GetCryptoMultiBars returns bars for the given crypto symbols.
 func (c *Client) GetCryptoMultiBars(
 	symbols []string, req GetCryptoBarsRequest,
 ) (map[string][]CryptoBar, error) {
-	bars := make(map[string][]CryptoBar, len(symbols))
-	for item := range c.GetCryptoMultiBarsAsync(symbols, req) {
-		if err := item.Error; err != nil {
-			return nil, err
-		}
-		bars[item.Symbol] = append(bars[item.Symbol], item.Bar)
-	}
-	return bars, nil
-}
-
-// GetCryptoMultiBarsAsync returns a channel that will be populated with the bars for the requested crypto symbols.
-func (c *Client) GetCryptoMultiBarsAsync(symbols []string, req GetCryptoBarsRequest) <-chan CryptoMultiBarItem {
-	ch := make(chan CryptoMultiBarItem)
-
-	go func() {
-		defer close(ch)
-
-		u, err := url.Parse(fmt.Sprintf("%s/%s/bars", c.opts.BaseURL, cryptoPrefix))
-		if err != nil {
-			ch <- CryptoMultiBarItem{Error: err}
-			return
-		}
-
-		q := u.Query()
-		q.Set("symbols", strings.Join(symbols, ","))
-		setQueryCryptoBarRequest(q, req)
-
-		received := 0
-		for req.TotalLimit == 0 || received < req.TotalLimit {
-			setQueryLimit(q, req.TotalLimit, req.PageLimit, received, v2MaxLimit)
-			u.RawQuery = q.Encode()
-
-			resp, err := c.get(u)
-			if err != nil {
-				ch <- CryptoMultiBarItem{Error: err}
-				return
-			}
-
-			var multiBarResp cryptoMultiBarResponse
-			if err = unmarshal(resp, &multiBarResp); err != nil {
-				ch <- CryptoMultiBarItem{Error: err}
-				return
-			}
-
-			sortedSymbols := make([]string, 0, len(multiBarResp.Bars))
-			for symbol := range multiBarResp.Bars {
-				sortedSymbols = append(sortedSymbols, symbol)
-			}
-			sort.Strings(sortedSymbols)
-
-			for _, symbol := range sortedSymbols {
-				bars := multiBarResp.Bars[symbol]
-				for _, bar := range bars {
-					ch <- CryptoMultiBarItem{Symbol: symbol, Bar: bar}
-				}
-				received += len(bars)
-			}
-			if multiBarResp.NextPageToken == nil {
-				return
-			}
-			q.Set("page_token", *multiBarResp.NextPageToken)
-		}
-	}()
-
-	return ch
-}
-
-// GetLatestCryptoBar returns the latest bar for a given crypto symbol on the given exchange
-func (c *Client) GetLatestCryptoBar(symbol, exchange string) (*CryptoBar, error) {
-	u, err := url.Parse(fmt.Sprintf("%s/%s/%s/bars/latest", c.opts.BaseURL, cryptoPrefix, symbol))
+	u, err := url.Parse(fmt.Sprintf("%s/%s/%s/bars",
+		c.opts.BaseURL, cryptoPrefix, c.cryptoFeed(req.CryptoFeed)))
 	if err != nil {
 		return nil, err
 	}
 
 	q := u.Query()
-	q.Set("exchange", exchange)
+	setQueryCryptoBarRequest(q, symbols, req)
+
+	bars := make(map[string][]CryptoBar, len(symbols))
+	received := 0
+	for req.TotalLimit == 0 || received < req.TotalLimit {
+		setQueryLimit(q, req.TotalLimit, req.PageLimit, received, v2MaxLimit)
+		u.RawQuery = q.Encode()
+
+		resp, err := c.get(u)
+		if err != nil {
+			return nil, err
+		}
+
+		var barResp cryptoMultiBarResponse
+		if err = unmarshal(resp, &barResp); err != nil {
+			return nil, err
+		}
+
+		for _, symbol := range maps.Keys(barResp.Bars) {
+			bars[symbol] = append(bars[symbol], barResp.Bars[symbol]...)
+			received += len(bars)
+		}
+		if barResp.NextPageToken == nil {
+			break
+		}
+		q.Set("page_token", *barResp.NextPageToken)
+	}
+	return bars, nil
+}
+
+type cryptoBaseLatestRequest struct {
+	Symbols []string
+}
+
+func (c *Client) setLatestCryptoQueryRequest(u *url.URL, req cryptoBaseLatestRequest) {
+	q := u.Query()
+	q.Set("symbols", strings.Join(req.Symbols, ","))
 	u.RawQuery = q.Encode()
+}
+
+type GetLatestCryptoBarRequest struct {
+	CryptoFeed string
+}
+
+func (c *Client) cryptoFeed(fromReq string) string {
+	if fromReq != "" {
+		return fromReq
+	}
+	if c.opts.CryptoFeed != "" {
+		return c.opts.CryptoFeed
+	}
+	return "us"
+}
+
+// GetLatestCryptoBar returns the latest bar for a given crypto symbol
+func (c *Client) GetLatestCryptoBar(symbol string, req GetLatestCryptoBarRequest) (*CryptoBar, error) {
+	u, err := url.Parse(fmt.Sprintf("%s/%s/%s/%s/bars/latest",
+		c.opts.BaseURL, cryptoPrefix, c.cryptoFeed(req.CryptoFeed), symbol))
+	if err != nil {
+		return nil, err
+	}
+	c.setLatestCryptoQueryRequest(u, cryptoBaseLatestRequest{
+		Symbols: []string{symbol},
+	})
 
 	resp, err := c.get(u)
 	if err != nil {
@@ -1349,23 +1129,25 @@ func (c *Client) GetLatestCryptoBar(symbol, exchange string) (*CryptoBar, error)
 	}
 
 	var latestBarResp latestCryptoBarResponse
-
 	if err = unmarshal(resp, &latestBarResp); err != nil {
 		return nil, err
 	}
-
 	return &latestBarResp.Bar, nil
 }
 
-// GetLatestCryptoBars returns the latest bars for the given crypto symbols on the given exchange
-func (c *Client) GetLatestCryptoBars(symbols []string, exchange string) (map[string]CryptoBar, error) {
-	u, err := url.Parse(fmt.Sprintf("%s/%s/bars/latest", c.opts.BaseURL, cryptoPrefix))
+type GetLatestCryptoBarsRequest struct {
+	CryptoFeed string
+}
+
+// GetLatestCryptoBars returns the latest bars for the given crypto symbols
+func (c *Client) GetLatestCryptoBars(symbols []string, req GetLatestCryptoBarsRequest) (map[string]CryptoBar, error) {
+	u, err := url.Parse(fmt.Sprintf("%s/%s/%s/bars/latest",
+		c.opts.BaseURL, cryptoPrefix, c.cryptoFeed(req.CryptoFeed)))
 	if err != nil {
 		return nil, err
 	}
 
 	q := u.Query()
-	q.Set("exchange", exchange)
 	q.Set("symbols", strings.Join(symbols, ","))
 	u.RawQuery = q.Encode()
 
@@ -1381,16 +1163,20 @@ func (c *Client) GetLatestCryptoBars(symbols []string, exchange string) (map[str
 	return latestBarsResp.Bars, nil
 }
 
-// GetLatestCryptoTrade returns the latest trade for a given crypto symbol on the given exchange
-func (c *Client) GetLatestCryptoTrade(symbol, exchange string) (*CryptoTrade, error) {
-	u, err := url.Parse(fmt.Sprintf("%s/%s/%s/trades/latest", c.opts.BaseURL, cryptoPrefix, symbol))
+type GetLatestCryptoTradeRequest struct {
+	CryptoFeed string
+}
+
+// GetLatestCryptoTrade returns the latest trade for a given crypto symbol
+func (c *Client) GetLatestCryptoTrade(symbol string, req GetLatestCryptoTradeRequest) (*CryptoTrade, error) {
+	u, err := url.Parse(fmt.Sprintf("%s/%s/%s/%s/trades/latest",
+		c.opts.BaseURL, cryptoPrefix, c.cryptoFeed(req.CryptoFeed), symbol))
 	if err != nil {
 		return nil, err
 	}
-
-	q := u.Query()
-	q.Set("exchange", exchange)
-	u.RawQuery = q.Encode()
+	c.setLatestCryptoQueryRequest(u, cryptoBaseLatestRequest{
+		Symbols: []string{symbol},
+	})
 
 	resp, err := c.get(u)
 	if err != nil {
@@ -1406,17 +1192,20 @@ func (c *Client) GetLatestCryptoTrade(symbol, exchange string) (*CryptoTrade, er
 	return &latestTradeResp.Trade, nil
 }
 
-// GetLatestCryptoTrades returns the latest trades for the given crypto symbols on the given exchange
-func (c *Client) GetLatestCryptoTrades(symbols []string, exchange string) (map[string]CryptoTrade, error) {
-	u, err := url.Parse(fmt.Sprintf("%s/%s/trades/latest", c.opts.BaseURL, cryptoPrefix))
+type GetLatestCryptoTradesRequest struct {
+	CryptoFeed string
+}
+
+// GetLatestCryptoTrades returns the latest trades for the given crypto symbols
+func (c *Client) GetLatestCryptoTrades(symbols []string, req GetLatestCryptoTradesRequest) (map[string]CryptoTrade, error) {
+	u, err := url.Parse(fmt.Sprintf("%s/%s/%s/trades/latest",
+		c.opts.BaseURL, cryptoPrefix, c.cryptoFeed(req.CryptoFeed)))
 	if err != nil {
 		return nil, err
 	}
-
-	q := u.Query()
-	q.Set("exchange", exchange)
-	q.Set("symbols", strings.Join(symbols, ","))
-	u.RawQuery = q.Encode()
+	c.setLatestCryptoQueryRequest(u, cryptoBaseLatestRequest{
+		Symbols: symbols,
+	})
 
 	resp, err := c.get(u)
 	if err != nil {
@@ -1430,16 +1219,20 @@ func (c *Client) GetLatestCryptoTrades(symbols []string, exchange string) (map[s
 	return latestTradesResp.Trades, nil
 }
 
-// GetLatestCryptoQuote returns the latest quote for a given crypto symbol on the given exchange
-func (c *Client) GetLatestCryptoQuote(symbol, exchange string) (*CryptoQuote, error) {
-	u, err := url.Parse(fmt.Sprintf("%s/%s/%s/quotes/latest", c.opts.BaseURL, cryptoPrefix, symbol))
+type GetLatestCryptoQuoteRequest struct {
+	CryptoFeed string
+}
+
+// GetLatestCryptoQuote returns the latest quote for a given crypto symbol
+func (c *Client) GetLatestCryptoQuote(symbol string, req GetLatestCryptoQuoteRequest) (*CryptoQuote, error) {
+	u, err := url.Parse(fmt.Sprintf("%s/%s/%s/quotes/latest",
+		c.opts.BaseURL, cryptoPrefix, c.cryptoFeed(req.CryptoFeed)))
 	if err != nil {
 		return nil, err
 	}
-
-	q := u.Query()
-	q.Set("exchange", exchange)
-	u.RawQuery = q.Encode()
+	c.setLatestCryptoQueryRequest(u, cryptoBaseLatestRequest{
+		Symbols: []string{symbol},
+	})
 
 	resp, err := c.get(u)
 	if err != nil {
@@ -1447,25 +1240,26 @@ func (c *Client) GetLatestCryptoQuote(symbol, exchange string) (*CryptoQuote, er
 	}
 
 	var latestQuoteResp latestCryptoQuoteResponse
-
 	if err = unmarshal(resp, &latestQuoteResp); err != nil {
 		return nil, err
 	}
-
 	return &latestQuoteResp.Quote, nil
 }
 
-// GetLatestCryptoQuotes returns the latest quotes for the given crypto symbols on the given exchange
-func (c *Client) GetLatestCryptoQuotes(symbols []string, exchange string) (map[string]CryptoQuote, error) {
-	u, err := url.Parse(fmt.Sprintf("%s/%s/quotes/latest", c.opts.BaseURL, cryptoPrefix))
+type GetLatestCryptoQuotesRequest struct {
+	CryptoFeed string
+}
+
+// GetLatestCryptoQuotes returns the latest quotes for the given crypto symbols
+func (c *Client) GetLatestCryptoQuotes(symbols []string, req GetLatestCryptoQuotesRequest) (map[string]CryptoQuote, error) {
+	u, err := url.Parse(fmt.Sprintf("%s/%s/%s/quotes/latest",
+		c.opts.BaseURL, cryptoPrefix, c.cryptoFeed(req.CryptoFeed)))
 	if err != nil {
 		return nil, err
 	}
-
-	q := u.Query()
-	q.Set("exchange", exchange)
-	q.Set("symbols", strings.Join(symbols, ","))
-	u.RawQuery = q.Encode()
+	c.setLatestCryptoQueryRequest(u, cryptoBaseLatestRequest{
+		Symbols: symbols,
+	})
 
 	resp, err := c.get(u)
 	if err != nil {
@@ -1479,69 +1273,20 @@ func (c *Client) GetLatestCryptoQuotes(symbols []string, exchange string) (map[s
 	return latestQuotesResp.Quotes, nil
 }
 
-// GetLatestCryptoXBBO returns the latest cross exchange BBO for a given crypto symbol on the given exchanges
-func (c *Client) GetLatestCryptoXBBO(symbol string, exchanges []string) (*CryptoXBBO, error) {
-	u, err := url.Parse(fmt.Sprintf("%s/%s/%s/xbbo/latest", c.opts.BaseURL, cryptoPrefix, symbol))
-	if err != nil {
-		return nil, err
-	}
-
-	if len(exchanges) > 0 {
-		q := u.Query()
-		q.Set("exchanges", strings.Join(exchanges, ","))
-		u.RawQuery = q.Encode()
-	}
-
-	resp, err := c.get(u)
-	if err != nil {
-		return nil, err
-	}
-
-	var latestXBBOResp latestCryptoXBBOResponse
-
-	if err = unmarshal(resp, &latestXBBOResp); err != nil {
-		return nil, err
-	}
-
-	return &latestXBBOResp.XBBO, nil
+type GetCryptoSnapshotRequest struct {
+	CryptoFeed string
 }
 
-// GetLatestCryptoXBBOs returns the latest cross exchange BBOs for the given crypto symbols on the given exchanges
-func (c *Client) GetLatestCryptoXBBOs(symbols []string, exchanges []string) (map[string]CryptoXBBO, error) {
-	u, err := url.Parse(fmt.Sprintf("%s/%s/xbbos/latest", c.opts.BaseURL, cryptoPrefix))
+// GetCryptoSnapshot returns the snapshot for a given crypto symbol
+func (c *Client) GetCryptoSnapshot(symbol string, req GetCryptoSnapshotRequest) (*CryptoSnapshot, error) {
+	u, err := url.Parse(fmt.Sprintf("%s/%s/%s/%s/snapshot",
+		c.opts.BaseURL, cryptoPrefix, c.cryptoFeed(req.CryptoFeed), symbol))
 	if err != nil {
 		return nil, err
 	}
-
-	q := u.Query()
-	if len(exchanges) > 0 {
-		q.Set("exchanges", strings.Join(exchanges, ","))
-	}
-	q.Set("symbols", strings.Join(symbols, ","))
-	u.RawQuery = q.Encode()
-
-	resp, err := c.get(u)
-	if err != nil {
-		return nil, err
-	}
-
-	var latestXBBOsResp latestCryptoXBBOsResponse
-	if err = unmarshal(resp, &latestXBBOsResp); err != nil {
-		return nil, err
-	}
-	return latestXBBOsResp.XBBOs, nil
-}
-
-// GetCryptoSnapshot returns the snapshot for a given crypto symbol on the given exchange
-func (c *Client) GetCryptoSnapshot(symbol string, exchange string) (*CryptoSnapshot, error) {
-	u, err := url.Parse(fmt.Sprintf("%s/%s/%s/snapshot", c.opts.BaseURL, cryptoPrefix, symbol))
-	if err != nil {
-		return nil, err
-	}
-
-	q := u.Query()
-	q.Set("exchange", exchange)
-	u.RawQuery = q.Encode()
+	c.setLatestCryptoQueryRequest(u, cryptoBaseLatestRequest{
+		Symbols: []string{symbol},
+	})
 
 	resp, err := c.get(u)
 	if err != nil {
@@ -1552,21 +1297,23 @@ func (c *Client) GetCryptoSnapshot(symbol string, exchange string) (*CryptoSnaps
 	if err = unmarshal(resp, &snapshot); err != nil {
 		return nil, err
 	}
-
 	return &snapshot, nil
 }
 
-// GetCryptoSnapshots returns the snapshots for the given crypto symbols on the given exchange
-func (c *Client) GetCryptoSnapshots(symbols []string, exchange string) (map[string]CryptoSnapshot, error) {
-	u, err := url.Parse(fmt.Sprintf("%s/%s/snapshots", c.opts.BaseURL, cryptoPrefix))
+type GetCryptoSnapshotsRequest struct {
+	CryptoFeed string
+}
+
+// GetCryptoSnapshots returns the snapshots for the given crypto symbols
+func (c *Client) GetCryptoSnapshots(symbols []string, req GetCryptoSnapshotsRequest) (map[string]CryptoSnapshot, error) {
+	u, err := url.Parse(fmt.Sprintf("%s/%s/%s/snapshots",
+		c.opts.BaseURL, cryptoPrefix, c.cryptoFeed(req.CryptoFeed)))
 	if err != nil {
 		return nil, err
 	}
-
-	q := u.Query()
-	q.Set("exchange", exchange)
-	q.Set("symbols", strings.Join(symbols, ","))
-	u.RawQuery = q.Encode()
+	c.setLatestCryptoQueryRequest(u, cryptoBaseLatestRequest{
+		Symbols: symbols,
+	})
 
 	resp, err := c.get(u)
 	if err != nil {
@@ -1624,7 +1371,7 @@ type GetNewsRequest struct {
 	PageLimit int
 }
 
-func setNewsQuery(q url.Values, p GetNewsRequest) {
+func (c *Client) setNewsQuery(q url.Values, p GetNewsRequest) {
 	if len(p.Symbols) > 0 {
 		q.Set("symbols", strings.Join(p.Symbols, ","))
 	}
@@ -1662,7 +1409,7 @@ func (c *Client) GetNews(req GetNewsRequest) ([]News, error) {
 	}
 
 	q := u.Query()
-	setNewsQuery(q, req)
+	c.setNewsQuery(q, req)
 	received := 0
 	totalLimit := req.TotalLimit
 	if req.TotalLimit == 0 && !req.NoTotalLimit {
@@ -1694,230 +1441,144 @@ func (c *Client) GetNews(req GetNewsRequest) ([]News, error) {
 	return news, nil
 }
 
-// GetTrades returns the trades for the given symbol. It blocks until all the trades are collected.
-// If you want to process the incoming trades instantly, use GetTradesAsync instead!
+// GetTrades returns the trades for the given symbol.
 func GetTrades(symbol string, req GetTradesRequest) ([]Trade, error) {
 	return DefaultClient.GetTrades(symbol, req)
 }
 
-// GetTradesAsync returns a channel that will be populated with the trades for the given symbol
-// that happened between the given start and end times, limited to the given limit.
-func GetTradesAsync(symbol string, req GetTradesRequest) <-chan TradeItem {
-	return DefaultClient.GetTradesAsync(symbol, req)
-}
-
-// GetMultiTrades returns the trades for the given symbols. It blocks until all the trades are collected.
-// If you want to process the incoming trades instantly, use GetMultiTradesAsync instead!
+// GetMultiTrades returns the trades for the given symbols.
 func GetMultiTrades(symbols []string, req GetTradesRequest) (map[string][]Trade, error) {
 	return DefaultClient.GetMultiTrades(symbols, req)
 }
 
-// GetMultiTradesAsync returns a channel that will be populated with the trades for the given symbols.
-func GetMultiTradesAsync(symbols []string, req GetTradesRequest) <-chan MultiTradeItem {
-	return DefaultClient.GetMultiTradesAsync(symbols, req)
-}
-
-// GetQuotes returns the quotes for the given symbol. It blocks until all the quotes are collected.
-// If you want to process the incoming quotes instantly, use GetQuotesAsync instead!
+// GetQuotes returns the quotes for the given symbol.
 func GetQuotes(symbol string, req GetQuotesRequest) ([]Quote, error) {
 	return DefaultClient.GetQuotes(symbol, req)
 }
 
-// GetQuotesAsync returns a channel that will be populated with the quotes for the given symbol
-// that happened between the given start and end times, limited to the given limit.
-func GetQuotesAsync(symbol string, req GetQuotesRequest) <-chan QuoteItem {
-	return DefaultClient.GetQuotesAsync(symbol, req)
-}
-
-// GetMultiQuotes returns the quotes for the given symbols. It blocks until all the quotes are collected.
-// If you want to process the incoming quotes instantly, use GetMultiQuotesAsync instead!
+// GetMultiQuotes returns the quotes for the given symbols.
 func GetMultiQuotes(symbols []string, req GetQuotesRequest) (map[string][]Quote, error) {
 	return DefaultClient.GetMultiQuotes(symbols, req)
 }
 
-// GetMultiQuotesAsync returns a channel that will be populated with the quotes for the given symbols.
-func GetMultiQuotesAsync(symbols []string, req GetQuotesRequest) <-chan MultiQuoteItem {
-	return DefaultClient.GetMultiQuotesAsync(symbols, req)
-}
-
-// GetBars returns the bars for the given symbol. It blocks until all the bars are collected.
-// If you want to process the incoming bars instantly, use GetBarsAsync instead!
+// GetBars returns the bars for the given symbol.
 func GetBars(symbol string, req GetBarsRequest) ([]Bar, error) {
 	return DefaultClient.GetBars(symbol, req)
 }
 
-// GetBarsAsync returns a channel that will be populated with the bars for the given symbol.
-func GetBarsAsync(symbol string, req GetBarsRequest) <-chan BarItem {
-	return DefaultClient.GetBarsAsync(symbol, req)
-}
-
-// GetMultiBars returns the bars for the given symbols. It blocks until all the bars are collected.
-// If you want to process the incoming bars instantly, use GetMultiBarsAsync instead!
+// GetMultiBars returns the bars for the given symbols.
 func GetMultiBars(symbols []string, req GetBarsRequest) (map[string][]Bar, error) {
 	return DefaultClient.GetMultiBars(symbols, req)
 }
 
-// GetMultiBarsAsync returns a channel that will be populated with the bars for the given symbols.
-func GetMultiBarsAsync(symbols []string, req GetBarsRequest) <-chan MultiBarItem {
-	return DefaultClient.GetMultiBarsAsync(symbols, req)
-}
-
-// GetAuctions returns the auctions for the given symbol. It blocks until all the auctions are collected.
-// If you want to process the incoming auctions instantly, use GetAuctionsAsync instead!
+// GetAuctions returns the auctions for the given symbol.
 func GetAuctions(symbol string, req GetAuctionsRequest) ([]DailyAuctions, error) {
 	return DefaultClient.GetAuctions(symbol, req)
 }
 
-// GetAuctionsAsync returns a channel that will be populated with the auctions for the given symbol.
-func GetAuctionsAsync(symbol string, req GetAuctionsRequest) <-chan DailyAuctionsItem {
-	return DefaultClient.GetAuctionsAsync(symbol, req)
-}
-
-// GetMultiAuctions returns the auctions for the given symbols. It blocks until all the auctions are collected.
-// If you want to process the incoming auctions instantly, use GetMultiAuctionsAsync instead!
+// GetMultiAuctions returns the auctions for the given symbols.
 func GetMultiAuctions(symbols []string, req GetAuctionsRequest) (map[string][]DailyAuctions, error) {
 	return DefaultClient.GetMultiAuctions(symbols, req)
 }
 
-// GetMultiAuctionsAsync returns a channel that will be populated with the auctions for the given symbols.
-func GetMultiAuctionsAsync(symbols []string, req GetAuctionsRequest) <-chan MultiDailyAuctionsItem {
-	return DefaultClient.GetMultiAuctionsAsync(symbols, req)
-}
-
 // GetLatestBar returns the latest minute bar for a given symbol.
-func GetLatestBar(symbol string) (*Bar, error) {
-	return DefaultClient.GetLatestBar(symbol)
+func GetLatestBar(symbol string, req GetLatestBarRequest) (*Bar, error) {
+	return DefaultClient.GetLatestBar(symbol, req)
 }
 
 // GetLatestBars returns the latest minute bars for the given symbols.
-func GetLatestBars(symbols []string) (map[string]Bar, error) {
-	return DefaultClient.GetLatestBars(symbols)
+func GetLatestBars(symbols []string, req GetLatestBarsRequest) (map[string]Bar, error) {
+	return DefaultClient.GetLatestBars(symbols, req)
 }
 
 // GetLatestTrade returns the latest trade for a given symbol.
-func GetLatestTrade(symbol string) (*Trade, error) {
-	return DefaultClient.GetLatestTrade(symbol)
+func GetLatestTrade(symbol string, req GetLatestTradeRequest) (*Trade, error) {
+	return DefaultClient.GetLatestTrade(symbol, req)
 }
 
 // GetLatestTrades returns the latest trades for the given symbols.
-func GetLatestTrades(symbols []string) (map[string]Trade, error) {
-	return DefaultClient.GetLatestTrades(symbols)
+func GetLatestTrades(symbols []string, req GetLatestTradesRequest) (map[string]Trade, error) {
+	return DefaultClient.GetLatestTrades(symbols, req)
 }
 
 // GetLatestQuote returns the latest quote for a given symbol.
-func GetLatestQuote(symbol string) (*Quote, error) {
-	return DefaultClient.GetLatestQuote(symbol)
+func GetLatestQuote(symbol string, req GetLatestQuoteRequest) (*Quote, error) {
+	return DefaultClient.GetLatestQuote(symbol, req)
 }
 
 // GetLatestQuotes returns the latest quotes for the given symbols.
-func GetLatestQuotes(symbols []string) (map[string]Quote, error) {
-	return DefaultClient.GetLatestQuotes(symbols)
+func GetLatestQuotes(symbols []string, req GetLatestQuotesRequest) (map[string]Quote, error) {
+	return DefaultClient.GetLatestQuotes(symbols, req)
 }
 
 // GetSnapshot returns the snapshot for a given symbol
-func GetSnapshot(symbol string) (*Snapshot, error) {
-	return DefaultClient.GetSnapshot(symbol)
+func GetSnapshot(symbol string, req GetSnapshotRequest) (*Snapshot, error) {
+	return DefaultClient.GetSnapshot(symbol, req)
 }
 
 // GetSnapshots returns the snapshots for a multiple symbols
-func GetSnapshots(symbols []string) (map[string]*Snapshot, error) {
-	return DefaultClient.GetSnapshots(symbols)
+func GetSnapshots(symbols []string, req GetSnapshotsRequest) (map[string]*Snapshot, error) {
+	return DefaultClient.GetSnapshots(symbols, req)
 }
 
-// GetCryptoTrades returns the trades for the given crypto symbol. It blocks until all the trades are collected.
-// If you want to process the incoming trades instantly, use GetCryptoTradesAsync instead!
+// GetCryptoTrades returns the trades for the given crypto symbol.
 func GetCryptoTrades(symbol string, req GetCryptoTradesRequest) ([]CryptoTrade, error) {
 	return DefaultClient.GetCryptoTrades(symbol, req)
 }
 
-// GetCryptoQuotesAsync returns a channel that will be populated with the trades for the given crypto symbol
-// that happened between the given start and end times, limited to the given limit.
-func GetCryptoTradesAsync(symbol string, req GetCryptoTradesRequest) <-chan CryptoTradeItem {
-	return DefaultClient.GetCryptoTradesAsync(symbol, req)
+// GetCryptoMultiTrades returns trades for the given crypto symbols.
+func GetCryptoMultiTrades(symbols []string, req GetCryptoTradesRequest) (map[string][]CryptoTrade, error) {
+	return DefaultClient.GetCryptoMultiTrades(symbols, req)
 }
 
-// GetCryptoQuotes returns the quotes for the given crypto symbol. It blocks until all the quotes are collected.
-// If you want to process the incoming quotes instantly, use GetCryptoQuotesAsync instead!
-func GetCryptoQuotes(symbol string, req GetCryptoQuotesRequest) ([]CryptoQuote, error) {
-	return DefaultClient.GetCryptoQuotes(symbol, req)
-}
-
-// GetCryptoQuotesAsync returns a channel that will be populated with the quotes for the given crypto symbol
-// that happened between the given start and end times, limited to the given limit.
-func GetCryptoQuotesAsync(symbol string, req GetCryptoQuotesRequest) <-chan CryptoQuoteItem {
-	return DefaultClient.GetCryptoQuotesAsync(symbol, req)
-}
-
-// GetCryptoBars returns the bars for the given crypto symbol. It blocks until all the bars are collected.
-// If you want to process the incoming bars instantly, use GetCryptoBarsAsync instead!
+// GetCryptoBars returns the bars for the given crypto symbol.
 func GetCryptoBars(symbol string, req GetCryptoBarsRequest) ([]CryptoBar, error) {
 	return DefaultClient.GetCryptoBars(symbol, req)
 }
 
-// GetCryptoBarsAsync returns a channel that will be populated with the bars for the given crypto symbol.
-func GetCryptoBarsAsync(symbol string, req GetCryptoBarsRequest) <-chan CryptoBarItem {
-	return DefaultClient.GetCryptoBarsAsync(symbol, req)
-}
-
-// GetCryptoMultiBars returns the bars for the given crypto symbols. It blocks until all the bars are collected.
-// If you want to process the incoming bars instantly, use GetCryptoMultiBarsAsync instead!
+// GetCryptoMultiBars returns the bars for the given crypto symbols.
 func GetCryptoMultiBars(symbols []string, req GetCryptoBarsRequest) (map[string][]CryptoBar, error) {
 	return DefaultClient.GetCryptoMultiBars(symbols, req)
 }
 
-// GetCryptoMultiBarsAsync returns a channel that will be populated with the bars for the given crypto symbols.
-func GetCryptoMultiBarsAsync(symbols []string, req GetCryptoBarsRequest) <-chan CryptoMultiBarItem {
-	return DefaultClient.GetCryptoMultiBarsAsync(symbols, req)
+// GetLatestCryptoBar returns the latest bar for a given crypto symbol
+func GetLatestCryptoBar(symbol string, req GetLatestCryptoBarRequest) (*CryptoBar, error) {
+	return DefaultClient.GetLatestCryptoBar(symbol, req)
 }
 
-// GetLatestCryptoBar returns the latest bar for a given crypto symbol on the given exchange
-func GetLatestCryptoBar(symbol, exchange string) (*CryptoBar, error) {
-	return DefaultClient.GetLatestCryptoBar(symbol, exchange)
+// GetLatestCryptoBars returns the latest bars for the given crypto symbols
+func GetLatestCryptoBars(symbols []string, req GetLatestCryptoBarsRequest) (map[string]CryptoBar, error) {
+	return DefaultClient.GetLatestCryptoBars(symbols, req)
 }
 
-// GetLatestCryptoBars returns the latest bars for the given crypto symbols on the given exchange
-func GetLatestCryptoBars(symbols []string, exchange string) (map[string]CryptoBar, error) {
-	return DefaultClient.GetLatestCryptoBars(symbols, exchange)
+// GetLatestCryptoTrade returns the latest trade for a given crypto symbol
+func GetLatestCryptoTrade(symbol string, req GetLatestCryptoTradeRequest) (*CryptoTrade, error) {
+	return DefaultClient.GetLatestCryptoTrade(symbol, req)
 }
 
-// GetLatestCryptoTrade returns the latest trade for a given crypto symbol on the given exchange
-func GetLatestCryptoTrade(symbol, exchange string) (*CryptoTrade, error) {
-	return DefaultClient.GetLatestCryptoTrade(symbol, exchange)
+// GetLatestCryptoTrades returns the latest trades for the given crypto symbols
+func GetLatestCryptoTrades(symbols []string, req GetLatestCryptoTradesRequest) (map[string]CryptoTrade, error) {
+	return DefaultClient.GetLatestCryptoTrades(symbols, req)
 }
 
-// GetLatestCryptoTrades returns the latest trades for the given crypto symbols on the given exchange
-func GetLatestCryptoTrades(symbols []string, exchange string) (map[string]CryptoTrade, error) {
-	return DefaultClient.GetLatestCryptoTrades(symbols, exchange)
+// GetLatestCryptoQuote returns the latest quote for a given crypto symbol
+func GetLatestCryptoQuote(symbol string, req GetLatestCryptoQuoteRequest) (*CryptoQuote, error) {
+	return DefaultClient.GetLatestCryptoQuote(symbol, req)
 }
 
-// GetLatestCryptoQuote returns the latest quote for a given crypto symbol on the given exchange
-func GetLatestCryptoQuote(symbol, exchange string) (*CryptoQuote, error) {
-	return DefaultClient.GetLatestCryptoQuote(symbol, exchange)
+// GetLatestCryptoQuotes returns the latest quotes for the given crypto symbols
+func GetLatestCryptoQuotes(symbols []string, req GetLatestCryptoQuotesRequest) (map[string]CryptoQuote, error) {
+	return DefaultClient.GetLatestCryptoQuotes(symbols, req)
 }
 
-// GetLatestCryptoQuotes returns the latest quotes for the given crypto symbols on the given exchange
-func GetLatestCryptoQuotes(symbols []string, exchange string) (map[string]CryptoQuote, error) {
-	return DefaultClient.GetLatestCryptoQuotes(symbols, exchange)
+// GetCryptoSnapshot returns the snapshot for a given crypto symbol
+func GetCryptoSnapshot(symbol string, req GetCryptoSnapshotRequest) (*CryptoSnapshot, error) {
+	return DefaultClient.GetCryptoSnapshot(symbol, req)
 }
 
-// GetLatestCryptoXBBO returns the latest cross exchange BBO for a given crypto symbol on the given exchanges
-func GetLatestCryptoXBBO(symbol string, exchanges []string) (*CryptoXBBO, error) {
-	return DefaultClient.GetLatestCryptoXBBO(symbol, exchanges)
-}
-
-// GetLatestCryptoXBBOs returns the latest cross exchange BBOs for the given crypto symbols on the given exchanges
-func GetLatestCryptoXBBOs(symbols []string, exchanges []string) (map[string]CryptoXBBO, error) {
-	return DefaultClient.GetLatestCryptoXBBOs(symbols, exchanges)
-}
-
-// GetCryptoSnapshot returns the snapshot for a given crypto symbol on the given exchange
-func GetCryptoSnapshot(symbol string, exchange string) (*CryptoSnapshot, error) {
-	return DefaultClient.GetCryptoSnapshot(symbol, exchange)
-}
-
-// GetCryptoSnapshots returns the snapshots for the given crypto symbols on the given exchange
-func GetCryptoSnapshots(symbols []string, exchange string) (map[string]CryptoSnapshot, error) {
-	return DefaultClient.GetCryptoSnapshots(symbols, exchange)
+// GetCryptoSnapshots returns the snapshots for the given crypto symbols
+func GetCryptoSnapshots(symbols []string, req GetCryptoSnapshotsRequest) (map[string]CryptoSnapshot, error) {
+	return DefaultClient.GetCryptoSnapshots(symbols, req)
 }
 
 // GetNews returns the news articles based on the given req.
@@ -1950,7 +1611,7 @@ func verify(resp *http.Response) error {
 	if resp.StatusCode >= http.StatusMultipleChoices {
 		defer resp.Body.Close()
 
-		body, err := ioutil.ReadAll(resp.Body)
+		body, err := io.ReadAll(resp.Body)
 		if err != nil {
 			return err
 		}
@@ -1969,7 +1630,7 @@ func verify(resp *http.Response) error {
 func unmarshal(resp *http.Response, data interface{}) error {
 	defer func() {
 		// The underlying TCP connection can not be reused if the body is not fully read
-		io.Copy(ioutil.Discard, resp.Body)
+		io.Copy(io.Discard, resp.Body)
 		resp.Body.Close()
 	}()
 	var (

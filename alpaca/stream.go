@@ -7,7 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"net"
 	"net/http"
@@ -42,7 +42,7 @@ func (c *Client) StreamTradeUpdates(ctx context.Context, handler func(TradeUpdat
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		body, _ := ioutil.ReadAll(resp.Body)
+		body, _ := io.ReadAll(resp.Body)
 		return fmt.Errorf("trade events returned HTTP %s, body: %s", resp.Status, string(body))
 	}
 

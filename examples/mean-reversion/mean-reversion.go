@@ -111,16 +111,17 @@ func main() {
 		// Reset the moving average for the day
 		algo.movingAverage = movingaverage.New(windowSize)
 
-		for item := range algo.dataClient.GetBarsAsync(algo.stock, marketdata.GetBarsRequest{
+		bars, err := algo.dataClient.GetBars(algo.stock, marketdata.GetBarsRequest{
 			TimeFrame: marketdata.OneMin,
 			Start:     time.Now().Add(-1 * (windowSize + 1) * time.Minute),
 			End:       time.Now(),
 			Feed:      algo.feed,
-		}) {
-			if err := item.Error; err != nil {
-				log.Fatalf("Failed to get historical bar: %v", err)
-			}
-			algo.movingAverage.Add(item.Bar.Close)
+		})
+		if err != nil {
+			log.Fatalf("Failed to get historical bar: %v", err)
+		}
+		for _, bar := range bars {
+			algo.movingAverage.Add(bar.Close)
 		}
 
 		// During market open we react on the minute bars (onBar)
