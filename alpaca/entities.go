@@ -360,3 +360,26 @@ type Announcement struct {
 	OldRate                 string `json:"old_rate"`
 	NewRate                 string `json:"new_rate"`
 }
+
+type Watchlist struct {
+	AccountID string  `json:"account_id"`
+	ID        string  `json:"id"`
+	CreatedAt string  `json:"created_at"`
+	UpdatedAt string  `json:"updated_at"`
+	Name      string  `json:"name"`
+	Assets    []Asset `json:"assets"`
+}
+
+type CreateWatchlistRequest struct {
+	Name    string   `json:"name"`
+	Symbols []string `json:"symbols"`
+}
+
+type UpdateWatchlistRequest struct {
+	Name    string   `json:"name"`
+	Symbols []string `json:"symbols"`
+}
+
+type AddAssetToWatchlistRequest struct {
+	Symbol string `json:"symbol"`
+}
