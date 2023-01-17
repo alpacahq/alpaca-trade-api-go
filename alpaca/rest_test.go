@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
@@ -15,6 +16,84 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func TestDefaultDo(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "testkey", r.Header.Get("APCA-API-KEY-ID"))
+		assert.Equal(t, "testsecret", r.Header.Get("APCA-API-SECRET-KEY"))
+		assert.Equal(t, "/custompath", r.URL.Path)
+		fmt.Fprint(w, "test body")
+	}))
+	c := NewClient(ClientOpts{
+		APIKey:     "testkey",
+		APISecret:  "testsecret",
+		RetryDelay: time.Nanosecond,
+		RetryLimit: 2,
+		BaseURL:    ts.URL,
+	})
+	req, err := http.NewRequest("GET", ts.URL+"/custompath", nil)
+	require.NoError(t, err)
+	resp, err := defaultDo(c, req)
+	require.NoError(t, err)
+	b, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+	assert.Equal(t, "test body", string(b))
+}
+
+func TestDefaultDo_SuccessfulRetries(t *testing.T) {
+	i := 0
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if i < 3 {
+			i++
+			http.Error(w, "too many requests", http.StatusTooManyRequests)
+			return
+		}
+		fmt.Fprint(w, "success")
+	}))
+	c := NewClient(ClientOpts{
+		RetryDelay: time.Nanosecond,
+	})
+	req, err := http.NewRequest("GET", ts.URL, nil)
+	require.NoError(t, err)
+	resp, err := defaultDo(c, req)
+	require.NoError(t, err)
+	b, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+	assert.Equal(t, "success", string(b))
+}
+
+func TestDefaultDo_TooManyRetries(t *testing.T) {
+	i := 0
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if i < 4 {
+			i++
+			http.Error(w, "too many requests", http.StatusTooManyRequests)
+			return
+		}
+		fmt.Fprint(w, "success")
+	}))
+	c := NewClient(ClientOpts{
+		RetryDelay: time.Nanosecond,
+	})
+	req, err := http.NewRequest("GET", ts.URL, nil)
+	require.NoError(t, err)
+	_, err = defaultDo(c, req)
+	require.Error(t, err)
+}
+
+func TestDefaultDo_Error(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, `{"code":1234567,"message":"custom error message"}`, http.StatusBadRequest)
+	}))
+	c := DefaultClient
+	req, err := http.NewRequest("GET", ts.URL, nil)
+	require.NoError(t, err)
+	_, err = defaultDo(c, req)
+	var apiErr *APIError
+	require.ErrorAs(t, err, &apiErr)
+	assert.Equal(t, 1234567, apiErr.Code)
+	assert.Equal(t, "custom error message", apiErr.Message)
+}
 
 func TestGetAccount(t *testing.T) {
 	c := DefaultClient
@@ -68,6 +147,54 @@ func TestGetPositions(t *testing.T) {
 	positions, err = c.GetPositions()
 	require.Error(t, err)
 	assert.Nil(t, positions)
+}
+
+func TestCancelPosition(t *testing.T) {
+	c := DefaultClient
+	order := &Order{
+		ID:            "5aee8a3f-3ac8-42e0-b3e6-ed5cfdf85864",
+		ClientOrderID: "0571ce61-bf65-4f0c-b3de-6f42de628422",
+		Symbol:        "AAPL",
+	}
+	c.do = func(c *Client, req *http.Request) (*http.Response, error) {
+		assert.Equal(t, "/v2/positions/AAPL", req.URL.Path)
+		assert.Equal(t, http.MethodDelete, req.Method)
+		assert.Equal(t, "0.12345678", req.URL.Query().Get("qty"))
+		return &http.Response{
+			Body: genBody(order),
+		}, nil
+	}
+	got, err := c.ClosePosition("AAPL", ClosePositionRequest{
+		Qty: decimal.RequireFromString("0.12345678"),
+	})
+	require.NoError(t, err)
+	assert.Equal(t, order.ID, got.ID)
+	assert.Equal(t, order.ClientOrderID, got.ClientOrderID)
+	assert.Equal(t, "AAPL", got.Symbol)
+}
+
+func TestCancelAllPositions(t *testing.T) {
+	c := DefaultClient
+
+	orders := []Order{
+		{ID: "1"},
+		{ID: "2"},
+	}
+	c.do = func(c *Client, req *http.Request) (*http.Response, error) {
+		assert.Equal(t, "/v2/positions", req.URL.Path)
+		assert.Equal(t, http.MethodDelete, req.Method)
+		assert.Equal(t, "true", req.URL.Query().Get("cancel_orders"))
+		return &http.Response{
+			Body: genBody(orders),
+		}, nil
+	}
+	got, err := c.CloseAllPositions(CloseAllPositionsRequest{
+		CancelOrders: true,
+	})
+	require.NoError(t, err)
+	require.Len(t, got, 2)
+	assert.Equal(t, "1", got[0].ID)
+	assert.Equal(t, "2", got[1].ID)
 }
 
 func TestGetClock(t *testing.T) {

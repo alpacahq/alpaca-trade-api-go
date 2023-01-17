@@ -134,7 +134,7 @@ func main() {
 		time.Sleep(untilClose)
 
 		fmt.Println("Market closing soon. Closing position.")
-		if err := algo.tradeClient.ClosePosition(algo.stock, alpaca.ClosePositionRequest{}); err != nil {
+		if _, err := algo.tradeClient.ClosePosition(algo.stock, alpaca.ClosePositionRequest{}); err != nil {
 			log.Fatalf("Failed to close position: %v", algo.stock)
 		}
 		fmt.Println("Position closed.")
