@@ -392,7 +392,7 @@ func (alp longShortAlgo) rerank() error {
 // Get the total price of the array of input stocks.
 func (alp longShortAlgo) getTotalPrice(arr []string) (float64, error) {
 	totalPrice := 0.0
-	snapshots, err := algo.dataClient.GetSnapshots(arr)
+	snapshots, err := algo.dataClient.GetSnapshots(arr, marketdata.GetSnapshotRequest{})
 	if err != nil {
 		return 0, fmt.Errorf("get snapshots: %w", err)
 	}

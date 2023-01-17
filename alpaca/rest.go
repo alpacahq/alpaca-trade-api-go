@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 	"os"
@@ -912,7 +911,7 @@ func verify(resp *http.Response) error {
 	if resp.StatusCode >= http.StatusMultipleChoices {
 		defer resp.Body.Close()
 
-		body, err := ioutil.ReadAll(resp.Body)
+		body, err := io.ReadAll(resp.Body)
 		if err != nil {
 			return err
 		}
@@ -931,7 +930,7 @@ func verify(resp *http.Response) error {
 func unmarshal(resp *http.Response, data interface{}) error {
 	defer func() {
 		// The underlying TCP connection can not be reused if the body is not fully read
-		io.Copy(ioutil.Discard, resp.Body)
+		io.Copy(io.Discard, resp.Body)
 		resp.Body.Close()
 	}()
 	return json.NewDecoder(resp.Body).Decode(data)

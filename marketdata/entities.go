@@ -174,7 +174,6 @@ type CryptoTrade struct {
 	Timestamp time.Time `json:"t"`
 	Price     float64   `json:"p"`
 	Size      float64   `json:"s"`
-	Exchange  string    `json:"x"`
 	ID        int64     `json:"i"`
 	// TakerSide is the side of the taker of the trade. It is either "B" (buy), "S" (sell) or "-" (unspecified)
 	TakerSide string `json:"tks"`
@@ -188,7 +187,6 @@ type CryptoTradeItem struct {
 // CryptoQuote is crypto quote
 type CryptoQuote struct {
 	Timestamp time.Time `json:"t"`
-	Exchange  string    `json:"x"`
 	BidPrice  float64   `json:"bp"`
 	BidSize   float64   `json:"bs"`
 	AskPrice  float64   `json:"ap"`
@@ -204,7 +202,6 @@ type CryptoQuoteItem struct {
 // CryptoBar is an aggregate of crypto trades
 type CryptoBar struct {
 	Timestamp  time.Time `json:"t"`
-	Exchange   string    `json:"x"`
 	Open       float64   `json:"o"`
 	High       float64   `json:"h"`
 	Low        float64   `json:"l"`
@@ -225,17 +222,6 @@ type CryptoMultiBarItem struct {
 	Symbol string
 	Bar    CryptoBar
 	Error  error
-}
-
-// CryptoXBBO is a cross exchange crypto BBO
-type CryptoXBBO struct {
-	Timestamp   time.Time `json:"t"`
-	BidExchange string    `json:"bx"`
-	BidPrice    float64   `json:"bp"`
-	BidSize     float64   `json:"bs"`
-	AskExchange string    `json:"ax"`
-	AskPrice    float64   `json:"ap"`
-	AskSize     float64   `json:"as"`
 }
 
 // CryptoSnapshot is a snapshot of a crypto symbol
@@ -272,21 +258,9 @@ type News struct {
 	Symbols   []string    `json:"symbols"`
 }
 
-type tradeResponse struct {
-	Symbol        string  `json:"symbol"`
-	NextPageToken *string `json:"next_page_token"`
-	Trades        []Trade `json:"trades"`
-}
-
 type multiTradeResponse struct {
 	NextPageToken *string            `json:"next_page_token"`
 	Trades        map[string][]Trade `json:"trades"`
-}
-
-type quoteResponse struct {
-	Symbol        string  `json:"symbol"`
-	NextPageToken *string `json:"next_page_token"`
-	Quotes        []Quote `json:"quotes"`
 }
 
 type multiQuoteResponse struct {
@@ -294,21 +268,9 @@ type multiQuoteResponse struct {
 	Quotes        map[string][]Quote `json:"quotes"`
 }
 
-type barResponse struct {
-	Symbol        string  `json:"symbol"`
-	NextPageToken *string `json:"next_page_token"`
-	Bars          []Bar   `json:"bars"`
-}
-
 type multiBarResponse struct {
 	NextPageToken *string          `json:"next_page_token"`
 	Bars          map[string][]Bar `json:"bars"`
-}
-
-type auctionsResponse struct {
-	Symbol        string          `json:"symbol"`
-	NextPageToken *string         `json:"next_page_token"`
-	Auctions      []DailyAuctions `json:"auctions"`
 }
 
 type multiAuctionsResponse struct {
@@ -316,49 +278,21 @@ type multiAuctionsResponse struct {
 	Auctions      map[string][]DailyAuctions `json:"auctions"`
 }
 
-type latestBarResponse struct {
-	Symbol string `json:"symbol"`
-	Bar    Bar    `json:"bar"`
-}
-
 type latestBarsResponse struct {
 	Bars map[string]Bar `json:"bars"`
-}
-
-type latestTradeResponse struct {
-	Symbol string `json:"symbol"`
-	Trade  Trade  `json:"trade"`
 }
 
 type latestTradesResponse struct {
 	Trades map[string]Trade `json:"trades"`
 }
 
-type latestQuoteResponse struct {
-	Symbol string `json:"symbol"`
-	Quote  Quote  `json:"quote"`
-}
-
 type latestQuotesResponse struct {
 	Quotes map[string]Quote `json:"quotes"`
 }
 
-type cryptoTradeResponse struct {
-	Symbol        string        `json:"symbol"`
-	NextPageToken *string       `json:"next_page_token"`
-	Trades        []CryptoTrade `json:"trades"`
-}
-
-type cryptoQuoteResponse struct {
-	Symbol        string        `json:"symbol"`
-	NextPageToken *string       `json:"next_page_token"`
-	Quotes        []CryptoQuote `json:"quotes"`
-}
-
-type cryptoBarResponse struct {
-	Symbol        string      `json:"symbol"`
-	NextPageToken *string     `json:"next_page_token"`
-	Bars          []CryptoBar `json:"bars"`
+type cryptoMultiTradeResponse struct {
+	NextPageToken *string                  `json:"next_page_token"`
+	Trades        map[string][]CryptoTrade `json:"trades"`
 }
 
 type cryptoMultiBarResponse struct {
@@ -366,40 +300,16 @@ type cryptoMultiBarResponse struct {
 	Bars          map[string][]CryptoBar `json:"bars"`
 }
 
-type latestCryptoBarResponse struct {
-	Symbol string    `json:"symbol"`
-	Bar    CryptoBar `json:"bar"`
-}
-
 type latestCryptoBarsResponse struct {
 	Bars map[string]CryptoBar `json:"bars"`
-}
-
-type latestCryptoTradeResponse struct {
-	Symbol string      `json:"symbol"`
-	Trade  CryptoTrade `json:"trade"`
 }
 
 type latestCryptoTradesResponse struct {
 	Trades map[string]CryptoTrade `json:"trades"`
 }
 
-type latestCryptoQuoteResponse struct {
-	Symbol string      `json:"symbol"`
-	Quote  CryptoQuote `json:"quote"`
-}
-
 type latestCryptoQuotesResponse struct {
 	Quotes map[string]CryptoQuote `json:"quotes"`
-}
-
-type latestCryptoXBBOResponse struct {
-	Symbol string     `json:"symbol"`
-	XBBO   CryptoXBBO `json:"xbbo"`
-}
-
-type latestCryptoXBBOsResponse struct {
-	XBBOs map[string]CryptoXBBO `json:"xbbos"`
 }
 
 type newsResponse struct {
