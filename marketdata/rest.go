@@ -11,8 +11,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-
-	"golang.org/x/exp/maps"
 )
 
 // ClientOpts contains options for the alpaca marketdata client.
@@ -236,9 +234,9 @@ func (c *Client) GetMultiTrades(symbols []string, req GetTradesRequest) (map[str
 			return nil, err
 		}
 
-		for _, symbol := range maps.Keys(tradeResp.Trades) {
-			trades[symbol] = append(trades[symbol], tradeResp.Trades[symbol]...)
-			received += len(tradeResp.Trades[symbol])
+		for symbol, t := range tradeResp.Trades {
+			trades[symbol] = append(trades[symbol], t...)
+			received += len(t)
 		}
 		if tradeResp.NextPageToken == nil {
 			break
@@ -309,9 +307,9 @@ func (c *Client) GetMultiQuotes(symbols []string, req GetQuotesRequest) (map[str
 			return nil, err
 		}
 
-		for _, symbol := range maps.Keys(quoteResp.Quotes) {
-			quotes[symbol] = append(quotes[symbol], quoteResp.Quotes[symbol]...)
-			received += len(quoteResp.Quotes[symbol])
+		for symbol, q := range quoteResp.Quotes {
+			quotes[symbol] = append(quotes[symbol], q...)
+			received += len(q)
 		}
 		if quoteResp.NextPageToken == nil {
 			break
@@ -402,9 +400,9 @@ func (c *Client) GetMultiBars(symbols []string, req GetBarsRequest) (map[string]
 			return nil, err
 		}
 
-		for _, symbol := range maps.Keys(barResp.Bars) {
-			bars[symbol] = append(bars[symbol], barResp.Bars[symbol]...)
-			received += len(barResp.Bars[symbol])
+		for symbol, b := range barResp.Bars {
+			bars[symbol] = append(bars[symbol], b...)
+			received += len(b)
 		}
 		if barResp.NextPageToken == nil {
 			break
@@ -475,9 +473,9 @@ func (c *Client) GetMultiAuctions(
 			return nil, err
 		}
 
-		for _, symbol := range maps.Keys(auctionsResp.Auctions) {
-			auctions[symbol] = append(auctions[symbol], auctionsResp.Auctions[symbol]...)
-			received += len(auctionsResp.Auctions[symbol])
+		for symbol, a := range auctionsResp.Auctions {
+			auctions[symbol] = append(auctions[symbol], a...)
+			received += len(a)
 		}
 		if auctionsResp.NextPageToken == nil {
 			break
@@ -740,9 +738,9 @@ func (c *Client) GetCryptoMultiTrades(symbols []string, req GetCryptoTradesReque
 			return nil, err
 		}
 
-		for _, symbol := range maps.Keys(tradeResp.Trades) {
-			trades[symbol] = append(trades[symbol], tradeResp.Trades[symbol]...)
-			received += len(tradeResp.Trades[symbol])
+		for symbol, t := range tradeResp.Trades {
+			trades[symbol] = append(trades[symbol], t...)
+			received += len(t)
 		}
 		if tradeResp.NextPageToken == nil {
 			break
@@ -814,9 +812,9 @@ func (c *Client) GetCryptoMultiBars(symbols []string, req GetCryptoBarsRequest) 
 			return nil, err
 		}
 
-		for _, symbol := range maps.Keys(barResp.Bars) {
-			bars[symbol] = append(bars[symbol], barResp.Bars[symbol]...)
-			received += len(bars)
+		for symbol, b := range barResp.Bars {
+			bars[symbol] = append(bars[symbol], b...)
+			received += len(b)
 		}
 		if barResp.NextPageToken == nil {
 			break
