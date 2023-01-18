@@ -310,10 +310,10 @@ type CloseAllPositionsRequest struct {
 }
 
 // CloseAllPositions liquidates all open positions at market price.
-func (c *Client) CloseAllPositions(req CloseAllPositionsRequest) error {
+func (c *Client) CloseAllPositions(req CloseAllPositionsRequest) ([]Order, error) {
 	u, err := url.Parse(fmt.Sprintf("%s/%s/positions", c.opts.BaseURL, apiVersion))
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	q := u.Query()
@@ -322,9 +322,14 @@ func (c *Client) CloseAllPositions(req CloseAllPositionsRequest) error {
 
 	resp, err := c.delete(u)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	return verify(resp)
+
+	orders := []Order{}
+	if err = unmarshal(resp, &orders); err != nil {
+		return nil, err
+	}
+	return orders, nil
 }
 
 type ClosePositionRequest struct {
@@ -338,10 +343,10 @@ type ClosePositionRequest struct {
 }
 
 // ClosePosition liquidates the position for the given symbol at market price.
-func (c *Client) ClosePosition(symbol string, req ClosePositionRequest) error {
+func (c *Client) ClosePosition(symbol string, req ClosePositionRequest) (*Order, error) {
 	u, err := url.Parse(fmt.Sprintf("%s/%s/positions/%s", c.opts.BaseURL, apiVersion, symbol))
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	q := u.Query()
@@ -355,10 +360,14 @@ func (c *Client) ClosePosition(symbol string, req ClosePositionRequest) error {
 
 	resp, err := c.delete(u)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	return verify(resp)
+	var order Order
+	if err = unmarshal(resp, &order); err != nil {
+		return nil, err
+	}
+	return &order, nil
 }
 
 // GetClock returns the current market clock.
@@ -774,12 +783,12 @@ func GetPosition(symbol string) (*Position, error) {
 }
 
 // CloseAllPositions liquidates all open positions at market price.
-func CloseAllPositions(req CloseAllPositionsRequest) error {
+func CloseAllPositions(req CloseAllPositionsRequest) ([]Order, error) {
 	return DefaultClient.CloseAllPositions(req)
 }
 
 // ClosePosition liquidates the position for the given symbol at market price.
-func ClosePosition(symbol string, req ClosePositionRequest) error {
+func ClosePosition(symbol string, req ClosePositionRequest) (*Order, error) {
 	return DefaultClient.ClosePosition(symbol, req)
 }
 
@@ -917,8 +926,7 @@ func verify(resp *http.Response) error {
 		}
 
 		var apiErr APIError
-		err = json.Unmarshal(body, &apiErr)
-		if err != nil {
+		if err = json.Unmarshal(body, &apiErr); err != nil {
 			// If the error is not in our JSON format, we simply return the HTTP response
 			return fmt.Errorf("HTTP %s: %s", resp.Status, body)
 		}
