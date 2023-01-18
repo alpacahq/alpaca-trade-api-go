@@ -380,6 +380,6 @@ type UpdateWatchlistRequest struct {
 	Symbols []string `json:"symbols"`
 }
 
-type AddAssetToWatchlistRequest struct {
+type AddSymbolToWatchlistRequest struct {
 	Symbol string `json:"symbol"`
 }

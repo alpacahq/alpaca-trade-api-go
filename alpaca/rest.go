@@ -44,7 +44,7 @@ type Client interface {
 	CreateWatchlist(req CreateWatchlistRequest) (*Watchlist, error)
 	GetWatchlist(watchlistID string) (*Watchlist, error)
 	UpdateWatchlist(watchlistID string, req UpdateWatchlistRequest) (*Watchlist, error)
-	AddAssetToWatchlist(watchlistID string, req AddAssetToWatchlistRequest) (*Watchlist, error)
+	AddSymbolToWatchlist(watchlistID string, req AddSymbolToWatchlistRequest) (*Watchlist, error)
 	RemoveSymbolFromWatchlist(watchlistID string, symbol string) error
 	DeleteWatchlist(watchlistID string) error
 	StreamTradeUpdates(ctx context.Context, handler func(TradeUpdate)) error
@@ -859,7 +859,7 @@ func (c *client) UpdateWatchlist(watchlistID string, req UpdateWatchlistRequest)
 	return watchlist, nil
 }
 
-func (c *client) AddAssetToWatchlist(watchlistID string, req AddAssetToWatchlistRequest) (*Watchlist, error) {
+func (c *client) AddSymbolToWatchlist(watchlistID string, req AddSymbolToWatchlistRequest) (*Watchlist, error) {
 	u, err := url.Parse(fmt.Sprintf("%s/%s/watchlists/%s", c.opts.BaseURL, apiVersion, watchlistID))
 	if err != nil {
 		return nil, err
@@ -1040,10 +1040,10 @@ func DeleteWatchlist(watchlistID string) error {
 	return DefaultClient.DeleteWatchlist(watchlistID)
 }
 
-// AddAssetToWatchlist adds an asset to a watchlist by getting the watchlist id
+// AddSymbolToWatchlist adds an asset to a watchlist by getting the watchlist id
 // with the default Alpaca client.
-func AddAssetToWatchlist(watchlistID string, req AddAssetToWatchlistRequest) (*Watchlist, error) {
-	return DefaultClient.AddAssetToWatchlist(watchlistID, req)
+func AddSymbolToWatchlist(watchlistID string, req AddSymbolToWatchlistRequest) (*Watchlist, error) {
+	return DefaultClient.AddSymbolToWatchlist(watchlistID, req)
 }
 
 // RemoveSymbolFromWatchlist removes an asset from a watchlist by getting the watchlist id

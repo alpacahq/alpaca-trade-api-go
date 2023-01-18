@@ -508,6 +508,10 @@ func TestClient_CreateWatchlist(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.NotNil(t, watchlist)
+	require.Equal(t, "testname", watchlist.Name)
+	require.Len(t, watchlist.Assets, 1)
+	require.Equal(t, "AAPL", watchlist.Assets[0].Name)
+	require.Equal(t, "NASDAQ", watchlist.Assets[0].Exchange)
 }
 
 func TestClient_GetWatchlist(t *testing.T) {
@@ -539,6 +543,10 @@ func TestClient_GetWatchlist(t *testing.T) {
 	watchlist, err := c.GetWatchlist("123")
 	require.NoError(t, err)
 	require.NotNil(t, watchlist)
+	require.Equal(t, "testname", watchlist.Name)
+	require.Len(t, watchlist.Assets, 1)
+	require.Equal(t, "AAPL", watchlist.Assets[0].Name)
+	require.Equal(t, "NASDAQ", watchlist.Assets[0].Exchange)
 }
 
 func TestClient_UpdateWatchlist(t *testing.T) {
@@ -573,6 +581,10 @@ func TestClient_UpdateWatchlist(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.NotNil(t, watchlist)
+	require.Equal(t, "testname", watchlist.Name)
+	require.Len(t, watchlist.Assets, 1)
+	require.Equal(t, "AAPL", watchlist.Assets[0].Name)
+	require.Equal(t, "NASDAQ", watchlist.Assets[0].Exchange)
 }
 
 func TestClient_DeleteWatchlist(t *testing.T) {
@@ -592,7 +604,7 @@ func TestClient_DeleteWatchlist(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func TestClient_AddToWatchlist(t *testing.T) {
+func TestClient_AddSymbolToWatchlist(t *testing.T) {
 	c := testClient()
 	// successful
 	c.do = func(c *client, req *http.Request) (*http.Response, error) {
@@ -600,16 +612,33 @@ func TestClient_AddToWatchlist(t *testing.T) {
 		assert.Equal(t, "/v2/watchlists/123", req.URL.Path)
 		assert.Equal(t, "POST", req.Method)
 
+		watchlist := Watchlist{
+			AccountID: "123",
+			ID:        "some_id",
+			Name:      "testname",
+			Assets: []Asset{
+				{
+					ID:       "some_id",
+					Name:     "AAPL",
+					Exchange: "NASDAQ",
+				},
+			},
+		}
+
 		return &http.Response{
-			Body: genBody(nil),
+			Body: genBody(watchlist),
 		}, nil
 	}
 
-	watchlist, err := c.AddAssetToWatchlist("123", AddAssetToWatchlistRequest{
+	watchlist, err := c.AddSymbolToWatchlist("123", AddSymbolToWatchlistRequest{
 		Symbol: "AAPL",
 	})
 	require.NoError(t, err)
 	require.NotNil(t, watchlist)
+	require.Equal(t, "testname", watchlist.Name)
+	require.Len(t, watchlist.Assets, 1)
+	require.Equal(t, "AAPL", watchlist.Assets[0].Name)
+	require.Equal(t, "NASDAQ", watchlist.Assets[0].Exchange)
 }
 
 func TestClient_RemoveSymbolFromWatchlist(t *testing.T) {
