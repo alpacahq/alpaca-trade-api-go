@@ -3,6 +3,7 @@ package alpaca
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -441,6 +442,267 @@ func TestClient_GetAnnouncement(t *testing.T) {
 	announcement, err := c.GetAnnouncement("123")
 	require.NoError(t, err)
 	require.NotNil(t, announcement)
+}
+
+func TestClient_GetWatchlists(t *testing.T) {
+	c := testClient()
+	// successful
+	c.do = func(c *client, req *http.Request) (*http.Response, error) {
+		assert.Equal(t, "api.alpaca.markets", req.URL.Host)
+		assert.Equal(t, "/v2/watchlists", req.URL.Path)
+		assert.Equal(t, "GET", req.Method)
+
+		watchlists := []Watchlist{
+			{
+				AccountID: "123",
+				ID:        "some_id",
+				Name:      "testname",
+				Assets: []Asset{
+					{
+						ID:       "some_id",
+						Name:     "AAPL",
+						Exchange: "NASDAQ",
+					},
+				},
+			},
+		}
+
+		return &http.Response{
+			Body: genBody(watchlists),
+		}, nil
+	}
+
+	watchlists, err := c.GetWatchlists()
+	require.NoError(t, err)
+	require.Len(t, watchlists, 1)
+}
+
+func TestClient_CreateWatchlist(t *testing.T) {
+	c := testClient()
+	// successful
+	c.do = func(c *client, req *http.Request) (*http.Response, error) {
+		assert.Equal(t, "api.alpaca.markets", req.URL.Host)
+		assert.Equal(t, "/v2/watchlists", req.URL.Path)
+		assert.Equal(t, "POST", req.Method)
+
+		watchlist := Watchlist{
+			AccountID: "123",
+			ID:        "some_id",
+			Name:      "testname",
+			Assets: []Asset{
+				{
+					ID:       "some_id",
+					Name:     "AAPL",
+					Exchange: "NASDAQ",
+				},
+			},
+		}
+
+		return &http.Response{
+			Body: genBody(watchlist),
+		}, nil
+	}
+
+	watchlist, err := c.CreateWatchlist(CreateWatchlistRequest{
+		Name:    "testname",
+		Symbols: []string{"AAPL"},
+	})
+	require.NoError(t, err)
+	require.NotNil(t, watchlist)
+	require.Equal(t, "testname", watchlist.Name)
+	require.Len(t, watchlist.Assets, 1)
+	require.Equal(t, "AAPL", watchlist.Assets[0].Name)
+	require.Equal(t, "NASDAQ", watchlist.Assets[0].Exchange)
+}
+
+func TestClient_GetWatchlist(t *testing.T) {
+	c := testClient()
+	// successful
+	c.do = func(c *client, req *http.Request) (*http.Response, error) {
+		assert.Equal(t, "api.alpaca.markets", req.URL.Host)
+		assert.Equal(t, "/v2/watchlists/123", req.URL.Path)
+		assert.Equal(t, "GET", req.Method)
+
+		watchlist := Watchlist{
+			AccountID: "123",
+			ID:        "some_id",
+			Name:      "testname",
+			Assets: []Asset{
+				{
+					ID:       "some_id",
+					Name:     "AAPL",
+					Exchange: "NASDAQ",
+				},
+			},
+		}
+
+		return &http.Response{
+			Body: genBody(watchlist),
+		}, nil
+	}
+
+	watchlist, err := c.GetWatchlist("123")
+	require.NoError(t, err)
+	require.NotNil(t, watchlist)
+	require.Equal(t, "testname", watchlist.Name)
+	require.Len(t, watchlist.Assets, 1)
+	require.Equal(t, "AAPL", watchlist.Assets[0].Name)
+	require.Equal(t, "NASDAQ", watchlist.Assets[0].Exchange)
+}
+
+func TestClient_UpdateWatchlist(t *testing.T) {
+	c := testClient()
+	// successful
+	c.do = func(c *client, req *http.Request) (*http.Response, error) {
+		assert.Equal(t, "api.alpaca.markets", req.URL.Host)
+		assert.Equal(t, "/v2/watchlists/123", req.URL.Path)
+		assert.Equal(t, "PUT", req.Method)
+
+		watchlist := Watchlist{
+			AccountID: "123",
+			ID:        "some_id",
+			Name:      "testname",
+			Assets: []Asset{
+				{
+					ID:       "some_id",
+					Name:     "AAPL",
+					Exchange: "NASDAQ",
+				},
+			},
+		}
+
+		return &http.Response{
+			Body: genBody(watchlist),
+		}, nil
+	}
+
+	watchlist, err := c.UpdateWatchlist("123", UpdateWatchlistRequest{
+		Name:    "testname",
+		Symbols: []string{"AAPL"},
+	})
+	require.NoError(t, err)
+	require.NotNil(t, watchlist)
+	require.Equal(t, "testname", watchlist.Name)
+	require.Len(t, watchlist.Assets, 1)
+	require.Equal(t, "AAPL", watchlist.Assets[0].Name)
+	require.Equal(t, "NASDAQ", watchlist.Assets[0].Exchange)
+}
+
+func TestClient_DeleteWatchlist(t *testing.T) {
+	c := testClient()
+	// successful
+	c.do = func(c *client, req *http.Request) (*http.Response, error) {
+		assert.Equal(t, "api.alpaca.markets", req.URL.Host)
+		assert.Equal(t, "/v2/watchlists/123", req.URL.Path)
+		assert.Equal(t, "DELETE", req.Method)
+
+		return &http.Response{
+			Body: genBody(nil),
+		}, nil
+	}
+
+	err := c.DeleteWatchlist("123")
+	require.NoError(t, err)
+}
+
+func TestClient_AddSymbolToWatchlist(t *testing.T) {
+	t.Run("happy path", func(t *testing.T) {
+		c := testClient()
+		// successful
+		c.do = func(c *client, req *http.Request) (*http.Response, error) {
+			assert.Equal(t, "api.alpaca.markets", req.URL.Host)
+			assert.Equal(t, "/v2/watchlists/123", req.URL.Path)
+			assert.Equal(t, "POST", req.Method)
+
+			watchlist := Watchlist{
+				AccountID: "123",
+				ID:        "some_id",
+				Name:      "testname",
+				Assets: []Asset{
+					{
+						ID:       "some_id",
+						Name:     "AAPL",
+						Exchange: "NASDAQ",
+					},
+				},
+			}
+
+			return &http.Response{
+				Body: genBody(watchlist),
+			}, nil
+		}
+
+		watchlist, err := c.AddSymbolToWatchlist("123", AddSymbolToWatchlistRequest{
+			Symbol: "AAPL",
+		})
+		require.NoError(t, err)
+		require.NotNil(t, watchlist)
+		require.Equal(t, "testname", watchlist.Name)
+		require.Len(t, watchlist.Assets, 1)
+		require.Equal(t, "AAPL", watchlist.Assets[0].Name)
+		require.Equal(t, "NASDAQ", watchlist.Assets[0].Exchange)
+	})
+
+	t.Run("error: symbol not found", func(t *testing.T) {
+		c := testClient()
+		// successful
+		c.do = func(c *client, req *http.Request) (*http.Response, error) {
+			assert.Equal(t, "api.alpaca.markets", req.URL.Host)
+			assert.Equal(t, "/v2/watchlists/123", req.URL.Path)
+			assert.Equal(t, "POST", req.Method)
+
+			return &http.Response{
+				Body:       genBody(nil),
+				StatusCode: http.StatusBadRequest,
+			}, nil
+		}
+
+		_, err := c.AddSymbolToWatchlist("123", AddSymbolToWatchlistRequest{})
+		require.Error(t, err)
+		require.Equal(t, ErrSymbolNotFound, err)
+	})
+
+}
+
+func TestClient_RemoveSymbolFromWatchlist(t *testing.T) {
+	t.Run("happy path", func(t *testing.T) {
+		c := testClient()
+		// successful
+		c.do = func(c *client, req *http.Request) (*http.Response, error) {
+			assert.Equal(t, "api.alpaca.markets", req.URL.Host)
+			assert.Equal(t, "/v2/watchlists/123/AAPL", req.URL.Path)
+			assert.Equal(t, "DELETE", req.Method)
+
+			return &http.Response{
+				Body: genBody(nil),
+			}, nil
+		}
+
+		err := c.RemoveSymbolFromWatchlist("123", RemoveSymbolFromWatchlistRequest{
+			Symbol: "AAPL",
+		})
+		require.NoError(t, err)
+	})
+
+	t.Run("error: symbol is required", func(t *testing.T) {
+		c := testClient()
+		// successful
+		c.do = func(c *client, req *http.Request) (*http.Response, error) {
+			assert.Equal(t, "api.alpaca.markets", req.URL.Host)
+			assert.Equal(t, "/v2/watchlists/123/AAPL", req.URL.Path)
+			assert.Equal(t, "DELETE", req.Method)
+
+			return &http.Response{
+				Body:       genBody(nil),
+				StatusCode: http.StatusBadRequest,
+			}, errors.New("symbol is required")
+		}
+
+		err := c.RemoveSymbolFromWatchlist("123", RemoveSymbolFromWatchlistRequest{})
+		require.Error(t, err)
+		require.Equal(t, ErrSymbolNotFound, err)
+	})
+
 }
 
 func TestCancelOrder(t *testing.T) {

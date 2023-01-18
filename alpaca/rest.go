@@ -15,6 +15,8 @@ import (
 	"time"
 )
 
+var ErrSymbolNotFound = fmt.Errorf("symbol not found")
+
 // Client is the alpaca client.
 type Client interface {
 	GetAccount() (*Account, error)
@@ -40,6 +42,13 @@ type Client interface {
 	GetAsset(symbol string) (*Asset, error)
 	GetAnnouncements(req GetAnnouncementsRequest) ([]Announcement, error)
 	GetAnnouncement(announcementID string) (*Announcement, error)
+	GetWatchlists() ([]Watchlist, error)
+	CreateWatchlist(req CreateWatchlistRequest) (*Watchlist, error)
+	GetWatchlist(watchlistID string) (*Watchlist, error)
+	UpdateWatchlist(watchlistID string, req UpdateWatchlistRequest) (*Watchlist, error)
+	AddSymbolToWatchlist(watchlistID string, req AddSymbolToWatchlistRequest) (*Watchlist, error)
+	RemoveSymbolFromWatchlist(watchlistID string, req RemoveSymbolFromWatchlistRequest) error
+	DeleteWatchlist(watchlistID string) error
 	StreamTradeUpdates(ctx context.Context, handler func(TradeUpdate)) error
 	StreamTradeUpdatesInBackground(ctx context.Context, handler func(TradeUpdate))
 }
@@ -772,6 +781,134 @@ func (c *client) GetAnnouncement(announcementID string) (*Announcement, error) {
 	return announcement, nil
 }
 
+func (c *client) GetWatchlists() ([]Watchlist, error) {
+	u, err := url.Parse(fmt.Sprintf("%s/%s/watchlists", c.opts.BaseURL, apiVersion))
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := c.get(u)
+	if err != nil {
+		return nil, err
+	}
+
+	var watchlists []Watchlist
+
+	if err = unmarshal(resp, &watchlists); err != nil {
+		return nil, err
+	}
+
+	return watchlists, nil
+}
+
+func (c *client) CreateWatchlist(req CreateWatchlistRequest) (*Watchlist, error) {
+	u, err := url.Parse(fmt.Sprintf("%s/%s/watchlists", c.opts.BaseURL, apiVersion))
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := c.post(u, req)
+	if err != nil {
+		return nil, err
+	}
+
+	watchlist := &Watchlist{}
+
+	if err = unmarshal(resp, watchlist); err != nil {
+		return nil, err
+	}
+
+	return watchlist, nil
+}
+
+func (c *client) GetWatchlist(watchlistID string) (*Watchlist, error) {
+	u, err := url.Parse(fmt.Sprintf("%s/%s/watchlists/%s", c.opts.BaseURL, apiVersion, watchlistID))
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := c.get(u)
+	if err != nil {
+		return nil, err
+	}
+
+	watchlist := &Watchlist{}
+
+	if err = unmarshal(resp, watchlist); err != nil {
+		return nil, err
+	}
+
+	return watchlist, nil
+}
+
+func (c *client) UpdateWatchlist(watchlistID string, req UpdateWatchlistRequest) (*Watchlist, error) {
+	u, err := url.Parse(fmt.Sprintf("%s/%s/watchlists/%s", c.opts.BaseURL, apiVersion, watchlistID))
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := c.put(u, req)
+	if err != nil {
+		return nil, err
+	}
+
+	watchlist := &Watchlist{}
+
+	if err = unmarshal(resp, watchlist); err != nil {
+		return nil, err
+	}
+
+	return watchlist, nil
+}
+
+func (c *client) AddSymbolToWatchlist(watchlistID string, req AddSymbolToWatchlistRequest) (*Watchlist, error) {
+	if req.Symbol == "" {
+		return nil, ErrSymbolNotFound
+	}
+
+	u, err := url.Parse(fmt.Sprintf("%s/%s/watchlists/%s", c.opts.BaseURL, apiVersion, watchlistID))
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := c.post(u, req)
+	if err != nil {
+		return nil, err
+	}
+
+	watchlist := &Watchlist{}
+
+	if err = unmarshal(resp, watchlist); err != nil {
+		return nil, err
+	}
+
+	return watchlist, nil
+}
+
+func (c *client) RemoveSymbolFromWatchlist(watchlistID string, req RemoveSymbolFromWatchlistRequest) error {
+	if req.Symbol == "" {
+		return ErrSymbolNotFound
+	}
+
+	u, err := url.Parse(fmt.Sprintf("%s/%s/watchlists/%s/%s", c.opts.BaseURL, apiVersion, watchlistID, req.Symbol))
+	if err != nil {
+		return err
+	}
+
+	_, err = c.delete(u)
+	return err
+}
+
+func (c *client) DeleteWatchlist(watchlistID string) error {
+	u, err := url.Parse(fmt.Sprintf("%s/%s/watchlists/%s", c.opts.BaseURL, apiVersion, watchlistID))
+	if err != nil {
+		return err
+	}
+
+	_, err = c.delete(u)
+	return err
+}
+
 // GetAccount returns the user's account information
 // using the default Alpaca client.
 func GetAccount() (*Account, error) {
@@ -883,6 +1020,48 @@ func GetAnnouncement(announcementID string) (*Announcement, error) {
 	return DefaultClient.GetAnnouncement(announcementID)
 }
 
+// GetWatchlists returns a list of watchlists
+// with the default Alpaca client.
+func GetWatchlists() ([]Watchlist, error) {
+	return DefaultClient.GetWatchlists()
+}
+
+// CreateWatchlist creates a new watchlist
+// with the default Alpaca client.
+func CreateWatchlist(req CreateWatchlistRequest) (*Watchlist, error) {
+	return DefaultClient.CreateWatchlist(req)
+}
+
+// GetWatchlist returns a single watchlist by getting the watchlist id
+// with the default Alpaca client.
+func GetWatchlist(watchlistID string) (*Watchlist, error) {
+	return DefaultClient.GetWatchlist(watchlistID)
+}
+
+// UpdateWatchlist updates a watchlist by getting the watchlist id
+// with the default Alpaca client.
+func UpdateWatchlist(watchlistID string, req UpdateWatchlistRequest) (*Watchlist, error) {
+	return DefaultClient.UpdateWatchlist(watchlistID, req)
+}
+
+// DeleteWatchlist deletes a watchlist by getting the watchlist id
+// with the default Alpaca client.
+func DeleteWatchlist(watchlistID string) error {
+	return DefaultClient.DeleteWatchlist(watchlistID)
+}
+
+// AddSymbolToWatchlist adds an asset to a watchlist by getting the watchlist id
+// with the default Alpaca client.
+func AddSymbolToWatchlist(watchlistID string, req AddSymbolToWatchlistRequest) (*Watchlist, error) {
+	return DefaultClient.AddSymbolToWatchlist(watchlistID, req)
+}
+
+// RemoveSymbolFromWatchlist removes an asset from a watchlist by getting the watchlist id
+// with the default Alpaca client.
+func RemoveSymbolFromWatchlist(watchlistID string, req RemoveSymbolFromWatchlistRequest) error {
+	return DefaultClient.RemoveSymbolFromWatchlist(watchlistID, req)
+}
+
 func (c *client) get(u *url.URL) (*http.Response, error) {
 	req, err := http.NewRequest(http.MethodGet, u.String(), nil)
 	if err != nil {
@@ -899,6 +1078,20 @@ func (c *client) post(u *url.URL, data interface{}) (*http.Response, error) {
 	}
 
 	req, err := http.NewRequest(http.MethodPost, u.String(), bytes.NewReader(buf))
+	if err != nil {
+		return nil, err
+	}
+
+	return c.do(c, req)
+}
+
+func (c *client) put(u *url.URL, data interface{}) (*http.Response, error) {
+	buf, err := json.Marshal(data)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPut, u.String(), bytes.NewReader(buf))
 	if err != nil {
 		return nil, err
 	}
