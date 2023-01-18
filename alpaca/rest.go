@@ -15,6 +15,8 @@ import (
 	"time"
 )
 
+var ErrSymbolNotFound = fmt.Errorf("symbol not found")
+
 // Client is the alpaca client.
 type Client interface {
 	GetAccount() (*Account, error)
@@ -45,7 +47,7 @@ type Client interface {
 	GetWatchlist(watchlistID string) (*Watchlist, error)
 	UpdateWatchlist(watchlistID string, req UpdateWatchlistRequest) (*Watchlist, error)
 	AddSymbolToWatchlist(watchlistID string, req AddSymbolToWatchlistRequest) (*Watchlist, error)
-	RemoveSymbolFromWatchlist(watchlistID string, symbol string) error
+	RemoveSymbolFromWatchlist(watchlistID string, req RemoveSymbolFromWatchlistRequest) error
 	DeleteWatchlist(watchlistID string) error
 	StreamTradeUpdates(ctx context.Context, handler func(TradeUpdate)) error
 	StreamTradeUpdatesInBackground(ctx context.Context, handler func(TradeUpdate))
@@ -860,6 +862,10 @@ func (c *client) UpdateWatchlist(watchlistID string, req UpdateWatchlistRequest)
 }
 
 func (c *client) AddSymbolToWatchlist(watchlistID string, req AddSymbolToWatchlistRequest) (*Watchlist, error) {
+	if req.Symbol == "" {
+		return nil, ErrSymbolNotFound
+	}
+
 	u, err := url.Parse(fmt.Sprintf("%s/%s/watchlists/%s", c.opts.BaseURL, apiVersion, watchlistID))
 	if err != nil {
 		return nil, err
@@ -879,8 +885,12 @@ func (c *client) AddSymbolToWatchlist(watchlistID string, req AddSymbolToWatchli
 	return watchlist, nil
 }
 
-func (c *client) RemoveSymbolFromWatchlist(watchlistID string, symbol string) error {
-	u, err := url.Parse(fmt.Sprintf("%s/%s/watchlists/%s/%s", c.opts.BaseURL, apiVersion, watchlistID, symbol))
+func (c *client) RemoveSymbolFromWatchlist(watchlistID string, req RemoveSymbolFromWatchlistRequest) error {
+	if req.Symbol == "" {
+		return ErrSymbolNotFound
+	}
+
+	u, err := url.Parse(fmt.Sprintf("%s/%s/watchlists/%s/%s", c.opts.BaseURL, apiVersion, watchlistID, req.Symbol))
 	if err != nil {
 		return err
 	}
@@ -1048,8 +1058,8 @@ func AddSymbolToWatchlist(watchlistID string, req AddSymbolToWatchlistRequest) (
 
 // RemoveSymbolFromWatchlist removes an asset from a watchlist by getting the watchlist id
 // with the default Alpaca client.
-func RemoveSymbolFromWatchlist(watchlistID string, symbol string) error {
-	return DefaultClient.RemoveSymbolFromWatchlist(watchlistID, symbol)
+func RemoveSymbolFromWatchlist(watchlistID string, req RemoveSymbolFromWatchlistRequest) error {
+	return DefaultClient.RemoveSymbolFromWatchlist(watchlistID, req)
 }
 
 func (c *client) get(u *url.URL) (*http.Response, error) {

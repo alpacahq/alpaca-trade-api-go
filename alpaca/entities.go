@@ -383,3 +383,7 @@ type UpdateWatchlistRequest struct {
 type AddSymbolToWatchlistRequest struct {
 	Symbol string `json:"symbol"`
 }
+
+type RemoveSymbolFromWatchlistRequest struct {
+	Symbol string `json:"symbol"`
+}
