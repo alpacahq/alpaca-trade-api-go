@@ -25,9 +25,9 @@ type ClientOpts struct {
 	RetryLimit int
 	RetryDelay time.Duration
 	// Feed is the default feed to be used by all requests. Can be overridden per request.
-	Feed string
+	Feed Feed
 	// CryptoFeed is the default crypto feed to be used by all requests. Can be overridden per request.
-	CryptoFeed string
+	CryptoFeed CryptoFeed
 	// Currency is the default currency to be used by all requests. Can be overridden per request.
 	// For the latest endpoints this is the only way to set this parameter.
 	Currency string
@@ -119,7 +119,7 @@ type baseRequest struct {
 	Symbols  []string
 	Start    time.Time
 	End      time.Time
-	Feed     string
+	Feed     Feed
 	AsOf     string
 	Currency string
 }
@@ -185,7 +185,7 @@ type GetTradesRequest struct {
 	// PageLimit is the pagination size. If empty, the default page size will be used.
 	PageLimit int
 	// Feed is the source of the data: sip or iex.
-	Feed string
+	Feed Feed
 	// AsOf defines the date when the symbols are mapped. "-" means no mapping.
 	AsOf string
 	// Currency is the currency of the displayed prices
@@ -258,7 +258,7 @@ type GetQuotesRequest struct {
 	// PageLimit is the pagination size. If empty, the default page size will be used.
 	PageLimit int
 	// Feed is the source of the data: sip or iex.
-	Feed string
+	Feed Feed
 	// AsOf defines the date when the symbols are mapped. "-" means no mapping.
 	AsOf string
 	// Currency is the currency of the displayed prices
@@ -336,7 +336,7 @@ type GetBarsRequest struct {
 	PageLimit int
 	// Feed is the source of the data: sip or iex.
 	// If provided, it overrides the client's Feed option.
-	Feed string
+	Feed Feed
 	// AsOf defines the date when the symbols are mapped. "-" means no mapping.
 	AsOf string
 	// Currency is the currency of the displayed prices
@@ -487,7 +487,7 @@ func (c *Client) GetMultiAuctions(
 
 type baseLatestRequest struct {
 	Symbols  []string
-	Feed     string
+	Feed     Feed
 	Currency string
 }
 
@@ -511,7 +511,7 @@ func (c *Client) setLatestQueryRequest(u *url.URL, req baseLatestRequest) {
 }
 
 type GetLatestBarRequest struct {
-	Feed     string
+	Feed     Feed
 	Currency string
 }
 
@@ -553,7 +553,7 @@ func (c *Client) GetLatestBars(symbols []string, req GetLatestBarRequest) (map[s
 }
 
 type GetLatestTradeRequest struct {
-	Feed     string
+	Feed     Feed
 	Currency string
 }
 
@@ -595,7 +595,7 @@ func (c *Client) GetLatestTrades(symbols []string, req GetLatestTradeRequest) (m
 }
 
 type GetLatestQuoteRequest struct {
-	Feed     string
+	Feed     Feed
 	Currency string
 }
 
@@ -637,7 +637,7 @@ func (c *Client) GetLatestQuotes(symbols []string, req GetLatestQuoteRequest) (m
 }
 
 type GetSnapshotRequest struct {
-	Feed     string
+	Feed     Feed
 	Currency string
 }
 
@@ -700,7 +700,7 @@ type GetCryptoTradesRequest struct {
 	// PageLimit is the pagination size. If empty, the default page size will be used.
 	PageLimit int
 	// CryptoFeed is the crypto feed. Default is "us".
-	CryptoFeed string
+	CryptoFeed CryptoFeed
 }
 
 // GetCryptoTrades returns the trades for the given crypto symbol.
@@ -764,7 +764,7 @@ type GetCryptoBarsRequest struct {
 	// PageLimit is the pagination size. If empty, the default page size will be used.
 	PageLimit int
 	// CryptoFeed is the crypto feed. Default is "us".
-	CryptoFeed string
+	CryptoFeed CryptoFeed
 }
 
 func setQueryCryptoBarRequest(q url.Values, symbols []string, req GetCryptoBarsRequest) {
@@ -835,7 +835,7 @@ func (c *Client) setLatestCryptoQueryRequest(u *url.URL, req cryptoBaseLatestReq
 }
 
 type GetLatestCryptoBarRequest struct {
-	CryptoFeed string
+	CryptoFeed CryptoFeed
 }
 
 func (c *Client) cryptoFeed(fromReq string) string {
@@ -885,7 +885,7 @@ func (c *Client) GetLatestCryptoBars(symbols []string, req GetLatestCryptoBarReq
 }
 
 type GetLatestCryptoTradeRequest struct {
-	CryptoFeed string
+	CryptoFeed CryptoFeed
 }
 
 // GetLatestCryptoTrade returns the latest trade for a given crypto symbol
@@ -925,7 +925,7 @@ func (c *Client) GetLatestCryptoTrades(symbols []string, req GetLatestCryptoTrad
 }
 
 type GetLatestCryptoQuoteRequest struct {
-	CryptoFeed string
+	CryptoFeed CryptoFeed
 }
 
 // GetLatestCryptoQuote returns the latest quote for a given crypto symbol
@@ -965,7 +965,7 @@ func (c *Client) GetLatestCryptoQuotes(symbols []string, req GetLatestCryptoQuot
 }
 
 type GetCryptoSnapshotRequest struct {
-	CryptoFeed string
+	CryptoFeed CryptoFeed
 }
 
 // GetCryptoSnapshot returns the snapshot for a given crypto symbol

@@ -7,6 +7,26 @@ import (
 	"cloud.google.com/go/civil"
 )
 
+// Feed defines the source feed of stock data.
+type Feed = string
+
+const (
+	// SIP includes all US exchanges.
+	SIP Feed = "sip"
+	// IEX only includes the Investors Exchange.
+	IEX Feed = "iex"
+	// OTC includes Over-the-Counter exchanges
+	OTC Feed = "otc"
+)
+
+// CryptoFeed defines the source feed of crypto data.
+type CryptoFeed = string
+
+const (
+	// US is the crypto feed for the United States.
+	US CryptoFeed = "us"
+)
+
 // Trade is a stock trade that happened on the market
 type Trade struct {
 	Timestamp  time.Time `json:"t"`

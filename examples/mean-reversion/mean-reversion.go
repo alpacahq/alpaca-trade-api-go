@@ -23,7 +23,7 @@ type alpacaClientContainer struct {
 	tradeClient   *alpaca.Client
 	dataClient    *marketdata.Client
 	streamClient  stream.StocksClient
-	feed          string
+	feed          marketdata.Feed
 	movingAverage *movingaverage.MovingAverage
 	lastOrder     string
 	stock         string
