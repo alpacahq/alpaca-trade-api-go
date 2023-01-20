@@ -11,6 +11,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/alpacahq/alpaca-trade-api-go/v3/alpaca"
 )
 
 // ClientOpts contains options for the alpaca marketdata client.
@@ -108,8 +110,9 @@ func defaultDo(c *Client, req *http.Request) (*http.Response, error) {
 		time.Sleep(c.opts.RetryDelay)
 	}
 
-	if err = verify(resp); err != nil {
-		return nil, err
+	if resp.StatusCode >= http.StatusMultipleChoices {
+		defer resp.Body.Close()
+		return nil, alpaca.APIErrorFromResponse(resp)
 	}
 
 	return resp, nil
@@ -863,7 +866,7 @@ func (c *Client) GetLatestCryptoBar(symbol string, req GetLatestCryptoBarRequest
 
 // GetLatestCryptoBars returns the latest bars for the given crypto symbols
 func (c *Client) GetLatestCryptoBars(symbols []string, req GetLatestCryptoBarRequest) (map[string]CryptoBar, error) {
-	u, err := url.Parse(fmt.Sprintf("%s/%s/%s/bars/latest",
+	u, err := url.Parse(fmt.Sprintf("%s/%s/%s/latest/bars",
 		c.opts.BaseURL, cryptoPrefix, c.cryptoFeed(req.CryptoFeed)))
 	if err != nil {
 		return nil, err
@@ -903,7 +906,7 @@ func (c *Client) GetLatestCryptoTrade(symbol string, req GetLatestCryptoTradeReq
 
 // GetLatestCryptoTrades returns the latest trades for the given crypto symbols
 func (c *Client) GetLatestCryptoTrades(symbols []string, req GetLatestCryptoTradeRequest) (map[string]CryptoTrade, error) {
-	u, err := url.Parse(fmt.Sprintf("%s/%s/%s/trades/latest",
+	u, err := url.Parse(fmt.Sprintf("%s/%s/%s/latest/trades",
 		c.opts.BaseURL, cryptoPrefix, c.cryptoFeed(req.CryptoFeed)))
 	if err != nil {
 		return nil, err
@@ -943,7 +946,7 @@ func (c *Client) GetLatestCryptoQuote(symbol string, req GetLatestCryptoQuoteReq
 
 // GetLatestCryptoQuotes returns the latest quotes for the given crypto symbols
 func (c *Client) GetLatestCryptoQuotes(symbols []string, req GetLatestCryptoQuoteRequest) (map[string]CryptoQuote, error) {
-	u, err := url.Parse(fmt.Sprintf("%s/%s/%s/quotes/latest",
+	u, err := url.Parse(fmt.Sprintf("%s/%s/%s/latest/quotes",
 		c.opts.BaseURL, cryptoPrefix, c.cryptoFeed(req.CryptoFeed)))
 	if err != nil {
 		return nil, err
@@ -1271,37 +1274,6 @@ func (c *Client) get(u *url.URL) (*http.Response, error) {
 	req.Header.Set("Accept-Encoding", "gzip")
 
 	return c.do(c, req)
-}
-
-// APIError wraps the detailed code and message supplied
-// by Alpaca's API for debugging purposes
-type APIError struct {
-	Code    int    `json:"code"`
-	Message string `json:"message"`
-}
-
-func (e *APIError) Error() string {
-	return e.Message
-}
-
-func verify(resp *http.Response) error {
-	if resp.StatusCode >= http.StatusMultipleChoices {
-		defer resp.Body.Close()
-
-		body, err := io.ReadAll(resp.Body)
-		if err != nil {
-			return err
-		}
-
-		var apiErr APIError
-		err = json.Unmarshal(body, &apiErr)
-		if err != nil {
-			// If the error is not in our JSON format, we simply return the HTTP response
-			return fmt.Errorf("HTTP %s: %s", resp.Status, body)
-		}
-		return &apiErr
-	}
-	return nil
 }
 
 func unmarshal(resp *http.Response, data interface{}) error {

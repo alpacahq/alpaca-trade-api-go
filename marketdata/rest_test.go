@@ -914,7 +914,13 @@ func TestGetCryptoMultiBars(t *testing.T) {
 
 func TestLatestCryptoBar(t *testing.T) {
 	c := DefaultClient
-	c.do = mockResp(`{"bars":{"BTC/USD":{"t":"2022-02-25T12:50:00Z","o":38899.6,"h":39300,"l":38892.2,"c":39278.88,"v":74.02830613,"n":1086,"vw":39140.0960796263}}}`)
+	c.do = func(c *Client, req *http.Request) (*http.Response, error) {
+		assert.Equal(t, "/v1beta3/crypto/us/latest/bars", req.URL.Path)
+		resp := `{"bars":{"BTC/USD":{"t":"2022-02-25T12:50:00Z","o":38899.6,"h":39300,"l":38892.2,"c":39278.88,"v":74.02830613,"n":1086,"vw":39140.0960796263}}}`
+		return &http.Response{
+			Body: io.NopCloser(strings.NewReader(resp)),
+		}, nil
+	}
 	got, err := c.GetLatestCryptoBar("BTC/USD", GetLatestCryptoBarRequest{})
 	require.NoError(t, err)
 	require.NotNil(t, got)

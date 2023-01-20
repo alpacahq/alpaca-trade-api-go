@@ -83,8 +83,9 @@ func TestDefaultDo_TooManyRetries(t *testing.T) {
 }
 
 func TestDefaultDo_Error(t *testing.T) {
+	resp := `{"code":1234567,"message":"custom error message","other_field":"x"}`
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		http.Error(w, `{"code":1234567,"message":"custom error message"}`, http.StatusBadRequest)
+		http.Error(w, resp, http.StatusBadRequest)
 	}))
 	c := DefaultClient
 	req, err := http.NewRequest("GET", ts.URL, nil)
@@ -92,8 +93,11 @@ func TestDefaultDo_Error(t *testing.T) {
 	_, err = defaultDo(c, req)
 	var apiErr *APIError
 	require.ErrorAs(t, err, &apiErr)
+	assert.Equal(t, http.StatusBadRequest, apiErr.StatusCode)
 	assert.Equal(t, 1234567, apiErr.Code)
 	assert.Equal(t, "custom error message", apiErr.Message)
+	assert.Equal(t, resp, apiErr.Body)
+	assert.Equal(t, "custom error message (HTTP 400, Code 1234567)", apiErr.Error())
 }
 
 func TestGetAccount(t *testing.T) {
@@ -978,12 +982,15 @@ func TestGetAccountActivities(t *testing.T) {
 
 	// error was returned
 	c.do = func(c *Client, req *http.Request) (*http.Response, error) {
-		return &http.Response{}, &APIError{Code: 500, Message: "internal server error"}
+		return &http.Response{}, &APIError{StatusCode: 500, Message: "internal server error"}
 	}
 
 	_, err = c.GetAccountActivities(GetAccountActivitiesRequest{})
 	assert.NotNil(t, err)
-	assert.EqualError(t, &APIError{Code: 500, Message: "internal server error"}, "internal server error")
+	var apiErr *APIError
+	assert.ErrorAs(t, err, &apiErr)
+	assert.Equal(t, 500, apiErr.StatusCode)
+	assert.Equal(t, "internal server error", apiErr.Message)
 
 	// test filter by date and URI
 	c.do = func(c *Client, req *http.Request) (*http.Response, error) {
