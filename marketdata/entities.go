@@ -5,7 +5,13 @@ import (
 	"time"
 
 	"cloud.google.com/go/civil"
+
+	// Required for easyjson generation
+	_ "github.com/mailru/easyjson/gen"
 )
+
+//go:generate go install github.com/mailru/easyjson/...@v0.7.7
+//go:generate easyjson -all -lower_camel_case $GOFILE
 
 // Feed defines the source feed of stock data.
 type Feed = string
@@ -48,19 +54,6 @@ type Trade struct {
 	Update     string    `json:"u"`
 }
 
-// TradeItem contains a single trade or an error
-type TradeItem struct {
-	Trade Trade
-	Error error
-}
-
-// MultiTradeItem contains a single trade for a symbol or an error
-type MultiTradeItem struct {
-	Symbol string
-	Trade  Trade
-	Error  error
-}
-
 // Quote is a stock quote from the market
 type Quote struct {
 	Timestamp   time.Time `json:"t"`
@@ -72,19 +65,6 @@ type Quote struct {
 	AskExchange string    `json:"ax"`
 	Conditions  []string  `json:"c"`
 	Tape        string    `json:"z"`
-}
-
-// QuoteItem contains a single quote or an error
-type QuoteItem struct {
-	Quote Quote
-	Error error
-}
-
-// MultiQuoteItem contains a single quote for a symbol or an error
-type MultiQuoteItem struct {
-	Symbol string
-	Quote  Quote
-	Error  error
 }
 
 // TimeFrameUnite is the base unit of the timeframe.
@@ -147,19 +127,6 @@ type Bar struct {
 	VWAP       float64   `json:"vw"`
 }
 
-// BarItem contains a single bar or an error
-type BarItem struct {
-	Bar   Bar
-	Error error
-}
-
-// MultiBarItem contains a single bar for a symbol or an error
-type MultiBarItem struct {
-	Symbol string
-	Bar    Bar
-	Error  error
-}
-
 // Auction is a special trade that represents a stock auction
 type Auction struct {
 	Timestamp time.Time `json:"t"`
@@ -174,19 +141,6 @@ type DailyAuctions struct {
 	Date    civil.Date `json:"d"`
 	Opening []Auction  `json:"o"`
 	Closing []Auction  `json:"c"`
-}
-
-// DailyAuctionsItem contains the daily auctions in a single day or an error
-type DailyAuctionsItem struct {
-	DailyAuctions DailyAuctions
-	Error         error
-}
-
-// MultiDailyAuctionsItem contains the daily auctions for a symbol in a single day or an error
-type MultiDailyAuctionsItem struct {
-	Symbol        string
-	DailyAuctions DailyAuctions
-	Error         error
 }
 
 // Snapshot is a snapshot of a symbol
@@ -207,11 +161,6 @@ type CryptoTrade struct {
 	TakerSide TakerSide `json:"tks"`
 }
 
-type CryptoTradeItem struct {
-	Trade CryptoTrade
-	Error error
-}
-
 // CryptoQuote is crypto quote
 type CryptoQuote struct {
 	Timestamp time.Time `json:"t"`
@@ -219,12 +168,6 @@ type CryptoQuote struct {
 	BidSize   float64   `json:"bs"`
 	AskPrice  float64   `json:"ap"`
 	AskSize   float64   `json:"as"`
-}
-
-// CryptoQuoteItem contains a single crypto quote or an error
-type CryptoQuoteItem struct {
-	Quote CryptoQuote
-	Error error
 }
 
 // CryptoBar is an aggregate of crypto trades
@@ -237,19 +180,6 @@ type CryptoBar struct {
 	Volume     float64   `json:"v"`
 	TradeCount uint64    `json:"n"`
 	VWAP       float64   `json:"vw"`
-}
-
-// CryptoBarItem contains a single crypto bar or an error
-type CryptoBarItem struct {
-	Bar   CryptoBar
-	Error error
-}
-
-// CryptoMultiBarItem contains a single crypto bar for a symbol or an error
-type CryptoMultiBarItem struct {
-	Symbol string
-	Bar    CryptoBar
-	Error  error
 }
 
 // CryptoSnapshot is a snapshot of a crypto symbol

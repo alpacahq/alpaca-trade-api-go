@@ -5,7 +5,13 @@ import (
 
 	"cloud.google.com/go/civil"
 	"github.com/shopspring/decimal"
+
+	// Required for easyjson generation
+	_ "github.com/mailru/easyjson/gen"
 )
+
+//go:generate go install github.com/mailru/easyjson/...@v0.7.7
+//go:generate easyjson -all -lower_camel_case $GOFILE
 
 type Account struct {
 	ID                    string          `json:"id"`
