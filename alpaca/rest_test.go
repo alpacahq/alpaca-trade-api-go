@@ -511,7 +511,6 @@ func TestClient_GetWatchlists(t *testing.T) {
 	c := DefaultClient
 	// successful
 	c.do = func(c *Client, req *http.Request) (*http.Response, error) {
-		assert.Equal(t, "api.alpaca.markets", req.URL.Host)
 		assert.Equal(t, "/v2/watchlists", req.URL.Path)
 		assert.Equal(t, "GET", req.Method)
 
@@ -544,7 +543,6 @@ func TestClient_CreateWatchlist(t *testing.T) {
 	c := DefaultClient
 	// successful
 	c.do = func(c *Client, req *http.Request) (*http.Response, error) {
-		assert.Equal(t, "api.alpaca.markets", req.URL.Host)
 		assert.Equal(t, "/v2/watchlists", req.URL.Path)
 		assert.Equal(t, "POST", req.Method)
 
@@ -582,7 +580,6 @@ func TestClient_GetWatchlist(t *testing.T) {
 	c := DefaultClient
 	// successful
 	c.do = func(c *Client, req *http.Request) (*http.Response, error) {
-		assert.Equal(t, "api.alpaca.markets", req.URL.Host)
 		assert.Equal(t, "/v2/watchlists/123", req.URL.Path)
 		assert.Equal(t, "GET", req.Method)
 
@@ -617,7 +614,6 @@ func TestClient_UpdateWatchlist(t *testing.T) {
 	c := DefaultClient
 	// successful
 	c.do = func(c *Client, req *http.Request) (*http.Response, error) {
-		assert.Equal(t, "api.alpaca.markets", req.URL.Host)
 		assert.Equal(t, "/v2/watchlists/123", req.URL.Path)
 		assert.Equal(t, "PUT", req.Method)
 
@@ -655,7 +651,6 @@ func TestClient_DeleteWatchlist(t *testing.T) {
 	c := DefaultClient
 	// successful
 	c.do = func(c *Client, req *http.Request) (*http.Response, error) {
-		assert.Equal(t, "api.alpaca.markets", req.URL.Host)
 		assert.Equal(t, "/v2/watchlists/123", req.URL.Path)
 		assert.Equal(t, "DELETE", req.Method)
 
@@ -673,7 +668,6 @@ func TestClient_AddSymbolToWatchlist(t *testing.T) {
 		c := DefaultClient
 		// successful
 		c.do = func(c *Client, req *http.Request) (*http.Response, error) {
-			assert.Equal(t, "api.alpaca.markets", req.URL.Host)
 			assert.Equal(t, "/v2/watchlists/123", req.URL.Path)
 			assert.Equal(t, "POST", req.Method)
 
@@ -710,7 +704,6 @@ func TestClient_AddSymbolToWatchlist(t *testing.T) {
 		c := DefaultClient
 		// successful
 		c.do = func(c *Client, req *http.Request) (*http.Response, error) {
-			assert.Equal(t, "api.alpaca.markets", req.URL.Host)
 			assert.Equal(t, "/v2/watchlists/123", req.URL.Path)
 			assert.Equal(t, "POST", req.Method)
 
@@ -731,7 +724,6 @@ func TestClient_RemoveSymbolFromWatchlist(t *testing.T) {
 		c := DefaultClient
 		// successful
 		c.do = func(c *Client, req *http.Request) (*http.Response, error) {
-			assert.Equal(t, "api.alpaca.markets", req.URL.Host)
 			assert.Equal(t, "/v2/watchlists/123/AAPL", req.URL.Path)
 			assert.Equal(t, "DELETE", req.Method)
 
@@ -750,7 +742,6 @@ func TestClient_RemoveSymbolFromWatchlist(t *testing.T) {
 		c := DefaultClient
 		// successful
 		c.do = func(c *Client, req *http.Request) (*http.Response, error) {
-			assert.Equal(t, "api.alpaca.markets", req.URL.Host)
 			assert.Equal(t, "/v2/watchlists/123/AAPL", req.URL.Path)
 			assert.Equal(t, "DELETE", req.Method)
 

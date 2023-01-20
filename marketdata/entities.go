@@ -27,6 +27,15 @@ const (
 	US CryptoFeed = "us"
 )
 
+// TakerSide is the taker's side: one of B, S or -. B is buy, S is sell and - is unknown.
+type TakerSide = string
+
+const (
+	TakerSideBuy     TakerSide = "B"
+	TakerSideSell    TakerSide = "S"
+	TakerSideUnknown TakerSide = "-"
+)
+
 // Trade is a stock trade that happened on the market
 type Trade struct {
 	Timestamp  time.Time `json:"t"`
@@ -195,8 +204,7 @@ type CryptoTrade struct {
 	Price     float64   `json:"p"`
 	Size      float64   `json:"s"`
 	ID        int64     `json:"i"`
-	// TakerSide is the side of the taker of the trade. It is either "B" (buy), "S" (sell) or "-" (unspecified)
-	TakerSide string `json:"tks"`
+	TakerSide TakerSide `json:"tks"`
 }
 
 type CryptoTradeItem struct {
