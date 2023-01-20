@@ -350,7 +350,7 @@ func (c *client) maintainConnection(ctx context.Context, u url.URL, initialResul
 			conn, err := c.connCreator(ctx, u)
 			if err != nil {
 				connError = err
-				if isHttp4xx(err) {
+				if isHTTP4xx(err) {
 					c.logger.Errorf("datav2stream: %v", wrapIrrecoverable(err))
 					sendError(wrapIrrecoverable(err))
 					return
@@ -459,7 +459,7 @@ func isErrorIrrecoverableAtInit(err error) bool {
 	return false
 }
 
-func isHttp4xx(err error) bool {
+func isHTTP4xx(err error) bool {
 	// Unfortunately the nhoory error is a simple formatted string, created by fmt.Errorf,
 	// so the only check we can do is string matching
 	pattern := `expected handshake response status code 101 but got 4\d\d`

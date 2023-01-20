@@ -276,6 +276,10 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Alpaca2(in *jlexer
 			continue
 		}
 		switch key {
+		case "at":
+			if data := in.Raw(); in.Ok() {
+				in.AddError((out.At).UnmarshalJSON(data))
+			}
 		case "event":
 			out.Event = string(in.String())
 		case "execution_id":
@@ -345,8 +349,13 @@ func easyjson3e8ab7adEncodeGithubComAlpacahqAlpacaTradeApiGoV3Alpaca2(out *jwrit
 	first := true
 	_ = first
 	{
-		const prefix string = ",\"event\":"
+		const prefix string = ",\"at\":"
 		out.RawString(prefix[1:])
+		out.Raw((in.At).MarshalJSON())
+	}
+	{
+		const prefix string = ",\"event\":"
+		out.RawString(prefix)
 		out.String(string(in.Event))
 	}
 	{
