@@ -9,6 +9,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/alpacahq/alpaca-trade-api-go/v3/marketdata"
 	"github.com/alpacahq/alpaca-trade-api-go/v3/marketdata/stream"
 )
 
@@ -38,7 +39,7 @@ func main() {
 
 	// Creating a client that connexts to iex
 	c := stream.NewStocksClient(
-		"iex",
+		marketdata.IEX,
 		// configuring initial subscriptions and handlers
 		stream.WithTrades(tradeHandler, "SPY"),
 		stream.WithQuotes(quoteHandler, "AAPL", "SPY"),

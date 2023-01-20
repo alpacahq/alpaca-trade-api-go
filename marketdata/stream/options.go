@@ -313,7 +313,7 @@ type cryptoOptions struct {
 // defaultCryptoOptions are the default options for a client.
 // Don't change this in a backward incompatible way!
 func defaultCryptoOptions() *cryptoOptions {
-	baseURL := "https://stream.data.alpaca.markets/v1beta1/crypto"
+	baseURL := "https://stream.data.alpaca.markets/v1beta3/crypto"
 	// Should this override option be removed?
 	if s := os.Getenv("DATA_CRYPTO_PROXY_WS"); s != "" {
 		baseURL = s
@@ -415,13 +415,6 @@ func WithCryptoOrderbooks(handler func(CryptoOrderbook), symbols ...string) Cryp
 	return newFuncCryptoOption(func(o *cryptoOptions) {
 		o.sub.orderbooks = symbols
 		o.orderbookHandler = handler
-	})
-}
-
-// WithExchanges configures the set of crypto exchanges to listen to
-func WithExchanges(exchanges ...string) CryptoOption {
-	return newFuncCryptoOption(func(o *cryptoOptions) {
-		o.exchanges = exchanges
 	})
 }
 

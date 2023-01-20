@@ -8,6 +8,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/vmihailenco/msgpack/v5"
+
+	"github.com/alpacahq/alpaca-trade-api-go/v3/marketdata"
 )
 
 func TestInitializeConnectFails(t *testing.T) {
@@ -125,7 +127,7 @@ func TestInitializeAuthRetrySucceeds(t *testing.T) {
 	statuses := []string{"*"}
 	lulds := []string{"AL", "PACA", "ALP"}
 	c := NewStocksClient(
-		"sip",
+		marketdata.SIP,
 		WithCredentials("testkey", "testsecret"),
 		WithTrades(func(t Trade) {}, trades...),
 		WithQuotes(func(q Quote) {}, quotes...),

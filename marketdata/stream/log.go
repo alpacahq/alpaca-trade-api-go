@@ -16,9 +16,11 @@ type defaultLogger struct{}
 func (*defaultLogger) Infof(format string, v ...interface{}) {
 	log.Printf("INFO "+format, v...)
 }
+
 func (*defaultLogger) Warnf(format string, v ...interface{}) {
 	log.Printf("WARN "+format, v...)
 }
+
 func (*defaultLogger) Errorf(format string, v ...interface{}) {
 	log.Printf("ERROR "+format, v...)
 }

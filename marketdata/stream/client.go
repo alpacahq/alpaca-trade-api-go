@@ -6,9 +6,10 @@ import (
 	"fmt"
 	"net/url"
 	"regexp"
-	"strings"
 	"sync"
 	"time"
+
+	"github.com/alpacahq/alpaca-trade-api-go/v3/marketdata"
 )
 
 type client struct {
@@ -82,13 +83,13 @@ func (c *client) configure(o options) {
 type StocksClient struct {
 	*client
 
-	feed    string
+	feed    marketdata.Feed
 	handler *stocksMsgHandler
 }
 
 // NewStocksClient returns a new StocksClient that will connect to feed data feed
 // and whose default configurations are modified by opts.
-func NewStocksClient(feed string, opts ...StockOption) *StocksClient {
+func NewStocksClient(feed marketdata.Feed, opts ...StockOption) *StocksClient {
 	sc := StocksClient{
 		client:  newClient(),
 		feed:    feed,
@@ -129,8 +130,12 @@ func (sc *StocksClient) Connect(ctx context.Context) error {
 }
 
 func (sc *StocksClient) constructURL() (url.URL, error) {
+	return constructURL(sc.baseURL, sc.feed)
+}
+
+func constructURL(base, feed string) (url.URL, error) {
 	scheme := "wss"
-	ub, err := url.Parse(sc.baseURL)
+	ub, err := url.Parse(base + "/" + feed)
 	if err != nil {
 		return url.URL{}, err
 	}
@@ -138,8 +143,7 @@ func (sc *StocksClient) constructURL() (url.URL, error) {
 	case "http", "ws":
 		scheme = "ws"
 	}
-
-	return url.URL{Scheme: scheme, Host: ub.Host, Path: ub.Path + "/" + sc.feed}, nil
+	return url.URL{Scheme: scheme, Host: ub.Host, Path: ub.Path}, nil
 }
 
 // CryptoClient is a client that connects to an Alpaca Data V2 stream server
@@ -160,15 +164,16 @@ func (sc *StocksClient) constructURL() (url.URL, error) {
 type CryptoClient struct {
 	*client
 
-	exchanges []string
-	handler   *cryptoMsgHandler
+	feed    marketdata.CryptoFeed
+	handler *cryptoMsgHandler
 }
 
 // NewCryptoClient returns a new CryptoClient that will connect to the crypto feed
 // and whose default configurations are modified by opts.
-func NewCryptoClient(opts ...CryptoOption) *CryptoClient {
+func NewCryptoClient(feed marketdata.CryptoFeed, opts ...CryptoOption) *CryptoClient {
 	cc := CryptoClient{
 		client:  newClient(),
+		feed:    feed,
 		handler: &cryptoMsgHandler{},
 	}
 	cc.client.handler = cc.handler
@@ -186,7 +191,6 @@ func (cc *CryptoClient) configure(o cryptoOptions) {
 	cc.handler.updatedBarHandler = o.updatedBarHandler
 	cc.handler.dailyBarHandler = o.dailyBarHandler
 	cc.handler.orderbookHandler = o.orderbookHandler
-	cc.exchanges = o.exchanges
 }
 
 // Connect establishes a connection and **reestablishes it when errors occur**
@@ -204,22 +208,7 @@ func (cc *CryptoClient) Connect(ctx context.Context) error {
 }
 
 func (cc *CryptoClient) constructURL() (url.URL, error) {
-	scheme := "wss"
-	ub, err := url.Parse(cc.baseURL)
-	if err != nil {
-		return url.URL{}, err
-	}
-	switch ub.Scheme {
-	case "http", "ws":
-		scheme = "ws"
-	}
-
-	var rawQuery string
-	if len(cc.exchanges) > 0 {
-		rawQuery = "exchanges=" + strings.Join(cc.exchanges, ",")
-	}
-
-	return url.URL{Scheme: scheme, Host: ub.Host, Path: ub.Path, RawQuery: rawQuery}, nil
+	return constructURL(cc.baseURL, cc.feed)
 }
 
 type NewsClient struct {

@@ -3,8 +3,8 @@ package main
 import (
 	"context"
 	"fmt"
-	"log"
 
+	"github.com/alpacahq/alpaca-trade-api-go/v3/marketdata"
 	"github.com/alpacahq/alpaca-trade-api-go/v3/marketdata/stream"
 )
 
@@ -13,19 +13,18 @@ func main() {
 	defer cancel()
 
 	// Creating a client that connects to iex
-	c := stream.NewCryptoClient(
-		stream.WithLogger(&logger{}),
+	c := stream.NewCryptoClient(marketdata.US,
+		stream.WithLogger(stream.DefaultLogger()),
 		// configuring initial subscriptions and handlers
 		stream.WithCryptoTrades(func(ct stream.CryptoTrade) {
 			fmt.Printf("TRADE: %+v\n", ct)
 		}, "*"),
 		stream.WithCryptoQuotes(func(cq stream.CryptoQuote) {
 			fmt.Printf("QUOTE: %+v\n", cq)
-		}, "BTCUSD"),
+		}, "BTC/USD"),
 		stream.WithCryptoOrderbooks(func(cob stream.CryptoOrderbook) {
 			fmt.Printf("ORDERBOOK: %+v\n", cob)
-		}, "BTCUSD"),
-		// stream.WithExchanges("CBSE"),
+		}, "BTC/USD"),
 	)
 	if err := c.Connect(ctx); err != nil {
 		panic(err)
@@ -33,18 +32,4 @@ func main() {
 	if err := <-c.Terminated(); err != nil {
 		panic(err)
 	}
-}
-
-type logger struct{}
-
-func (l *logger) Infof(format string, v ...interface{}) {
-	log.Println(fmt.Sprintf("INFO "+format, v...))
-}
-
-func (l *logger) Warnf(format string, v ...interface{}) {
-	log.Println(fmt.Sprintf("WARN "+format, v...))
-}
-
-func (l *logger) Errorf(format string, v ...interface{}) {
-	log.Println(fmt.Sprintf("ERROR "+format, v...))
 }

@@ -6,6 +6,8 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+
+	"github.com/alpacahq/alpaca-trade-api-go/v3/marketdata"
 )
 
 func TestDefaultOptions(t *testing.T) {
@@ -56,7 +58,7 @@ func TestConfigureStocks(t *testing.T) {
 	// even though the test is testing multiple things they're closely related
 
 	logger := ErrorOnlyLogger()
-	c := NewStocksClient("iex",
+	c := NewStocksClient(marketdata.IEX,
 		WithLogger(logger),
 		WithBaseURL("testhost"),
 		WithCredentials("testkey", "testsecret"),
