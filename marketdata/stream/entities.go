@@ -117,12 +117,12 @@ type TradeCorrection struct {
 }
 
 type CryptoTrade struct {
+	ID        int64
 	Symbol    string
 	Exchange  string
 	Price     float64
 	Size      float64
 	Timestamp time.Time
-	Id        int64
 	TakerSide marketdata.TakerSide
 }
 

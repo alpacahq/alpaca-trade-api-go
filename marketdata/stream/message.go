@@ -461,7 +461,7 @@ func (h *cryptoMsgHandler) handleTrade(d *msgpack.Decoder, n int) error {
 		case "t":
 			trade.Timestamp, err = d.DecodeTime()
 		case "i":
-			trade.Id, err = d.DecodeInt64()
+			trade.ID, err = d.DecodeInt64()
 		case "tks":
 			trade.TakerSide, err = d.DecodeString()
 		default:

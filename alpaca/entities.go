@@ -259,6 +259,7 @@ const (
 // stream
 
 type TradeUpdate struct {
+	At          time.Time        `json:"at"`
 	Event       string           `json:"event"`
 	ExecutionID string           `json:"execution_id"`
 	Order       Order            `json:"order"`

@@ -94,7 +94,7 @@ func WithCredentials(key, secret string) Option {
 }
 
 // WithReconnectSettings configures how many consecutive connection
-// errors should be accepted and the delay (that is multipled by the number of consecutive errors)
+// errors should be accepted and the delay (that is multiplied by the number of consecutive errors)
 // between retries. limit = 0 means the client will try restarting indefinitely unless it runs into
 // an irrecoverable error (such as invalid credentials).
 func WithReconnectSettings(limit int, delay time.Duration) Option {
@@ -189,9 +189,7 @@ func defaultStockOptions() *stockOptions {
 				cancelErrors: []string{},
 				corrections:  []string{},
 			},
-			connCreator: func(ctx context.Context, u url.URL) (conn, error) {
-				return newNhooyrWebsocketConn(ctx, u)
-			},
+			connCreator: newNhooyrWebsocketConn,
 		},
 		tradeHandler:         func(t Trade) {},
 		quoteHandler:         func(q Quote) {},
@@ -307,7 +305,6 @@ type cryptoOptions struct {
 	updatedBarHandler func(CryptoBar)
 	dailyBarHandler   func(CryptoBar)
 	orderbookHandler  func(CryptoOrderbook)
-	exchanges         []string
 }
 
 // defaultCryptoOptions are the default options for a client.
@@ -337,9 +334,7 @@ func defaultCryptoOptions() *cryptoOptions {
 				dailyBars:   []string{},
 				orderbooks:  []string{},
 			},
-			connCreator: func(ctx context.Context, u url.URL) (conn, error) {
-				return newNhooyrWebsocketConn(ctx, u)
-			},
+			connCreator: newNhooyrWebsocketConn,
 		},
 		tradeHandler:      func(t CryptoTrade) {},
 		quoteHandler:      func(q CryptoQuote) {},
@@ -439,9 +434,7 @@ func defaultNewsOptions() *newsOptions {
 			sub: subscriptions{
 				news: []string{},
 			},
-			connCreator: func(ctx context.Context, u url.URL) (conn, error) {
-				return newNhooyrWebsocketConn(ctx, u)
-			},
+			connCreator: newNhooyrWebsocketConn,
 		},
 		newsHandler: func(n News) {},
 	}

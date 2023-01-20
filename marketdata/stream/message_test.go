@@ -376,7 +376,7 @@ var testCryptoBar = cryptoBarWithT{
 	Low:        98.67,
 	Close:      101.1,
 	Volume:     2560,
-	Timestamp:  time.Date(2021, 03, 05, 16, 0, 0, 0, time.UTC),
+	Timestamp:  time.Date(2021, 3, 5, 16, 0, 0, 0, time.UTC),
 	TradeCount: 1234,
 	VWAP:       100.123456,
 }
@@ -390,7 +390,7 @@ var testUpdatedCryptoBar = cryptoBarWithT{
 	Low:        98.67,
 	Close:      102.78,
 	Volume:     2585,
-	Timestamp:  time.Date(2021, 03, 05, 16, 0, 30, 0, time.UTC),
+	Timestamp:  time.Date(2021, 3, 5, 16, 0, 30, 0, time.UTC),
 	TradeCount: 1236,
 	VWAP:       100.123487,
 }
@@ -399,7 +399,7 @@ var testCryptoOrderbook = cryptoOrderbookWithT{
 	Type:      "o",
 	Symbol:    "TEST",
 	Exchange:  "TEST",
-	Timestamp: time.Date(2022, 04, 04, 16, 0, 30, 0, time.UTC),
+	Timestamp: time.Date(2022, 4, 4, 16, 0, 30, 0, time.UTC),
 	Bids: []cryptoOrderbookEntry{
 		{Price: 111.1, Size: 222.2},
 		{Price: 333.3, Size: 444.4},
@@ -688,7 +688,7 @@ func TestHandleMessagesCrypto(t *testing.T) {
 	assert.EqualValues(t, testCryptoTrade.Exchange, trade.Exchange)
 	assert.EqualValues(t, testCryptoTrade.Price, trade.Price)
 	assert.EqualValues(t, testCryptoTrade.Size, trade.Size)
-	assert.EqualValues(t, testCryptoTrade.Id, trade.Id)
+	assert.EqualValues(t, testCryptoTrade.Id, trade.ID)
 	assert.EqualValues(t, testCryptoTrade.TakerSide, trade.TakerSide)
 	assert.True(t, trade.Timestamp.Equal(testTime))
 
