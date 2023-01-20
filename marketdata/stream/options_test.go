@@ -9,13 +9,15 @@ import (
 )
 
 func TestDefaultOptions(t *testing.T) {
-	var tests = []struct {
+	tests := []struct {
 		name            string
 		dataProxyWSVal  string
 		expectedBaseURL string
 	}{
-		{name: "no_data_ws_proxy", dataProxyWSVal: "",
-			expectedBaseURL: "https://stream.data.alpaca.markets/v2"},
+		{
+			name: "no_data_ws_proxy", dataProxyWSVal: "",
+			expectedBaseURL: "https://stream.data.alpaca.markets/v2",
+		},
 		{name: "data_ws_proxy", dataProxyWSVal: "test", expectedBaseURL: "test"},
 	}
 
@@ -70,7 +72,7 @@ func TestConfigureStocks(t *testing.T) {
 		WithLULDs(func(l LULD) {}, "ALPA", "CA"),
 		WithCancelErrors(func(tce TradeCancelError) {}),
 		WithCorrections(func(tc TradeCorrection) {}),
-	).(*stocksClient)
+	)
 
 	assert.EqualValues(t, logger, c.logger)
 	assert.EqualValues(t, "testhost", c.baseURL)

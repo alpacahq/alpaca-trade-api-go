@@ -23,6 +23,11 @@ var tests = []struct {
 	{name: cryptoTests},
 }
 
+type streamClient interface {
+	Connect(ctx context.Context) error
+	Terminated() <-chan error
+}
+
 func TestConnectFails(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -32,7 +37,7 @@ func TestConnectFails(t *testing.T) {
 				return connection, nil
 			}
 
-			var c StreamClient
+			var c streamClient
 			switch tt.name {
 			case stocksTests:
 				c = NewStocksClient("iex",
@@ -64,7 +69,7 @@ func TestConnectFails(t *testing.T) {
 func TestConnectWithInvalidURL(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			var c StreamClient
+			var c streamClient
 			switch tt.name {
 			case stocksTests:
 				c = NewStocksClient("iex",
@@ -110,7 +115,7 @@ func TestConnectImmediatelyFailsAfterIrrecoverableErrors(t *testing.T) {
 				// and the test would time out
 				reconnectSettings := WithReconnectSettings(20, time.Second)
 
-				var c StreamClient
+				var c streamClient
 				switch tt.name {
 				case stocksTests:
 					c = NewStocksClient("iex", reconnectSettings, withConnCreator(connCreator))
@@ -154,7 +159,7 @@ func TestContextCancelledBeforeConnect(t *testing.T) {
 				return connection, nil
 			}
 
-			var c StreamClient
+			var c streamClient
 			switch tt.name {
 			case stocksTests:
 				c = NewStocksClient("iex",
@@ -186,7 +191,7 @@ func TestConnectSucceeds(t *testing.T) {
 
 			writeInitialFlowMessagesToConn(t, connection, subscriptions{})
 
-			var c StreamClient
+			var c streamClient
 			switch tt.name {
 			case stocksTests:
 				c = NewStocksClient("iex", withConnCreator(connCreator))
@@ -232,7 +237,7 @@ func TestCallbacksCalledOnConnectAndDisconnect(t *testing.T) {
 
 			writeInitialFlowMessagesToConn(t, connection, subscriptions{})
 
-			var c StreamClient
+			var c streamClient
 			switch tt.name {
 			case stocksTests:
 				c = NewStocksClient("iex",
@@ -380,7 +385,7 @@ func TestSubscribeCalledButClientTerminatesCrypto(t *testing.T) {
 	err := c.Connect(ctx)
 	require.NoError(t, err)
 
-	checkInitialMessagesSentByClient(t, connection, "my_key", "my_secret", c.(*cryptoClient).sub)
+	checkInitialMessagesSentByClient(t, connection, "my_key", "my_secret", c.sub)
 	subErrCh := make(chan error, 1)
 	subFunc := func() {
 		subErrCh <- c.SubscribeToTrades(func(trade CryptoTrade) {}, "PACOIN")
@@ -530,7 +535,7 @@ func TestSubscriptionAcrossConnectionIssues(t *testing.T) {
 	// shutting down the first connection
 	conn2 := newMockConn()
 	writeInitialFlowMessagesToConn(t, conn2, subscriptions{})
-	c.(*stocksClient).connCreator = func(ctx context.Context, u url.URL) (conn, error) {
+	c.connCreator = func(ctx context.Context, u url.URL) (conn, error) {
 		return conn2, nil
 	}
 	conn1.close()
@@ -551,12 +556,12 @@ func TestSubscriptionAcrossConnectionIssues(t *testing.T) {
 		},
 	})
 	require.NoError(t, <-subRes)
-	require.ElementsMatch(t, trades1, c.(*stocksClient).sub.trades)
+	require.ElementsMatch(t, trades1, c.sub.trades)
 
 	// the connection is shut down and the new one isn't established for a while
 	conn3 := newMockConn()
 	defer conn3.close()
-	c.(*stocksClient).connCreator = func(ctx context.Context, u url.URL) (conn, error) {
+	c.connCreator = func(ctx context.Context, u url.URL) (conn, error) {
 		time.Sleep(100 * time.Millisecond)
 		writeInitialFlowMessagesToConn(t, conn3, subscriptions{trades: trades1})
 		return conn3, nil
@@ -585,7 +590,7 @@ func TestSubscriptionAcrossConnectionIssues(t *testing.T) {
 
 	// make sure the sub has returned by now (client changed)
 	require.NoError(t, <-unsubRes)
-	require.ElementsMatch(t, []string{"PACA"}, c.(*stocksClient).sub.trades)
+	require.ElementsMatch(t, []string{"PACA"}, c.sub.trades)
 }
 
 func TestSubscribeFailsDueToError(t *testing.T) {
@@ -691,7 +696,7 @@ func TestPingFails(t *testing.T) {
 				return testTicker
 			}
 
-			var c StreamClient
+			var c streamClient
 			switch tt.name {
 			case stocksTests:
 				c = NewStocksClient("iex", WithReconnectSettings(1, 0), withConnCreator(connCreator))
@@ -710,11 +715,11 @@ func TestPingFails(t *testing.T) {
 			connErr := errors.New("no connection")
 			switch tt.name {
 			case stocksTests:
-				c.(*stocksClient).connCreator = func(ctx context.Context, u url.URL) (conn, error) {
+				c.(*StocksClient).connCreator = func(ctx context.Context, u url.URL) (conn, error) {
 					return nil, connErr
 				}
 			case cryptoTests:
-				c.(*cryptoClient).connCreator = func(ctx context.Context, u url.URL) (conn, error) {
+				c.(*CryptoClient).connCreator = func(ctx context.Context, u url.URL) (conn, error) {
 					return nil, connErr
 				}
 			}
@@ -1260,9 +1265,7 @@ func TestCryptoClientConstructURL(t *testing.T) {
 				WithBaseURL(test.baseUrl),
 				WithExchanges(test.exchanges...),
 			)
-			cryptoClient, ok := c.(*cryptoClient)
-			require.True(t, ok)
-			got, err := cryptoClient.constructURL()
+			got, err := c.constructURL()
 			require.NoError(t, err)
 			assert.EqualValues(t, test.expected, got.String())
 		})
