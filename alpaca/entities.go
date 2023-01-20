@@ -1,6 +1,11 @@
 package alpaca
 
 import (
+	json "encoding/json"
+	"fmt"
+	"io"
+	"net/http"
+	"strings"
 	"time"
 
 	"cloud.google.com/go/civil"
@@ -315,4 +320,35 @@ type AddSymbolToWatchlistRequest struct {
 
 type RemoveSymbolFromWatchlistRequest struct {
 	Symbol string `json:"symbol"`
+}
+
+// APIError wraps the detailed code and message supplied
+// by Alpaca's API for debugging purposes
+type APIError struct {
+	StatusCode int    `json:"-"`
+	Code       int    `json:"code"`
+	Message    string `json:"message"`
+	Body       string `json:"-"`
+}
+
+func APIErrorFromResponse(resp *http.Response) error {
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+	var apiErr APIError
+	if err := json.Unmarshal(body, &apiErr); err != nil {
+		// If the error is not in our JSON format, we simply return the HTTP response
+		return fmt.Errorf("%s (HTTP %d)", body, resp.StatusCode)
+	}
+	apiErr.StatusCode = resp.StatusCode
+	apiErr.Body = strings.TrimSpace(string(body))
+	return &apiErr
+}
+
+func (e *APIError) Error() string {
+	if e.Code != 0 {
+		return fmt.Sprintf("%s (HTTP %d, Code %d)", e.Message, e.StatusCode, e.Code)
+	}
+	return fmt.Sprintf("%s (HTTP %d)", e.Message, e.StatusCode)
 }

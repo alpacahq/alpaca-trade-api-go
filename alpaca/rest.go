@@ -1083,32 +1083,10 @@ func (c *Client) delete(u *url.URL) (*http.Response, error) {
 	return c.do(c, req)
 }
 
-// APIError wraps the detailed code and message supplied
-// by Alpaca's API for debugging purposes
-type APIError struct {
-	Code    int    `json:"code"`
-	Message string `json:"message"`
-}
-
-func (e *APIError) Error() string {
-	return e.Message
-}
-
 func verify(resp *http.Response) error {
 	if resp.StatusCode >= http.StatusMultipleChoices {
 		defer resp.Body.Close()
-
-		body, err := io.ReadAll(resp.Body)
-		if err != nil {
-			return err
-		}
-
-		var apiErr APIError
-		if err = json.Unmarshal(body, &apiErr); err != nil {
-			// If the error is not in our JSON format, we simply return the HTTP response
-			return fmt.Errorf("HTTP %s: %s", resp.Status, body)
-		}
-		return &apiErr
+		return APIErrorFromResponse(resp)
 	}
 	return nil
 }
