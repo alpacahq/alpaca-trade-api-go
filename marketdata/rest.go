@@ -2,7 +2,6 @@ package marketdata
 
 import (
 	"compress/gzip"
-	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -11,6 +10,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/mailru/easyjson"
 
 	"github.com/alpacahq/alpaca-trade-api-go/v3/alpaca"
 )
@@ -670,12 +671,10 @@ func (c *Client) GetSnapshots(symbols []string, req GetSnapshotRequest) (map[str
 		return nil, err
 	}
 
-	var snapshots map[string]*Snapshot
-
+	var snapshots snapshotsResponse
 	if err = unmarshal(resp, &snapshots); err != nil {
 		return nil, err
 	}
-
 	return snapshots, nil
 }
 
@@ -1276,7 +1275,7 @@ func (c *Client) get(u *url.URL) (*http.Response, error) {
 	return c.do(c, req)
 }
 
-func unmarshal(resp *http.Response, data interface{}) error {
+func unmarshal(resp *http.Response, v easyjson.Unmarshaler) error {
 	defer func() {
 		// The underlying TCP connection can not be reused if the body is not fully read
 		io.Copy(io.Discard, resp.Body)
@@ -1296,5 +1295,5 @@ func unmarshal(resp *http.Response, data interface{}) error {
 	default:
 		reader = resp.Body
 	}
-	return json.NewDecoder(reader).Decode(data)
+	return easyjson.UnmarshalFromReader(reader, v)
 }

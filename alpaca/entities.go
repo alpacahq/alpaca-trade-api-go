@@ -82,6 +82,9 @@ type Order struct {
 	Legs           *[]Order         `json:"legs"`
 }
 
+//easyjson:json
+type orderSlice []Order
+
 type Position struct {
 	AssetID        string           `json:"asset_id"`
 	Symbol         string           `json:"symbol"`
@@ -100,6 +103,9 @@ type Position struct {
 	ChangeToday    *decimal.Decimal `json:"change_today"`
 }
 
+//easyjson:json
+type positionSlice []Position
+
 type Asset struct {
 	ID           string `json:"id"`
 	Name         string `json:"name"`
@@ -113,6 +119,9 @@ type Asset struct {
 	EasyToBorrow bool   `json:"easy_to_borrow"`
 	Fractionable bool   `json:"fractionable"`
 }
+
+//easyjson:json
+type assetSlice []Asset
 
 type Fundamental struct {
 	AssetID           string          `json:"asset_id"`
@@ -146,6 +155,9 @@ type CalendarDay struct {
 	Close string `json:"close"`
 }
 
+//easyjson:json
+type calendarDaySlice []CalendarDay
+
 type Clock struct {
 	Timestamp time.Time `json:"timestamp"`
 	IsOpen    bool      `json:"is_open"`
@@ -176,6 +188,9 @@ type AccountActivity struct {
 	Description     string          `json:"description"`
 	PerShareAmount  decimal.Decimal `json:"per_share_amount"`
 }
+
+//easyjson:json
+type accountSlice []AccountActivity
 
 type PortfolioHistory struct {
 	BaseValue     decimal.Decimal   `json:"base_value"`
@@ -296,6 +311,9 @@ type Announcement struct {
 	NewRate                 string `json:"new_rate"`
 }
 
+//easyjson:json
+type announcementSlice []Announcement
+
 type Watchlist struct {
 	AccountID string  `json:"account_id"`
 	ID        string  `json:"id"`
@@ -304,6 +322,9 @@ type Watchlist struct {
 	Name      string  `json:"name"`
 	Assets    []Asset `json:"assets"`
 }
+
+//easyjson:json
+type watchlistSlice []Watchlist
 
 type CreateWatchlistRequest struct {
 	Name    string   `json:"name"`
