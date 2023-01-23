@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/mailru/easyjson"
 	"github.com/shopspring/decimal"
 )
 
@@ -143,7 +144,7 @@ func (c *Client) GetAccountConfigurations() (*AccountConfigurations, error) {
 	}
 
 	var configs AccountConfigurations
-	if err = unmarshal(resp, configs); err != nil {
+	if err = unmarshal(resp, &configs); err != nil {
 		return nil, err
 	}
 	return &configs, nil
@@ -217,8 +218,7 @@ func (c *Client) GetAccountActivities(req GetAccountActivitiesRequest) ([]Accoun
 		return nil, err
 	}
 
-	activities := []AccountActivity{}
-
+	var activities accountSlice
 	if err = unmarshal(resp, &activities); err != nil {
 		return nil, err
 	}
@@ -275,7 +275,7 @@ func (c *Client) GetPositions() ([]Position, error) {
 		return nil, err
 	}
 
-	positions := []Position{}
+	var positions positionSlice
 	if err = unmarshal(resp, &positions); err != nil {
 		return nil, err
 	}
@@ -325,7 +325,7 @@ func (c *Client) CloseAllPositions(req CloseAllPositionsRequest) ([]Order, error
 		return nil, err
 	}
 
-	orders := []Order{}
+	var orders orderSlice
 	if err = unmarshal(resp, &orders); err != nil {
 		return nil, err
 	}
@@ -415,7 +415,7 @@ func (c *Client) GetCalendar(req GetCalendarRequest) ([]CalendarDay, error) {
 		return nil, err
 	}
 
-	calendar := []CalendarDay{}
+	var calendar calendarDaySlice
 	if err = unmarshal(resp, &calendar); err != nil {
 		return nil, err
 	}
@@ -472,7 +472,7 @@ func (c *Client) GetOrders(req GetOrdersRequest) ([]Order, error) {
 		return nil, err
 	}
 
-	orders := []Order{}
+	var orders orderSlice
 	if err = unmarshal(resp, &orders); err != nil {
 		return nil, err
 	}
@@ -654,7 +654,7 @@ func (c *Client) GetAssets(req GetAssetsRequest) ([]Asset, error) {
 		return nil, err
 	}
 
-	assets := []Asset{}
+	var assets assetSlice
 	if err = unmarshal(resp, &assets); err != nil {
 		return nil, err
 	}
@@ -721,8 +721,7 @@ func (c *Client) GetAnnouncements(req GetAnnouncementsRequest) ([]Announcement, 
 		return nil, err
 	}
 
-	var announcements []Announcement
-
+	var announcements announcementSlice
 	if err = unmarshal(resp, &announcements); err != nil {
 		return nil, err
 	}
@@ -761,7 +760,7 @@ func (c *Client) GetWatchlists() ([]Watchlist, error) {
 		return nil, err
 	}
 
-	var watchlists []Watchlist
+	var watchlists watchlistSlice
 	if err = unmarshal(resp, &watchlists); err != nil {
 		return nil, err
 	}
@@ -1091,11 +1090,11 @@ func verify(resp *http.Response) error {
 	return nil
 }
 
-func unmarshal(resp *http.Response, data interface{}) error {
+func unmarshal(resp *http.Response, v easyjson.Unmarshaler) error {
 	defer func() {
 		// The underlying TCP connection can not be reused if the body is not fully read
 		io.Copy(io.Discard, resp.Body)
 		resp.Body.Close()
 	}()
-	return json.NewDecoder(resp.Body).Decode(data)
+	return easyjson.UnmarshalFromReader(resp.Body, v)
 }

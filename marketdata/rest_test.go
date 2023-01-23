@@ -574,7 +574,7 @@ func TestLatestBar_Currency(t *testing.T) {
 		assert.Equal(t, "JPY", req.URL.Query().Get("currency"))
 		return &http.Response{
 			Body: io.NopCloser(strings.NewReader(
-				`{"bars":{"AAPL":{"t":"2023-01-14T00:59:00Z","o":17289.54,"h":17289.54,"l":17289.54,"c":17289.54,"v":441,"n":57,"vw":17287.69}},"currency":"JPY"}%`,
+				`{"bars":{"AAPL":{"t":"2023-01-14T00:59:00Z","o":17289.54,"h":17289.54,"l":17289.54,"c":17289.54,"v":441,"n":57,"vw":17287.69}},"currency":"JPY"}`,
 			)),
 		}, nil
 	}

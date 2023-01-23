@@ -143,6 +143,9 @@ type DailyAuctions struct {
 	Closing []Auction  `json:"c"`
 }
 
+//easyjson:json
+type snapshotsResponse map[string]*Snapshot
+
 // Snapshot is a snapshot of a symbol
 type Snapshot struct {
 	LatestTrade  *Trade `json:"latestTrade"`
