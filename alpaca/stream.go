@@ -97,7 +97,7 @@ func (c *Client) StreamTradeUpdatesInBackground(ctx context.Context, handler fun
 		for {
 			req := StreamTradeUpdatesRequest{}
 			if !lastMessage.IsZero() {
-				req.Since = lastMessage
+				req.Since = lastMessage.Add(time.Nanosecond)
 			}
 			err := c.StreamTradeUpdates(ctx, func(tu TradeUpdate) {
 				lastMessage = tu.At
