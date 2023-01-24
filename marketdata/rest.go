@@ -1278,7 +1278,7 @@ func (c *Client) get(u *url.URL) (*http.Response, error) {
 func unmarshal(resp *http.Response, v easyjson.Unmarshaler) error {
 	defer func() {
 		// The underlying TCP connection can not be reused if the body is not fully read
-		io.Copy(io.Discard, resp.Body)
+		_, _ = io.Copy(io.Discard, resp.Body)
 		resp.Body.Close()
 	}()
 	var (

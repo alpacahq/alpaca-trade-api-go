@@ -131,7 +131,7 @@ func (c *Client) GetAccount() (*Account, error) {
 	return &account, nil
 }
 
-// GetConfigs returns the current account configurations
+// GetAccountConfigurations returns the current account configurations
 func (c *Client) GetAccountConfigurations() (*AccountConfigurations, error) {
 	u, err := url.Parse(fmt.Sprintf("%s/%s/account/configurations", c.opts.BaseURL, apiVersion))
 	if err != nil {
@@ -158,7 +158,7 @@ type UpdateAccountConfigurationsRequest struct {
 	FractionalTrading bool   `json:"fractional_trading"`
 }
 
-// EditConfigs patches the account configs
+// UpdateAccountConfigurations updates the account configs.
 func (c *Client) UpdateAccountConfigurations(req UpdateAccountConfigurationsRequest) (*AccountConfigurations, error) {
 	u, err := url.Parse(fmt.Sprintf("%s/%s/account/configurations", c.opts.BaseURL, apiVersion))
 	if err != nil {
@@ -186,6 +186,7 @@ type GetAccountActivitiesRequest struct {
 	PageSize      int       `json:"page_size"`
 }
 
+// GetAccountActivities returns the account activities.
 func (c *Client) GetAccountActivities(req GetAccountActivitiesRequest) ([]AccountActivity, error) {
 	u, err := url.Parse(fmt.Sprintf("%s/%s/account/activities", c.opts.BaseURL, apiVersion))
 	if err != nil {
@@ -232,6 +233,7 @@ type GetPortfolioHistoryRequest struct {
 	ExtendedHours bool
 }
 
+// GetPortfolioHistory returns the portfolio history.
 func (c *Client) GetPortfolioHistory(req GetPortfolioHistoryRequest) (*PortfolioHistory, error) {
 	u, err := url.Parse(fmt.Sprintf("%s/%s/account/portfolio/history", c.opts.BaseURL, apiVersion))
 	if err != nil {
@@ -423,6 +425,7 @@ func (c *Client) GetCalendar(req GetCalendarRequest) ([]CalendarDay, error) {
 }
 
 type GetOrdersRequest struct {
+	// Status to be queried. Possible values: open, closed, all. Defaults to open.
 	Status    string    `json:"status"`
 	Limit     int       `json:"limit"`
 	After     time.Time `json:"after"`
@@ -875,20 +878,22 @@ func GetAccount() (*Account, error) {
 	return DefaultClient.GetAccount()
 }
 
-// GetConfigs returns the current account configurations
+// GetAccountConfigurations returns the current account configurations
 func GetAccountConfigurations() (*AccountConfigurations, error) {
 	return DefaultClient.GetAccountConfigurations()
 }
 
-// EditConfigs patches the account configs
+// UpdateAccountConfigurations updates the account configs.
 func UpdateAccountConfigurations(req UpdateAccountConfigurationsRequest) (*AccountConfigurations, error) {
 	return DefaultClient.UpdateAccountConfigurations(req)
 }
 
+// GetAccountActivities returns the account activities.
 func GetAccountActivities(req GetAccountActivitiesRequest) ([]AccountActivity, error) {
 	return DefaultClient.GetAccountActivities(req)
 }
 
+// GetPortfolioHistory returns the portfolio history.
 func GetPortfolioHistory(req GetPortfolioHistoryRequest) (*PortfolioHistory, error) {
 	return DefaultClient.GetPortfolioHistory(req)
 }
@@ -1093,7 +1098,7 @@ func verify(resp *http.Response) error {
 func unmarshal(resp *http.Response, v easyjson.Unmarshaler) error {
 	defer func() {
 		// The underlying TCP connection can not be reused if the body is not fully read
-		io.Copy(io.Discard, resp.Body)
+		_, _ = io.Copy(io.Discard, resp.Body)
 		resp.Body.Close()
 	}()
 	return easyjson.UnmarshalFromReader(resp.Body, v)

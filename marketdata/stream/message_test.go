@@ -763,6 +763,6 @@ func BenchmarkHandleMessages(b *testing.B) {
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		c.handleMessage(msgs)
+		_ = c.handleMessage(msgs)
 	}
 }
