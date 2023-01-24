@@ -7,16 +7,24 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"net"
 	"net/http"
+	"net/url"
 	"time"
 )
 
-// StreamTradeUpdates streams the trade updates of the account. It blocks and keeps calling the handler
-// function for each trade update until the context is cancelled.
-func (c *client) StreamTradeUpdates(ctx context.Context, handler func(TradeUpdate)) error {
+type StreamTradeUpdatesRequest struct {
+	Since time.Time
+	Until time.Time
+	// SinceID and UntilID will be added later
+	// SinceID string
+	// UntilID string
+}
+
+// StreamTradeUpdates streams the trade updates of the account.
+func (c *Client) StreamTradeUpdates(ctx context.Context, handler func(TradeUpdate), req StreamTradeUpdatesRequest) error {
 	transport := http.Transport{
 		DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
 			return net.DialTimeout(network, addr, 5*time.Second)
@@ -25,31 +33,46 @@ func (c *client) StreamTradeUpdates(ctx context.Context, handler func(TradeUpdat
 	client := http.Client{
 		Transport: &transport,
 	}
-	req, err := http.NewRequestWithContext(ctx, "GET", c.opts.BaseURL+"/events/trades", nil)
+	u, err := url.Parse(c.opts.BaseURL + "/events/trades")
+	if err != nil {
+		return err
+	}
+	q := u.Query()
+	if !req.Since.IsZero() {
+		q.Set("since", req.Since.Format(time.RFC3339Nano))
+	}
+	if !req.Until.IsZero() {
+		q.Set("until", req.Until.Format(time.RFC3339Nano))
+	}
+	u.RawQuery = q.Encode()
+	request, err := http.NewRequestWithContext(ctx, "GET", u.String(), nil)
 	if err != nil {
 		return err
 	}
 	if c.opts.OAuth != "" {
-		req.Header.Set("Authorization", "Bearer "+c.opts.OAuth)
+		request.Header.Set("Authorization", "Bearer "+c.opts.OAuth)
 	} else {
-		req.Header.Set("APCA-API-KEY-ID", c.opts.ApiKey)
-		req.Header.Set("APCA-API-SECRET-KEY", c.opts.ApiSecret)
+		request.Header.Set("APCA-API-KEY-ID", c.opts.APIKey)
+		request.Header.Set("APCA-API-SECRET-KEY", c.opts.APISecret)
 	}
 
-	resp, err := client.Do(req)
+	resp, err := client.Do(request)
 	if err != nil {
 		return err
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		body, _ := ioutil.ReadAll(resp.Body)
-		return fmt.Errorf("trade events returned HTTP %s, body: %s", resp.Status, string(body))
+		body, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("%s (HTTP %d)", body, resp.StatusCode)
 	}
 
 	reader := bufio.NewReader(resp.Body)
 	for {
 		msg, err := reader.ReadBytes('\n')
 		if err != nil {
+			if errors.Is(err, io.EOF) {
+				return nil
+			}
 			return err
 		}
 		const dataPrefix = "data: "
@@ -68,10 +91,18 @@ func (c *client) StreamTradeUpdates(ctx context.Context, handler func(TradeUpdat
 // StreamTradeUpdatesInBackground streams the trade updates of the account.
 // It runs in the background and keeps calling the handler function for each trade update
 // until the context is cancelled. If an error happens it logs it and retries immediately.
-func (c *client) StreamTradeUpdatesInBackground(ctx context.Context, handler func(TradeUpdate)) {
+func (c *Client) StreamTradeUpdatesInBackground(ctx context.Context, handler func(TradeUpdate)) {
 	go func() {
+		var lastMessage time.Time
 		for {
-			err := c.StreamTradeUpdates(ctx, handler)
+			req := StreamTradeUpdatesRequest{}
+			if !lastMessage.IsZero() {
+				req.Since = lastMessage.Add(time.Nanosecond)
+			}
+			err := c.StreamTradeUpdates(ctx, func(tu TradeUpdate) {
+				lastMessage = tu.At
+				handler(tu)
+			}, req)
 			if err == nil || errors.Is(err, context.Canceled) {
 				return
 			}
@@ -82,8 +113,8 @@ func (c *client) StreamTradeUpdatesInBackground(ctx context.Context, handler fun
 
 // StreamTradeUpdates streams the trade updates of the account. It blocks and keeps calling the handler
 // function for each trade update until the context is cancelled.
-func StreamTradeUpdates(ctx context.Context, handler func(TradeUpdate)) error {
-	return DefaultClient.StreamTradeUpdates(ctx, handler)
+func StreamTradeUpdates(ctx context.Context, handler func(TradeUpdate), req StreamTradeUpdatesRequest) error {
+	return DefaultClient.StreamTradeUpdates(ctx, handler, req)
 }
 
 // StreamTradeUpdatesInBackground streams the trade updates of the account.

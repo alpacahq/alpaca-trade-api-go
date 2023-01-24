@@ -6,16 +6,20 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+
+	"github.com/alpacahq/alpaca-trade-api-go/v3/marketdata"
 )
 
 func TestDefaultOptions(t *testing.T) {
-	var tests = []struct {
+	tests := []struct {
 		name            string
 		dataProxyWSVal  string
 		expectedBaseURL string
 	}{
-		{name: "no_data_ws_proxy", dataProxyWSVal: "",
-			expectedBaseURL: "https://stream.data.alpaca.markets/v2"},
+		{
+			name: "no_data_ws_proxy", dataProxyWSVal: "",
+			expectedBaseURL: "https://stream.data.alpaca.markets/v2",
+		},
 		{name: "data_ws_proxy", dataProxyWSVal: "test", expectedBaseURL: "test"},
 	}
 
@@ -54,7 +58,7 @@ func TestConfigureStocks(t *testing.T) {
 	// even though the test is testing multiple things they're closely related
 
 	logger := ErrorOnlyLogger()
-	c := NewStocksClient("iex",
+	c := NewStocksClient(marketdata.IEX,
 		WithLogger(logger),
 		WithBaseURL("testhost"),
 		WithCredentials("testkey", "testsecret"),
@@ -70,7 +74,7 @@ func TestConfigureStocks(t *testing.T) {
 		WithLULDs(func(l LULD) {}, "ALPA", "CA"),
 		WithCancelErrors(func(tce TradeCancelError) {}),
 		WithCorrections(func(tc TradeCorrection) {}),
-	).(*stocksClient)
+	)
 
 	assert.EqualValues(t, logger, c.logger)
 	assert.EqualValues(t, "testhost", c.baseURL)

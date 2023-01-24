@@ -7,14 +7,15 @@ import (
 	"sort"
 	"time"
 
-	"github.com/alpacahq/alpaca-trade-api-go/v2/alpaca"
-	"github.com/alpacahq/alpaca-trade-api-go/v2/marketdata"
 	"github.com/shopspring/decimal"
+
+	"github.com/alpacahq/alpaca-trade-api-go/v3/alpaca"
+	"github.com/alpacahq/alpaca-trade-api-go/v3/marketdata"
 )
 
 type longShortAlgo struct {
-	tradeClient alpaca.Client
-	dataClient  marketdata.Client
+	tradeClient *alpaca.Client
+	dataClient  *marketdata.Client
 	long        bucket
 	short       bucket
 	allStocks   []stockField
@@ -54,13 +55,13 @@ func init() {
 
 	algo = longShortAlgo{
 		tradeClient: alpaca.NewClient(alpaca.ClientOpts{
-			ApiKey:    apiKey,
-			ApiSecret: apiSecret,
+			APIKey:    apiKey,
+			APISecret: apiSecret,
 			BaseURL:   baseURL,
 		}),
 		dataClient: marketdata.NewClient(marketdata.ClientOpts{
-			ApiKey:    apiKey,
-			ApiSecret: apiSecret,
+			APIKey:    apiKey,
+			APISecret: apiSecret,
 		}),
 		long: bucket{
 			qty:         -1,
@@ -77,8 +78,11 @@ func init() {
 
 func main() {
 	fmt.Print("Cancelling all open orders so they don't impact our buying power... ")
-	status, until, limit := "open", time.Now(), 100
-	orders, err := algo.tradeClient.ListOrders(&status, &until, &limit, nil)
+	orders, err := algo.tradeClient.GetOrders(alpaca.GetOrdersRequest{
+		Status: "open",
+		Until:  time.Now(),
+		Limit:  100,
+	})
 	if err != nil {
 		log.Fatalf("Failed to list orders: %v", err)
 	}
@@ -106,7 +110,6 @@ func main() {
 
 // Rebalance the portfolio every minute, making necessary trades.
 func (alp longShortAlgo) run() error {
-
 	// Figure out when the market will close so we can prepare to sell beforehand.
 	clock, err := algo.tradeClient.GetClock()
 	if err != nil {
@@ -116,7 +119,7 @@ func (alp longShortAlgo) run() error {
 		// Close all positions when 15 minutes til market close.
 		fmt.Println("Market closing soon. Closing positions")
 
-		positions, err := algo.tradeClient.ListPositions()
+		positions, err := algo.tradeClient.GetPositions()
 		if err != nil {
 			return fmt.Errorf("get positions: %w", err)
 		}
@@ -171,8 +174,11 @@ func (alp longShortAlgo) rebalance() error {
 	fmt.Printf("We are taking a short position in: %v\n", algo.short.list)
 
 	// Clear existing orders again.
-	status, until, limit := "open", time.Now(), 100
-	orders, err := algo.tradeClient.ListOrders(&status, &until, &limit, nil)
+	orders, err := algo.tradeClient.GetOrders(alpaca.GetOrdersRequest{
+		Status: "open",
+		Until:  time.Now(),
+		Limit:  100,
+	})
 	if err != nil {
 		return fmt.Errorf("list orders: %w", err)
 	}
@@ -185,7 +191,7 @@ func (alp longShortAlgo) rebalance() error {
 	// Remove positions that are no longer in the short or long list, and make a list of positions that do not need to change.  Adjust position quantities if needed.
 	algo.blacklist = nil
 	var executed [2][]string
-	positions, err := algo.tradeClient.ListPositions()
+	positions, err := algo.tradeClient.GetPositions()
 	if err != nil {
 		return fmt.Errorf("list positions: %w", err)
 	}
@@ -356,7 +362,7 @@ func (alp longShortAlgo) rerank() error {
 		return fmt.Errorf("get account: %w", err)
 	}
 	equity, _ := account.Cash.Float64()
-	positions, err := algo.tradeClient.ListPositions()
+	positions, err := algo.tradeClient.GetPositions()
 	if err != nil {
 		return fmt.Errorf("list positions: %w", err)
 	}
@@ -386,7 +392,7 @@ func (alp longShortAlgo) rerank() error {
 // Get the total price of the array of input stocks.
 func (alp longShortAlgo) getTotalPrice(arr []string) (float64, error) {
 	totalPrice := 0.0
-	snapshots, err := algo.dataClient.GetSnapshots(arr)
+	snapshots, err := algo.dataClient.GetSnapshots(arr, marketdata.GetSnapshotRequest{})
 	if err != nil {
 		return 0, fmt.Errorf("get snapshots: %w", err)
 	}
@@ -404,16 +410,11 @@ func (alp longShortAlgo) getTotalPrice(arr []string) (float64, error) {
 
 // Submit an order if quantity is above 0.
 func (alp longShortAlgo) submitOrder(qty int, symbol string, side string) error {
-	account, err := algo.tradeClient.GetAccount()
-	if err != nil {
-		return fmt.Errorf("get account: %w", err)
-	}
 	if qty > 0 {
 		adjSide := alpaca.Side(side)
 		decimalQty := decimal.NewFromInt(int64(qty))
 		_, err := algo.tradeClient.PlaceOrder(alpaca.PlaceOrderRequest{
-			AccountID:   account.ID,
-			AssetKey:    &symbol,
+			Symbol:      symbol,
 			Qty:         &decimalQty,
 			Side:        adjSide,
 			Type:        "market",
@@ -461,7 +462,7 @@ func (alp longShortAlgo) getPercentChanges() error {
 	if !hasSipAccess {
 		feed = "iex"
 	}
-	multiBars, err := algo.dataClient.GetMultiBars(symbols, marketdata.GetBarsParams{
+	multiBars, err := algo.dataClient.GetMultiBars(symbols, marketdata.GetBarsRequest{
 		TimeFrame: marketdata.OneMin,
 		Start:     start,
 		End:       end,

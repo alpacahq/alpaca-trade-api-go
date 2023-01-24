@@ -8,10 +8,11 @@ import (
 	"time"
 
 	movingaverage "github.com/RobinUS2/golang-moving-average"
-	"github.com/alpacahq/alpaca-trade-api-go/v2/alpaca"
-	"github.com/alpacahq/alpaca-trade-api-go/v2/marketdata"
-	"github.com/alpacahq/alpaca-trade-api-go/v2/marketdata/stream"
 	"github.com/shopspring/decimal"
+
+	"github.com/alpacahq/alpaca-trade-api-go/v3/alpaca"
+	"github.com/alpacahq/alpaca-trade-api-go/v3/marketdata"
+	"github.com/alpacahq/alpaca-trade-api-go/v3/marketdata/stream"
 )
 
 const (
@@ -19,10 +20,10 @@ const (
 )
 
 type alpacaClientContainer struct {
-	tradeClient   alpaca.Client
-	dataClient    marketdata.Client
-	streamClient  stream.StocksClient
-	feed          string
+	tradeClient   *alpaca.Client
+	dataClient    *marketdata.Client
+	streamClient  *stream.StocksClient
+	feed          marketdata.Feed
 	movingAverage *movingaverage.MovingAverage
 	lastOrder     string
 	stock         string
@@ -46,13 +47,13 @@ func init() {
 	}
 	algo = alpacaClientContainer{
 		tradeClient: alpaca.NewClient(alpaca.ClientOpts{
-			ApiKey:    apiKey,
-			ApiSecret: apiSecret,
+			APIKey:    apiKey,
+			APISecret: apiSecret,
 			BaseURL:   baseURL,
 		}),
 		dataClient: marketdata.NewClient(marketdata.ClientOpts{
-			ApiKey:    apiKey,
-			ApiSecret: apiSecret,
+			APIKey:    apiKey,
+			APISecret: apiSecret,
 		}),
 		streamClient: stream.NewStocksClient(feed,
 			stream.WithCredentials(apiKey, apiSecret),
@@ -65,8 +66,11 @@ func init() {
 
 func main() {
 	fmt.Println("Cancelling all open orders so they don't impact our buying power...")
-	status, until, limit := "open", time.Now(), 100
-	orders, err := algo.tradeClient.ListOrders(&status, &until, &limit, nil)
+	orders, err := algo.tradeClient.GetOrders(alpaca.GetOrdersRequest{
+		Status: "open",
+		Until:  time.Now(),
+		Limit:  100,
+	})
 	if err != nil {
 		log.Fatalf("Failed to list orders: %v", err)
 	}
@@ -107,16 +111,17 @@ func main() {
 		// Reset the moving average for the day
 		algo.movingAverage = movingaverage.New(windowSize)
 
-		for item := range algo.dataClient.GetBarsAsync(algo.stock, marketdata.GetBarsParams{
+		bars, err := algo.dataClient.GetBars(algo.stock, marketdata.GetBarsRequest{
 			TimeFrame: marketdata.OneMin,
 			Start:     time.Now().Add(-1 * (windowSize + 1) * time.Minute),
 			End:       time.Now(),
 			Feed:      algo.feed,
-		}) {
-			if err := item.Error; err != nil {
-				log.Fatalf("Failed to get historical bar: %v", err)
-			}
-			algo.movingAverage.Add(item.Bar.Close)
+		})
+		if err != nil {
+			log.Fatalf("Failed to get historical bar: %v", err)
+		}
+		for _, bar := range bars {
+			algo.movingAverage.Add(bar.Close)
 		}
 
 		// During market open we react on the minute bars (onBar)
@@ -129,7 +134,7 @@ func main() {
 		time.Sleep(untilClose)
 
 		fmt.Println("Market closing soon. Closing position.")
-		if err := algo.tradeClient.ClosePosition(algo.stock); err != nil {
+		if _, err := algo.tradeClient.ClosePosition(algo.stock, alpaca.ClosePositionRequest{}); err != nil {
 			log.Fatalf("Failed to close position: %v", algo.stock)
 		}
 		fmt.Println("Position closed.")
@@ -210,7 +215,7 @@ func (alp alpacaClientContainer) rebalance(currPrice, avg float64) error {
 			return fmt.Errorf("get account: %w", err)
 		}
 		buyingPower, _ := account.BuyingPower.Float64()
-		positions, err := alp.tradeClient.ListPositions()
+		positions, err := alp.tradeClient.GetPositions()
 		if err != nil {
 			return fmt.Errorf("list positions: %w", err)
 		}
@@ -228,13 +233,13 @@ func (alp alpacaClientContainer) rebalance(currPrice, avg float64) error {
 			if amountToAdd > buyingPower {
 				amountToAdd = buyingPower
 			}
-			var qtyToBuy = int(amountToAdd / currPrice)
+			qtyToBuy := int(amountToAdd / currPrice)
 			if err := alp.submitLimitOrder(qtyToBuy, algo.stock, currPrice, "buy"); err != nil {
 				return fmt.Errorf("submit limit order: %v", err)
 			}
 		} else {
 			amountToAdd *= -1
-			var qtyToSell = int(amountToAdd / currPrice)
+			qtyToSell := int(amountToAdd / currPrice)
 			if qtyToSell > positionQty {
 				qtyToSell = positionQty
 			}
@@ -248,17 +253,12 @@ func (alp alpacaClientContainer) rebalance(currPrice, avg float64) error {
 
 // Submit a limit order if quantity is above 0.
 func (alp alpacaClientContainer) submitLimitOrder(qty int, symbol string, price float64, side string) error {
-	account, err := alp.tradeClient.GetAccount()
-	if err != nil {
-		return fmt.Errorf("get account: %w", err)
-	}
 	if qty > 0 {
 		adjSide := alpaca.Side(side)
 		limPrice := decimal.NewFromFloat(price)
 		decimalQty := decimal.NewFromInt(int64(qty))
 		order, err := alp.tradeClient.PlaceOrder(alpaca.PlaceOrderRequest{
-			AccountID:   account.ID,
-			AssetKey:    &symbol,
+			Symbol:      symbol,
 			Qty:         &decimalQty,
 			Side:        adjSide,
 			Type:        "limit",

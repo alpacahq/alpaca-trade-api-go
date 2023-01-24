@@ -1,6 +1,10 @@
 package stream
 
-import "time"
+import (
+	"time"
+
+	"github.com/alpacahq/alpaca-trade-api-go/v3/marketdata"
+)
 
 // Trade is a stock trade that happened on the market
 type Trade struct {
@@ -113,15 +117,13 @@ type TradeCorrection struct {
 }
 
 type CryptoTrade struct {
+	ID        int64
 	Symbol    string
 	Exchange  string
 	Price     float64
 	Size      float64
 	Timestamp time.Time
-	Id        int64
-	// TakerSide is the taker's side: one of B, S or -.
-	// B is buy, S is sell and - is unknown.
-	TakerSide string
+	TakerSide marketdata.TakerSide
 }
 
 type CryptoQuote struct {

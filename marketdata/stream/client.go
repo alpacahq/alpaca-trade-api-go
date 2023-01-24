@@ -6,97 +6,11 @@ import (
 	"fmt"
 	"net/url"
 	"regexp"
-	"strings"
 	"sync"
 	"time"
+
+	"github.com/alpacahq/alpaca-trade-api-go/v3/marketdata"
 )
-
-type StreamClient interface {
-	// Connect establishes a connection and **reestablishes it when errors occur**
-	// as long as the configured number of retries has not been exceeded.
-	//
-	// It blocks until the connection has been established for the first time (or it failed to do so).
-	//
-	// **Should only be called once!**
-	Connect(ctx context.Context) error
-	// Terminated returns a channel that the client sends an error to when it has terminated.
-	// The channel is also closed upon termination.
-	Terminated() <-chan error
-}
-
-// StocksClient is a client that connects to an Alpaca Data V2 stream server
-// and handles communication both ways.
-//
-// After constructing, Connect() must be called before any subscription changes
-// are called. Connect keeps the connection alive and reestablishes it until
-// a configured number of retries has not been exceeded.
-//
-// Terminated() returns a channel that the client sends an error to when it has terminated.
-// A client can not be reused once it has terminated!
-//
-// SubscribeTo... and UnsubscribeFrom... can be used to modify subscriptions and
-// the handler used to process incoming trades/quotes/bars/etc. These block until an
-// irrecoverable error occurs or if they succeed.
-//
-// Note that subscription changes can not be called concurrently.
-type StocksClient interface {
-	StreamClient
-	SubscribeToTrades(handler func(trade Trade), symbols ...string) error
-	UnsubscribeFromTrades(symbols ...string) error
-	SubscribeToQuotes(handler func(quote Quote), symbols ...string) error
-	UnsubscribeFromQuotes(symbols ...string) error
-	SubscribeToBars(handler func(bar Bar), symbols ...string) error
-	UnsubscribeFromBars(symbols ...string) error
-	SubscribeToUpdatedBars(handler func(bar Bar), symbols ...string) error
-	UnsubscribeFromUpdatedBars(symbols ...string) error
-	SubscribeToDailyBars(handler func(bar Bar), symbols ...string) error
-	UnsubscribeFromDailyBars(symbols ...string) error
-	SubscribeToStatuses(handler func(ts TradingStatus), symbols ...string) error
-	UnsubscribeFromStatuses(symbols ...string) error
-	SubscribeToLULDs(handler func(luld LULD), symbols ...string) error
-	UnsubscribeFromLULDs(symbols ...string) error
-	RegisterCancelErrors(handler func(tce TradeCancelError))
-	UnregisterCancelErrors()
-	RegisterCorrections(handler func(tc TradeCorrection))
-	UnregisterCorrections()
-}
-
-// CryptoClient is a client that connects to an Alpaca Data V2 stream server
-// and handles communication both ways.
-//
-// After constructing, Connect() must be called before any subscription changes
-// are called. Connect keeps the connection alive and reestablishes it until
-// a configured number of retries has not been exceeded.
-//
-// Terminated() returns a channel that the client sends an error to when it has terminated.
-// A client can not be reused once it has terminated!
-//
-// SubscribeTo... and UnsubscribeFrom... can be used to modify subscriptions and
-// the handler used to process incoming trades/quotes/bars. These block until an
-// irrecoverable error occurs or if they succeed.
-//
-// Note that subscription changes can not be called concurrently.
-type CryptoClient interface {
-	StreamClient
-	SubscribeToTrades(handler func(trade CryptoTrade), symbols ...string) error
-	UnsubscribeFromTrades(symbols ...string) error
-	SubscribeToQuotes(handler func(quote CryptoQuote), symbols ...string) error
-	UnsubscribeFromQuotes(symbols ...string) error
-	SubscribeToBars(handler func(bar CryptoBar), symbols ...string) error
-	UnsubscribeFromBars(symbols ...string) error
-	SubscribeToUpdatedBars(handler func(bar CryptoBar), symbols ...string) error
-	UnsubscribeFromUpdatedBars(symbols ...string) error
-	SubscribeToDailyBars(handler func(bar CryptoBar), symbols ...string) error
-	UnsubscribeFromDailyBars(symbols ...string) error
-	SubscribeToOrderbooks(handler func(ob CryptoOrderbook), symbols ...string) error
-	UnsubscribeFromOrderbooks(symbols ...string) error
-}
-
-type NewsClient interface {
-	StreamClient
-	SubscribeToNews(handler func(news News), symbols ...string) error
-	UnsubscribeFromNews(symbols ...string) error
-}
 
 type client struct {
 	logger Logger
@@ -151,19 +65,32 @@ func (c *client) configure(o options) {
 	c.connCreator = o.connCreator
 }
 
-type stocksClient struct {
+// StocksClient is a client that connects to an Alpaca Data V2 stream server
+// and handles communication both ways.
+//
+// After constructing, Connect() must be called before any subscription changes
+// are called. Connect keeps the connection alive and reestablishes it until
+// a configured number of retries has not been exceeded.
+//
+// Terminated() returns a channel that the client sends an error to when it has terminated.
+// A client can not be reused once it has terminated!
+//
+// SubscribeTo... and UnsubscribeFrom... can be used to modify subscriptions and
+// the handler used to process incoming trades/quotes/bars/etc. These block until an
+// irrecoverable error occurs or if they succeed.
+//
+// Note that subscription changes can not be called concurrently.
+type StocksClient struct {
 	*client
 
-	feed    string
+	feed    marketdata.Feed
 	handler *stocksMsgHandler
 }
 
-var _ StocksClient = (*stocksClient)(nil)
-
 // NewStocksClient returns a new StocksClient that will connect to feed data feed
 // and whose default configurations are modified by opts.
-func NewStocksClient(feed string, opts ...StockOption) StocksClient {
-	sc := stocksClient{
+func NewStocksClient(feed marketdata.Feed, opts ...StockOption) *StocksClient {
+	sc := StocksClient{
 		client:  newClient(),
 		feed:    feed,
 		handler: &stocksMsgHandler{},
@@ -175,7 +102,7 @@ func NewStocksClient(feed string, opts ...StockOption) StocksClient {
 	return &sc
 }
 
-func (sc *stocksClient) configure(o stockOptions) {
+func (sc *StocksClient) configure(o stockOptions) {
 	sc.client.configure(o.options)
 	sc.handler.tradeHandler = o.tradeHandler
 	sc.handler.quoteHandler = o.quoteHandler
@@ -188,7 +115,13 @@ func (sc *stocksClient) configure(o stockOptions) {
 	sc.handler.correctionHandler = o.correctionHandler
 }
 
-func (sc *stocksClient) Connect(ctx context.Context) error {
+// Connect establishes a connection and **reestablishes it when errors occur**
+// as long as the configured number of retries has not been exceeded.
+//
+// It blocks until the connection has been established for the first time (or it failed to do so).
+//
+// **Should only be called once!**
+func (sc *StocksClient) Connect(ctx context.Context) error {
 	u, err := sc.constructURL()
 	if err != nil {
 		return err
@@ -196,9 +129,13 @@ func (sc *stocksClient) Connect(ctx context.Context) error {
 	return sc.connect(ctx, u)
 }
 
-func (sc *stocksClient) constructURL() (url.URL, error) {
+func (sc *StocksClient) constructURL() (url.URL, error) {
+	return constructURL(sc.baseURL, sc.feed)
+}
+
+func constructURL(base, feed string) (url.URL, error) {
 	scheme := "wss"
-	ub, err := url.Parse(sc.baseURL)
+	ub, err := url.Parse(base + "/" + feed)
 	if err != nil {
 		return url.URL{}, err
 	}
@@ -206,24 +143,37 @@ func (sc *stocksClient) constructURL() (url.URL, error) {
 	case "http", "ws":
 		scheme = "ws"
 	}
-
-	return url.URL{Scheme: scheme, Host: ub.Host, Path: ub.Path + "/" + sc.feed}, nil
+	return url.URL{Scheme: scheme, Host: ub.Host, Path: ub.Path}, nil
 }
 
-type cryptoClient struct {
+// CryptoClient is a client that connects to an Alpaca Data V2 stream server
+// and handles communication both ways.
+//
+// After constructing, Connect() must be called before any subscription changes
+// are called. Connect keeps the connection alive and reestablishes it until
+// a configured number of retries has not been exceeded.
+//
+// Terminated() returns a channel that the client sends an error to when it has terminated.
+// A client can not be reused once it has terminated!
+//
+// SubscribeTo... and UnsubscribeFrom... can be used to modify subscriptions and
+// the handler used to process incoming trades/quotes/bars. These block until an
+// irrecoverable error occurs or if they succeed.
+//
+// Note that subscription changes can not be called concurrently.
+type CryptoClient struct {
 	*client
 
-	exchanges []string
-	handler   *cryptoMsgHandler
+	feed    marketdata.CryptoFeed
+	handler *cryptoMsgHandler
 }
-
-var _ CryptoClient = (*cryptoClient)(nil)
 
 // NewCryptoClient returns a new CryptoClient that will connect to the crypto feed
 // and whose default configurations are modified by opts.
-func NewCryptoClient(opts ...CryptoOption) CryptoClient {
-	cc := cryptoClient{
+func NewCryptoClient(feed marketdata.CryptoFeed, opts ...CryptoOption) *CryptoClient {
+	cc := CryptoClient{
 		client:  newClient(),
+		feed:    feed,
 		handler: &cryptoMsgHandler{},
 	}
 	cc.client.handler = cc.handler
@@ -233,7 +183,7 @@ func NewCryptoClient(opts ...CryptoOption) CryptoClient {
 	return &cc
 }
 
-func (cc *cryptoClient) configure(o cryptoOptions) {
+func (cc *CryptoClient) configure(o cryptoOptions) {
 	cc.client.configure(o.options)
 	cc.handler.tradeHandler = o.tradeHandler
 	cc.handler.quoteHandler = o.quoteHandler
@@ -241,10 +191,15 @@ func (cc *cryptoClient) configure(o cryptoOptions) {
 	cc.handler.updatedBarHandler = o.updatedBarHandler
 	cc.handler.dailyBarHandler = o.dailyBarHandler
 	cc.handler.orderbookHandler = o.orderbookHandler
-	cc.exchanges = o.exchanges
 }
 
-func (cc *cryptoClient) Connect(ctx context.Context) error {
+// Connect establishes a connection and **reestablishes it when errors occur**
+// as long as the configured number of retries has not been exceeded.
+//
+// It blocks until the connection has been established for the first time (or it failed to do so).
+//
+// **Should only be called once!**
+func (cc *CryptoClient) Connect(ctx context.Context) error {
 	u, err := cc.constructURL()
 	if err != nil {
 		return err
@@ -252,36 +207,19 @@ func (cc *cryptoClient) Connect(ctx context.Context) error {
 	return cc.connect(ctx, u)
 }
 
-func (cc *cryptoClient) constructURL() (url.URL, error) {
-	scheme := "wss"
-	ub, err := url.Parse(cc.baseURL)
-	if err != nil {
-		return url.URL{}, err
-	}
-	switch ub.Scheme {
-	case "http", "ws":
-		scheme = "ws"
-	}
-
-	var rawQuery string
-	if len(cc.exchanges) > 0 {
-		rawQuery = "exchanges=" + strings.Join(cc.exchanges, ",")
-	}
-
-	return url.URL{Scheme: scheme, Host: ub.Host, Path: ub.Path, RawQuery: rawQuery}, nil
+func (cc *CryptoClient) constructURL() (url.URL, error) {
+	return constructURL(cc.baseURL, cc.feed)
 }
 
-type newsClient struct {
+type NewsClient struct {
 	*client
 
 	handler *newsMsgHandler
 }
 
-var _ NewsClient = (*newsClient)(nil)
-
 // NewNewsClient returns a new NewsClient that will connect the news stream.
-func NewNewsClient(opts ...NewsOption) NewsClient {
-	nc := newsClient{
+func NewNewsClient(opts ...NewsOption) *NewsClient {
+	nc := NewsClient{
 		client:  newClient(),
 		handler: &newsMsgHandler{},
 	}
@@ -292,12 +230,18 @@ func NewNewsClient(opts ...NewsOption) NewsClient {
 	return &nc
 }
 
-func (nc *newsClient) configure(o newsOptions) {
+func (nc *NewsClient) configure(o newsOptions) {
 	nc.client.configure(o.options)
 	nc.handler.newsHandler = o.newsHandler
 }
 
-func (nc *newsClient) Connect(ctx context.Context) error {
+// Connect establishes a connection and **reestablishes it when errors occur**
+// as long as the configured number of retries has not been exceeded.
+//
+// It blocks until the connection has been established for the first time (or it failed to do so).
+//
+// **Should only be called once!**
+func (nc *NewsClient) Connect(ctx context.Context) error {
 	u, err := nc.constructURL()
 	if err != nil {
 		return err
@@ -305,7 +249,7 @@ func (nc *newsClient) Connect(ctx context.Context) error {
 	return nc.connect(ctx, u)
 }
 
-func (nc *newsClient) constructURL() (url.URL, error) {
+func (nc *NewsClient) constructURL() (url.URL, error) {
 	scheme := "wss"
 	ub, err := url.Parse(nc.baseURL)
 	if err != nil {
@@ -338,6 +282,8 @@ func (c *client) connectAndMaintainConnection(ctx context.Context, u url.URL) er
 	return <-initialResultCh
 }
 
+// Terminated returns a channel that the client sends an error to when it has terminated.
+// The channel is also closed upon termination.
 func (c *client) Terminated() <-chan error {
 	return c.terminatedChan
 }
@@ -404,7 +350,7 @@ func (c *client) maintainConnection(ctx context.Context, u url.URL, initialResul
 			conn, err := c.connCreator(ctx, u)
 			if err != nil {
 				connError = err
-				if isHttp4xx(err) {
+				if isHTTP4xx(err) {
 					c.logger.Errorf("datav2stream: %v", wrapIrrecoverable(err))
 					sendError(wrapIrrecoverable(err))
 					return
@@ -513,7 +459,7 @@ func isErrorIrrecoverableAtInit(err error) bool {
 	return false
 }
 
-func isHttp4xx(err error) bool {
+func isHTTP4xx(err error) bool {
 	// Unfortunately the nhoory error is a simple formatted string, created by fmt.Errorf,
 	// so the only check we can do is string matching
 	pattern := `expected handshake response status code 101 but got 4\d\d`

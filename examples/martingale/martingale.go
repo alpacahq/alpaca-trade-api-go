@@ -7,17 +7,17 @@ import (
 	"math"
 	"math/rand"
 	"os"
-	"strconv"
 	"strings"
 	"time"
 
-	"github.com/alpacahq/alpaca-trade-api-go/v2/alpaca"
-	"github.com/alpacahq/alpaca-trade-api-go/v2/marketdata/stream"
 	"github.com/shopspring/decimal"
+
+	"github.com/alpacahq/alpaca-trade-api-go/v3/alpaca"
+	"github.com/alpacahq/alpaca-trade-api-go/v3/marketdata/stream"
 )
 
 type alpacaClientContainer struct {
-	client        alpaca.Client
+	client        *alpaca.Client
 	tickSize      int
 	tickIndex     int
 	baseBet       float64
@@ -56,8 +56,8 @@ func init() {
 	}
 
 	client := alpaca.NewClient(alpaca.ClientOpts{
-		ApiKey:    apiKey,
-		ApiSecret: apiSecret,
+		APIKey:    apiKey,
+		APISecret: apiSecret,
 		BaseURL:   baseURL,
 	})
 
@@ -73,19 +73,12 @@ func init() {
 	}
 
 	// Figure out how much money we have to work with, accounting for margin
-	accountInfo, err := client.GetAccount()
+	acct, err := client.GetAccount()
 	if err != nil {
 		panic(err)
 	}
 
-	equity, _ := accountInfo.Equity.Float64()
-	marginMult, err := strconv.ParseFloat(accountInfo.Multiplier, 64)
-	if err != nil {
-		panic(err)
-	}
-
-	totalBuyingPower := marginMult * equity
-	fmt.Printf("Initial total buying power = %.2f\n", totalBuyingPower)
+	fmt.Printf("Initial total buying power = %s\n", acct.Equity.Mul(acct.Multiplier).StringFixed(2))
 
 	alpacaClient = alpacaClientContainer{
 		client,
@@ -102,16 +95,19 @@ func init() {
 		time.Now().UTC(),
 		stock,
 		position,
-		equity,
-		marginMult,
+		acct.Equity.InexactFloat64(),
+		acct.Multiplier.InexactFloat64(),
 		0,
 	}
 }
 
 func main() {
-	// First, cancel any existing orders so they don't impact our buying power.
-	status, until, limit := "open", time.Now(), 100
-	orders, _ := alpacaClient.client.ListOrders(&status, &until, &limit, nil)
+	// First, cancel any existing orders so they don't impact our buying power
+	orders, _ := alpacaClient.client.GetOrders(alpaca.GetOrdersRequest{
+		Status: "open",
+		Until:  time.Now(),
+		Limit:  100,
+	})
 	for _, order := range orders {
 		_ = alpacaClient.client.CancelOrder(order.ID)
 	}
@@ -234,7 +230,6 @@ func (alp alpacaClientContainer) processTick(tickOpen float64, tickClose float64
 			if int64(targetQty)-alp.position != 0 {
 				if alpacaClient.currOrder != "" {
 					err := alp.client.CancelOrder(alpacaClient.currOrder)
-
 					if err != nil {
 						panic(err)
 					}
@@ -243,7 +238,6 @@ func (alp alpacaClientContainer) processTick(tickOpen float64, tickClose float64
 				}
 
 				_, err := alp.sendOrder(targetQty)
-
 				if err != nil {
 					panic(err)
 				}
@@ -287,19 +281,16 @@ func (alp alpacaClientContainer) sendOrder(targetQty int) (string, error) {
 
 	// Follow [L] instructions to use limit orders
 	if qty > 0 {
-		account, _ := alp.client.GetAccount()
-
 		// [L] Uncomment line below
 		limitPrice := decimal.NewFromFloat(alp.lastPrice)
 
 		alp.currOrder = randomString()
 		decimalQty := decimal.NewFromFloat(qty)
 		alp.client.PlaceOrder(alpaca.PlaceOrderRequest{
-			AccountID: account.ID,
-			AssetKey:  &alp.stock,
-			Qty:       &decimalQty,
-			Side:      side,
-			Type:      alpaca.Limit, // [L] Change to alpaca.Limit
+			Symbol: alp.stock,
+			Qty:    &decimalQty,
+			Side:   side,
+			Type:   alpaca.Limit, // [L] Change to alpaca.Limit
 			// [L] Uncomment line below
 			LimitPrice:    &limitPrice,
 			TimeInForce:   alpaca.Day,

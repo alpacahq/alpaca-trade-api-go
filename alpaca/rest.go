@@ -2,88 +2,47 @@ package alpaca
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 	"os"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/mailru/easyjson"
+	"github.com/shopspring/decimal"
 )
-
-var ErrSymbolNotFound = fmt.Errorf("symbol not found")
-
-// Client is the alpaca client.
-type Client interface {
-	GetAccount() (*Account, error)
-	GetAccountConfigurations() (*AccountConfigurations, error)
-	UpdateAccountConfigurations(newConfigs AccountConfigurationsRequest) (*AccountConfigurations, error)
-	GetAccountActivities(activityType *string, opts *AccountActivitiesRequest) ([]AccountActivity, error)
-	GetPortfolioHistory(period *string, timeframe *RangeFreq, dateEnd *time.Time, extendedHours bool) (*PortfolioHistory, error)
-	ListPositions() ([]Position, error)
-	GetPosition(symbol string) (*Position, error)
-	CloseAllPositions() error
-	ClosePosition(symbol string) error
-	GetClock() (*Clock, error)
-	GetCalendar(start, end *string) ([]CalendarDay, error)
-	ListOrders(status *string, until *time.Time, limit *int, nested *bool) ([]Order, error)
-	ListOrdersWithRequest(req ListOrdersRequest) ([]Order, error)
-	PlaceOrder(req PlaceOrderRequest) (*Order, error)
-	GetOrder(orderID string) (*Order, error)
-	GetOrderByClientOrderID(clientOrderID string) (*Order, error)
-	ReplaceOrder(orderID string, req ReplaceOrderRequest) (*Order, error)
-	CancelOrder(orderID string) error
-	CancelAllOrders() error
-	ListAssets(status *string) ([]Asset, error)
-	GetAsset(symbol string) (*Asset, error)
-	GetAnnouncements(req GetAnnouncementsRequest) ([]Announcement, error)
-	GetAnnouncement(announcementID string) (*Announcement, error)
-	GetWatchlists() ([]Watchlist, error)
-	CreateWatchlist(req CreateWatchlistRequest) (*Watchlist, error)
-	GetWatchlist(watchlistID string) (*Watchlist, error)
-	UpdateWatchlist(watchlistID string, req UpdateWatchlistRequest) (*Watchlist, error)
-	AddSymbolToWatchlist(watchlistID string, req AddSymbolToWatchlistRequest) (*Watchlist, error)
-	RemoveSymbolFromWatchlist(watchlistID string, req RemoveSymbolFromWatchlistRequest) error
-	DeleteWatchlist(watchlistID string) error
-	StreamTradeUpdates(ctx context.Context, handler func(TradeUpdate)) error
-	StreamTradeUpdatesInBackground(ctx context.Context, handler func(TradeUpdate))
-}
 
 // ClientOpts contains options for the alpaca client
 type ClientOpts struct {
-	ApiKey    string
-	ApiSecret string
-	OAuth     string
-	BaseURL   string
-	// Timeout sets the HTTP timeout for each request.
-	//
-	// Deprecated: use HttpClient with its Timeout set instead.
-	// If both are set, HttpClient has precedence.
-	Timeout    time.Duration
+	APIKey     string
+	APISecret  string
+	OAuth      string
+	BaseURL    string
 	RetryLimit int
 	RetryDelay time.Duration
-	// HttpClient to be used for each http request.
-	HttpClient *http.Client
+	// HTTPClient to be used for each http request.
+	HTTPClient *http.Client
 }
 
-type client struct {
+// Client is the alpaca trading client
+type Client struct {
 	opts       ClientOpts
 	httpClient *http.Client
 
-	do func(c *client, req *http.Request) (*http.Response, error)
+	do func(c *Client, req *http.Request) (*http.Response, error)
 }
 
 // NewClient creates a new Alpaca trading client using the given opts.
-func NewClient(opts ClientOpts) Client {
-	if opts.ApiKey == "" {
-		opts.ApiKey = os.Getenv("APCA_API_KEY_ID")
+func NewClient(opts ClientOpts) *Client {
+	if opts.APIKey == "" {
+		opts.APIKey = os.Getenv("APCA_API_KEY_ID")
 	}
-	if opts.ApiSecret == "" {
-		opts.ApiSecret = os.Getenv("APCA_API_SECRET_KEY")
+	if opts.APISecret == "" {
+		opts.APISecret = os.Getenv("APCA_API_SECRET_KEY")
 	}
 	if opts.OAuth == "" {
 		opts.OAuth = os.Getenv("APCA_API_OAUTH")
@@ -101,13 +60,13 @@ func NewClient(opts ClientOpts) Client {
 	if opts.RetryDelay == 0 {
 		opts.RetryDelay = time.Second
 	}
-	httpClient := opts.HttpClient
+	httpClient := opts.HTTPClient
 	if httpClient == nil {
 		httpClient = &http.Client{
-			Timeout: opts.Timeout,
+			Timeout: 10 * time.Second,
 		}
 	}
-	return &client{
+	return &Client{
 		opts:       opts,
 		httpClient: httpClient,
 
@@ -122,12 +81,12 @@ const (
 	apiVersion = "v2"
 )
 
-func defaultDo(c *client, req *http.Request) (*http.Response, error) {
+func defaultDo(c *Client, req *http.Request) (*http.Response, error) {
 	if c.opts.OAuth != "" {
 		req.Header.Set("Authorization", "Bearer "+c.opts.OAuth)
 	} else {
-		req.Header.Set("APCA-API-KEY-ID", c.opts.ApiKey)
-		req.Header.Set("APCA-API-SECRET-KEY", c.opts.ApiSecret)
+		req.Header.Set("APCA-API-KEY-ID", c.opts.APIKey)
+		req.Header.Set("APCA-API-SECRET-KEY", c.opts.APISecret)
 	}
 
 	var resp *http.Response
@@ -154,7 +113,7 @@ func defaultDo(c *client, req *http.Request) (*http.Response, error) {
 }
 
 // GetAccount returns the user's account information.
-func (c *client) GetAccount() (*Account, error) {
+func (c *Client) GetAccount() (*Account, error) {
 	u, err := url.Parse(fmt.Sprintf("%s/%s/account", c.opts.BaseURL, apiVersion))
 	if err != nil {
 		return nil, err
@@ -165,17 +124,15 @@ func (c *client) GetAccount() (*Account, error) {
 		return nil, err
 	}
 
-	account := &Account{}
-
-	if err = unmarshal(resp, account); err != nil {
+	var account Account
+	if err = unmarshal(resp, &account); err != nil {
 		return nil, err
 	}
-
-	return account, nil
+	return &account, nil
 }
 
-// GetConfigs returns the current account configurations
-func (c *client) GetAccountConfigurations() (*AccountConfigurations, error) {
+// GetAccountConfigurations returns the current account configurations
+func (c *Client) GetAccountConfigurations() (*AccountConfigurations, error) {
 	u, err := url.Parse(fmt.Sprintf("%s/%s/account/configurations", c.opts.BaseURL, apiVersion))
 	if err != nil {
 		return nil, err
@@ -186,70 +143,75 @@ func (c *client) GetAccountConfigurations() (*AccountConfigurations, error) {
 		return nil, err
 	}
 
-	configs := &AccountConfigurations{}
-
-	if err = unmarshal(resp, configs); err != nil {
+	var configs AccountConfigurations
+	if err = unmarshal(resp, &configs); err != nil {
 		return nil, err
 	}
-
-	return configs, nil
+	return &configs, nil
 }
 
-// EditConfigs patches the account configs
-func (c *client) UpdateAccountConfigurations(newConfigs AccountConfigurationsRequest) (*AccountConfigurations, error) {
+type UpdateAccountConfigurationsRequest struct {
+	DtbpCheck         string `json:"dtbp_check"`
+	TradeConfirmEmail string `json:"trade_confirm_email"`
+	SuspendTrade      bool   `json:"suspend_trade"`
+	NoShorting        bool   `json:"no_shorting"`
+	FractionalTrading bool   `json:"fractional_trading"`
+}
+
+// UpdateAccountConfigurations updates the account configs.
+func (c *Client) UpdateAccountConfigurations(req UpdateAccountConfigurationsRequest) (*AccountConfigurations, error) {
 	u, err := url.Parse(fmt.Sprintf("%s/%s/account/configurations", c.opts.BaseURL, apiVersion))
 	if err != nil {
 		return nil, err
 	}
 
-	resp, err := c.patch(u, newConfigs)
+	resp, err := c.patch(u, req)
 	if err != nil {
 		return nil, err
 	}
 
-	configs := &AccountConfigurations{}
-
-	if err = unmarshal(resp, configs); err != nil {
+	var configs AccountConfigurations
+	if err = unmarshal(resp, &configs); err != nil {
 		return nil, err
 	}
-
-	return configs, nil
+	return &configs, nil
 }
 
-func (c *client) GetAccountActivities(activityType *string, opts *AccountActivitiesRequest) ([]AccountActivity, error) {
-	var u *url.URL
-	var err error
-	if activityType == nil {
-		u, err = url.Parse(fmt.Sprintf("%s/%s/account/activities", c.opts.BaseURL, apiVersion))
-	} else {
-		u, err = url.Parse(fmt.Sprintf("%s/%s/account/activities/%s", c.opts.BaseURL, apiVersion, *activityType))
-	}
+type GetAccountActivitiesRequest struct {
+	ActivityTypes []string  `json:"activity_types"`
+	Date          time.Time `json:"date"`
+	Until         time.Time `json:"until"`
+	After         time.Time `json:"after"`
+	Direction     string    `json:"direction"`
+	PageSize      int       `json:"page_size"`
+}
+
+// GetAccountActivities returns the account activities.
+func (c *Client) GetAccountActivities(req GetAccountActivitiesRequest) ([]AccountActivity, error) {
+	u, err := url.Parse(fmt.Sprintf("%s/%s/account/activities", c.opts.BaseURL, apiVersion))
 	if err != nil {
 		return nil, err
 	}
 
 	q := u.Query()
-	if opts != nil {
-		if opts.ActivityTypes != nil {
-			q.Set("activity_types", strings.Join(*opts.ActivityTypes, ","))
-		}
-		if opts.Date != nil {
-			q.Set("date", opts.Date.UTC().Format(time.RFC3339Nano))
-		}
-		if opts.Until != nil {
-			q.Set("until", opts.Until.UTC().Format(time.RFC3339Nano))
-		}
-		if opts.After != nil {
-			q.Set("after", opts.After.UTC().Format(time.RFC3339Nano))
-		}
-		if opts.Direction != nil {
-			q.Set("direction", *opts.Direction)
-		}
-		if opts.PageSize != nil {
-			q.Set("page_size", strconv.Itoa(*opts.PageSize))
-		}
+	if len(req.ActivityTypes) > 0 {
+		q.Set("activity_types", strings.Join(req.ActivityTypes, ","))
 	}
-
+	if !req.Date.IsZero() {
+		q.Set("date", req.Date.UTC().Format(time.RFC3339Nano))
+	}
+	if !req.Until.IsZero() {
+		q.Set("until", req.Until.UTC().Format(time.RFC3339Nano))
+	}
+	if !req.After.IsZero() {
+		q.Set("after", req.After.UTC().Format(time.RFC3339Nano))
+	}
+	if req.Direction != "" {
+		q.Set("direction", req.Direction)
+	}
+	if req.PageSize != 0 {
+		q.Set("page_size", strconv.Itoa(req.PageSize))
+	}
 	u.RawQuery = q.Encode()
 
 	resp, err := c.get(u)
@@ -257,57 +219,54 @@ func (c *client) GetAccountActivities(activityType *string, opts *AccountActivit
 		return nil, err
 	}
 
-	activities := []AccountActivity{}
-
+	var activities accountSlice
 	if err = unmarshal(resp, &activities); err != nil {
 		return nil, err
 	}
 	return activities, nil
 }
 
-func (c *client) GetPortfolioHistory(period *string, timeframe *RangeFreq, dateEnd *time.Time, extendedHours bool) (*PortfolioHistory, error) {
-	u, err := url.Parse(fmt.Sprintf("%s/%s/account/portfolio/history", c.opts.BaseURL, apiVersion))
+type GetPortfolioHistoryRequest struct {
+	Period        string
+	TimeFrame     TimeFrame
+	DateEnd       time.Time
+	ExtendedHours bool
+}
 
+// GetPortfolioHistory returns the portfolio history.
+func (c *Client) GetPortfolioHistory(req GetPortfolioHistoryRequest) (*PortfolioHistory, error) {
+	u, err := url.Parse(fmt.Sprintf("%s/%s/account/portfolio/history", c.opts.BaseURL, apiVersion))
 	if err != nil {
 		return nil, err
 	}
 
 	query := u.Query()
-
-	if period != nil {
-		query.Set("period", *period)
+	if req.Period != "" {
+		query.Set("period", req.Period)
 	}
-
-	if timeframe != nil {
-		query.Set("timeframe", string(*timeframe))
+	if req.TimeFrame != "" {
+		query.Set("timeframe", string(req.TimeFrame))
 	}
-
-	if dateEnd != nil {
-		query.Set("date_end", dateEnd.Format("2006-01-02"))
+	if !req.DateEnd.IsZero() {
+		query.Set("date_end", req.DateEnd.Format("2006-01-02"))
 	}
-
-	query.Set("extended_hours", strconv.FormatBool(extendedHours))
-
-	// update the rawquery with the encoded params
+	query.Set("extended_hours", strconv.FormatBool(req.ExtendedHours))
 	u.RawQuery = query.Encode()
 
 	resp, err := c.get(u)
-
 	if err != nil {
 		return nil, err
 	}
 
 	var history PortfolioHistory
-
 	if err = unmarshal(resp, &history); err != nil {
 		return nil, err
 	}
-
 	return &history, nil
 }
 
-// ListPositions lists the account's open positions.
-func (c *client) ListPositions() ([]Position, error) {
+// GetPositions returns the account's open positions.
+func (c *Client) GetPositions() ([]Position, error) {
 	u, err := url.Parse(fmt.Sprintf("%s/%s/positions", c.opts.BaseURL, apiVersion))
 	if err != nil {
 		return nil, err
@@ -318,26 +277,22 @@ func (c *client) ListPositions() ([]Position, error) {
 		return nil, err
 	}
 
-	positions := []Position{}
-
+	var positions positionSlice
 	if err = unmarshal(resp, &positions); err != nil {
 		return nil, err
 	}
-
 	return positions, nil
 }
 
 // GetPosition returns the account's position for the provided symbol.
-func (c *client) GetPosition(symbol string) (*Position, error) {
+func (c *Client) GetPosition(symbol string) (*Position, error) {
 	u, err := url.Parse(fmt.Sprintf("%s/%s/positions/%s", c.opts.BaseURL, apiVersion, symbol))
 	if err != nil {
 		return nil, err
 	}
 
 	q := u.Query()
-
 	q.Set("symbol", symbol)
-
 	u.RawQuery = q.Encode()
 
 	resp, err := c.get(u)
@@ -345,47 +300,80 @@ func (c *client) GetPosition(symbol string) (*Position, error) {
 		return nil, err
 	}
 
-	position := &Position{}
-
+	var position Position
 	if err = unmarshal(resp, &position); err != nil {
 		return nil, err
 	}
+	return &position, nil
+}
 
-	return position, nil
+type CloseAllPositionsRequest struct {
+	CancelOrders bool
 }
 
 // CloseAllPositions liquidates all open positions at market price.
-func (c *client) CloseAllPositions() error {
+func (c *Client) CloseAllPositions(req CloseAllPositionsRequest) ([]Order, error) {
 	u, err := url.Parse(fmt.Sprintf("%s/%s/positions", c.opts.BaseURL, apiVersion))
 	if err != nil {
-		return err
+		return nil, err
 	}
+
+	q := u.Query()
+	q.Set("cancel_orders", strconv.FormatBool(req.CancelOrders))
+	u.RawQuery = q.Encode()
 
 	resp, err := c.delete(u)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	return verify(resp)
+	var orders orderSlice
+	if err = unmarshal(resp, &orders); err != nil {
+		return nil, err
+	}
+	return orders, nil
+}
+
+type ClosePositionRequest struct {
+	// Qty is the number of shares to liquidate. Can accept up to 9 decimal points.
+	// Cannot work with percentage.
+	Qty decimal.Decimal
+	// Percentage of position to liquidate. Must be between 0 and 100.
+	// Would only sell fractional if position is originally fractional.
+	// Can accept up to 9 decimal points. Cannot work with qty.
+	Percentage decimal.Decimal
 }
 
 // ClosePosition liquidates the position for the given symbol at market price.
-func (c *client) ClosePosition(symbol string) error {
+func (c *Client) ClosePosition(symbol string, req ClosePositionRequest) (*Order, error) {
 	u, err := url.Parse(fmt.Sprintf("%s/%s/positions/%s", c.opts.BaseURL, apiVersion, symbol))
 	if err != nil {
-		return err
+		return nil, err
 	}
+
+	q := u.Query()
+	if !req.Qty.IsZero() {
+		q.Set("qty", req.Qty.String())
+	}
+	if !req.Percentage.IsZero() {
+		q.Set("percentage", req.Percentage.String())
+	}
+	u.RawQuery = q.Encode()
 
 	resp, err := c.delete(u)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	return verify(resp)
+	var order Order
+	if err = unmarshal(resp, &order); err != nil {
+		return nil, err
+	}
+	return &order, nil
 }
 
 // GetClock returns the current market clock.
-func (c *client) GetClock() (*Clock, error) {
+func (c *Client) GetClock() (*Clock, error) {
 	u, err := url.Parse(fmt.Sprintf("%s/%s/clock", c.opts.BaseURL, apiVersion))
 	if err != nil {
 		return nil, err
@@ -396,33 +384,32 @@ func (c *client) GetClock() (*Clock, error) {
 		return nil, err
 	}
 
-	clock := &Clock{}
-
+	var clock Clock
 	if err = unmarshal(resp, &clock); err != nil {
 		return nil, err
 	}
-
-	return clock, nil
+	return &clock, nil
 }
 
-// GetCalendar returns the market calendar, sliced by the start
-// and end dates.
-func (c *client) GetCalendar(start, end *string) ([]CalendarDay, error) {
+type GetCalendarRequest struct {
+	Start time.Time
+	End   time.Time
+}
+
+// GetCalendar returns the market calendar.
+func (c *Client) GetCalendar(req GetCalendarRequest) ([]CalendarDay, error) {
 	u, err := url.Parse(fmt.Sprintf("%s/%s/calendar", c.opts.BaseURL, apiVersion))
 	if err != nil {
 		return nil, err
 	}
 
 	q := u.Query()
-
-	if start != nil {
-		q.Set("start", *start)
+	if !req.Start.IsZero() {
+		q.Set("start", req.Start.Format("2006-01-02"))
 	}
-
-	if end != nil {
-		q.Set("end", *end)
+	if !req.End.IsZero() {
+		q.Set("end", req.End.Format("2006-01-02"))
 	}
-
 	u.RawQuery = q.Encode()
 
 	resp, err := c.get(u)
@@ -430,43 +417,57 @@ func (c *client) GetCalendar(start, end *string) ([]CalendarDay, error) {
 		return nil, err
 	}
 
-	calendar := []CalendarDay{}
-
+	var calendar calendarDaySlice
 	if err = unmarshal(resp, &calendar); err != nil {
 		return nil, err
 	}
-
 	return calendar, nil
 }
 
-// ListOrders returns the list of orders for an account,
-// filtered by the input parameters.
-//
-// Deprecated: This function is deprecated in favor of ListOrdersWithRequest which contains all possible parameters
-func (c *client) ListOrders(status *string, until *time.Time, limit *int, nested *bool) ([]Order, error) {
+type GetOrdersRequest struct {
+	// Status to be queried. Possible values: open, closed, all. Defaults to open.
+	Status    string    `json:"status"`
+	Limit     int       `json:"limit"`
+	After     time.Time `json:"after"`
+	Until     time.Time `json:"until"`
+	Direction string    `json:"direction"`
+	Nested    bool      `json:"nested"`
+	Side      string    `json:"side"`
+	Symbols   []string  `json:"symbols"`
+}
+
+// GetOrders returns the list of orders for an account.
+func (c *Client) GetOrders(req GetOrdersRequest) ([]Order, error) {
 	urlString := fmt.Sprintf("%s/%s/orders", c.opts.BaseURL, apiVersion)
-	if nested != nil {
-		urlString += fmt.Sprintf("?nested=%v", *nested)
-	}
+
 	u, err := url.Parse(urlString)
 	if err != nil {
 		return nil, err
 	}
 
 	q := u.Query()
-
-	if status != nil {
-		q.Set("status", *status)
+	if req.Status != "" {
+		q.Set("status", req.Status)
 	}
-
-	if until != nil {
-		q.Set("until", until.Format(time.RFC3339))
+	if req.Limit != 0 {
+		q.Set("limit", strconv.Itoa(req.Limit))
 	}
-
-	if limit != nil {
-		q.Set("limit", strconv.FormatInt(int64(*limit), 10))
+	if !req.After.IsZero() {
+		q.Set("after", req.After.Format(time.RFC3339))
 	}
-
+	if !req.Until.IsZero() {
+		q.Set("until", req.Until.Format(time.RFC3339))
+	}
+	if req.Direction != "" {
+		q.Set("direction", req.Direction)
+	}
+	if req.Side != "" {
+		q.Set("side", req.Side)
+	}
+	q.Set("nested", strconv.FormatBool(req.Nested))
+	if len(req.Symbols) > 0 {
+		q.Set("symbols", strings.Join(req.Symbols, ","))
+	}
 	u.RawQuery = q.Encode()
 
 	resp, err := c.get(u)
@@ -474,77 +475,42 @@ func (c *client) ListOrders(status *string, until *time.Time, limit *int, nested
 		return nil, err
 	}
 
-	orders := []Order{}
-
+	var orders orderSlice
 	if err = unmarshal(resp, &orders); err != nil {
 		return nil, err
 	}
-
 	return orders, nil
 }
 
-// ListOrdersWithRequest returns the list of orders for an account,
-// filtered by the input parameters.
-func (c *client) ListOrdersWithRequest(req ListOrdersRequest) ([]Order, error) {
-	urlString := fmt.Sprintf("%s/%s/orders", c.opts.BaseURL, apiVersion)
+type PlaceOrderRequest struct {
+	Symbol        string           `json:"symbol"`
+	Qty           *decimal.Decimal `json:"qty"`
+	Notional      *decimal.Decimal `json:"notional"`
+	Side          Side             `json:"side"`
+	Type          OrderType        `json:"type"`
+	TimeInForce   TimeInForce      `json:"time_in_force"`
+	LimitPrice    *decimal.Decimal `json:"limit_price"`
+	ExtendedHours bool             `json:"extended_hours"`
+	StopPrice     *decimal.Decimal `json:"stop_price"`
+	ClientOrderID string           `json:"client_order_id"`
+	OrderClass    OrderClass       `json:"order_class"`
+	TakeProfit    *TakeProfit      `json:"take_profit"`
+	StopLoss      *StopLoss        `json:"stop_loss"`
+	TrailPrice    *decimal.Decimal `json:"trail_price"`
+	TrailPercent  *decimal.Decimal `json:"trail_percent"`
+}
 
-	u, err := url.Parse(urlString)
-	if err != nil {
-		return nil, err
-	}
+type TakeProfit struct {
+	LimitPrice *decimal.Decimal `json:"limit_price"`
+}
 
-	q := u.Query()
-
-	if req.Nested != nil {
-		q.Set("nested", strconv.FormatBool(*req.Nested))
-	}
-
-	if req.Status != nil {
-		q.Set("status", *req.Status)
-	}
-
-	if req.After != nil {
-		q.Set("after", req.After.Format(time.RFC3339))
-	}
-
-	if req.Until != nil {
-		q.Set("until", req.Until.Format(time.RFC3339))
-	}
-
-	if req.Limit != nil {
-		q.Set("limit", strconv.Itoa(*req.Limit))
-	}
-
-	if req.Direction != nil {
-		q.Set("direction", *req.Direction)
-	}
-
-	if req.Symbols != nil {
-		q.Set("symbols", *req.Symbols)
-	}
-
-	if req.Side != nil {
-		q.Set("side", *req.Side)
-	}
-
-	u.RawQuery = q.Encode()
-
-	resp, err := c.get(u)
-	if err != nil {
-		return nil, err
-	}
-
-	orders := []Order{}
-
-	if err = unmarshal(resp, &orders); err != nil {
-		return nil, err
-	}
-
-	return orders, nil
+type StopLoss struct {
+	LimitPrice *decimal.Decimal `json:"limit_price"`
+	StopPrice  *decimal.Decimal `json:"stop_price"`
 }
 
 // PlaceOrder submits an order request to buy or sell an asset.
-func (c *client) PlaceOrder(req PlaceOrderRequest) (*Order, error) {
+func (c *Client) PlaceOrder(req PlaceOrderRequest) (*Order, error) {
 	u, err := url.Parse(fmt.Sprintf("%s/%s/orders", c.opts.BaseURL, apiVersion))
 	if err != nil {
 		return nil, err
@@ -555,17 +521,15 @@ func (c *client) PlaceOrder(req PlaceOrderRequest) (*Order, error) {
 		return nil, err
 	}
 
-	order := &Order{}
-
-	if err = unmarshal(resp, order); err != nil {
+	var order Order
+	if err = unmarshal(resp, &order); err != nil {
 		return nil, err
 	}
-
-	return order, nil
+	return &order, nil
 }
 
 // GetOrder submits a request to get an order by the order ID.
-func (c *client) GetOrder(orderID string) (*Order, error) {
+func (c *Client) GetOrder(orderID string) (*Order, error) {
 	u, err := url.Parse(fmt.Sprintf("%s/%s/orders/%s", c.opts.BaseURL, apiVersion, orderID))
 	if err != nil {
 		return nil, err
@@ -576,17 +540,15 @@ func (c *client) GetOrder(orderID string) (*Order, error) {
 		return nil, err
 	}
 
-	order := &Order{}
-
-	if err = unmarshal(resp, order); err != nil {
+	var order Order
+	if err = unmarshal(resp, &order); err != nil {
 		return nil, err
 	}
-
-	return order, nil
+	return &order, nil
 }
 
 // GetOrderByClientOrderID submits a request to get an order by the client order ID.
-func (c *client) GetOrderByClientOrderID(clientOrderID string) (*Order, error) {
+func (c *Client) GetOrderByClientOrderID(clientOrderID string) (*Order, error) {
 	u, err := url.Parse(fmt.Sprintf("%s/%s/orders:by_client_order_id", c.opts.BaseURL, apiVersion))
 	if err != nil {
 		return nil, err
@@ -601,17 +563,24 @@ func (c *client) GetOrderByClientOrderID(clientOrderID string) (*Order, error) {
 		return nil, err
 	}
 
-	order := &Order{}
-
-	if err = unmarshal(resp, order); err != nil {
+	var order Order
+	if err = unmarshal(resp, &order); err != nil {
 		return nil, err
 	}
+	return &order, nil
+}
 
-	return order, nil
+type ReplaceOrderRequest struct {
+	Qty           *decimal.Decimal `json:"qty"`
+	LimitPrice    *decimal.Decimal `json:"limit_price"`
+	StopPrice     *decimal.Decimal `json:"stop_price"`
+	Trail         *decimal.Decimal `json:"trail"`
+	TimeInForce   TimeInForce      `json:"time_in_force"`
+	ClientOrderID string           `json:"client_order_id"`
 }
 
 // ReplaceOrder submits a request to replace an order by id
-func (c *client) ReplaceOrder(orderID string, req ReplaceOrderRequest) (*Order, error) {
+func (c *Client) ReplaceOrder(orderID string, req ReplaceOrderRequest) (*Order, error) {
 	u, err := url.Parse(fmt.Sprintf("%s/%s/orders/%s", c.opts.BaseURL, apiVersion, orderID))
 	if err != nil {
 		return nil, err
@@ -622,17 +591,15 @@ func (c *client) ReplaceOrder(orderID string, req ReplaceOrderRequest) (*Order, 
 		return nil, err
 	}
 
-	order := &Order{}
-
-	if err = unmarshal(resp, order); err != nil {
+	var order Order
+	if err = unmarshal(resp, &order); err != nil {
 		return nil, err
 	}
-
-	return order, nil
+	return &order, nil
 }
 
 // CancelOrder submits a request to cancel an open order.
-func (c *client) CancelOrder(orderID string) error {
+func (c *Client) CancelOrder(orderID string) error {
 	u, err := url.Parse(fmt.Sprintf("%s/%s/orders/%s", c.opts.BaseURL, apiVersion, orderID))
 	if err != nil {
 		return err
@@ -646,8 +613,8 @@ func (c *client) CancelOrder(orderID string) error {
 	return verify(resp)
 }
 
-// CancelAllOrders submits a request to cancel an open order.
-func (c *client) CancelAllOrders() error {
+// CancelAllOrders submits a request to cancel all orders.
+func (c *Client) CancelAllOrders() error {
 	u, err := url.Parse(fmt.Sprintf("%s/%s/orders", c.opts.BaseURL, apiVersion))
 	if err != nil {
 		return err
@@ -657,25 +624,32 @@ func (c *client) CancelAllOrders() error {
 	if err != nil {
 		return err
 	}
-
 	return verify(resp)
 }
 
-// ListAssets returns the list of assets, filtered by
-// the input parameters.
-func (c *client) ListAssets(status *string) ([]Asset, error) {
-	// TODO: support different asset classes
+type GetAssetsRequest struct {
+	Status     string
+	AssetClass string
+	Exchange   string
+}
+
+// GetAssets returns the list of assets.
+func (c *Client) GetAssets(req GetAssetsRequest) ([]Asset, error) {
 	u, err := url.Parse(fmt.Sprintf("%s/%s/assets", c.opts.BaseURL, apiVersion))
 	if err != nil {
 		return nil, err
 	}
 
 	q := u.Query()
-
-	if status != nil {
-		q.Set("status", *status)
+	if req.Status != "" {
+		q.Set("status", req.Status)
 	}
-
+	if req.AssetClass != "" {
+		q.Set("asset_class", req.AssetClass)
+	}
+	if req.Exchange != "" {
+		q.Set("exchange", req.Exchange)
+	}
 	u.RawQuery = q.Encode()
 
 	resp, err := c.get(u)
@@ -683,17 +657,15 @@ func (c *client) ListAssets(status *string) ([]Asset, error) {
 		return nil, err
 	}
 
-	assets := []Asset{}
-
+	var assets assetSlice
 	if err = unmarshal(resp, &assets); err != nil {
 		return nil, err
 	}
-
 	return assets, nil
 }
 
 // GetAsset returns an asset for the given symbol.
-func (c *client) GetAsset(symbol string) (*Asset, error) {
+func (c *Client) GetAsset(symbol string) (*Asset, error) {
 	u, err := url.Parse(fmt.Sprintf("%s/%s/assets/%v", c.opts.BaseURL, apiVersion, symbol))
 	if err != nil {
 		return nil, err
@@ -704,47 +676,47 @@ func (c *client) GetAsset(symbol string) (*Asset, error) {
 		return nil, err
 	}
 
-	asset := &Asset{}
-
-	if err = unmarshal(resp, asset); err != nil {
+	var asset Asset
+	if err = unmarshal(resp, &asset); err != nil {
 		return nil, err
 	}
-
-	return asset, nil
+	return &asset, nil
 }
 
-func (c *client) GetAnnouncements(req GetAnnouncementsRequest) ([]Announcement, error) {
+type GetAnnouncementsRequest struct {
+	CATypes  []string  `json:"ca_types"`
+	Since    time.Time `json:"since"`
+	Until    time.Time `json:"until"`
+	Symbol   string    `json:"symbol"`
+	Cusip    string    `json:"cusip"`
+	DateType DateType  `json:"date_type"`
+}
+
+func (c *Client) GetAnnouncements(req GetAnnouncementsRequest) ([]Announcement, error) {
 	u, err := url.Parse(fmt.Sprintf("%s/%s/corporate_actions/announcements", c.opts.BaseURL, apiVersion))
 	if err != nil {
 		return nil, err
 	}
 
 	q := u.Query()
-
-	if req.CATypes != nil {
-		q.Set("ca_types", strings.Join(*req.CATypes, ","))
+	if len(req.CATypes) != 0 {
+		q.Set("ca_types", strings.Join(req.CATypes, ","))
 	}
-
-	if req.Since != nil {
-		q.Set("since", (*req.Since).Format("2006-01-02"))
+	if !req.Since.IsZero() {
+		q.Set("since", req.Since.Format("2006-01-02"))
 	}
-
-	if req.Until != nil {
-		q.Set("until", (*req.Until).Format("2006-01-02"))
+	if !req.Until.IsZero() {
+		q.Set("until", req.Until.Format("2006-01-02"))
 	}
-
-	if req.Symbol != nil {
-		q.Set("symbol", *req.Symbol)
+	if req.Symbol != "" {
+		q.Set("symbol", req.Symbol)
 	}
-
-	if req.Cusip != nil {
-		q.Set("cusip", *req.Cusip)
+	if req.Cusip != "" {
+		q.Set("cusip", req.Cusip)
 	}
-
-	if req.DateType != nil {
-		q.Set("date_type", req.DateType.String())
+	if req.DateType != "" {
+		q.Set("date_type", string(req.DateType))
 	}
-
 	u.RawQuery = q.Encode()
 
 	resp, err := c.get(u)
@@ -752,8 +724,7 @@ func (c *client) GetAnnouncements(req GetAnnouncementsRequest) ([]Announcement, 
 		return nil, err
 	}
 
-	var announcements []Announcement
-
+	var announcements announcementSlice
 	if err = unmarshal(resp, &announcements); err != nil {
 		return nil, err
 	}
@@ -761,8 +732,9 @@ func (c *client) GetAnnouncements(req GetAnnouncementsRequest) ([]Announcement, 
 	return announcements, nil
 }
 
-func (c *client) GetAnnouncement(announcementID string) (*Announcement, error) {
-	u, err := url.Parse(fmt.Sprintf("%s/%s/corporate_actions/announcements/%s", c.opts.BaseURL, apiVersion, announcementID))
+func (c *Client) GetAnnouncement(announcementID string) (*Announcement, error) {
+	u, err := url.Parse(fmt.Sprintf("%s/%s/corporate_actions/announcements/%s",
+		c.opts.BaseURL, apiVersion, announcementID))
 	if err != nil {
 		return nil, err
 	}
@@ -772,16 +744,15 @@ func (c *client) GetAnnouncement(announcementID string) (*Announcement, error) {
 		return nil, err
 	}
 
-	announcement := &Announcement{}
-
-	if err = unmarshal(resp, announcement); err != nil {
+	var announcement Announcement
+	if err = unmarshal(resp, &announcement); err != nil {
 		return nil, err
 	}
-
-	return announcement, nil
+	return &announcement, nil
 }
 
-func (c *client) GetWatchlists() ([]Watchlist, error) {
+// GetAccount returns the user's account information.
+func (c *Client) GetWatchlists() ([]Watchlist, error) {
 	u, err := url.Parse(fmt.Sprintf("%s/%s/watchlists", c.opts.BaseURL, apiVersion))
 	if err != nil {
 		return nil, err
@@ -792,16 +763,14 @@ func (c *client) GetWatchlists() ([]Watchlist, error) {
 		return nil, err
 	}
 
-	var watchlists []Watchlist
-
+	var watchlists watchlistSlice
 	if err = unmarshal(resp, &watchlists); err != nil {
 		return nil, err
 	}
-
 	return watchlists, nil
 }
 
-func (c *client) CreateWatchlist(req CreateWatchlistRequest) (*Watchlist, error) {
+func (c *Client) CreateWatchlist(req CreateWatchlistRequest) (*Watchlist, error) {
 	u, err := url.Parse(fmt.Sprintf("%s/%s/watchlists", c.opts.BaseURL, apiVersion))
 	if err != nil {
 		return nil, err
@@ -813,15 +782,13 @@ func (c *client) CreateWatchlist(req CreateWatchlistRequest) (*Watchlist, error)
 	}
 
 	watchlist := &Watchlist{}
-
 	if err = unmarshal(resp, watchlist); err != nil {
 		return nil, err
 	}
-
 	return watchlist, nil
 }
 
-func (c *client) GetWatchlist(watchlistID string) (*Watchlist, error) {
+func (c *Client) GetWatchlist(watchlistID string) (*Watchlist, error) {
 	u, err := url.Parse(fmt.Sprintf("%s/%s/watchlists/%s", c.opts.BaseURL, apiVersion, watchlistID))
 	if err != nil {
 		return nil, err
@@ -833,15 +800,13 @@ func (c *client) GetWatchlist(watchlistID string) (*Watchlist, error) {
 	}
 
 	watchlist := &Watchlist{}
-
 	if err = unmarshal(resp, watchlist); err != nil {
 		return nil, err
 	}
-
 	return watchlist, nil
 }
 
-func (c *client) UpdateWatchlist(watchlistID string, req UpdateWatchlistRequest) (*Watchlist, error) {
+func (c *Client) UpdateWatchlist(watchlistID string, req UpdateWatchlistRequest) (*Watchlist, error) {
 	u, err := url.Parse(fmt.Sprintf("%s/%s/watchlists/%s", c.opts.BaseURL, apiVersion, watchlistID))
 	if err != nil {
 		return nil, err
@@ -853,17 +818,17 @@ func (c *client) UpdateWatchlist(watchlistID string, req UpdateWatchlistRequest)
 	}
 
 	watchlist := &Watchlist{}
-
 	if err = unmarshal(resp, watchlist); err != nil {
 		return nil, err
 	}
-
 	return watchlist, nil
 }
 
-func (c *client) AddSymbolToWatchlist(watchlistID string, req AddSymbolToWatchlistRequest) (*Watchlist, error) {
+var ErrSymbolMissing = fmt.Errorf("symbol missing from request")
+
+func (c *Client) AddSymbolToWatchlist(watchlistID string, req AddSymbolToWatchlistRequest) (*Watchlist, error) {
 	if req.Symbol == "" {
-		return nil, ErrSymbolNotFound
+		return nil, ErrSymbolMissing
 	}
 
 	u, err := url.Parse(fmt.Sprintf("%s/%s/watchlists/%s", c.opts.BaseURL, apiVersion, watchlistID))
@@ -877,17 +842,15 @@ func (c *client) AddSymbolToWatchlist(watchlistID string, req AddSymbolToWatchli
 	}
 
 	watchlist := &Watchlist{}
-
 	if err = unmarshal(resp, watchlist); err != nil {
 		return nil, err
 	}
-
 	return watchlist, nil
 }
 
-func (c *client) RemoveSymbolFromWatchlist(watchlistID string, req RemoveSymbolFromWatchlistRequest) error {
+func (c *Client) RemoveSymbolFromWatchlist(watchlistID string, req RemoveSymbolFromWatchlistRequest) error {
 	if req.Symbol == "" {
-		return ErrSymbolNotFound
+		return ErrSymbolMissing
 	}
 
 	u, err := url.Parse(fmt.Sprintf("%s/%s/watchlists/%s/%s", c.opts.BaseURL, apiVersion, watchlistID, req.Symbol))
@@ -899,7 +862,7 @@ func (c *client) RemoveSymbolFromWatchlist(watchlistID string, req RemoveSymbolF
 	return err
 }
 
-func (c *client) DeleteWatchlist(watchlistID string) error {
+func (c *Client) DeleteWatchlist(watchlistID string) error {
 	u, err := url.Parse(fmt.Sprintf("%s/%s/watchlists/%s", c.opts.BaseURL, apiVersion, watchlistID))
 	if err != nil {
 		return err
@@ -915,95 +878,97 @@ func GetAccount() (*Account, error) {
 	return DefaultClient.GetAccount()
 }
 
-// GetAccountConfigurations returns the account configs
-// using the default Alpaca client.
+// GetAccountConfigurations returns the current account configurations
 func GetAccountConfigurations() (*AccountConfigurations, error) {
 	return DefaultClient.GetAccountConfigurations()
 }
 
-// UpdateAccountConfigurations changes the account configs and returns the
-// new configs using the default Alpaca client
-func UpdateAccountConfigurations(newConfigs AccountConfigurationsRequest) (*AccountConfigurations, error) {
-	return DefaultClient.UpdateAccountConfigurations(newConfigs)
+// UpdateAccountConfigurations updates the account configs.
+func UpdateAccountConfigurations(req UpdateAccountConfigurationsRequest) (*AccountConfigurations, error) {
+	return DefaultClient.UpdateAccountConfigurations(req)
 }
 
-func GetAccountActivities(activityType *string, opts *AccountActivitiesRequest) ([]AccountActivity, error) {
-	return DefaultClient.GetAccountActivities(activityType, opts)
+// GetAccountActivities returns the account activities.
+func GetAccountActivities(req GetAccountActivitiesRequest) ([]AccountActivity, error) {
+	return DefaultClient.GetAccountActivities(req)
 }
 
-func GetPortfolioHistory(period *string, timeframe *RangeFreq, dateEnd *time.Time, extendedHours bool) (*PortfolioHistory, error) {
-	return DefaultClient.GetPortfolioHistory(period, timeframe, dateEnd, extendedHours)
+// GetPortfolioHistory returns the portfolio history.
+func GetPortfolioHistory(req GetPortfolioHistoryRequest) (*PortfolioHistory, error) {
+	return DefaultClient.GetPortfolioHistory(req)
 }
 
-// ListPositions lists the account's open positions
-// using the default Alpaca client.
-func ListPositions() ([]Position, error) {
-	return DefaultClient.ListPositions()
+// GetPositions lists the account's open positions.
+func GetPositions() ([]Position, error) {
+	return DefaultClient.GetPositions()
 }
 
-// GetPosition returns the account's position for the
-// provided symbol using the default Alpaca client.
+// GetPosition returns the account's position for the provided symbol.
 func GetPosition(symbol string) (*Position, error) {
 	return DefaultClient.GetPosition(symbol)
 }
 
-// GetClock returns the current market clock
-// using the default Alpaca client.
+// CloseAllPositions liquidates all open positions at market price.
+func CloseAllPositions(req CloseAllPositionsRequest) ([]Order, error) {
+	return DefaultClient.CloseAllPositions(req)
+}
+
+// ClosePosition liquidates the position for the given symbol at market price.
+func ClosePosition(symbol string, req ClosePositionRequest) (*Order, error) {
+	return DefaultClient.ClosePosition(symbol, req)
+}
+
+// GetClock returns the current market clock.
 func GetClock() (*Clock, error) {
 	return DefaultClient.GetClock()
 }
 
-// GetCalendar returns the market calendar, sliced by the start
-// and end dates using the default Alpaca client.
-func GetCalendar(start, end *string) ([]CalendarDay, error) {
-	return DefaultClient.GetCalendar(start, end)
+// GetCalendar returns the market calendar.
+func GetCalendar(req GetCalendarRequest) ([]CalendarDay, error) {
+	return DefaultClient.GetCalendar(req)
 }
 
-// ListOrders returns the list of orders for an account,
-// filtered by the input parameters using the default
-// Alpaca client.
-func ListOrders(status *string, until *time.Time, limit *int, nested *bool) ([]Order, error) {
-	return DefaultClient.ListOrders(status, until, limit, nested)
+// GetOrders returns the list of orders for an account.
+func GetOrders(req GetOrdersRequest) ([]Order, error) {
+	return DefaultClient.GetOrders(req)
 }
 
-// PlaceOrder submits an order request to buy or sell an asset
-// with the default Alpaca client.
+// PlaceOrder submits an order request to buy or sell an asset.
 func PlaceOrder(req PlaceOrderRequest) (*Order, error) {
 	return DefaultClient.PlaceOrder(req)
 }
 
-// GetOrder returns a single order for the given
-// `orderID` using the default Alpaca client.
+// GetOrder submits a request to get an order by the order ID.
 func GetOrder(orderID string) (*Order, error) {
 	return DefaultClient.GetOrder(orderID)
 }
 
-// GetOrderByClientOrderID returns a single order for the given
-// `clientOrderID` using the default Alpaca client.
+// GetOrderByClientOrderID submits a request to get an order by the client order ID.
 func GetOrderByClientOrderID(clientOrderID string) (*Order, error) {
 	return DefaultClient.GetOrderByClientOrderID(clientOrderID)
 }
 
-// ReplaceOrder changes an order by order id
-// using the default Alpaca client.
+// ReplaceOrder submits a request to replace an order by id
 func ReplaceOrder(orderID string, req ReplaceOrderRequest) (*Order, error) {
 	return DefaultClient.ReplaceOrder(orderID, req)
 }
 
-// CancelOrder submits a request to cancel an open order with
-// the default Alpaca client.
+// CancelOrder submits a request to cancel an open order.
 func CancelOrder(orderID string) error {
 	return DefaultClient.CancelOrder(orderID)
 }
 
-// ListAssets returns the list of assets, filtered by
-// the input parameters with the default Alpaca client.
-func ListAssets(status *string) ([]Asset, error) {
-	return DefaultClient.ListAssets(status)
+// CancelAllOrders submits a request to cancel all orders.
+func CancelAllOrders() error {
+	return DefaultClient.CancelAllOrders()
 }
 
-// GetAsset returns an asset for the given symbol with
-// the default Alpaca client.
+// GetAssets returns the list of assets.
+func GetAssets(req GetAssetsRequest) ([]Asset, error) {
+	return DefaultClient.GetAssets(req)
+}
+
+// GetAsset returns an asset for the given symbol.
 func GetAsset(symbol string) (*Asset, error) {
 	return DefaultClient.GetAsset(symbol)
 }
@@ -1062,7 +1027,7 @@ func RemoveSymbolFromWatchlist(watchlistID string, req RemoveSymbolFromWatchlist
 	return DefaultClient.RemoveSymbolFromWatchlist(watchlistID, req)
 }
 
-func (c *client) get(u *url.URL) (*http.Response, error) {
+func (c *Client) get(u *url.URL) (*http.Response, error) {
 	req, err := http.NewRequest(http.MethodGet, u.String(), nil)
 	if err != nil {
 		return nil, err
@@ -1071,7 +1036,7 @@ func (c *client) get(u *url.URL) (*http.Response, error) {
 	return c.do(c, req)
 }
 
-func (c *client) post(u *url.URL, data interface{}) (*http.Response, error) {
+func (c *Client) post(u *url.URL, data interface{}) (*http.Response, error) {
 	buf, err := json.Marshal(data)
 	if err != nil {
 		return nil, err
@@ -1085,7 +1050,7 @@ func (c *client) post(u *url.URL, data interface{}) (*http.Response, error) {
 	return c.do(c, req)
 }
 
-func (c *client) put(u *url.URL, data interface{}) (*http.Response, error) {
+func (c *Client) put(u *url.URL, data interface{}) (*http.Response, error) {
 	buf, err := json.Marshal(data)
 	if err != nil {
 		return nil, err
@@ -1099,7 +1064,7 @@ func (c *client) put(u *url.URL, data interface{}) (*http.Response, error) {
 	return c.do(c, req)
 }
 
-func (c *client) patch(u *url.URL, data interface{}) (*http.Response, error) {
+func (c *Client) patch(u *url.URL, data interface{}) (*http.Response, error) {
 	buf, err := json.Marshal(data)
 	if err != nil {
 		return nil, err
@@ -1113,7 +1078,7 @@ func (c *client) patch(u *url.URL, data interface{}) (*http.Response, error) {
 	return c.do(c, req)
 }
 
-func (c *client) delete(u *url.URL) (*http.Response, error) {
+func (c *Client) delete(u *url.URL) (*http.Response, error) {
 	req, err := http.NewRequest(http.MethodDelete, u.String(), nil)
 	if err != nil {
 		return nil, err
@@ -1122,42 +1087,19 @@ func (c *client) delete(u *url.URL) (*http.Response, error) {
 	return c.do(c, req)
 }
 
-// APIError wraps the detailed code and message supplied
-// by Alpaca's API for debugging purposes
-type APIError struct {
-	Code    int    `json:"code"`
-	Message string `json:"message"`
-}
-
-func (e *APIError) Error() string {
-	return e.Message
-}
-
 func verify(resp *http.Response) error {
 	if resp.StatusCode >= http.StatusMultipleChoices {
 		defer resp.Body.Close()
-
-		body, err := ioutil.ReadAll(resp.Body)
-		if err != nil {
-			return err
-		}
-
-		var apiErr APIError
-		err = json.Unmarshal(body, &apiErr)
-		if err != nil {
-			// If the error is not in our JSON format, we simply return the HTTP response
-			return fmt.Errorf("HTTP %s: %s", resp.Status, body)
-		}
-		return &apiErr
+		return APIErrorFromResponse(resp)
 	}
 	return nil
 }
 
-func unmarshal(resp *http.Response, data interface{}) error {
+func unmarshal(resp *http.Response, v easyjson.Unmarshaler) error {
 	defer func() {
 		// The underlying TCP connection can not be reused if the body is not fully read
-		io.Copy(ioutil.Discard, resp.Body)
+		_, _ = io.Copy(io.Discard, resp.Body)
 		resp.Body.Close()
 	}()
-	return json.NewDecoder(resp.Body).Decode(data)
+	return easyjson.UnmarshalFromReader(resp.Body, v)
 }

@@ -1,40 +1,57 @@
 package alpaca
 
 import (
+	json "encoding/json"
+	"fmt"
+	"io"
+	"net/http"
+	"strings"
 	"time"
 
 	"cloud.google.com/go/civil"
 	"github.com/shopspring/decimal"
+
+	// Required for easyjson generation
+	_ "github.com/mailru/easyjson/gen"
 )
+
+//go:generate go install github.com/mailru/easyjson/...@v0.7.7
+//go:generate easyjson -all -lower_camel_case $GOFILE
 
 type Account struct {
 	ID                    string          `json:"id"`
 	AccountNumber         string          `json:"account_number"`
-	CreatedAt             time.Time       `json:"created_at"`
-	UpdatedAt             time.Time       `json:"updated_at"`
-	DeletedAt             *time.Time      `json:"deleted_at"`
 	Status                string          `json:"status"`
+	CryptoStatus          string          `json:"crypto_status"`
 	Currency              string          `json:"currency"`
+	BuyingPower           decimal.Decimal `json:"buying_power"`
+	RegTBuyingPower       decimal.Decimal `json:"regt_buying_power"`
+	DaytradingBuyingPower decimal.Decimal `json:"daytrading_buying_power"`
+	EffectiveBuyingPower  decimal.Decimal `json:"effective_buying_power"`
+	NonMarginBuyingPower  decimal.Decimal `json:"non_marginable_buying_power"`
+	BodDtbp               decimal.Decimal `json:"bod_dtbp"`
 	Cash                  decimal.Decimal `json:"cash"`
-	CashWithdrawable      decimal.Decimal `json:"cash_withdrawable"`
+	AccruedFees           decimal.Decimal `json:"accrued_fees"`
+	PortfolioValue        decimal.Decimal `json:"portfolio_value"`
+	PatternDayTrader      bool            `json:"pattern_day_trader"`
 	TradingBlocked        bool            `json:"trading_blocked"`
 	TransfersBlocked      bool            `json:"transfers_blocked"`
 	AccountBlocked        bool            `json:"account_blocked"`
 	ShortingEnabled       bool            `json:"shorting_enabled"`
-	BuyingPower           decimal.Decimal `json:"buying_power"`
-	PatternDayTrader      bool            `json:"pattern_day_trader"`
-	DaytradeCount         int64           `json:"daytrade_count"`
-	DaytradingBuyingPower decimal.Decimal `json:"daytrading_buying_power"`
-	RegTBuyingPower       decimal.Decimal `json:"regt_buying_power"`
+	TradeSuspendedByUser  bool            `json:"trade_suspended_by_user"`
+	CreatedAt             time.Time       `json:"created_at"`
+	Multiplier            decimal.Decimal `json:"multiplier"`
 	Equity                decimal.Decimal `json:"equity"`
 	LastEquity            decimal.Decimal `json:"last_equity"`
-	Multiplier            string          `json:"multiplier"`
+	LongMarketValue       decimal.Decimal `json:"long_market_value"`
+	ShortMarketValue      decimal.Decimal `json:"short_market_value"`
+	PositionMarketValue   decimal.Decimal `json:"position_market_value"`
 	InitialMargin         decimal.Decimal `json:"initial_margin"`
 	MaintenanceMargin     decimal.Decimal `json:"maintenance_margin"`
 	LastMaintenanceMargin decimal.Decimal `json:"last_maintenance_margin"`
-	LongMarketValue       decimal.Decimal `json:"long_market_value"`
-	ShortMarketValue      decimal.Decimal `json:"short_market_value"`
-	PortfolioValue        decimal.Decimal `json:"portfolio_value"`
+	SMA                   decimal.Decimal `json:"sma"`
+	DaytradeCount         int64           `json:"daytrade_count"`
+	CryptoTier            int             `json:"crypto_tier"`
 }
 
 type Order struct {
@@ -48,60 +65,86 @@ type Order struct {
 	CanceledAt     *time.Time       `json:"canceled_at"`
 	FailedAt       *time.Time       `json:"failed_at"`
 	ReplacedAt     *time.Time       `json:"replaced_at"`
-	Replaces       *string          `json:"replaces"`
 	ReplacedBy     *string          `json:"replaced_by"`
+	Replaces       *string          `json:"replaces"`
 	AssetID        string           `json:"asset_id"`
 	Symbol         string           `json:"symbol"`
-	Class          string           `json:"asset_class"`
+	AssetClass     AssetClass       `json:"asset_class"`
 	OrderClass     OrderClass       `json:"order_class"`
-	Qty            *decimal.Decimal `json:"qty"`
-	Notional       *decimal.Decimal `json:"notional"`
-	FilledQty      decimal.Decimal  `json:"filled_qty"`
 	Type           OrderType        `json:"type"`
 	Side           Side             `json:"side"`
 	TimeInForce    TimeInForce      `json:"time_in_force"`
-	LimitPrice     *decimal.Decimal `json:"limit_price"`
+	Status         string           `json:"status"`
+	Notional       *decimal.Decimal `json:"notional"`
+	Qty            *decimal.Decimal `json:"qty"`
+	FilledQty      decimal.Decimal  `json:"filled_qty"`
 	FilledAvgPrice *decimal.Decimal `json:"filled_avg_price"`
+	LimitPrice     *decimal.Decimal `json:"limit_price"`
 	StopPrice      *decimal.Decimal `json:"stop_price"`
 	TrailPrice     *decimal.Decimal `json:"trail_price"`
 	TrailPercent   *decimal.Decimal `json:"trail_percent"`
-	Hwm            *decimal.Decimal `json:"hwm"`
-	Status         string           `json:"status"`
+	HWM            *decimal.Decimal `json:"hwm"`
 	ExtendedHours  bool             `json:"extended_hours"`
-	Legs           *[]Order         `json:"legs"`
+	Legs           []Order          `json:"legs"`
 }
+
+//easyjson:json
+type orderSlice []Order
 
 type Position struct {
-	AssetID        string           `json:"asset_id"`
-	Symbol         string           `json:"symbol"`
-	Exchange       string           `json:"exchange"`
-	Class          string           `json:"asset_class"`
-	AccountID      string           `json:"account_id"`
-	EntryPrice     decimal.Decimal  `json:"avg_entry_price"`
-	Qty            decimal.Decimal  `json:"qty"`
-	Side           string           `json:"side"`
-	MarketValue    *decimal.Decimal `json:"market_value"`
-	CostBasis      decimal.Decimal  `json:"cost_basis"`
-	UnrealizedPL   *decimal.Decimal `json:"unrealized_pl"`
-	UnrealizedPLPC *decimal.Decimal `json:"unrealized_plpc"`
-	CurrentPrice   *decimal.Decimal `json:"current_price"`
-	LastdayPrice   *decimal.Decimal `json:"lastday_price"`
-	ChangeToday    *decimal.Decimal `json:"change_today"`
+	AssetID                string           `json:"asset_id"`
+	Symbol                 string           `json:"symbol"`
+	Exchange               string           `json:"exchange"`
+	AssetClass             AssetClass       `json:"asset_class"`
+	AssetMarginable        bool             `json:"asset_marginable"`
+	Qty                    decimal.Decimal  `json:"qty"`
+	QtyAvailable           decimal.Decimal  `json:"qty_available"`
+	AvgEntryPrice          decimal.Decimal  `json:"avg_entry_price"`
+	Side                   string           `json:"side"`
+	MarketValue            *decimal.Decimal `json:"market_value"`
+	CostBasis              decimal.Decimal  `json:"cost_basis"`
+	UnrealizedPL           *decimal.Decimal `json:"unrealized_pl"`
+	UnrealizedPLPC         *decimal.Decimal `json:"unrealized_plpc"`
+	UnrealizedIntradayPL   *decimal.Decimal `json:"unrealized_intraday_pl"`
+	UnrealizedIntradayPLPC *decimal.Decimal `json:"unrealized_intraday_plpc"`
+	CurrentPrice           *decimal.Decimal `json:"current_price"`
+	LastdayPrice           *decimal.Decimal `json:"lastday_price"`
+	ChangeToday            *decimal.Decimal `json:"change_today"`
 }
 
+//easyjson:json
+type positionSlice []Position
+
 type Asset struct {
-	ID           string `json:"id"`
-	Name         string `json:"name"`
-	Exchange     string `json:"exchange"`
-	Class        string `json:"class"`
-	Symbol       string `json:"symbol"`
-	Status       string `json:"status"`
-	Tradable     bool   `json:"tradable"`
-	Marginable   bool   `json:"marginable"`
-	Shortable    bool   `json:"shortable"`
-	EasyToBorrow bool   `json:"easy_to_borrow"`
-	Fractionable bool   `json:"fractionable"`
+	ID           string      `json:"id"`
+	Class        AssetClass  `json:"class"`
+	Exchange     string      `json:"exchange"`
+	Symbol       string      `json:"symbol"`
+	Name         string      `json:"name"`
+	Status       AssetStatus `json:"status"`
+	Tradable     bool        `json:"tradable"`
+	Marginable   bool        `json:"marginable"`
+	Shortable    bool        `json:"shortable"`
+	EasyToBorrow bool        `json:"easy_to_borrow"`
+	Fractionable bool        `json:"fractionable"`
 }
+
+//easyjson:json
+type assetSlice []Asset
+
+type AssetStatus string
+
+const (
+	AssetActive   AssetStatus = "active"
+	AssetInactive AssetStatus = "inactive"
+)
+
+type AssetClass string
+
+const (
+	USEquity AssetClass = "us_equity"
+	Crypto   AssetClass = "crypto"
+)
 
 type Fundamental struct {
 	AssetID           string          `json:"asset_id"`
@@ -135,6 +178,9 @@ type CalendarDay struct {
 	Close string `json:"close"`
 }
 
+//easyjson:json
+type calendarDaySlice []CalendarDay
+
 type Clock struct {
 	Timestamp time.Time `json:"timestamp"`
 	IsOpen    bool      `json:"is_open"`
@@ -143,7 +189,7 @@ type Clock struct {
 }
 
 type AccountConfigurations struct {
-	DtbpCheck            DtbpCheck         `json:"dtbp_check"`
+	DTBPCheck            DTBPCheck         `json:"dtbp_check"`
 	NoShorting           bool              `json:"no_shorting"`
 	TradeConfirmEmail    TradeConfirmEmail `json:"trade_confirm_email"`
 	TradeSuspendedByUser bool              `json:"trade_suspended_by_user"`
@@ -166,83 +212,16 @@ type AccountActivity struct {
 	PerShareAmount  decimal.Decimal `json:"per_share_amount"`
 }
 
+//easyjson:json
+type accountSlice []AccountActivity
+
 type PortfolioHistory struct {
 	BaseValue     decimal.Decimal   `json:"base_value"`
 	Equity        []decimal.Decimal `json:"equity"`
 	ProfitLoss    []decimal.Decimal `json:"profit_loss"`
 	ProfitLossPct []decimal.Decimal `json:"profit_loss_pct"`
-	Timeframe     RangeFreq         `json:"timeframe"`
+	Timeframe     TimeFrame         `json:"timeframe"`
 	Timestamp     []int64           `json:"timestamp"`
-}
-
-type PlaceOrderRequest struct {
-	AccountID     string           `json:"-"`
-	AssetKey      *string          `json:"symbol"`
-	Qty           *decimal.Decimal `json:"qty"`
-	Notional      *decimal.Decimal `json:"notional"`
-	Side          Side             `json:"side"`
-	Type          OrderType        `json:"type"`
-	TimeInForce   TimeInForce      `json:"time_in_force"`
-	LimitPrice    *decimal.Decimal `json:"limit_price"`
-	ExtendedHours bool             `json:"extended_hours"`
-	StopPrice     *decimal.Decimal `json:"stop_price"`
-	ClientOrderID string           `json:"client_order_id"`
-	OrderClass    OrderClass       `json:"order_class"`
-	TakeProfit    *TakeProfit      `json:"take_profit"`
-	StopLoss      *StopLoss        `json:"stop_loss"`
-	TrailPrice    *decimal.Decimal `json:"trail_price"`
-	TrailPercent  *decimal.Decimal `json:"trail_percent"`
-}
-
-type TakeProfit struct {
-	LimitPrice *decimal.Decimal `json:"limit_price"`
-}
-
-type StopLoss struct {
-	LimitPrice *decimal.Decimal `json:"limit_price"`
-	StopPrice  *decimal.Decimal `json:"stop_price"`
-}
-
-type OrderAttributes struct {
-	TakeProfitLimitPrice *decimal.Decimal `json:"take_profit_limit_price,omitempty"`
-	StopLossStopPrice    *decimal.Decimal `json:"stop_loss_stop_price,omitempty"`
-	StopLossLimitPrice   *decimal.Decimal `json:"stop_loss_limit_price,omitempty"`
-}
-
-type ReplaceOrderRequest struct {
-	Qty           *decimal.Decimal `json:"qty"`
-	LimitPrice    *decimal.Decimal `json:"limit_price"`
-	StopPrice     *decimal.Decimal `json:"stop_price"`
-	Trail         *decimal.Decimal `json:"trail"`
-	TimeInForce   TimeInForce      `json:"time_in_force"`
-	ClientOrderID string           `json:"client_order_id"`
-}
-
-type AccountConfigurationsRequest struct {
-	DtbpCheck            *string `json:"dtbp_check"`
-	NoShorting           *bool   `json:"no_shorting"`
-	TradeConfirmEmail    *string `json:"trade_confirm_email"`
-	TradeSuspendedByUser *bool   `json:"trade_suspended_by_user"`
-}
-
-type AccountActivitiesRequest struct {
-	ActivityTypes *[]string  `json:"activity_types"`
-	Date          *time.Time `json:"date"`
-	Until         *time.Time `json:"until"`
-	After         *time.Time `json:"after"`
-	Direction     *string    `json:"direction"`
-	PageSize      *int       `json:"page_size"`
-}
-
-type ListOrdersRequest struct {
-	Status    *string    `json:"status"`
-	After     *time.Time `json:"after"`
-	Until     *time.Time `json:"until"`
-	Limit     *int       `json:"limit"`
-	Direction *string    `json:"direction"`
-	Nested    *bool      `json:"nested"`
-	Symbols   *string    `json:"symbols"`
-	Side      *string    `json:"side"`
 }
 
 type Side string
@@ -266,8 +245,8 @@ type OrderClass string
 
 const (
 	Bracket OrderClass = "bracket"
-	Oto     OrderClass = "oto"
-	Oco     OrderClass = "oco"
+	OTO     OrderClass = "oto"
+	OCO     OrderClass = "oco"
 	Simple  OrderClass = "simple"
 )
 
@@ -284,12 +263,12 @@ const (
 	CLS TimeInForce = "cls"
 )
 
-type DtbpCheck string
+type DTBPCheck string
 
 const (
-	Entry DtbpCheck = "entry"
-	Exit  DtbpCheck = "exit"
-	Both  DtbpCheck = "both"
+	Entry DTBPCheck = "entry"
+	Exit  DTBPCheck = "exit"
+	Both  DTBPCheck = "both"
 )
 
 type TradeConfirmEmail string
@@ -299,19 +278,20 @@ const (
 	All  TradeConfirmEmail = "all"
 )
 
-type RangeFreq string
+type TimeFrame string
 
 const (
-	Min1  RangeFreq = "1Min"
-	Min5  RangeFreq = "5Min"
-	Min15 RangeFreq = "15Min"
-	Hour1 RangeFreq = "1H"
-	Day1  RangeFreq = "1D"
+	Min1  TimeFrame = "1Min"
+	Min5  TimeFrame = "5Min"
+	Min15 TimeFrame = "15Min"
+	Hour1 TimeFrame = "1H"
+	Day1  TimeFrame = "1D"
 )
 
 // stream
 
 type TradeUpdate struct {
+	At          time.Time        `json:"at"`
 	Event       string           `json:"event"`
 	ExecutionID string           `json:"execution_id"`
 	Order       Order            `json:"order"`
@@ -319,15 +299,6 @@ type TradeUpdate struct {
 	Price       *decimal.Decimal `json:"price"`
 	Qty         *decimal.Decimal `json:"qty"`
 	Timestamp   *time.Time       `json:"timestamp"`
-}
-
-type GetAnnouncementsRequest struct {
-	CATypes  *[]string  `json:"ca_types"`
-	Since    *time.Time `json:"since"`
-	Until    *time.Time `json:"until"`
-	Symbol   *string    `json:"symbol"`
-	Cusip    *string    `json:"cusip"`
-	DateType *DateType  `json:"date_type"`
 }
 
 type DateType string
@@ -338,10 +309,6 @@ const (
 	ExDate          DateType = "ex_date"
 	PayableDate     DateType = "payable_date"
 )
-
-func (d DateType) String() string {
-	return string(d)
-}
 
 type Announcement struct {
 	ID                      string `json:"id"`
@@ -361,6 +328,9 @@ type Announcement struct {
 	NewRate                 string `json:"new_rate"`
 }
 
+//easyjson:json
+type announcementSlice []Announcement
+
 type Watchlist struct {
 	AccountID string  `json:"account_id"`
 	ID        string  `json:"id"`
@@ -369,6 +339,9 @@ type Watchlist struct {
 	Name      string  `json:"name"`
 	Assets    []Asset `json:"assets"`
 }
+
+//easyjson:json
+type watchlistSlice []Watchlist
 
 type CreateWatchlistRequest struct {
 	Name    string   `json:"name"`
@@ -386,4 +359,35 @@ type AddSymbolToWatchlistRequest struct {
 
 type RemoveSymbolFromWatchlistRequest struct {
 	Symbol string `json:"symbol"`
+}
+
+// APIError wraps the detailed code and message supplied
+// by Alpaca's API for debugging purposes
+type APIError struct {
+	StatusCode int    `json:"-"`
+	Code       int    `json:"code"`
+	Message    string `json:"message"`
+	Body       string `json:"-"`
+}
+
+func APIErrorFromResponse(resp *http.Response) error {
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+	var apiErr APIError
+	if err := json.Unmarshal(body, &apiErr); err != nil {
+		// If the error is not in our JSON format, we simply return the HTTP response
+		return fmt.Errorf("%s (HTTP %d)", body, resp.StatusCode)
+	}
+	apiErr.StatusCode = resp.StatusCode
+	apiErr.Body = strings.TrimSpace(string(body))
+	return &apiErr
+}
+
+func (e *APIError) Error() string {
+	if e.Code != 0 {
+		return fmt.Sprintf("%s (HTTP %d, Code %d)", e.Message, e.StatusCode, e.Code)
+	}
+	return fmt.Sprintf("%s (HTTP %d)", e.Message, e.StatusCode)
 }

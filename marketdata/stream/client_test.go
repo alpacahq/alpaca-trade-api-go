@@ -9,6 +9,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/alpacahq/alpaca-trade-api-go/v3/marketdata"
 )
 
 const (
@@ -23,6 +25,11 @@ var tests = []struct {
 	{name: cryptoTests},
 }
 
+type streamClient interface {
+	Connect(ctx context.Context) error
+	Terminated() <-chan error
+}
+
 func TestConnectFails(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -32,14 +39,15 @@ func TestConnectFails(t *testing.T) {
 				return connection, nil
 			}
 
-			var c StreamClient
+			var c streamClient
 			switch tt.name {
 			case stocksTests:
-				c = NewStocksClient("iex",
+				c = NewStocksClient(marketdata.IEX,
 					WithReconnectSettings(1, 0),
 					withConnCreator(connCreator))
 			case cryptoTests:
 				c = NewCryptoClient(
+					marketdata.US,
 					WithReconnectSettings(1, 0),
 					withConnCreator(connCreator))
 			}
@@ -64,14 +72,16 @@ func TestConnectFails(t *testing.T) {
 func TestConnectWithInvalidURL(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			var c StreamClient
+			var c streamClient
 			switch tt.name {
 			case stocksTests:
-				c = NewStocksClient("iex",
+				c = NewStocksClient(
+					marketdata.IEX,
 					WithBaseURL("http://192.168.0.%31/"),
 					WithReconnectSettings(1, 0))
 			case cryptoTests:
 				c = NewCryptoClient(
+					marketdata.US,
 					WithBaseURL("http://192.168.0.%31/"),
 					WithReconnectSettings(1, 0))
 			}
@@ -110,12 +120,12 @@ func TestConnectImmediatelyFailsAfterIrrecoverableErrors(t *testing.T) {
 				// and the test would time out
 				reconnectSettings := WithReconnectSettings(20, time.Second)
 
-				var c StreamClient
+				var c streamClient
 				switch tt.name {
 				case stocksTests:
-					c = NewStocksClient("iex", reconnectSettings, withConnCreator(connCreator))
+					c = NewStocksClient(marketdata.IEX, reconnectSettings, withConnCreator(connCreator))
 				case cryptoTests:
-					c = NewCryptoClient(reconnectSettings, withConnCreator(connCreator))
+					c = NewCryptoClient(marketdata.US, reconnectSettings, withConnCreator(connCreator))
 				}
 
 				// server welcomes the client
@@ -154,14 +164,15 @@ func TestContextCancelledBeforeConnect(t *testing.T) {
 				return connection, nil
 			}
 
-			var c StreamClient
+			var c streamClient
 			switch tt.name {
 			case stocksTests:
-				c = NewStocksClient("iex",
+				c = NewStocksClient(marketdata.IEX,
 					WithBaseURL("http://test.paca/v2"),
 					withConnCreator(connCreator))
 			case cryptoTests:
 				c = NewCryptoClient(
+					marketdata.US,
 					WithBaseURL("http://test.paca/v2"),
 					withConnCreator(connCreator))
 			}
@@ -186,12 +197,12 @@ func TestConnectSucceeds(t *testing.T) {
 
 			writeInitialFlowMessagesToConn(t, connection, subscriptions{})
 
-			var c StreamClient
+			var c streamClient
 			switch tt.name {
 			case stocksTests:
-				c = NewStocksClient("iex", withConnCreator(connCreator))
+				c = NewStocksClient(marketdata.IEX, withConnCreator(connCreator))
 			case cryptoTests:
-				c = NewCryptoClient(withConnCreator(connCreator))
+				c = NewCryptoClient(marketdata.US, withConnCreator(connCreator))
 			}
 
 			ctx, cancel := context.WithCancel(context.Background())
@@ -232,15 +243,16 @@ func TestCallbacksCalledOnConnectAndDisconnect(t *testing.T) {
 
 			writeInitialFlowMessagesToConn(t, connection, subscriptions{})
 
-			var c StreamClient
+			var c streamClient
 			switch tt.name {
 			case stocksTests:
-				c = NewStocksClient("iex",
+				c = NewStocksClient(marketdata.IEX,
 					withConnCreator(connCreator),
 					WithConnectCallback(connectCallback),
 					WithDisconnectCallback(disconnectCallback))
 			case cryptoTests:
-				c = NewCryptoClient(withConnCreator(connCreator),
+				c = NewCryptoClient(marketdata.US,
+					withConnCreator(connCreator),
 					WithConnectCallback(connectCallback),
 					WithDisconnectCallback(disconnectCallback))
 			}
@@ -274,7 +286,7 @@ func TestCallbacksCalledOnConnectAndDisconnect(t *testing.T) {
 }
 
 func TestSubscribeBeforeConnectStocks(t *testing.T) {
-	c := NewStocksClient("iex")
+	c := NewStocksClient(marketdata.IEX)
 
 	err := c.SubscribeToTrades(func(trade Trade) {})
 	assert.Equal(t, ErrSubscriptionChangeBeforeConnect, err)
@@ -305,7 +317,7 @@ func TestSubscribeBeforeConnectStocks(t *testing.T) {
 }
 
 func TestSubscribeBeforeConnectCrypto(t *testing.T) {
-	c := NewCryptoClient()
+	c := NewCryptoClient(marketdata.US)
 
 	err := c.SubscribeToTrades(func(trade CryptoTrade) {})
 	assert.Equal(t, ErrSubscriptionChangeBeforeConnect, err)
@@ -338,7 +350,7 @@ func TestSubscribeMultipleCallsStocks(t *testing.T) {
 	defer connection.close()
 	writeInitialFlowMessagesToConn(t, connection, subscriptions{})
 
-	c := NewStocksClient("iex", withConnCreator(func(ctx context.Context, u url.URL) (conn, error) {
+	c := NewStocksClient(marketdata.IEX, withConnCreator(func(ctx context.Context, u url.URL) (conn, error) {
 		return connection, nil
 	}))
 	ctx, cancel := context.WithCancel(context.Background())
@@ -369,7 +381,7 @@ func TestSubscribeCalledButClientTerminatesCrypto(t *testing.T) {
 	defer connection.close()
 	writeInitialFlowMessagesToConn(t, connection, subscriptions{})
 
-	c := NewCryptoClient(
+	c := NewCryptoClient(marketdata.US,
 		WithCredentials("my_key", "my_secret"),
 		withConnCreator(func(ctx context.Context, u url.URL) (conn, error) {
 			return connection, nil
@@ -380,7 +392,7 @@ func TestSubscribeCalledButClientTerminatesCrypto(t *testing.T) {
 	err := c.Connect(ctx)
 	require.NoError(t, err)
 
-	checkInitialMessagesSentByClient(t, connection, "my_key", "my_secret", c.(*cryptoClient).sub)
+	checkInitialMessagesSentByClient(t, connection, "my_key", "my_secret", c.sub)
 	subErrCh := make(chan error, 1)
 	subFunc := func() {
 		subErrCh <- c.SubscribeToTrades(func(trade CryptoTrade) {}, "PACOIN")
@@ -400,7 +412,7 @@ func TestSubscribeCalledButClientTerminatesCrypto(t *testing.T) {
 	assert.True(t, errors.Is(err, ErrSubscriptionChangeInterrupted))
 
 	// Subscribing after the client has terminated results in an error
-	err = c.SubscribeToQuotes(func(quote CryptoQuote) {}, "BTCUSD", "ETCUSD")
+	err = c.SubscribeToQuotes(func(quote CryptoQuote) {}, "BTC/USD", "ETC/USD")
 	assert.Error(t, err)
 	assert.True(t, errors.Is(err, ErrSubscriptionChangeAfterTerminated))
 }
@@ -418,7 +430,7 @@ func TestSubscriptionTimeout(t *testing.T) {
 		timeAfter = time.After
 	}()
 
-	c := NewStocksClient("iex",
+	c := NewStocksClient(marketdata.IEX,
 		WithCredentials("a", "b"),
 		withConnCreator(func(ctx context.Context, u url.URL) (conn, error) {
 			return connection, nil
@@ -465,7 +477,7 @@ func TestSubscriptionChangeInvalid(t *testing.T) {
 	defer connection.close()
 	writeInitialFlowMessagesToConn(t, connection, subscriptions{})
 
-	c := NewStocksClient("iex",
+	c := NewStocksClient(marketdata.IEX,
 		WithCredentials("a", "b"),
 		withConnCreator(func(ctx context.Context, u url.URL) (conn, error) {
 			return connection, nil
@@ -504,7 +516,7 @@ func TestSubscriptionAcrossConnectionIssues(t *testing.T) {
 
 	key := "testkey"
 	secret := "testsecret"
-	c := NewStocksClient("iex",
+	c := NewStocksClient(marketdata.IEX,
 		WithCredentials(key, secret),
 		withConnCreator(func(ctx context.Context, u url.URL) (conn, error) {
 			return conn1, nil
@@ -530,7 +542,7 @@ func TestSubscriptionAcrossConnectionIssues(t *testing.T) {
 	// shutting down the first connection
 	conn2 := newMockConn()
 	writeInitialFlowMessagesToConn(t, conn2, subscriptions{})
-	c.(*stocksClient).connCreator = func(ctx context.Context, u url.URL) (conn, error) {
+	c.connCreator = func(ctx context.Context, u url.URL) (conn, error) {
 		return conn2, nil
 	}
 	conn1.close()
@@ -551,12 +563,12 @@ func TestSubscriptionAcrossConnectionIssues(t *testing.T) {
 		},
 	})
 	require.NoError(t, <-subRes)
-	require.ElementsMatch(t, trades1, c.(*stocksClient).sub.trades)
+	require.ElementsMatch(t, trades1, c.sub.trades)
 
 	// the connection is shut down and the new one isn't established for a while
 	conn3 := newMockConn()
 	defer conn3.close()
-	c.(*stocksClient).connCreator = func(ctx context.Context, u url.URL) (conn, error) {
+	c.connCreator = func(ctx context.Context, u url.URL) (conn, error) {
 		time.Sleep(100 * time.Millisecond)
 		writeInitialFlowMessagesToConn(t, conn3, subscriptions{trades: trades1})
 		return conn3, nil
@@ -585,7 +597,7 @@ func TestSubscriptionAcrossConnectionIssues(t *testing.T) {
 
 	// make sure the sub has returned by now (client changed)
 	require.NoError(t, <-unsubRes)
-	require.ElementsMatch(t, []string{"PACA"}, c.(*stocksClient).sub.trades)
+	require.ElementsMatch(t, []string{"PACA"}, c.sub.trades)
 }
 
 func TestSubscribeFailsDueToError(t *testing.T) {
@@ -593,7 +605,7 @@ func TestSubscribeFailsDueToError(t *testing.T) {
 	defer connection.close()
 	writeInitialFlowMessagesToConn(t, connection, subscriptions{})
 
-	c := NewCryptoClient(
+	c := NewCryptoClient(marketdata.US,
 		WithCredentials("my_key", "my_secret"),
 		withConnCreator(func(ctx context.Context, u url.URL) (conn, error) {
 			return connection, nil
@@ -691,12 +703,13 @@ func TestPingFails(t *testing.T) {
 				return testTicker
 			}
 
-			var c StreamClient
+			var c streamClient
 			switch tt.name {
 			case stocksTests:
-				c = NewStocksClient("iex", WithReconnectSettings(1, 0), withConnCreator(connCreator))
+				c = NewStocksClient(marketdata.IEX, WithReconnectSettings(1, 0), withConnCreator(connCreator))
 			case cryptoTests:
-				c = NewCryptoClient(WithReconnectSettings(1, 0), withConnCreator(connCreator))
+				c = NewCryptoClient(marketdata.US,
+					WithReconnectSettings(1, 0), withConnCreator(connCreator))
 			}
 
 			ctx, cancel := context.WithCancel(context.Background())
@@ -710,15 +723,15 @@ func TestPingFails(t *testing.T) {
 			connErr := errors.New("no connection")
 			switch tt.name {
 			case stocksTests:
-				c.(*stocksClient).connCreator = func(ctx context.Context, u url.URL) (conn, error) {
+				c.(*StocksClient).connCreator = func(ctx context.Context, u url.URL) (conn, error) {
 					return nil, connErr
 				}
 			case cryptoTests:
-				c.(*cryptoClient).connCreator = func(ctx context.Context, u url.URL) (conn, error) {
+				c.(*CryptoClient).connCreator = func(ctx context.Context, u url.URL) (conn, error) {
 					return nil, connErr
 				}
 			}
-			// disabling ping (but not closing the connection alltogether!)
+			// disabling ping (but not closing the connection altogether!)
 			connection.pingDisabled = true
 			// triggering a ping
 			testTicker.Tick()
@@ -752,7 +765,7 @@ func TestCoreFunctionalityStocks(t *testing.T) {
 	lulds := make(chan LULD, 10)
 	cancelErrors := make(chan TradeCancelError, 10)
 	corrections := make(chan TradeCorrection, 10)
-	c := NewStocksClient("iex",
+	c := NewStocksClient(marketdata.IEX,
 		WithTrades(func(t Trade) { trades <- t }, "ALPACA"),
 		WithQuotes(func(q Quote) { quotes <- q }, "ALPCA"),
 		WithBars(func(b Bar) { bars <- b }, "ALPACA"),
@@ -946,12 +959,12 @@ func TestCoreFunctionalityCrypto(t *testing.T) {
 	connection := newMockConn()
 	defer connection.close()
 	writeInitialFlowMessagesToConn(t, connection, subscriptions{
-		trades:      []string{"BTCUSD"},
-		quotes:      []string{"ETHUSD"},
-		bars:        []string{"LTCUSD"},
-		updatedBars: []string{"BCHUSD"},
-		dailyBars:   []string{"BCHUSD"},
-		orderbooks:  []string{"SHIBUSD"},
+		trades:      []string{"BTC/USD"},
+		quotes:      []string{"ETH/USD"},
+		bars:        []string{"LTC/USD"},
+		updatedBars: []string{"BCH/USD"},
+		dailyBars:   []string{"BCH/USD"},
+		orderbooks:  []string{"SHIB/USD"},
 	})
 
 	trades := make(chan CryptoTrade, 10)
@@ -960,13 +973,13 @@ func TestCoreFunctionalityCrypto(t *testing.T) {
 	updatedBars := make(chan CryptoBar, 10)
 	dailyBars := make(chan CryptoBar, 10)
 	orderbooks := make(chan CryptoOrderbook, 10)
-	c := NewCryptoClient(
-		WithCryptoTrades(func(t CryptoTrade) { trades <- t }, "BTCUSD"),
-		WithCryptoQuotes(func(q CryptoQuote) { quotes <- q }, "ETHUSD"),
-		WithCryptoBars(func(b CryptoBar) { bars <- b }, "LTCUSD"),
-		WithCryptoUpdatedBars(func(b CryptoBar) { updatedBars <- b }, "BCHUSD"),
-		WithCryptoDailyBars(func(b CryptoBar) { dailyBars <- b }, "BCHUSD"),
-		WithCryptoOrderbooks(func(ob CryptoOrderbook) { orderbooks <- ob }, "SHIBUSD"),
+	c := NewCryptoClient(marketdata.US,
+		WithCryptoTrades(func(t CryptoTrade) { trades <- t }, "BTC/USD"),
+		WithCryptoQuotes(func(q CryptoQuote) { quotes <- q }, "ETH/USD"),
+		WithCryptoBars(func(b CryptoBar) { bars <- b }, "LTC/USD"),
+		WithCryptoUpdatedBars(func(b CryptoBar) { updatedBars <- b }, "BCH/USD"),
+		WithCryptoDailyBars(func(b CryptoBar) { dailyBars <- b }, "BCH/USD"),
+		WithCryptoOrderbooks(func(ob CryptoOrderbook) { orderbooks <- ob }, "SHIB/USD"),
 		withConnCreator(func(ctx context.Context, u url.URL) (conn, error) {
 			return connection, nil
 		}))
@@ -981,7 +994,7 @@ func TestCoreFunctionalityCrypto(t *testing.T) {
 	connection.readCh <- serializeToMsgpack(t, []interface{}{
 		cryptoBarWithT{
 			Type:       "b",
-			Symbol:     "LTCUSD",
+			Symbol:     "LTC/USD",
 			Exchange:   "TEST",
 			Volume:     10,
 			TradeCount: 3,
@@ -989,7 +1002,7 @@ func TestCoreFunctionalityCrypto(t *testing.T) {
 		},
 		cryptoBarWithT{
 			Type:       "d",
-			Symbol:     "LTCUSD",
+			Symbol:     "LTC/USD",
 			Exchange:   "TES7",
 			Open:       196.05,
 			High:       196.3,
@@ -998,13 +1011,13 @@ func TestCoreFunctionalityCrypto(t *testing.T) {
 		},
 		cryptoBarWithT{
 			Type:       "u",
-			Symbol:     "ECHUSD",
+			Symbol:     "ECH/USD",
 			Exchange:   "TES7",
 			TradeCount: 33,
 		},
 		cryptoQuoteWithT{
 			Type:     "q",
-			Symbol:   "ETHUSD",
+			Symbol:   "ETH/USD",
 			AskPrice: 2848.53,
 			AskSize:  3.12,
 			BidPrice: 2712.82,
@@ -1017,7 +1030,7 @@ func TestCoreFunctionalityCrypto(t *testing.T) {
 	connection.readCh <- serializeToMsgpack(t, []interface{}{
 		cryptoTradeWithT{
 			Type:      "t",
-			Symbol:    "BTCUSD",
+			Symbol:    "BTC/USD",
 			Timestamp: ts,
 			Exchange:  "TST",
 			Price:     4123.123,
@@ -1030,7 +1043,7 @@ func TestCoreFunctionalityCrypto(t *testing.T) {
 	connection.readCh <- serializeToMsgpack(t, []interface{}{
 		cryptoOrderbookWithT{
 			Type:     "o",
-			Symbol:   "SHIBUSD",
+			Symbol:   "SHIB/USD",
 			Exchange: "TST",
 			Bids: []cryptoOrderbookEntry{
 				{Price: 111.1, Size: 222.2},
@@ -1074,7 +1087,7 @@ func TestCoreFunctionalityCrypto(t *testing.T) {
 
 	select {
 	case quote := <-quotes:
-		assert.Equal(t, "ETHUSD", quote.Symbol)
+		assert.Equal(t, "ETH/USD", quote.Symbol)
 		assert.EqualValues(t, 2848.53, quote.AskPrice)
 		assert.EqualValues(t, 3.12, quote.AskSize)
 		assert.EqualValues(t, 3.982, quote.BidSize)
@@ -1093,7 +1106,7 @@ func TestCoreFunctionalityCrypto(t *testing.T) {
 
 	select {
 	case ob := <-orderbooks:
-		assert.Equal(t, "SHIBUSD", ob.Symbol)
+		assert.Equal(t, "SHIB/USD", ob.Symbol)
 		assert.Equal(t, 2, len(ob.Bids))
 		assert.Equal(t, 2, len(ob.Asks))
 	case <-time.After(time.Second):
@@ -1225,44 +1238,36 @@ func TestCryptoClientConstructURL(t *testing.T) {
 	for _, test := range []struct {
 		name      string
 		exchanges []string
-		baseUrl   string
+		baseURL   string
 		expected  string
 	}{
 		{
 			name:     "wss_noexchange",
-			baseUrl:  "wss://test.example.com/test/crypto",
-			expected: "wss://test.example.com/test/crypto",
-		},
-		{
-			name:      "wss_exchange",
-			baseUrl:   "wss://test.example.com/test/crypto",
-			exchanges: []string{"TEST", "TEST2"},
-			expected:  "wss://test.example.com/test/crypto?exchanges=TEST,TEST2",
+			baseURL:  "wss://test.example.com/test/crypto",
+			expected: "wss://test.example.com/test/crypto/us",
 		},
 		{
 			name:     "ws_noexchange",
-			baseUrl:  "ws://test.example.com/test/crypto",
-			expected: "ws://test.example.com/test/crypto",
+			baseURL:  "ws://test.example.com/test/crypto",
+			expected: "ws://test.example.com/test/crypto/us",
 		},
 		{
 			name:     "http_noexchange",
-			baseUrl:  "http://test.example.com/test/crypto",
-			expected: "ws://test.example.com/test/crypto",
+			baseURL:  "http://test.example.com/test/crypto",
+			expected: "ws://test.example.com/test/crypto/us",
 		},
 		{
 			name:     "https_noexchange",
-			baseUrl:  "https://test.example.com/test/crypto",
-			expected: "wss://test.example.com/test/crypto",
+			baseURL:  "https://test.example.com/test/crypto",
+			expected: "wss://test.example.com/test/crypto/us",
 		},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			c := NewCryptoClient(
-				WithBaseURL(test.baseUrl),
-				WithExchanges(test.exchanges...),
+				marketdata.US,
+				WithBaseURL(test.baseURL),
 			)
-			cryptoClient, ok := c.(*cryptoClient)
-			require.True(t, ok)
-			got, err := cryptoClient.constructURL()
+			got, err := c.constructURL()
 			require.NoError(t, err)
 			assert.EqualValues(t, test.expected, got.String())
 		})

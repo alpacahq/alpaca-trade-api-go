@@ -8,12 +8,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/alpacahq/alpaca-trade-api-go/v2/marketdata"
+	"github.com/alpacahq/alpaca-trade-api-go/v3/marketdata"
 )
 
 // Get AAPL and MSFT trades from the tenth of a second of the 2021-08-09 market open
 func trades() {
-	multiTrades, err := marketdata.GetMultiTrades([]string{"AAPL", "MSFT"}, marketdata.GetTradesParams{
+	marketdata.GetTrades("AAPL", marketdata.GetTradesRequest{})
+	multiTrades, err := marketdata.GetMultiTrades([]string{"AAPL", "MSFT"}, marketdata.GetTradesRequest{
 		Start: time.Date(2021, 8, 9, 13, 30, 0, 0, time.UTC),
 		End:   time.Date(2021, 8, 9, 13, 30, 0, 10000000, time.UTC),
 	})
@@ -30,7 +31,7 @@ func trades() {
 
 // Get first 30 TSLA quotes from 2021-08-09 market open
 func quotes() {
-	quotes, err := marketdata.GetQuotes("TSLA", marketdata.GetQuotesParams{
+	quotes, err := marketdata.GetQuotes("TSLA", marketdata.GetQuotesRequest{
 		Start:      time.Date(2021, 8, 9, 13, 30, 0, 0, time.UTC),
 		TotalLimit: 30,
 	})
@@ -43,24 +44,9 @@ func quotes() {
 	}
 }
 
-// Get all the IBM and GE 5-minute bars from the first half hour of the 2021-08-09 market open
-func barsAsync() {
-	for item := range marketdata.GetMultiBarsAsync([]string{"IBM", "GE"}, marketdata.GetBarsParams{
-		TimeFrame:  marketdata.NewTimeFrame(5, marketdata.Min),
-		Adjustment: marketdata.Split,
-		Start:      time.Date(2021, 8, 9, 13, 30, 0, 0, time.UTC),
-		End:        time.Date(2021, 8, 9, 14, 0, 0, 0, time.UTC),
-	}) {
-		if err := item.Error; err != nil {
-			panic(err)
-		}
-		fmt.Printf("%s: %+v\n", item.Symbol, item.Bar)
-	}
-}
-
 // Get Facebook bars
 func bars() {
-	bars, err := marketdata.GetBars("META", marketdata.GetBarsParams{
+	bars, err := marketdata.GetBars("META", marketdata.GetBarsRequest{
 		TimeFrame: marketdata.OneDay,
 		Start:     time.Date(2022, 6, 1, 0, 0, 0, 0, time.UTC),
 		End:       time.Date(2022, 6, 22, 0, 0, 0, 0, time.UTC),
@@ -87,7 +73,7 @@ func adtv() {
 }
 
 func news() {
-	news, err := marketdata.GetNews(marketdata.GetNewsParams{
+	news, err := marketdata.GetNews(marketdata.GetNewsRequest{
 		Symbols:    []string{"AAPL", "TSLA"},
 		Start:      time.Date(2021, 5, 6, 0, 0, 0, 0, time.UTC),
 		End:        time.Date(2021, 5, 7, 0, 0, 0, 0, time.UTC),
@@ -103,7 +89,7 @@ func news() {
 }
 
 func auctions() {
-	auctions, err := marketdata.GetAuctions("IBM", marketdata.GetAuctionsParams{
+	auctions, err := marketdata.GetAuctions("IBM", marketdata.GetAuctionsRequest{
 		Start: time.Date(2022, 10, 17, 0, 0, 0, 0, time.UTC),
 		End:   time.Date(2022, 10, 20, 0, 0, 0, 0, time.UTC),
 	})
@@ -125,6 +111,15 @@ func auctions() {
 	}
 }
 
+func cryptoQuote() {
+	quote, err := marketdata.GetLatestCryptoQuote("BTC/USD", marketdata.GetLatestCryptoQuoteRequest{})
+	if err != nil {
+		panic(err)
+	}
+	fmt.Printf("Latest crypto quote: %+v\n\n", quote)
+	fmt.Println()
+}
+
 type example struct {
 	Name string
 	Func func()
@@ -134,11 +129,11 @@ func main() {
 	examples := []example{
 		{Name: "trades", Func: trades},
 		{Name: "quotes", Func: quotes},
-		{Name: "barsAsync", Func: barsAsync},
 		{Name: "bars", Func: bars},
 		{Name: "adtv", Func: adtv},
 		{Name: "news", Func: news},
 		{Name: "auctions", Func: auctions},
+		{Name: "crypto_quote", Func: cryptoQuote},
 	}
 	for {
 		fmt.Println("Examples: ")
@@ -174,14 +169,15 @@ func main() {
 
 func getADTV(symbol string, start, end time.Time) (av float64, n int, err error) {
 	var totalVolume uint64
-	for item := range marketdata.GetBarsAsync(symbol, marketdata.GetBarsParams{
+	bars, err := marketdata.GetBars(symbol, marketdata.GetBarsRequest{
 		Start: start,
 		End:   end,
-	}) {
-		if err = item.Error; err != nil {
-			return
-		}
-		totalVolume += item.Bar.Volume
+	})
+	if err != nil {
+		return 0, 0, err
+	}
+	for _, bar := range bars {
+		totalVolume += bar.Volume
 		n++
 	}
 	if n == 0 {

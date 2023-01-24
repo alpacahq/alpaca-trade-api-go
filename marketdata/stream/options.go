@@ -94,7 +94,7 @@ func WithCredentials(key, secret string) Option {
 }
 
 // WithReconnectSettings configures how many consecutive connection
-// errors should be accepted and the delay (that is multipled by the number of consecutive errors)
+// errors should be accepted and the delay (that is multiplied by the number of consecutive errors)
 // between retries. limit = 0 means the client will try restarting indefinitely unless it runs into
 // an irrecoverable error (such as invalid credentials).
 func WithReconnectSettings(limit int, delay time.Duration) Option {
@@ -189,9 +189,7 @@ func defaultStockOptions() *stockOptions {
 				cancelErrors: []string{},
 				corrections:  []string{},
 			},
-			connCreator: func(ctx context.Context, u url.URL) (conn, error) {
-				return newNhooyrWebsocketConn(ctx, u)
-			},
+			connCreator: newNhooyrWebsocketConn,
 		},
 		tradeHandler:         func(t Trade) {},
 		quoteHandler:         func(q Quote) {},
@@ -307,13 +305,12 @@ type cryptoOptions struct {
 	updatedBarHandler func(CryptoBar)
 	dailyBarHandler   func(CryptoBar)
 	orderbookHandler  func(CryptoOrderbook)
-	exchanges         []string
 }
 
 // defaultCryptoOptions are the default options for a client.
 // Don't change this in a backward incompatible way!
 func defaultCryptoOptions() *cryptoOptions {
-	baseURL := "https://stream.data.alpaca.markets/v1beta1/crypto"
+	baseURL := "https://stream.data.alpaca.markets/v1beta3/crypto"
 	// Should this override option be removed?
 	if s := os.Getenv("DATA_CRYPTO_PROXY_WS"); s != "" {
 		baseURL = s
@@ -337,9 +334,7 @@ func defaultCryptoOptions() *cryptoOptions {
 				dailyBars:   []string{},
 				orderbooks:  []string{},
 			},
-			connCreator: func(ctx context.Context, u url.URL) (conn, error) {
-				return newNhooyrWebsocketConn(ctx, u)
-			},
+			connCreator: newNhooyrWebsocketConn,
 		},
 		tradeHandler:      func(t CryptoTrade) {},
 		quoteHandler:      func(q CryptoQuote) {},
@@ -418,13 +413,6 @@ func WithCryptoOrderbooks(handler func(CryptoOrderbook), symbols ...string) Cryp
 	})
 }
 
-// WithExchanges configures the set of crypto exchanges to listen to
-func WithExchanges(exchanges ...string) CryptoOption {
-	return newFuncCryptoOption(func(o *cryptoOptions) {
-		o.exchanges = exchanges
-	})
-}
-
 type newsOptions struct {
 	options
 	newsHandler func(News)
@@ -446,9 +434,7 @@ func defaultNewsOptions() *newsOptions {
 			sub: subscriptions{
 				news: []string{},
 			},
-			connCreator: func(ctx context.Context, u url.URL) (conn, error) {
-				return newNhooyrWebsocketConn(ctx, u)
-			},
+			connCreator: newNhooyrWebsocketConn,
 		},
 		newsHandler: func(n News) {},
 	}

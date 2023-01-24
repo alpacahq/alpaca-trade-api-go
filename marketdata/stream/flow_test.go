@@ -8,6 +8,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/vmihailenco/msgpack/v5"
+
+	"github.com/alpacahq/alpaca-trade-api-go/v3/marketdata"
 )
 
 func TestInitializeConnectFails(t *testing.T) {
@@ -125,7 +127,7 @@ func TestInitializeAuthRetrySucceeds(t *testing.T) {
 	statuses := []string{"*"}
 	lulds := []string{"AL", "PACA", "ALP"}
 	c := NewStocksClient(
-		"sip",
+		marketdata.SIP,
 		WithCredentials("testkey", "testsecret"),
 		WithTrades(func(t Trade) {}, trades...),
 		WithQuotes(func(q Quote) {}, quotes...),
@@ -134,7 +136,7 @@ func TestInitializeAuthRetrySucceeds(t *testing.T) {
 		WithDailyBars(func(db Bar) {}, dailyBars...),
 		WithStatuses(func(ts TradingStatus) {}, statuses...),
 		WithLULDs(func(l LULD) {}, lulds...),
-	).(*stocksClient)
+	)
 	c.conn = conn
 	ordm := authRetryDelayMultiplier
 	defer func() {
@@ -239,7 +241,9 @@ func TestInitializeSubError(t *testing.T) {
 	c := client{
 		conn: conn,
 		sub: subscriptions{
-			trades: []string{"TEST"}}}
+			trades: []string{"TEST"},
+		},
+	}
 	ordm := authRetryDelayMultiplier
 	defer func() {
 		authRetryDelayMultiplier = ordm
@@ -292,7 +296,7 @@ func TestReadConnectedCancelled(t *testing.T) {
 
 func TestReadConnectedContents(t *testing.T) {
 	c := client{}
-	var tests = []struct {
+	tests := []struct {
 		name        string
 		message     []byte
 		expectError bool
@@ -419,7 +423,7 @@ func TestReadAuthResponseCancelled(t *testing.T) {
 
 func TestReadAuthResponseContents(t *testing.T) {
 	c := client{}
-	var tests = []struct {
+	tests := []struct {
 		name        string
 		message     []byte
 		expectError bool
@@ -558,7 +562,7 @@ func TestWriteSubCancelled(t *testing.T) {
 }
 
 func TestWriteSubContents(t *testing.T) {
-	var tests = []struct {
+	tests := []struct {
 		name        string
 		trades      []string
 		quotes      []string
@@ -576,18 +580,22 @@ func TestWriteSubContents(t *testing.T) {
 		{name: "daily_bars_only", dailyBars: []string{"LPACA"}},
 		{name: "statuses_only", statuses: []string{"ALP", "ACA"}},
 		{name: "lulds_only", lulds: []string{"ALPA", "CA"}},
-		{name: "mix",
+		{
+			name:      "mix",
 			trades:    []string{"ALPACA"},
 			quotes:    []string{"A", "L", "PACA"},
-			dailyBars: []string{"*"}},
-		{name: "complete",
+			dailyBars: []string{"*"},
+		},
+		{
+			name:        "complete",
 			trades:      []string{"ALPACA"},
 			quotes:      []string{"ALPACA"},
 			bars:        []string{"ALPACA"},
 			updatedBars: []string{"ALPACA"},
 			dailyBars:   []string{"ALPACA"},
 			statuses:    []string{"ALPACA"},
-			lulds:       []string{"ALPCA"}},
+			lulds:       []string{"ALPCA"},
+		},
 	}
 
 	for _, test := range tests {
@@ -647,7 +655,7 @@ func TestReadSubResponseCancelled(t *testing.T) {
 }
 
 func TestReadSubResponseContents(t *testing.T) {
-	var tests = []struct {
+	tests := []struct {
 		name        string
 		message     []byte
 		expectError bool

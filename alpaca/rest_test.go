@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
@@ -17,15 +18,93 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func testClient() *client {
-	return NewClient(ClientOpts{}).(*client)
+func TestDefaultDo(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "testkey", r.Header.Get("APCA-API-KEY-ID"))
+		assert.Equal(t, "testsecret", r.Header.Get("APCA-API-SECRET-KEY"))
+		assert.Equal(t, "/custompath", r.URL.Path)
+		fmt.Fprint(w, "test body")
+	}))
+	c := NewClient(ClientOpts{
+		APIKey:     "testkey",
+		APISecret:  "testsecret",
+		RetryDelay: time.Nanosecond,
+		RetryLimit: 2,
+		BaseURL:    ts.URL,
+	})
+	req, err := http.NewRequest("GET", ts.URL+"/custompath", nil)
+	require.NoError(t, err)
+	resp, err := defaultDo(c, req)
+	require.NoError(t, err)
+	b, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+	assert.Equal(t, "test body", string(b))
+}
+
+func TestDefaultDo_SuccessfulRetries(t *testing.T) {
+	i := 0
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if i < 3 {
+			i++
+			http.Error(w, "too many requests", http.StatusTooManyRequests)
+			return
+		}
+		fmt.Fprint(w, "success")
+	}))
+	c := NewClient(ClientOpts{
+		RetryDelay: time.Nanosecond,
+	})
+	req, err := http.NewRequest("GET", ts.URL, nil)
+	require.NoError(t, err)
+	resp, err := defaultDo(c, req)
+	require.NoError(t, err)
+	b, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+	assert.Equal(t, "success", string(b))
+}
+
+func TestDefaultDo_TooManyRetries(t *testing.T) {
+	i := 0
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if i < 4 {
+			i++
+			http.Error(w, "too many requests", http.StatusTooManyRequests)
+			return
+		}
+		fmt.Fprint(w, "success")
+	}))
+	c := NewClient(ClientOpts{
+		RetryDelay: time.Nanosecond,
+	})
+	req, err := http.NewRequest("GET", ts.URL, nil)
+	require.NoError(t, err)
+	_, err = defaultDo(c, req)
+	require.Error(t, err)
+}
+
+func TestDefaultDo_Error(t *testing.T) {
+	resp := `{"code":1234567,"message":"custom error message","other_field":"x"}`
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, resp, http.StatusBadRequest)
+	}))
+	c := DefaultClient
+	req, err := http.NewRequest("GET", ts.URL, nil)
+	require.NoError(t, err)
+	_, err = defaultDo(c, req)
+	var apiErr *APIError
+	require.ErrorAs(t, err, &apiErr)
+	assert.Equal(t, http.StatusBadRequest, apiErr.StatusCode)
+	assert.Equal(t, 1234567, apiErr.Code)
+	assert.Equal(t, "custom error message", apiErr.Message)
+	assert.Equal(t, resp, apiErr.Body)
+	assert.Equal(t, "custom error message (HTTP 400, Code 1234567)", apiErr.Error())
 }
 
 func TestGetAccount(t *testing.T) {
-	c := testClient()
+	c := DefaultClient
 
 	// successful
-	c.do = func(c *client, req *http.Request) (*http.Response, error) {
+	c.do = func(c *Client, req *http.Request) (*http.Response, error) {
 		account := Account{
 			ID: "some_id",
 		}
@@ -40,20 +119,19 @@ func TestGetAccount(t *testing.T) {
 	assert.Equal(t, "some_id", acct.ID)
 
 	// api failure
-	c.do = func(c *client, req *http.Request) (*http.Response, error) {
+	c.do = func(c *Client, req *http.Request) (*http.Response, error) {
 		return &http.Response{}, fmt.Errorf("fail")
 	}
 
-	acct, err = c.GetAccount()
+	_, err = c.GetAccount()
 	require.Error(t, err)
-	assert.Nil(t, acct)
 }
 
-func TestListPosition(t *testing.T) {
-	c := testClient()
+func TestGetPositions(t *testing.T) {
+	c := DefaultClient
 
 	// successful
-	c.do = func(c *client, req *http.Request) (*http.Response, error) {
+	c.do = func(c *Client, req *http.Request) (*http.Response, error) {
 		positions := []Position{
 			{Symbol: "APCA"},
 		}
@@ -62,24 +140,72 @@ func TestListPosition(t *testing.T) {
 		}, nil
 	}
 
-	positions, err := c.ListPositions()
+	positions, err := c.GetPositions()
 	require.NoError(t, err)
 	assert.Len(t, positions, 1)
 
 	// api failure
-	c.do = func(c *client, req *http.Request) (*http.Response, error) {
+	c.do = func(c *Client, req *http.Request) (*http.Response, error) {
 		return &http.Response{}, fmt.Errorf("fail")
 	}
 
-	positions, err = c.ListPositions()
+	positions, err = c.GetPositions()
 	require.Error(t, err)
 	assert.Nil(t, positions)
 }
 
+func TestCancelPosition(t *testing.T) {
+	c := DefaultClient
+	order := &Order{
+		ID:            "5aee8a3f-3ac8-42e0-b3e6-ed5cfdf85864",
+		ClientOrderID: "0571ce61-bf65-4f0c-b3de-6f42de628422",
+		Symbol:        "AAPL",
+	}
+	c.do = func(c *Client, req *http.Request) (*http.Response, error) {
+		assert.Equal(t, "/v2/positions/AAPL", req.URL.Path)
+		assert.Equal(t, http.MethodDelete, req.Method)
+		assert.Equal(t, "0.12345678", req.URL.Query().Get("qty"))
+		return &http.Response{
+			Body: genBody(order),
+		}, nil
+	}
+	got, err := c.ClosePosition("AAPL", ClosePositionRequest{
+		Qty: decimal.RequireFromString("0.12345678"),
+	})
+	require.NoError(t, err)
+	assert.Equal(t, order.ID, got.ID)
+	assert.Equal(t, order.ClientOrderID, got.ClientOrderID)
+	assert.Equal(t, "AAPL", got.Symbol)
+}
+
+func TestCancelAllPositions(t *testing.T) {
+	c := DefaultClient
+
+	orders := []Order{
+		{ID: "1"},
+		{ID: "2"},
+	}
+	c.do = func(c *Client, req *http.Request) (*http.Response, error) {
+		assert.Equal(t, "/v2/positions", req.URL.Path)
+		assert.Equal(t, http.MethodDelete, req.Method)
+		assert.Equal(t, "true", req.URL.Query().Get("cancel_orders"))
+		return &http.Response{
+			Body: genBody(orders),
+		}, nil
+	}
+	got, err := c.CloseAllPositions(CloseAllPositionsRequest{
+		CancelOrders: true,
+	})
+	require.NoError(t, err)
+	require.Len(t, got, 2)
+	assert.Equal(t, "1", got[0].ID)
+	assert.Equal(t, "2", got[1].ID)
+}
+
 func TestGetClock(t *testing.T) {
-	c := testClient()
+	c := DefaultClient
 	// successful
-	c.do = func(c *client, req *http.Request) (*http.Response, error) {
+	c.do = func(c *Client, req *http.Request) (*http.Response, error) {
 		clock := Clock{
 			Timestamp: time.Now(),
 			IsOpen:    true,
@@ -97,19 +223,20 @@ func TestGetClock(t *testing.T) {
 	assert.True(t, clock.IsOpen)
 
 	// api failure
-	c.do = func(c *client, req *http.Request) (*http.Response, error) {
+	c.do = func(c *Client, req *http.Request) (*http.Response, error) {
 		return &http.Response{}, fmt.Errorf("fail")
 	}
 
-	clock, err = c.GetClock()
+	_, err = c.GetClock()
 	require.Error(t, err)
-	assert.Nil(t, clock)
 }
 
 func TestGetCalendar(t *testing.T) {
-	c := testClient()
+	c := DefaultClient
 	// successful
-	c.do = func(c *client, req *http.Request) (*http.Response, error) {
+	c.do = func(c *Client, req *http.Request) (*http.Response, error) {
+		assert.Equal(t, "2018-01-01", req.URL.Query().Get("start"))
+		assert.Equal(t, "2018-01-02", req.URL.Query().Get("end"))
 		calendar := []CalendarDay{
 			{
 				Date:  "2018-01-01",
@@ -122,66 +249,33 @@ func TestGetCalendar(t *testing.T) {
 		}, nil
 	}
 
-	start := "2018-01-01"
-	end := "2018-01-02"
-
-	calendar, err := c.GetCalendar(&start, &end)
+	calendar, err := c.GetCalendar(GetCalendarRequest{
+		Start: time.Date(2018, 1, 1, 0, 0, 0, 0, time.UTC),
+		End:   time.Date(2018, 1, 2, 0, 0, 0, 0, time.UTC),
+	})
 	require.NoError(t, err)
 	assert.Len(t, calendar, 1)
 
 	// api failure
-	c.do = func(c *client, req *http.Request) (*http.Response, error) {
+	c.do = func(c *Client, req *http.Request) (*http.Response, error) {
 		return &http.Response{}, fmt.Errorf("fail")
 	}
 
-	calendar, err = c.GetCalendar(&start, &end)
+	calendar, err = c.GetCalendar(GetCalendarRequest{})
 	require.Error(t, err)
 	assert.Nil(t, calendar)
 }
 
-func TestListOrders(t *testing.T) {
-	c := testClient()
-	c.do = func(c *client, req *http.Request) (*http.Response, error) {
-		orders := []Order{
-			{
-				ID: "some_id",
-			},
-		}
-		return &http.Response{
-			Body: genBody(orders),
-		}, nil
-	}
-
-	status := "new"
-	until := time.Now()
-	limit := 1
-
-	orders, err := c.ListOrders(&status, &until, &limit, nil)
-	require.NoError(t, err)
-	require.Len(t, orders, 1)
-	assert.Equal(t, "some_id", orders[0].ID)
-
-	// api failure
-	c.do = func(c *client, req *http.Request) (*http.Response, error) {
-		return &http.Response{}, fmt.Errorf("fail")
-	}
-
-	orders, err = c.ListOrders(&status, &until, &limit, nil)
-	require.Error(t, err)
-	assert.Nil(t, orders)
-}
-
-func TestListOrdersWithEmptyRequest(t *testing.T) {
-	c := testClient()
-	c.do = func(c *client, req *http.Request) (*http.Response, error) {
-		assert.Equal(t, "api.alpaca.markets", req.URL.Host)
+func TestGetOrders_EmptyRequest(t *testing.T) {
+	c := DefaultClient
+	c.do = func(c *Client, req *http.Request) (*http.Response, error) {
 		assert.Equal(t, "/v2/orders", req.URL.Path)
 		assert.Equal(t, "", req.URL.Query().Get("status"))
 		assert.Equal(t, "", req.URL.Query().Get("after"))
 		assert.Equal(t, "", req.URL.Query().Get("until"))
 		assert.Equal(t, "", req.URL.Query().Get("limit"))
 		assert.Equal(t, "", req.URL.Query().Get("direction"))
-		assert.Equal(t, "", req.URL.Query().Get("nested"))
+		assert.Equal(t, "false", req.URL.Query().Get("nested"))
 		assert.Equal(t, "", req.URL.Query().Get("symbols"))
 		assert.Equal(t, "", req.URL.Query().Get("side"))
 
@@ -195,18 +289,17 @@ func TestListOrdersWithEmptyRequest(t *testing.T) {
 		}, nil
 	}
 
-	req := ListOrdersRequest{}
+	req := GetOrdersRequest{}
 
-	orders, err := c.ListOrdersWithRequest(req)
+	orders, err := c.GetOrders(req)
 	require.NoError(t, err)
 	require.Len(t, orders, 1)
 	assert.Equal(t, "some_id", orders[0].ID)
 }
 
-func TestListOrdersWithRequest(t *testing.T) {
-	c := testClient()
-	c.do = func(c *client, req *http.Request) (*http.Response, error) {
-		assert.Equal(t, "api.alpaca.markets", req.URL.Host)
+func TestGetOrders(t *testing.T) {
+	c := DefaultClient
+	c.do = func(c *Client, req *http.Request) (*http.Response, error) {
 		assert.Equal(t, "/v2/orders", req.URL.Path)
 		assert.Equal(t, "all", req.URL.Query().Get("status"))
 		assert.Equal(t, "2021-04-03T00:00:00Z", req.URL.Query().Get("after"))
@@ -226,46 +319,36 @@ func TestListOrdersWithRequest(t *testing.T) {
 			Body: genBody(orders),
 		}, nil
 	}
-
-	status := "all"
-	after, _ := time.Parse(time.RFC3339, "2021-04-03T00:00:00Z")
-	until, _ := time.Parse(time.RFC3339, "2021-04-04T05:00:00Z")
-	limit := 2
-	direction := "asc"
-	nested := true
-	symbols := "AAPL,TSLA"
-	side := "buy"
-
-	req := ListOrdersRequest{
-		Status:    &status,
-		After:     &after,
-		Until:     &until,
-		Limit:     &limit,
-		Direction: &direction,
-		Nested:    &nested,
-		Symbols:   &symbols,
-		Side:      &side,
+	req := GetOrdersRequest{
+		Status:    "all",
+		After:     time.Date(2021, 4, 3, 0, 0, 0, 0, time.UTC),
+		Until:     time.Date(2021, 4, 4, 5, 0, 0, 0, time.UTC),
+		Limit:     2,
+		Direction: "asc",
+		Nested:    true,
+		Symbols:   []string{"AAPL", "TSLA"},
+		Side:      "buy",
 	}
 
-	orders, err := c.ListOrdersWithRequest(req)
+	orders, err := c.GetOrders(req)
 	require.NoError(t, err)
 	require.Len(t, orders, 1)
 	assert.Equal(t, "some_id", orders[0].ID)
 
 	// api failure
-	c.do = func(c *client, req *http.Request) (*http.Response, error) {
+	c.do = func(c *Client, req *http.Request) (*http.Response, error) {
 		return &http.Response{}, fmt.Errorf("fail")
 	}
 
-	orders, err = c.ListOrdersWithRequest(req)
+	orders, err = c.GetOrders(req)
 	require.Error(t, err)
 	assert.Nil(t, orders)
 }
 
 func TestPlaceOrder(t *testing.T) {
-	c := testClient()
+	c := DefaultClient
 	// successful (w/ Qty)
-	c.do = func(c *client, req *http.Request) (*http.Response, error) {
+	c.do = func(c *Client, req *http.Request) (*http.Response, error) {
 		por := PlaceOrderRequest{}
 		if err := json.NewDecoder(req.Body).Decode(&por); err != nil {
 			return nil, err
@@ -283,7 +366,6 @@ func TestPlaceOrder(t *testing.T) {
 
 	one := decimal.NewFromInt(1)
 	req := PlaceOrderRequest{
-		AccountID:   "some_id",
 		Qty:         &one,
 		Side:        Buy,
 		TimeInForce: GTC,
@@ -300,7 +382,6 @@ func TestPlaceOrder(t *testing.T) {
 
 	// successful (w/ Notional)
 	req = PlaceOrderRequest{
-		AccountID:   "some_id",
 		Notional:    &one,
 		Side:        Buy,
 		TimeInForce: GTC,
@@ -316,19 +397,18 @@ func TestPlaceOrder(t *testing.T) {
 	assert.Equal(t, req.Type, order.Type)
 
 	// api failure
-	c.do = func(c *client, req *http.Request) (*http.Response, error) {
+	c.do = func(c *Client, req *http.Request) (*http.Response, error) {
 		return &http.Response{}, fmt.Errorf("fail")
 	}
 
-	order, err = c.PlaceOrder(req)
+	_, err = c.PlaceOrder(req)
 	require.Error(t, err)
-	assert.Nil(t, order)
 }
 
 func TestGetOrder(t *testing.T) {
-	c := testClient()
+	c := DefaultClient
 	// successful
-	c.do = func(c *client, req *http.Request) (*http.Response, error) {
+	c.do = func(c *Client, req *http.Request) (*http.Response, error) {
 		order := Order{
 			ID: "some_order_id",
 		}
@@ -342,19 +422,18 @@ func TestGetOrder(t *testing.T) {
 	assert.NotNil(t, order)
 
 	// api failure
-	c.do = func(c *client, req *http.Request) (*http.Response, error) {
+	c.do = func(c *Client, req *http.Request) (*http.Response, error) {
 		return &http.Response{}, fmt.Errorf("fail")
 	}
 
-	order, err = c.GetOrder("some_order_id")
+	_, err = c.GetOrder("some_order_id")
 	require.Error(t, err)
-	assert.Nil(t, order)
 }
 
 func TestGetOrderByClientOrderId(t *testing.T) {
-	c := testClient()
+	c := DefaultClient
 	// successful
-	c.do = func(c *client, req *http.Request) (*http.Response, error) {
+	c.do = func(c *Client, req *http.Request) (*http.Response, error) {
 		order := Order{
 			ClientOrderID: "some_client_order_id",
 		}
@@ -368,20 +447,18 @@ func TestGetOrderByClientOrderId(t *testing.T) {
 	assert.NotNil(t, order)
 
 	// api failure
-	c.do = func(c *client, req *http.Request) (*http.Response, error) {
+	c.do = func(c *Client, req *http.Request) (*http.Response, error) {
 		return &http.Response{}, fmt.Errorf("fail")
 	}
 
-	order, err = c.GetOrderByClientOrderID("some_client_order_id")
+	_, err = c.GetOrderByClientOrderID("some_client_order_id")
 	require.Error(t, err)
-	assert.Nil(t, order)
 }
 
 func TestClient_GetAnnouncements(t *testing.T) {
-	c := testClient()
+	c := DefaultClient
 	// successful
-	c.do = func(c *client, req *http.Request) (*http.Response, error) {
-		assert.Equal(t, "api.alpaca.markets", req.URL.Host)
+	c.do = func(c *Client, req *http.Request) (*http.Response, error) {
 		assert.Equal(t, "/v2/corporate_actions/announcements", req.URL.Path)
 		assert.Equal(t, "GET", req.Method)
 		assert.Equal(t, "AAPL", req.URL.Query().Get("symbol"))
@@ -401,32 +478,22 @@ func TestClient_GetAnnouncements(t *testing.T) {
 		}, nil
 	}
 
-	someCATypes := []string{"Dividend", "Merger"}
-	// since is date as in 1st jan 2020
-	since := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
-	// until is date as in 2nd jan 2020
-	until := time.Date(2020, 1, 2, 0, 0, 0, 0, time.UTC)
-	symbol := "AAPL"
-	cusip := "some_cusip"
-	dateType := DeclarationDate
-
 	announcements, err := c.GetAnnouncements(GetAnnouncementsRequest{
-		CATypes:  &someCATypes,
-		Since:    &since,
-		Until:    &until,
-		Symbol:   &symbol,
-		Cusip:    &cusip,
-		DateType: &dateType,
+		CATypes:  []string{"Dividend", "Merger"},
+		Since:    time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC),
+		Until:    time.Date(2020, 1, 2, 0, 0, 0, 0, time.UTC),
+		Symbol:   "AAPL",
+		Cusip:    "some_cusip",
+		DateType: DeclarationDate,
 	})
 	require.NoError(t, err)
 	require.Len(t, announcements, 1)
 }
 
 func TestClient_GetAnnouncement(t *testing.T) {
-	c := testClient()
+	c := DefaultClient
 	// successful
-	c.do = func(c *client, req *http.Request) (*http.Response, error) {
-		assert.Equal(t, "api.alpaca.markets", req.URL.Host)
+	c.do = func(c *Client, req *http.Request) (*http.Response, error) {
 		assert.Equal(t, "/v2/corporate_actions/announcements/123", req.URL.Path)
 		assert.Equal(t, "GET", req.Method)
 
@@ -445,10 +512,9 @@ func TestClient_GetAnnouncement(t *testing.T) {
 }
 
 func TestClient_GetWatchlists(t *testing.T) {
-	c := testClient()
+	c := DefaultClient
 	// successful
-	c.do = func(c *client, req *http.Request) (*http.Response, error) {
-		assert.Equal(t, "api.alpaca.markets", req.URL.Host)
+	c.do = func(c *Client, req *http.Request) (*http.Response, error) {
 		assert.Equal(t, "/v2/watchlists", req.URL.Path)
 		assert.Equal(t, "GET", req.Method)
 
@@ -478,10 +544,9 @@ func TestClient_GetWatchlists(t *testing.T) {
 }
 
 func TestClient_CreateWatchlist(t *testing.T) {
-	c := testClient()
+	c := DefaultClient
 	// successful
-	c.do = func(c *client, req *http.Request) (*http.Response, error) {
-		assert.Equal(t, "api.alpaca.markets", req.URL.Host)
+	c.do = func(c *Client, req *http.Request) (*http.Response, error) {
 		assert.Equal(t, "/v2/watchlists", req.URL.Path)
 		assert.Equal(t, "POST", req.Method)
 
@@ -516,10 +581,9 @@ func TestClient_CreateWatchlist(t *testing.T) {
 }
 
 func TestClient_GetWatchlist(t *testing.T) {
-	c := testClient()
+	c := DefaultClient
 	// successful
-	c.do = func(c *client, req *http.Request) (*http.Response, error) {
-		assert.Equal(t, "api.alpaca.markets", req.URL.Host)
+	c.do = func(c *Client, req *http.Request) (*http.Response, error) {
 		assert.Equal(t, "/v2/watchlists/123", req.URL.Path)
 		assert.Equal(t, "GET", req.Method)
 
@@ -551,10 +615,9 @@ func TestClient_GetWatchlist(t *testing.T) {
 }
 
 func TestClient_UpdateWatchlist(t *testing.T) {
-	c := testClient()
+	c := DefaultClient
 	// successful
-	c.do = func(c *client, req *http.Request) (*http.Response, error) {
-		assert.Equal(t, "api.alpaca.markets", req.URL.Host)
+	c.do = func(c *Client, req *http.Request) (*http.Response, error) {
 		assert.Equal(t, "/v2/watchlists/123", req.URL.Path)
 		assert.Equal(t, "PUT", req.Method)
 
@@ -589,10 +652,9 @@ func TestClient_UpdateWatchlist(t *testing.T) {
 }
 
 func TestClient_DeleteWatchlist(t *testing.T) {
-	c := testClient()
+	c := DefaultClient
 	// successful
-	c.do = func(c *client, req *http.Request) (*http.Response, error) {
-		assert.Equal(t, "api.alpaca.markets", req.URL.Host)
+	c.do = func(c *Client, req *http.Request) (*http.Response, error) {
 		assert.Equal(t, "/v2/watchlists/123", req.URL.Path)
 		assert.Equal(t, "DELETE", req.Method)
 
@@ -607,10 +669,9 @@ func TestClient_DeleteWatchlist(t *testing.T) {
 
 func TestClient_AddSymbolToWatchlist(t *testing.T) {
 	t.Run("happy path", func(t *testing.T) {
-		c := testClient()
+		c := DefaultClient
 		// successful
-		c.do = func(c *client, req *http.Request) (*http.Response, error) {
-			assert.Equal(t, "api.alpaca.markets", req.URL.Host)
+		c.do = func(c *Client, req *http.Request) (*http.Response, error) {
 			assert.Equal(t, "/v2/watchlists/123", req.URL.Path)
 			assert.Equal(t, "POST", req.Method)
 
@@ -644,10 +705,9 @@ func TestClient_AddSymbolToWatchlist(t *testing.T) {
 	})
 
 	t.Run("error: symbol not found", func(t *testing.T) {
-		c := testClient()
+		c := DefaultClient
 		// successful
-		c.do = func(c *client, req *http.Request) (*http.Response, error) {
-			assert.Equal(t, "api.alpaca.markets", req.URL.Host)
+		c.do = func(c *Client, req *http.Request) (*http.Response, error) {
 			assert.Equal(t, "/v2/watchlists/123", req.URL.Path)
 			assert.Equal(t, "POST", req.Method)
 
@@ -659,17 +719,15 @@ func TestClient_AddSymbolToWatchlist(t *testing.T) {
 
 		_, err := c.AddSymbolToWatchlist("123", AddSymbolToWatchlistRequest{})
 		require.Error(t, err)
-		require.Equal(t, ErrSymbolNotFound, err)
+		require.Equal(t, ErrSymbolMissing, err)
 	})
-
 }
 
 func TestClient_RemoveSymbolFromWatchlist(t *testing.T) {
 	t.Run("happy path", func(t *testing.T) {
-		c := testClient()
+		c := DefaultClient
 		// successful
-		c.do = func(c *client, req *http.Request) (*http.Response, error) {
-			assert.Equal(t, "api.alpaca.markets", req.URL.Host)
+		c.do = func(c *Client, req *http.Request) (*http.Response, error) {
 			assert.Equal(t, "/v2/watchlists/123/AAPL", req.URL.Path)
 			assert.Equal(t, "DELETE", req.Method)
 
@@ -685,10 +743,9 @@ func TestClient_RemoveSymbolFromWatchlist(t *testing.T) {
 	})
 
 	t.Run("error: symbol is required", func(t *testing.T) {
-		c := testClient()
+		c := DefaultClient
 		// successful
-		c.do = func(c *client, req *http.Request) (*http.Response, error) {
-			assert.Equal(t, "api.alpaca.markets", req.URL.Host)
+		c.do = func(c *Client, req *http.Request) (*http.Response, error) {
 			assert.Equal(t, "/v2/watchlists/123/AAPL", req.URL.Path)
 			assert.Equal(t, "DELETE", req.Method)
 
@@ -700,32 +757,32 @@ func TestClient_RemoveSymbolFromWatchlist(t *testing.T) {
 
 		err := c.RemoveSymbolFromWatchlist("123", RemoveSymbolFromWatchlistRequest{})
 		require.Error(t, err)
-		require.Equal(t, ErrSymbolNotFound, err)
+		require.Equal(t, ErrSymbolMissing, err)
 	})
-
 }
 
 func TestCancelOrder(t *testing.T) {
-	c := testClient()
+	c := DefaultClient
 	// successful
-	c.do = func(c *client, req *http.Request) (*http.Response, error) {
+	c.do = func(c *Client, req *http.Request) (*http.Response, error) {
 		return &http.Response{}, nil
 	}
 
 	assert.Nil(t, c.CancelOrder("some_order_id"))
 
 	// api failure
-	c.do = func(c *client, req *http.Request) (*http.Response, error) {
+	c.do = func(c *Client, req *http.Request) (*http.Response, error) {
 		return &http.Response{}, fmt.Errorf("fail")
 	}
 
 	assert.NotNil(t, c.CancelOrder("some_order_id"))
 }
 
-func TestListAssets(t *testing.T) {
-	c := testClient()
+func TestGetAssets(t *testing.T) {
+	c := DefaultClient
 	// successful
-	c.do = func(c *client, req *http.Request) (*http.Response, error) {
+	c.do = func(c *Client, req *http.Request) (*http.Response, error) {
+		assert.Equal(t, "active", req.URL.Query().Get("status"))
 		assets := []Asset{
 			{ID: "some_id"},
 		}
@@ -734,27 +791,26 @@ func TestListAssets(t *testing.T) {
 		}, nil
 	}
 
-	status := "active"
-
-	assets, err := c.ListAssets(&status)
+	assets, err := c.GetAssets(GetAssetsRequest{
+		Status: "active",
+	})
 	require.NoError(t, err)
 	require.Len(t, assets, 1)
 	assert.Equal(t, "some_id", assets[0].ID)
 
 	// api failure
-	c.do = func(c *client, req *http.Request) (*http.Response, error) {
+	c.do = func(c *Client, req *http.Request) (*http.Response, error) {
 		return &http.Response{}, fmt.Errorf("fail")
 	}
 
-	assets, err = c.ListAssets(&status)
+	_, err = c.GetAssets(GetAssetsRequest{})
 	require.Error(t, err)
-	assert.Nil(t, assets)
 }
 
 func TestGetAsset(t *testing.T) {
-	c := testClient()
+	c := DefaultClient
 	// successful
-	c.do = func(c *client, req *http.Request) (*http.Response, error) {
+	c.do = func(c *Client, req *http.Request) (*http.Response, error) {
 		asset := Asset{ID: "some_id"}
 		return &http.Response{
 			Body: genBody(asset),
@@ -766,18 +822,17 @@ func TestGetAsset(t *testing.T) {
 	assert.NotNil(t, asset)
 
 	// api failure
-	c.do = func(c *client, req *http.Request) (*http.Response, error) {
+	c.do = func(c *Client, req *http.Request) (*http.Response, error) {
 		return &http.Response{}, fmt.Errorf("fail")
 	}
 
 	asset, err = c.GetAsset("APCA")
 	require.Error(t, err)
 	assert.Nil(t, asset)
-
 }
 
 func TestGetAssetFromJSON(t *testing.T) {
-	c := testClient()
+	c := DefaultClient
 
 	assetJSON := `{
 			"id": "904837e3-3b76-47ec-b432-046db621571b",
@@ -793,7 +848,7 @@ func TestGetAssetFromJSON(t *testing.T) {
 		}`
 
 	// successful
-	c.do = func(c *client, req *http.Request) (*http.Response, error) {
+	c.do = func(c *Client, req *http.Request) (*http.Response, error) {
 		return &http.Response{
 			Body: io.NopCloser(strings.NewReader(assetJSON)),
 		}, nil
@@ -801,19 +856,18 @@ func TestGetAssetFromJSON(t *testing.T) {
 
 	asset, err := c.GetAsset("APCA")
 	assert.Nil(t, err)
-	assert.Equal(t, "us_equity", asset.Class)
+	assert.Equal(t, USEquity, asset.Class)
 	assert.True(t, asset.Fractionable)
 	assert.NotNil(t, asset)
 
 	// api failure
-	c.do = func(c *client, req *http.Request) (*http.Response, error) {
+	c.do = func(c *Client, req *http.Request) (*http.Response, error) {
 		return &http.Response{}, fmt.Errorf("fail")
 	}
 
 	asset, err = c.GetAsset("APCA")
 	assert.NotNil(t, err)
 	assert.Nil(t, asset)
-
 }
 
 func TestTestVerify(t *testing.T) {
@@ -834,8 +888,8 @@ func TestTestVerify(t *testing.T) {
 }
 
 func TestOTOCOOrders(t *testing.T) {
-	c := testClient()
-	c.do = func(c *client, req *http.Request) (*http.Response, error) {
+	c := DefaultClient
+	c.do = func(c *Client, req *http.Request) (*http.Response, error) {
 		or := PlaceOrderRequest{}
 		if err := json.NewDecoder(req.Body).Decode(&or); err != nil {
 			return nil, err
@@ -843,10 +897,10 @@ func TestOTOCOOrders(t *testing.T) {
 		return &http.Response{
 			Body: genBody(Order{
 				Qty:         or.Qty,
-				Side:        Side(or.Side),
-				TimeInForce: TimeInForce(or.TimeInForce),
-				Type:        OrderType(or.Type),
-				Class:       string(or.OrderClass),
+				Side:        or.Side,
+				TimeInForce: or.TimeInForce,
+				Type:        or.Type,
+				OrderClass:  or.OrderClass,
 			}),
 		}, nil
 	}
@@ -859,7 +913,6 @@ func TestOTOCOOrders(t *testing.T) {
 	}
 	one := decimal.NewFromInt(0)
 	req := PlaceOrderRequest{
-		AccountID:   "some_id",
 		Qty:         &one,
 		Side:        Buy,
 		TimeInForce: GTC,
@@ -872,13 +925,13 @@ func TestOTOCOOrders(t *testing.T) {
 	order, err := c.PlaceOrder(req)
 	require.NoError(t, err)
 	assert.NotNil(t, order)
-	assert.Equal(t, "bracket", order.Class)
+	assert.Equal(t, Bracket, order.OrderClass)
 }
 
 func TestGetAccountActivities(t *testing.T) {
-	c := testClient()
+	c := DefaultClient
 	// happy path
-	c.do = func(c *client, req *http.Request) (*http.Response, error) {
+	c.do = func(c *Client, req *http.Request) (*http.Response, error) {
 		// https://alpaca.markets/docs/api-documentation/api-v2/account-activities/#nontradeactivity-entity
 		nta := []map[string]interface{}{
 			{
@@ -905,8 +958,9 @@ func TestGetAccountActivities(t *testing.T) {
 		}, nil
 	}
 
-	dividendsActivityType := "DIV"
-	activities, err := c.GetAccountActivities(&dividendsActivityType, nil)
+	activities, err := c.GetAccountActivities(GetAccountActivitiesRequest{
+		ActivityTypes: []string{"DIV"},
+	})
 	assert.NoError(t, err)
 	assert.Len(t, activities, 2)
 	activity1 := activities[0]
@@ -927,19 +981,23 @@ func TestGetAccountActivities(t *testing.T) {
 	assert.Equal(t, decimal.NewFromInt(100), activity2.PerShareAmount)
 
 	// error was returned
-	c.do = func(c *client, req *http.Request) (*http.Response, error) {
-		return &http.Response{}, &APIError{Code: 500, Message: "internal server error"}
+	c.do = func(c *Client, req *http.Request) (*http.Response, error) {
+		return &http.Response{}, &APIError{StatusCode: 500, Message: "internal server error"}
 	}
 
-	_, err = c.GetAccountActivities(&dividendsActivityType, nil)
+	_, err = c.GetAccountActivities(GetAccountActivitiesRequest{})
 	assert.NotNil(t, err)
-	assert.EqualError(t, &APIError{Code: 500, Message: "internal server error"}, "internal server error")
+	var apiErr *APIError
+	assert.ErrorAs(t, err, &apiErr)
+	assert.Equal(t, 500, apiErr.StatusCode)
+	assert.Equal(t, "internal server error", apiErr.Message)
 
 	// test filter by date and URI
-	c.do = func(c *client, req *http.Request) (*http.Response, error) {
+	c.do = func(c *Client, req *http.Request) (*http.Response, error) {
 		getQuery := req.URL.Query()
 
-		assert.Equal(t, "/v2/account/activities/DIV", req.URL.Path)
+		assert.Equal(t, "/v2/account/activities", req.URL.Path)
+		assert.Equal(t, "DIV", getQuery.Get("activity_types"))
 		assert.Equal(t, "2019-01-01T00:00:00.0000001Z", getQuery.Get("after"))
 		assert.Equal(t, "10", getQuery.Get("page_size"))
 
@@ -959,14 +1017,11 @@ func TestGetAccountActivities(t *testing.T) {
 		}, nil
 	}
 
-	afterDate := time.Date(2019, 1, 1, 0, 0, 0, 100, time.UTC)
-	pageSize := 10
-	req := &AccountActivitiesRequest{
-		After:    &afterDate,
-		PageSize: &pageSize,
-	}
-
-	_, err = c.GetAccountActivities(&dividendsActivityType, req)
+	_, err = c.GetAccountActivities(GetAccountActivitiesRequest{
+		ActivityTypes: []string{"DIV"},
+		After:         time.Date(2019, 1, 1, 0, 0, 0, 100, time.UTC),
+		PageSize:      10,
+	})
 	assert.NoError(t, err)
 }
 
