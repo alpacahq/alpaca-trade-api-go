@@ -856,7 +856,7 @@ func TestGetAssetFromJSON(t *testing.T) {
 
 	asset, err := c.GetAsset("APCA")
 	assert.Nil(t, err)
-	assert.Equal(t, "us_equity", asset.Class)
+	assert.Equal(t, USEquity, asset.Class)
 	assert.True(t, asset.Fractionable)
 	assert.NotNil(t, asset)
 
@@ -900,7 +900,7 @@ func TestOTOCOOrders(t *testing.T) {
 				Side:        or.Side,
 				TimeInForce: or.TimeInForce,
 				Type:        or.Type,
-				Class:       string(or.OrderClass),
+				OrderClass:  or.OrderClass,
 			}),
 		}, nil
 	}
@@ -925,7 +925,7 @@ func TestOTOCOOrders(t *testing.T) {
 	order, err := c.PlaceOrder(req)
 	require.NoError(t, err)
 	assert.NotNil(t, order)
-	assert.Equal(t, "bracket", order.Class)
+	assert.Equal(t, Bracket, order.OrderClass)
 }
 
 func TestGetAccountActivities(t *testing.T) {

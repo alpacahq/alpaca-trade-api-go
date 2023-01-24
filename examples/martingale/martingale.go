@@ -7,7 +7,6 @@ import (
 	"math"
 	"math/rand"
 	"os"
-	"strconv"
 	"strings"
 	"time"
 
@@ -74,19 +73,12 @@ func init() {
 	}
 
 	// Figure out how much money we have to work with, accounting for margin
-	accountInfo, err := client.GetAccount()
+	acct, err := client.GetAccount()
 	if err != nil {
 		panic(err)
 	}
 
-	equity, _ := accountInfo.Equity.Float64()
-	marginMult, err := strconv.ParseFloat(accountInfo.Multiplier, 64)
-	if err != nil {
-		panic(err)
-	}
-
-	totalBuyingPower := marginMult * equity
-	fmt.Printf("Initial total buying power = %.2f\n", totalBuyingPower)
+	fmt.Printf("Initial total buying power = %s\n", acct.Equity.Mul(acct.Multiplier).StringFixed(2))
 
 	alpacaClient = alpacaClientContainer{
 		client,
@@ -103,8 +95,8 @@ func init() {
 		time.Now().UTC(),
 		stock,
 		position,
-		equity,
-		marginMult,
+		acct.Equity.InexactFloat64(),
+		acct.Multiplier.InexactFloat64(),
 		0,
 	}
 }
