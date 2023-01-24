@@ -6,7 +6,7 @@ require (
 	cloud.google.com/go v0.99.0
 	github.com/RobinUS2/golang-moving-average v1.0.0
 	github.com/mailru/easyjson v0.7.7
-	github.com/shopspring/decimal v1.2.0
+	github.com/shopspring/decimal v1.3.1
 	github.com/stretchr/testify v1.7.0
 	github.com/vmihailenco/msgpack/v5 v5.3.0
 	nhooyr.io/websocket v1.8.7
