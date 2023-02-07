@@ -33,8 +33,8 @@ func main() {
 	client := alpaca.NewClient(alpaca.ClientOpts{
 		// Alternatively you can set your key and secret using the
 		// APCA_API_KEY_ID and APCA_API_SECRET_KEY environment variables
-		ApiKey:    "YOUR_API_KEY",
-		ApiSecret: "YOUR_API_SECRET",
+		APIKey:    "YOUR_API_KEY",
+		APISecret: "YOUR_API_SECRET",
 		BaseURL:   "https://paper-api.alpaca.markets",
 	})
 	acct, err := client.GetAccount()
@@ -60,10 +60,9 @@ alpaca.StreamTradeUpdatesInBackground(context.TODO(), func(tu alpaca.TradeUpdate
 })
 
 // Send a single AAPL order
-symbol := "AAPL"
 qty := decimal.NewFromInt(1)
 if _, err := alpaca.PlaceOrder(alpaca.PlaceOrderRequest{
-	AssetKey:    &symbol,
+	Symbol:      "AAPL",
 	Qty:         &qty,
 	Side:        "buy",
 	Type:        "market",
