@@ -38,7 +38,8 @@ func TestDefaultDo_InternalServerError(t *testing.T) {
 	defer func() { os.Setenv("APCA_API_DATA_URL", originalDataURL) }()
 	require.NoError(t, os.Setenv("APCA_API_DATA_URL", server.URL))
 	client := NewClient(ClientOpts{
-		OAuth: "myoauthkey",
+		OAuth:      "myoauthkey",
+		RetryDelay: time.Nanosecond,
 	})
 	_, err := client.GetLatestBar("SPY", GetLatestBarRequest{})
 	require.Error(t, err)
@@ -49,8 +50,10 @@ func TestDefaultDo_Retry(t *testing.T) {
 	tryCount := 0
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch tryCount {
-		case 0:
+		case 0, 2:
 			http.Error(w, "too many requests", http.StatusTooManyRequests)
+		case 1:
+			http.Error(w, "internal server error occurred", http.StatusInternalServerError)
 		default:
 			fmt.Fprint(w, `{"bars":{"SPY":{"t":"2021-11-20T00:59:00Z","o":469.18,"h":469.18,"l":469.11,"c":469.17,"v":740,"n":11,"vw":469.1355}}}`)
 		}
@@ -59,8 +62,8 @@ func TestDefaultDo_Retry(t *testing.T) {
 	defer server.Close()
 	client := NewClient(ClientOpts{
 		BaseURL:    server.URL,
-		RetryDelay: time.Millisecond,
-		RetryLimit: 1,
+		RetryDelay: time.Nanosecond,
+		RetryLimit: 5,
 	})
 	bar, err := client.GetLatestBar("SPY", GetLatestBarRequest{})
 	require.NoError(t, err)
