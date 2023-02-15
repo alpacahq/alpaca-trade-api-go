@@ -97,13 +97,17 @@ func defaultDo(c *Client, req *http.Request) (*http.Response, error) {
 
 	var resp *http.Response
 	var err error
+
+RetryLoop:
 	for i := 0; ; i++ {
 		resp, err = c.httpClient.Do(req)
 		if err != nil {
 			return nil, err
 		}
-		if resp.StatusCode != http.StatusTooManyRequests {
-			break
+		switch resp.StatusCode {
+		case http.StatusTooManyRequests, http.StatusInternalServerError:
+		default:
+			break RetryLoop
 		}
 		if i >= c.opts.RetryLimit {
 			break
