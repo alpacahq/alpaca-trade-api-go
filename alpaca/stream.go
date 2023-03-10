@@ -13,14 +13,15 @@ import (
 	"net/http"
 	"net/url"
 	"time"
+
+	"github.com/oklog/ulid/v2"
 )
 
 type StreamTradeUpdatesRequest struct {
-	Since time.Time
-	Until time.Time
-	// SinceID and UntilID will be added later
-	// SinceID string
-	// UntilID string
+	Since   time.Time
+	Until   time.Time
+	SinceID ulid.ULID
+	UntilID ulid.ULID
 }
 
 // StreamTradeUpdates streams the trade updates of the account.
@@ -33,7 +34,7 @@ func (c *Client) StreamTradeUpdates(ctx context.Context, handler func(TradeUpdat
 	client := http.Client{
 		Transport: &transport,
 	}
-	u, err := url.Parse(c.opts.BaseURL + "/events/trades")
+	u, err := url.Parse(c.opts.BaseURL + "/v2beta1/events/trades")
 	if err != nil {
 		return err
 	}
@@ -44,6 +45,14 @@ func (c *Client) StreamTradeUpdates(ctx context.Context, handler func(TradeUpdat
 	if !req.Until.IsZero() {
 		q.Set("until", req.Until.Format(time.RFC3339Nano))
 	}
+
+	if !isULIDZero(req.SinceID) {
+		q.Set("since_id", req.SinceID.String())
+	}
+	if !isULIDZero(req.UntilID) {
+		q.Set("until_id", req.UntilID.String())
+	}
+
 	u.RawQuery = q.Encode()
 	request, err := http.NewRequestWithContext(ctx, "GET", u.String(), nil)
 	if err != nil {
