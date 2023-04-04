@@ -745,9 +745,7 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Alpaca9(in *jlexer
 		case "event":
 			out.Event = string(in.String())
 		case "event_id":
-			if data := in.UnsafeBytes(); in.Ok() {
-				in.AddError((out.EventID).UnmarshalText(data))
-			}
+			out.EventID = string(in.String())
 		case "execution_id":
 			out.ExecutionID = string(in.String())
 		case "order":
@@ -827,7 +825,7 @@ func easyjson3e8ab7adEncodeGithubComAlpacahqAlpacaTradeApiGoV3Alpaca9(out *jwrit
 	{
 		const prefix string = ",\"event_id\":"
 		out.RawString(prefix)
-		out.RawText((in.EventID).MarshalText())
+		out.String(string(in.EventID))
 	}
 	{
 		const prefix string = ",\"execution_id\":"
