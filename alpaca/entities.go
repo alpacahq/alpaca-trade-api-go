@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"cloud.google.com/go/civil"
-	"github.com/oklog/ulid/v2"
 	"github.com/shopspring/decimal"
 
 	// Required for easyjson generation
@@ -294,7 +293,7 @@ const (
 type TradeUpdate struct {
 	At          time.Time        `json:"at"`
 	Event       string           `json:"event"`
-	EventID     ulid.ULID        `json:"event_id"`
+	EventID     string           `json:"event_id"`
 	ExecutionID string           `json:"execution_id"`
 	Order       Order            `json:"order"`
 	PositionQty *decimal.Decimal `json:"position_qty"`
