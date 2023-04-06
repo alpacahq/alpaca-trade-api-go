@@ -293,6 +293,7 @@ const (
 type TradeUpdate struct {
 	At          time.Time        `json:"at"`
 	Event       string           `json:"event"`
+	EventID     string           `json:"event_id"`
 	ExecutionID string           `json:"execution_id"`
 	Order       Order            `json:"order"`
 	PositionQty *decimal.Decimal `json:"position_qty"`
