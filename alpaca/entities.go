@@ -116,17 +116,19 @@ type Position struct {
 type positionSlice []Position
 
 type Asset struct {
-	ID           string      `json:"id"`
-	Class        AssetClass  `json:"class"`
-	Exchange     string      `json:"exchange"`
-	Symbol       string      `json:"symbol"`
-	Name         string      `json:"name"`
-	Status       AssetStatus `json:"status"`
-	Tradable     bool        `json:"tradable"`
-	Marginable   bool        `json:"marginable"`
-	Shortable    bool        `json:"shortable"`
-	EasyToBorrow bool        `json:"easy_to_borrow"`
-	Fractionable bool        `json:"fractionable"`
+	ID                           string      `json:"id"`
+	Class                        AssetClass  `json:"class"`
+	Exchange                     string      `json:"exchange"`
+	Symbol                       string      `json:"symbol"`
+	Name                         string      `json:"name"`
+	Status                       AssetStatus `json:"status"`
+	Tradable                     bool        `json:"tradable"`
+	Marginable                   bool        `json:"marginable"`
+	MaintenanceMarginRequirement uint        `json:"maintenance_margin_requirement"`
+	Shortable                    bool        `json:"shortable"`
+	EasyToBorrow                 bool        `json:"easy_to_borrow"`
+	Fractionable                 bool        `json:"fractionable"`
+	Attributes                   []string    `json:"attributes"`
 }
 
 //easyjson:json

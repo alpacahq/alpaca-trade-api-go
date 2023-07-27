@@ -2566,12 +2566,37 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Alpaca18(in *jlexe
 			out.Tradable = bool(in.Bool())
 		case "marginable":
 			out.Marginable = bool(in.Bool())
+		case "maintenance_margin_requirement":
+			out.MaintenanceMarginRequirement = uint(in.Uint())
 		case "shortable":
 			out.Shortable = bool(in.Bool())
 		case "easy_to_borrow":
 			out.EasyToBorrow = bool(in.Bool())
 		case "fractionable":
 			out.Fractionable = bool(in.Bool())
+		case "attributes":
+			if in.IsNull() {
+				in.Skip()
+				out.Attributes = nil
+			} else {
+				in.Delim('[')
+				if out.Attributes == nil {
+					if !in.IsDelim(']') {
+						out.Attributes = make([]string, 0, 4)
+					} else {
+						out.Attributes = []string{}
+					}
+				} else {
+					out.Attributes = (out.Attributes)[:0]
+				}
+				for !in.IsDelim(']') {
+					var v46 string
+					v46 = string(in.String())
+					out.Attributes = append(out.Attributes, v46)
+					in.WantComma()
+				}
+				in.Delim(']')
+			}
 		default:
 			in.SkipRecursive()
 		}
@@ -2627,6 +2652,11 @@ func easyjson3e8ab7adEncodeGithubComAlpacahqAlpacaTradeApiGoV3Alpaca18(out *jwri
 		out.Bool(bool(in.Marginable))
 	}
 	{
+		const prefix string = ",\"maintenance_margin_requirement\":"
+		out.RawString(prefix)
+		out.Uint(uint(in.MaintenanceMarginRequirement))
+	}
+	{
 		const prefix string = ",\"shortable\":"
 		out.RawString(prefix)
 		out.Bool(bool(in.Shortable))
@@ -2640,6 +2670,22 @@ func easyjson3e8ab7adEncodeGithubComAlpacahqAlpacaTradeApiGoV3Alpaca18(out *jwri
 		const prefix string = ",\"fractionable\":"
 		out.RawString(prefix)
 		out.Bool(bool(in.Fractionable))
+	}
+	{
+		const prefix string = ",\"attributes\":"
+		out.RawString(prefix)
+		if in.Attributes == nil && (out.Flags&jwriter.NilSliceAsEmpty) == 0 {
+			out.RawString("null")
+		} else {
+			out.RawByte('[')
+			for v47, v48 := range in.Attributes {
+				if v47 > 0 {
+					out.RawByte(',')
+				}
+				out.String(string(v48))
+			}
+			out.RawByte(']')
+		}
 	}
 	out.RawByte('}')
 }
