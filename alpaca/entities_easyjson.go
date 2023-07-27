@@ -2582,16 +2582,16 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Alpaca18(in *jlexe
 				in.Delim('[')
 				if out.Attributes == nil {
 					if !in.IsDelim(']') {
-						out.Attributes = make([]AssetAttribute, 0, 4)
+						out.Attributes = make([]string, 0, 4)
 					} else {
-						out.Attributes = []AssetAttribute{}
+						out.Attributes = []string{}
 					}
 				} else {
 					out.Attributes = (out.Attributes)[:0]
 				}
 				for !in.IsDelim(']') {
-					var v46 AssetAttribute
-					v46 = AssetAttribute(in.String())
+					var v46 string
+					v46 = string(in.String())
 					out.Attributes = append(out.Attributes, v46)
 					in.WantComma()
 				}
