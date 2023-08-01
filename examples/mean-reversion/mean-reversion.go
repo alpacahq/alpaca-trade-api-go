@@ -8,11 +8,11 @@ import (
 	"time"
 
 	movingaverage "github.com/RobinUS2/golang-moving-average"
-	"github.com/shopspring/decimal"
 
 	"github.com/alpacahq/alpaca-trade-api-go/v3/alpaca"
 	"github.com/alpacahq/alpaca-trade-api-go/v3/marketdata"
 	"github.com/alpacahq/alpaca-trade-api-go/v3/marketdata/stream"
+	decimal "github.com/alpacahq/alpacadecimal"
 )
 
 const (

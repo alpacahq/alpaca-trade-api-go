@@ -7,10 +7,9 @@ import (
 	"sort"
 	"time"
 
-	"github.com/shopspring/decimal"
-
 	"github.com/alpacahq/alpaca-trade-api-go/v3/alpaca"
 	"github.com/alpacahq/alpaca-trade-api-go/v3/marketdata"
+	decimal "github.com/alpacahq/alpacadecimal"
 )
 
 type longShortAlgo struct {

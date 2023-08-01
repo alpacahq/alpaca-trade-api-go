@@ -13,9 +13,10 @@ import (
 	"time"
 
 	"cloud.google.com/go/civil"
-	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	decimal "github.com/alpacahq/alpacadecimal"
 )
 
 func TestDefaultDo(t *testing.T) {
@@ -970,7 +971,7 @@ func TestGetAccountActivities(t *testing.T) {
 	assert.True(t, decimal.NewFromFloat(1.02).Equal(activity1.NetAmount))
 	assert.Equal(t, "T", activity1.Symbol)
 	assert.Equal(t, decimal.NewFromInt(2), activity1.Qty)
-	assert.Equal(t, decimal.NewFromFloat32(0.51), activity1.PerShareAmount)
+	assert.Equal(t, "0.51", activity1.PerShareAmount.String())
 	activity2 := activities[1]
 	assert.Equal(t, civil.Date{Year: 2019, Month: 8, Day: 1}, activity2.Date)
 	assert.Equal(t, "DIV", activity2.ActivityType)

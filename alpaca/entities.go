@@ -9,10 +9,11 @@ import (
 	"time"
 
 	"cloud.google.com/go/civil"
-	"github.com/shopspring/decimal"
 
 	// Required for easyjson generation
 	_ "github.com/mailru/easyjson/gen"
+
+	decimal "github.com/alpacahq/alpacadecimal"
 )
 
 //go:generate go install github.com/mailru/easyjson/...@v0.7.7

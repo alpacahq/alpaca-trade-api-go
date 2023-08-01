@@ -10,10 +10,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/shopspring/decimal"
-
 	"github.com/alpacahq/alpaca-trade-api-go/v3/alpaca"
 	"github.com/alpacahq/alpaca-trade-api-go/v3/marketdata/stream"
+	decimal "github.com/alpacahq/alpacadecimal"
 )
 
 type alpacaClientContainer struct {
