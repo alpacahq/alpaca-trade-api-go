@@ -9,9 +9,11 @@ import (
 	"github.com/vmihailenco/msgpack/v5"
 )
 
-var initializeTimeout = 3 * time.Second
-var authRetryDelayMultiplier = 1
-var authRetryCount = 15
+var (
+	initializeTimeout        = 3 * time.Second
+	authRetryDelayMultiplier = 1
+	authRetryCount           = 15
+)
 
 // initialize performs the initial flow:
 // 1. wait to be welcomed

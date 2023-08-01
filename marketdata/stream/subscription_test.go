@@ -7,7 +7,7 @@ import (
 )
 
 func TestNoSubscribeCallNecessary(t *testing.T) {
-	var tests = []struct {
+	tests := []struct {
 		sub      subscriptions
 		expected bool
 	}{
