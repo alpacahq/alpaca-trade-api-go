@@ -21,14 +21,15 @@ type nhooyrWebsocketConn struct {
 func newNhooyrWebsocketConn(ctx context.Context, u url.URL) (conn, error) {
 	ctxWithTimeout, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
-
+	goVer, moduleVer := alpaca.GetVersion()
 	conn, _, err := websocket.Dial(ctxWithTimeout, u.String(), &websocket.DialOptions{
 		CompressionMode: websocket.CompressionContextTakeover,
 		HTTPHeader: http.Header{
 			"Content-Type": []string{"application/msgpack"},
-			"User-Agent":   []string{"APCA-GO/" + alpaca.Version},
+			"User-Agent":   []string{"APCA-GO/" + moduleVer + "/" + goVer},
 		},
 	})
+
 	if err != nil {
 		return nil, fmt.Errorf("websocket dial: %w", err)
 	}

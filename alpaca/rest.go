@@ -82,6 +82,9 @@ const (
 )
 
 func defaultDo(c *Client, req *http.Request) (*http.Response, error) {
+	goVer, moduleVer := GetVersion()
+	req.Header.Set("User-Agent", "APCA-GO/"+moduleVer+"/"+goVer)
+
 	if c.opts.OAuth != "" {
 		req.Header.Set("Authorization", "Bearer "+c.opts.OAuth)
 	} else {
