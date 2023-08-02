@@ -9,7 +9,7 @@ import (
 const repoName = "github.com/alpacahq/alpaca-trade-api-go"
 
 var (
-	goVersion     string //
+	goVersion     string
 	moduleVersion string
 	once          = sync.Once{}
 )
