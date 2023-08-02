@@ -1275,7 +1275,7 @@ func (c *Client) get(u *url.URL) (*http.Response, error) {
 		return nil, err
 	}
 	req.Header.Set("Accept-Encoding", "gzip")
-
+	req.Header.Set("User-Agent", "APCA-GO/"+alpaca.Version)
 	return c.do(c, req)
 }
 

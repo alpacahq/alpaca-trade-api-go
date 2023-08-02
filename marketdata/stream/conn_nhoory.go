@@ -8,6 +8,8 @@ import (
 	"time"
 
 	"nhooyr.io/websocket"
+
+	"github.com/alpacahq/alpaca-trade-api-go/v3/alpaca"
 )
 
 type nhooyrWebsocketConn struct {
@@ -24,6 +26,7 @@ func newNhooyrWebsocketConn(ctx context.Context, u url.URL) (conn, error) {
 		CompressionMode: websocket.CompressionContextTakeover,
 		HTTPHeader: http.Header{
 			"Content-Type": []string{"application/msgpack"},
+			"User-Agent":   []string{"APCA-GO/" + alpaca.Version},
 		},
 	})
 	if err != nil {
