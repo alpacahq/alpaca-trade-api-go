@@ -88,8 +88,7 @@ func NewClient(opts ClientOpts) *Client {
 var DefaultClient = NewClient(ClientOpts{})
 
 func defaultDo(c *Client, req *http.Request) (*http.Response, error) {
-	goVer, moduleVer := alpaca.GetVersion()
-	req.Header.Set("User-Agent", "APCA-GO/"+moduleVer+"/"+goVer)
+	req.Header.Set("User-Agent", alpaca.GetVersion())
 
 	if c.opts.OAuth != "" {
 		req.Header.Set("Authorization", "Bearer "+c.opts.OAuth)
