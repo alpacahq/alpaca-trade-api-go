@@ -1,6 +1,7 @@
 package alpaca
 
 import (
+	"runtime"
 	"runtime/debug"
 	"strings"
 	"sync"
@@ -16,23 +17,17 @@ var (
 // GetVersion returns running go version and alpaca-trade-api-go version
 func GetVersion() string {
 	once.Do(func() {
-		var (
-			goVersion     string
-			moduleVersion string
-		)
-
 		buildInfo, found := debug.ReadBuildInfo()
 		if !found {
 			return
 		}
-		goVersion = buildInfo.GoVersion
 		for _, dep := range buildInfo.Deps {
 			if strings.HasPrefix(dep.Path, repoName) {
-				moduleVersion = dep.Version
+				encodedVersions += "APCA-GO/" + dep.Version + " "
 				break
 			}
 		}
-		encodedVersions = "APCA-GO/" + moduleVersion + "/" + goVersion
+		encodedVersions += "GoRuntime/" + runtime.Version()
 	})
 	return encodedVersions
 }
