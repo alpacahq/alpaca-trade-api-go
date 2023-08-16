@@ -82,7 +82,7 @@ const (
 )
 
 func defaultDo(c *Client, req *http.Request) (*http.Response, error) {
-	req.Header.Set("User-Agent", GetVersion())
+	req.Header.Set("User-Agent", Version())
 
 	if c.opts.OAuth != "" {
 		req.Header.Set("Authorization", "Bearer "+c.opts.OAuth)

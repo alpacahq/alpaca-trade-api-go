@@ -25,7 +25,7 @@ func newNhooyrWebsocketConn(ctx context.Context, u url.URL) (conn, error) {
 		CompressionMode: websocket.CompressionContextTakeover,
 		HTTPHeader: http.Header{
 			"Content-Type": []string{"application/msgpack"},
-			"User-Agent":   []string{alpaca.GetVersion()},
+			"User-Agent":   []string{alpaca.Version()},
 		},
 	})
 
