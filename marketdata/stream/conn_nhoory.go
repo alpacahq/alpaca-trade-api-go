@@ -21,12 +21,12 @@ type nhooyrWebsocketConn struct {
 func newNhooyrWebsocketConn(ctx context.Context, u url.URL) (conn, error) {
 	ctxWithTimeout, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
+	reqHeader := http.Header{}
+	reqHeader.Set("Content-Type", "application/msgpack")
+	reqHeader.Set("User-Agent", alpaca.Version())
 	conn, _, err := websocket.Dial(ctxWithTimeout, u.String(), &websocket.DialOptions{
 		CompressionMode: websocket.CompressionContextTakeover,
-		HTTPHeader: http.Header{
-			"Content-Type": []string{"application/msgpack"},
-			"User-Agent":   []string{alpaca.Version()},
-		},
+		HTTPHeader:      reqHeader,
 	})
 
 	if err != nil {
