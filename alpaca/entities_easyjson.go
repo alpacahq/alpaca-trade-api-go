@@ -5,10 +5,10 @@ package alpaca
 import (
 	civil "cloud.google.com/go/civil"
 	json "encoding/json"
+	alpacadecimal "github.com/alpacahq/alpacadecimal"
 	easyjson "github.com/mailru/easyjson"
 	jlexer "github.com/mailru/easyjson/jlexer"
 	jwriter "github.com/mailru/easyjson/jwriter"
-	decimal "github.com/shopspring/decimal"
 	time "time"
 )
 
@@ -1018,7 +1018,7 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Alpaca12(in *jlexe
 				out.PositionQty = nil
 			} else {
 				if out.PositionQty == nil {
-					out.PositionQty = new(decimal.Decimal)
+					out.PositionQty = new(alpacadecimal.Decimal)
 				}
 				if data := in.Raw(); in.Ok() {
 					in.AddError((*out.PositionQty).UnmarshalJSON(data))
@@ -1030,7 +1030,7 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Alpaca12(in *jlexe
 				out.Price = nil
 			} else {
 				if out.Price == nil {
-					out.Price = new(decimal.Decimal)
+					out.Price = new(alpacadecimal.Decimal)
 				}
 				if data := in.Raw(); in.Ok() {
 					in.AddError((*out.Price).UnmarshalJSON(data))
@@ -1042,7 +1042,7 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Alpaca12(in *jlexe
 				out.Qty = nil
 			} else {
 				if out.Qty == nil {
-					out.Qty = new(decimal.Decimal)
+					out.Qty = new(alpacadecimal.Decimal)
 				}
 				if data := in.Raw(); in.Ok() {
 					in.AddError((*out.Qty).UnmarshalJSON(data))
@@ -1276,7 +1276,7 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Alpaca14(in *jlexe
 				out.MarketValue = nil
 			} else {
 				if out.MarketValue == nil {
-					out.MarketValue = new(decimal.Decimal)
+					out.MarketValue = new(alpacadecimal.Decimal)
 				}
 				if data := in.Raw(); in.Ok() {
 					in.AddError((*out.MarketValue).UnmarshalJSON(data))
@@ -1292,7 +1292,7 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Alpaca14(in *jlexe
 				out.UnrealizedPL = nil
 			} else {
 				if out.UnrealizedPL == nil {
-					out.UnrealizedPL = new(decimal.Decimal)
+					out.UnrealizedPL = new(alpacadecimal.Decimal)
 				}
 				if data := in.Raw(); in.Ok() {
 					in.AddError((*out.UnrealizedPL).UnmarshalJSON(data))
@@ -1304,7 +1304,7 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Alpaca14(in *jlexe
 				out.UnrealizedPLPC = nil
 			} else {
 				if out.UnrealizedPLPC == nil {
-					out.UnrealizedPLPC = new(decimal.Decimal)
+					out.UnrealizedPLPC = new(alpacadecimal.Decimal)
 				}
 				if data := in.Raw(); in.Ok() {
 					in.AddError((*out.UnrealizedPLPC).UnmarshalJSON(data))
@@ -1316,7 +1316,7 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Alpaca14(in *jlexe
 				out.UnrealizedIntradayPL = nil
 			} else {
 				if out.UnrealizedIntradayPL == nil {
-					out.UnrealizedIntradayPL = new(decimal.Decimal)
+					out.UnrealizedIntradayPL = new(alpacadecimal.Decimal)
 				}
 				if data := in.Raw(); in.Ok() {
 					in.AddError((*out.UnrealizedIntradayPL).UnmarshalJSON(data))
@@ -1328,7 +1328,7 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Alpaca14(in *jlexe
 				out.UnrealizedIntradayPLPC = nil
 			} else {
 				if out.UnrealizedIntradayPLPC == nil {
-					out.UnrealizedIntradayPLPC = new(decimal.Decimal)
+					out.UnrealizedIntradayPLPC = new(alpacadecimal.Decimal)
 				}
 				if data := in.Raw(); in.Ok() {
 					in.AddError((*out.UnrealizedIntradayPLPC).UnmarshalJSON(data))
@@ -1340,7 +1340,7 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Alpaca14(in *jlexe
 				out.CurrentPrice = nil
 			} else {
 				if out.CurrentPrice == nil {
-					out.CurrentPrice = new(decimal.Decimal)
+					out.CurrentPrice = new(alpacadecimal.Decimal)
 				}
 				if data := in.Raw(); in.Ok() {
 					in.AddError((*out.CurrentPrice).UnmarshalJSON(data))
@@ -1352,7 +1352,7 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Alpaca14(in *jlexe
 				out.LastdayPrice = nil
 			} else {
 				if out.LastdayPrice == nil {
-					out.LastdayPrice = new(decimal.Decimal)
+					out.LastdayPrice = new(alpacadecimal.Decimal)
 				}
 				if data := in.Raw(); in.Ok() {
 					in.AddError((*out.LastdayPrice).UnmarshalJSON(data))
@@ -1364,7 +1364,7 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Alpaca14(in *jlexe
 				out.ChangeToday = nil
 			} else {
 				if out.ChangeToday == nil {
-					out.ChangeToday = new(decimal.Decimal)
+					out.ChangeToday = new(alpacadecimal.Decimal)
 				}
 				if data := in.Raw(); in.Ok() {
 					in.AddError((*out.ChangeToday).UnmarshalJSON(data))
@@ -1563,15 +1563,15 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Alpaca15(in *jlexe
 				in.Delim('[')
 				if out.Equity == nil {
 					if !in.IsDelim(']') {
-						out.Equity = make([]decimal.Decimal, 0, 4)
+						out.Equity = make([]alpacadecimal.Decimal, 0, 4)
 					} else {
-						out.Equity = []decimal.Decimal{}
+						out.Equity = []alpacadecimal.Decimal{}
 					}
 				} else {
 					out.Equity = (out.Equity)[:0]
 				}
 				for !in.IsDelim(']') {
-					var v34 decimal.Decimal
+					var v34 alpacadecimal.Decimal
 					if data := in.Raw(); in.Ok() {
 						in.AddError((v34).UnmarshalJSON(data))
 					}
@@ -1588,15 +1588,15 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Alpaca15(in *jlexe
 				in.Delim('[')
 				if out.ProfitLoss == nil {
 					if !in.IsDelim(']') {
-						out.ProfitLoss = make([]decimal.Decimal, 0, 4)
+						out.ProfitLoss = make([]alpacadecimal.Decimal, 0, 4)
 					} else {
-						out.ProfitLoss = []decimal.Decimal{}
+						out.ProfitLoss = []alpacadecimal.Decimal{}
 					}
 				} else {
 					out.ProfitLoss = (out.ProfitLoss)[:0]
 				}
 				for !in.IsDelim(']') {
-					var v35 decimal.Decimal
+					var v35 alpacadecimal.Decimal
 					if data := in.Raw(); in.Ok() {
 						in.AddError((v35).UnmarshalJSON(data))
 					}
@@ -1613,15 +1613,15 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Alpaca15(in *jlexe
 				in.Delim('[')
 				if out.ProfitLossPct == nil {
 					if !in.IsDelim(']') {
-						out.ProfitLossPct = make([]decimal.Decimal, 0, 4)
+						out.ProfitLossPct = make([]alpacadecimal.Decimal, 0, 4)
 					} else {
-						out.ProfitLossPct = []decimal.Decimal{}
+						out.ProfitLossPct = []alpacadecimal.Decimal{}
 					}
 				} else {
 					out.ProfitLossPct = (out.ProfitLossPct)[:0]
 				}
 				for !in.IsDelim(']') {
-					var v36 decimal.Decimal
+					var v36 alpacadecimal.Decimal
 					if data := in.Raw(); in.Ok() {
 						in.AddError((v36).UnmarshalJSON(data))
 					}
@@ -1908,7 +1908,7 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Alpaca16(in *jlexe
 				out.Notional = nil
 			} else {
 				if out.Notional == nil {
-					out.Notional = new(decimal.Decimal)
+					out.Notional = new(alpacadecimal.Decimal)
 				}
 				if data := in.Raw(); in.Ok() {
 					in.AddError((*out.Notional).UnmarshalJSON(data))
@@ -1920,7 +1920,7 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Alpaca16(in *jlexe
 				out.Qty = nil
 			} else {
 				if out.Qty == nil {
-					out.Qty = new(decimal.Decimal)
+					out.Qty = new(alpacadecimal.Decimal)
 				}
 				if data := in.Raw(); in.Ok() {
 					in.AddError((*out.Qty).UnmarshalJSON(data))
@@ -1936,7 +1936,7 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Alpaca16(in *jlexe
 				out.FilledAvgPrice = nil
 			} else {
 				if out.FilledAvgPrice == nil {
-					out.FilledAvgPrice = new(decimal.Decimal)
+					out.FilledAvgPrice = new(alpacadecimal.Decimal)
 				}
 				if data := in.Raw(); in.Ok() {
 					in.AddError((*out.FilledAvgPrice).UnmarshalJSON(data))
@@ -1948,7 +1948,7 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Alpaca16(in *jlexe
 				out.LimitPrice = nil
 			} else {
 				if out.LimitPrice == nil {
-					out.LimitPrice = new(decimal.Decimal)
+					out.LimitPrice = new(alpacadecimal.Decimal)
 				}
 				if data := in.Raw(); in.Ok() {
 					in.AddError((*out.LimitPrice).UnmarshalJSON(data))
@@ -1960,7 +1960,7 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Alpaca16(in *jlexe
 				out.StopPrice = nil
 			} else {
 				if out.StopPrice == nil {
-					out.StopPrice = new(decimal.Decimal)
+					out.StopPrice = new(alpacadecimal.Decimal)
 				}
 				if data := in.Raw(); in.Ok() {
 					in.AddError((*out.StopPrice).UnmarshalJSON(data))
@@ -1972,7 +1972,7 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Alpaca16(in *jlexe
 				out.TrailPrice = nil
 			} else {
 				if out.TrailPrice == nil {
-					out.TrailPrice = new(decimal.Decimal)
+					out.TrailPrice = new(alpacadecimal.Decimal)
 				}
 				if data := in.Raw(); in.Ok() {
 					in.AddError((*out.TrailPrice).UnmarshalJSON(data))
@@ -1984,7 +1984,7 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Alpaca16(in *jlexe
 				out.TrailPercent = nil
 			} else {
 				if out.TrailPercent == nil {
-					out.TrailPercent = new(decimal.Decimal)
+					out.TrailPercent = new(alpacadecimal.Decimal)
 				}
 				if data := in.Raw(); in.Ok() {
 					in.AddError((*out.TrailPercent).UnmarshalJSON(data))
@@ -1996,7 +1996,7 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Alpaca16(in *jlexe
 				out.HWM = nil
 			} else {
 				if out.HWM == nil {
-					out.HWM = new(decimal.Decimal)
+					out.HWM = new(alpacadecimal.Decimal)
 				}
 				if data := in.Raw(); in.Ok() {
 					in.AddError((*out.HWM).UnmarshalJSON(data))
@@ -2010,7 +2010,7 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Alpaca16(in *jlexe
 				out.RatioQty = nil
 			} else {
 				if out.RatioQty == nil {
-					out.RatioQty = new(decimal.Decimal)
+					out.RatioQty = new(alpacadecimal.Decimal)
 				}
 				if data := in.Raw(); in.Ok() {
 					in.AddError((*out.RatioQty).UnmarshalJSON(data))
@@ -2515,7 +2515,7 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Alpaca18(in *jlexe
 				out.OpenInterest = nil
 			} else {
 				if out.OpenInterest == nil {
-					out.OpenInterest = new(decimal.Decimal)
+					out.OpenInterest = new(alpacadecimal.Decimal)
 				}
 				if data := in.Raw(); in.Ok() {
 					in.AddError((*out.OpenInterest).UnmarshalJSON(data))
@@ -2539,7 +2539,7 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Alpaca18(in *jlexe
 				out.ClosePrice = nil
 			} else {
 				if out.ClosePrice == nil {
-					out.ClosePrice = new(decimal.Decimal)
+					out.ClosePrice = new(alpacadecimal.Decimal)
 				}
 				if data := in.Raw(); in.Ok() {
 					in.AddError((*out.ClosePrice).UnmarshalJSON(data))

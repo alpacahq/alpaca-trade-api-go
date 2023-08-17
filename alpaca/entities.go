@@ -11,7 +11,8 @@ import (
 	"cloud.google.com/go/civil"
 	// Required for easyjson generation
 	_ "github.com/mailru/easyjson/gen"
-	"github.com/shopspring/decimal"
+
+	decimal "github.com/alpacahq/alpacadecimal"
 )
 
 //go:generate go install github.com/mailru/easyjson/...@v0.7.7
