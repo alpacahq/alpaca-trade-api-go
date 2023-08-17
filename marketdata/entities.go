@@ -256,6 +256,11 @@ type cryptoMultiTradeResponse struct {
 	Trades        map[string][]CryptoTrade `json:"trades"`
 }
 
+type cryptoMultiQuoteResponse struct {
+	NextPageToken *string                  `json:"next_page_token"`
+	Quotes        map[string][]CryptoQuote `json:"quotes"`
+}
+
 type cryptoMultiBarResponse struct {
 	NextPageToken *string                `json:"next_page_token"`
 	Bars          map[string][]CryptoBar `json:"bars"`

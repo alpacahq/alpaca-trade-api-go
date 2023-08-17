@@ -130,6 +130,7 @@ type baseRequest struct {
 	Feed     Feed
 	AsOf     string
 	Currency string
+	Sort     Sort
 }
 
 func (c *Client) setBaseQuery(q url.Values, req baseRequest) {
@@ -152,6 +153,9 @@ func (c *Client) setBaseQuery(q url.Values, req baseRequest) {
 		q.Set("currency", req.Currency)
 	} else if c.opts.Currency != "" {
 		q.Set("currency", c.opts.Currency)
+	}
+	if req.Sort != "" {
+		q.Set("sort", string(req.Sort))
 	}
 }
 
@@ -198,6 +202,8 @@ type GetTradesRequest struct {
 	AsOf string
 	// Currency is the currency of the displayed prices
 	Currency string
+	// Sort is the sort direction of the data
+	Sort Sort
 }
 
 // GetTrades returns the trades for the given symbol.
@@ -224,6 +230,7 @@ func (c *Client) GetMultiTrades(symbols []string, req GetTradesRequest) (map[str
 		Feed:     req.Feed,
 		AsOf:     req.AsOf,
 		Currency: req.Currency,
+		Sort:     req.Sort,
 	})
 
 	trades := make(map[string][]Trade, len(symbols))
@@ -271,6 +278,8 @@ type GetQuotesRequest struct {
 	AsOf string
 	// Currency is the currency of the displayed prices
 	Currency string
+	// Sort is the sort direction of the data
+	Sort Sort
 }
 
 // GetQuotes returns the quotes for the given symbol.
@@ -297,6 +306,7 @@ func (c *Client) GetMultiQuotes(symbols []string, req GetQuotesRequest) (map[str
 		Feed:     req.Feed,
 		AsOf:     req.AsOf,
 		Currency: req.Currency,
+		Sort:     req.Sort,
 	})
 
 	quotes := make(map[string][]Quote, len(symbols))
@@ -349,6 +359,8 @@ type GetBarsRequest struct {
 	AsOf string
 	// Currency is the currency of the displayed prices
 	Currency string
+	// Sort is the sort direction of the data
+	Sort Sort
 }
 
 func (c *Client) setQueryBarRequest(q url.Values, symbols []string, req GetBarsRequest) {
@@ -359,6 +371,7 @@ func (c *Client) setQueryBarRequest(q url.Values, symbols []string, req GetBarsR
 		Feed:     req.Feed,
 		AsOf:     req.AsOf,
 		Currency: req.Currency,
+		Sort:     req.Sort,
 	})
 	adjustment := Raw
 	if req.Adjustment != "" {
@@ -435,6 +448,8 @@ type GetAuctionsRequest struct {
 	AsOf string
 	// Currency is the currency of the displayed prices
 	Currency string
+	// Sort is the sort direction of the data
+	Sort Sort
 }
 
 // GetAuctions returns the auctions for the given symbol.
@@ -463,6 +478,7 @@ func (c *Client) GetMultiAuctions(
 		Feed:     "sip",
 		AsOf:     req.AsOf,
 		Currency: req.Currency,
+		Sort:     req.Sort,
 	})
 
 	auctions := make(map[string][]DailyAuctions, len(symbols))
@@ -684,13 +700,23 @@ func (c *Client) GetSnapshots(symbols []string, req GetSnapshotRequest) (map[str
 
 const cryptoPrefix = "v1beta3/crypto"
 
-func setCryptoBaseQuery(q url.Values, symbols []string, start, end time.Time) {
-	q.Set("symbols", strings.Join(symbols, ","))
-	if !start.IsZero() {
-		q.Set("start", start.Format(time.RFC3339Nano))
+type cryptoBaseRequest struct {
+	Symbols []string
+	Start   time.Time
+	End     time.Time
+	Sort    Sort
+}
+
+func setCryptoBaseQuery(q url.Values, req cryptoBaseRequest) {
+	q.Set("symbols", strings.Join(req.Symbols, ","))
+	if !req.Start.IsZero() {
+		q.Set("start", req.Start.Format(time.RFC3339Nano))
 	}
-	if !end.IsZero() {
-		q.Set("end", end.Format(time.RFC3339Nano))
+	if !req.End.IsZero() {
+		q.Set("end", req.End.Format(time.RFC3339Nano))
+	}
+	if req.Sort != "" {
+		q.Set("sort", string(req.Sort))
 	}
 }
 
@@ -707,6 +733,8 @@ type GetCryptoTradesRequest struct {
 	PageLimit int
 	// CryptoFeed is the crypto feed. Default is "us".
 	CryptoFeed CryptoFeed
+	// Sort is the sort direction of the data
+	Sort Sort
 }
 
 // GetCryptoTrades returns the trades for the given crypto symbol.
@@ -726,7 +754,12 @@ func (c *Client) GetCryptoMultiTrades(symbols []string, req GetCryptoTradesReque
 	}
 
 	q := u.Query()
-	setCryptoBaseQuery(q, symbols, req.Start, req.End)
+	setCryptoBaseQuery(q, cryptoBaseRequest{
+		Symbols: symbols,
+		Start:   req.Start,
+		End:     req.End,
+		Sort:    req.Sort,
+	})
 
 	trades := make(map[string][]CryptoTrade, len(symbols))
 	received := 0
@@ -756,6 +789,75 @@ func (c *Client) GetCryptoMultiTrades(symbols []string, req GetCryptoTradesReque
 	return trades, nil
 }
 
+// GetCryptoQuotesRequest contains optional parameters for getting crypto quotes
+type GetCryptoQuotesRequest struct {
+	// Start is the inclusive beginning of the interval
+	Start time.Time
+	// End is the inclusive end of the interval
+	End time.Time
+	// TotalLimit is the limit of the total number of the returned quotes.
+	// If missing, all quotes between start end end will be returned.
+	TotalLimit int
+	// PageLimit is the pagination size. If empty, the default page size will be used.
+	PageLimit int
+	// CryptoFeed is the crypto feed. Default is "us".
+	CryptoFeed CryptoFeed
+	// Sort is the sort direction of the data
+	Sort Sort
+}
+
+// GetCryptoQuotes returns the trades for the given crypto symbol.
+func (c *Client) GetCryptoQuotes(symbol string, req GetCryptoQuotesRequest) ([]CryptoQuote, error) {
+	resp, err := c.GetCryptoMultiQuotes([]string{symbol}, req)
+	if err != nil {
+		return nil, err
+	}
+	return resp[symbol], nil
+}
+
+// GetMultiQuotes returns quotes for the given crypto symbols.
+func (c *Client) GetCryptoMultiQuotes(symbols []string, req GetCryptoQuotesRequest) (map[string][]CryptoQuote, error) {
+	u, err := url.Parse(fmt.Sprintf("%s/%s/%s/quotes", c.opts.BaseURL, cryptoPrefix, c.cryptoFeed(req.CryptoFeed)))
+	if err != nil {
+		return nil, err
+	}
+
+	q := u.Query()
+	setCryptoBaseQuery(q, cryptoBaseRequest{
+		Symbols: symbols,
+		Start:   req.Start,
+		End:     req.End,
+		Sort:    req.Sort,
+	})
+
+	quotes := make(map[string][]CryptoQuote, len(symbols))
+	received := 0
+	for req.TotalLimit == 0 || received < req.TotalLimit {
+		setQueryLimit(q, req.TotalLimit, req.PageLimit, received, v2MaxLimit)
+		u.RawQuery = q.Encode()
+
+		resp, err := c.get(u)
+		if err != nil {
+			return nil, err
+		}
+
+		var quoteResp cryptoMultiQuoteResponse
+		if err = unmarshal(resp, &quoteResp); err != nil {
+			return nil, err
+		}
+
+		for symbol, t := range quoteResp.Quotes {
+			quotes[symbol] = append(quotes[symbol], t...)
+			received += len(t)
+		}
+		if quoteResp.NextPageToken == nil {
+			break
+		}
+		q.Set("page_token", *quoteResp.NextPageToken)
+	}
+	return quotes, nil
+}
+
 // GetCryptoBarsRequest contains optional parameters for getting crypto bars
 type GetCryptoBarsRequest struct {
 	// TimeFrame is the aggregation size of the bars
@@ -771,10 +873,17 @@ type GetCryptoBarsRequest struct {
 	PageLimit int
 	// CryptoFeed is the crypto feed. Default is "us".
 	CryptoFeed CryptoFeed
+	// Sort is the sort direction of the data
+	Sort Sort
 }
 
 func setQueryCryptoBarRequest(q url.Values, symbols []string, req GetCryptoBarsRequest) {
-	setCryptoBaseQuery(q, symbols, req.Start, req.End)
+	setCryptoBaseQuery(q, cryptoBaseRequest{
+		Symbols: symbols,
+		Start:   req.Start,
+		End:     req.End,
+		Sort:    req.Sort,
+	})
 	timeframe := OneDay
 	if req.TimeFrame.N != 0 {
 		timeframe = req.TimeFrame
@@ -1212,6 +1321,16 @@ func GetCryptoTrades(symbol string, req GetCryptoTradesRequest) ([]CryptoTrade, 
 // GetCryptoMultiTrades returns trades for the given crypto symbols.
 func GetCryptoMultiTrades(symbols []string, req GetCryptoTradesRequest) (map[string][]CryptoTrade, error) {
 	return DefaultClient.GetCryptoMultiTrades(symbols, req)
+}
+
+// GetCryptoQuotes returns the quotes for the given crypto symbol.
+func GetCryptoQuotes(symbol string, req GetCryptoQuotesRequest) ([]CryptoQuote, error) {
+	return DefaultClient.GetCryptoQuotes(symbol, req)
+}
+
+// GetCryptoMultiQuotes returns quotes for the given crypto symbols.
+func GetCryptoMultiQuotes(symbols []string, req GetCryptoQuotesRequest) (map[string][]CryptoQuote, error) {
+	return DefaultClient.GetCryptoMultiQuotes(symbols, req)
 }
 
 // GetCryptoBars returns the bars for the given crypto symbol.

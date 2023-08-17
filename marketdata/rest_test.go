@@ -325,6 +325,28 @@ func TestGetQuotes(t *testing.T) {
 	assert.EqualValues(t, 143.69, got[11].BidPrice)
 }
 
+func TestGetQuotes_SortDesc(t *testing.T) {
+	c := DefaultClient
+	c.do = func(c *Client, req *http.Request) (*http.Response, error) {
+		assert.Equal(t, "desc", req.URL.Query().Get("sort"))
+		resp := `{"next_page_token":"VFNMQXw3NTMxMTU5NjM2OTY0OTE0ODc5fFV8MjI4LjMzfDF8UHwyMjguMzV8NXxS","quotes":{"TSLA":[{"ap":228.35,"as":5,"ax":"P","bp":228.34,"bs":2,"bx":"Q","c":["R"],"t":"2023-08-16T18:59:59.185551091Z","z":"C"},{"ap":228.35,"as":5,"ax":"P","bp":228.33,"bs":1,"bx":"U","c":["R"],"t":"2023-08-16T18:59:59.035085121Z","z":"C"}]}}`
+		return &http.Response{
+			Body: io.NopCloser(strings.NewReader(resp)),
+		}, nil
+	}
+	got, err := c.GetQuotes("TSLA", GetQuotesRequest{
+		Start:      time.Date(2023, 8, 16, 9, 0, 0, 0, time.UTC),
+		End:        time.Date(2023, 8, 16, 19, 0, 0, 0, time.UTC),
+		TotalLimit: 2,
+		Sort:       SortDesc,
+	})
+	require.NoError(t, err)
+	require.Len(t, got, 2)
+	assert.True(t, got[0].Timestamp.After(got[1].Timestamp))
+	assert.Equal(t, "Q", got[0].BidExchange)
+	assert.Equal(t, "U", got[1].BidExchange)
+}
+
 func TestGetMultiQuotes(t *testing.T) {
 	c := DefaultClient
 	c.do = func(c *Client, req *http.Request) (*http.Response, error) {
@@ -872,6 +894,36 @@ func TestGetCryptoMultiTrades(t *testing.T) {
 	require.Len(t, got["SUSHI/USD"], 8)
 	require.Equal(t, 0.938, got["SUSHI/USD"][7].Price)
 	require.Equal(t, 19.2, got["SUSHI/USD"][7].Size)
+}
+
+func TestCryptoQuotes(t *testing.T) {
+	c := DefaultClient
+	c.do = func(c *Client, req *http.Request) (*http.Response, error) {
+		assert.Equal(t, "/v1beta3/crypto/us/quotes", req.URL.Path)
+		assert.Equal(t, "ETH/USD", req.URL.Query().Get("symbols"))
+		assert.Equal(t, "2023-08-16T00:00:00Z", req.URL.Query().Get("start"))
+		assert.Equal(t, "2023-08-16T19:00:00Z", req.URL.Query().Get("end"))
+		assert.Equal(t, "2", req.URL.Query().Get("limit"))
+		assert.Equal(t, "desc", req.URL.Query().Get("sort"))
+		resp := `{"next_page_token":"RVRIL1VTRHw3NTMxMTU5NjM3MzM4MDk0NzAyfDE4MjAuOHw0LjM5OTQwNnwxODIyLjU1NDU3OHw0LjMyOTk5MDI=","quotes":{"ETH/USD":[{"ap":1822.352602,"as":8.76015633,"bp":1820.8,"bs":4.399406,"t":"2023-08-16T18:59:58.662421578Z"},{"ap":1822.554578,"as":4.3299902,"bp":1820.8,"bs":4.399406,"t":"2023-08-16T18:59:58.661905298Z"}]}}`
+		return &http.Response{
+			Body: io.NopCloser(strings.NewReader(resp)),
+		}, nil
+	}
+	got, err := c.GetCryptoQuotes("ETH/USD", GetCryptoQuotesRequest{
+		Start:      time.Date(2023, 8, 16, 0, 0, 0, 0, time.UTC),
+		End:        time.Date(2023, 8, 16, 19, 0, 0, 0, time.UTC),
+		TotalLimit: 2,
+		Sort:       SortDesc,
+	})
+	require.NoError(t, err)
+	assert.Len(t, got, 2)
+	assert.Equal(t, "2023-08-16T18:59:58.662421578Z", got[0].Timestamp.Format(time.RFC3339Nano))
+	assert.Equal(t, "2023-08-16T18:59:58.661905298Z", got[1].Timestamp.Format(time.RFC3339Nano))
+	assert.Equal(t, 1820.8, got[1].BidPrice)
+	assert.Equal(t, 4.399406, got[1].BidSize)
+	assert.Equal(t, 1822.554578, got[1].AskPrice)
+	assert.Equal(t, 4.3299902, got[1].AskSize)
 }
 
 func TestGetCryptoBars(t *testing.T) {
