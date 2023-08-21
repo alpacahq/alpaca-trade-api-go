@@ -88,6 +88,8 @@ func NewClient(opts ClientOpts) *Client {
 var DefaultClient = NewClient(ClientOpts{})
 
 func defaultDo(c *Client, req *http.Request) (*http.Response, error) {
+	req.Header.Set("User-Agent", alpaca.Version())
+
 	if c.opts.OAuth != "" {
 		req.Header.Set("Authorization", "Bearer "+c.opts.OAuth)
 	} else {
@@ -1275,7 +1277,6 @@ func (c *Client) get(u *url.URL) (*http.Response, error) {
 		return nil, err
 	}
 	req.Header.Set("Accept-Encoding", "gzip")
-
 	return c.do(c, req)
 }
 
