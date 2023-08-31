@@ -6,6 +6,9 @@ import (
 	"github.com/alpacahq/alpaca-trade-api-go/v3/marketdata"
 )
 
+//go:generate go install github.com/mailru/easyjson/...@v0.7.7
+//go:generate easyjson -all -snake_case $GOFILE
+
 // Trade is a stock trade that happened on the market
 type Trade struct {
 	ID         int64
