@@ -263,7 +263,7 @@ func (alp alpacaClientContainer) submitLimitOrder(qty int, symbol string, price 
 		Qty:         &decimalQty,
 		Side:        adjSide,
 		Type:        "limit",
-		LimitPrice:  alpaca.RoundLimitPrice(price, adjSide),
+		LimitPrice:  alpaca.RoundLimitPrice(decimal.NewFromFloat(price), adjSide),
 		TimeInForce: "day",
 	})
 	if err != nil {

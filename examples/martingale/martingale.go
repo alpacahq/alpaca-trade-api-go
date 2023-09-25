@@ -287,7 +287,7 @@ func (alp alpacaClientContainer) sendOrder(targetQty int) (string, error) {
 			Qty:           &decimalQty,
 			Side:          side,
 			Type:          alpaca.Limit,
-			LimitPrice:    alpaca.RoundLimitPrice(alp.lastPrice, side),
+			LimitPrice:    alpaca.RoundLimitPrice(decimal.NewFromFloat(alp.lastPrice), side),
 			TimeInForce:   alpaca.Day,
 			ClientOrderID: alp.currOrder,
 		})

@@ -12,17 +12,17 @@ import (
 //	Limit price <  $1.00: Max Decimals = 4
 //
 // https://docs.alpaca.markets/docs/orders-at-alpaca#sub-penny-increments-for-limit-orders
-func RoundLimitPrice(price float64, side Side) *decimal.Decimal {
+func RoundLimitPrice(price decimal.Decimal, side Side) *decimal.Decimal {
+	limitPrice := price.Copy()
 	maxDecimals := int32(2)
-	if price < 1 {
+	if price.LessThan(decimal.NewFromInt(1)) {
 		maxDecimals = 4
 	}
-	limitPrice := decimal.NewFromFloat(price)
 	switch side {
 	case Buy:
-		limitPrice = limitPrice.RoundCeil(maxDecimals)
+		limitPrice = price.RoundCeil(maxDecimals)
 	case Sell:
-		limitPrice = limitPrice.RoundFloor(maxDecimals)
+		limitPrice = price.RoundFloor(maxDecimals)
 	}
 	return &limitPrice
 }

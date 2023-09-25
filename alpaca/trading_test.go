@@ -10,31 +10,31 @@ import (
 func Test_calculateLimitPrice(t *testing.T) {
 	tests := []struct {
 		name  string
-		price float64
+		price decimal.Decimal
 		side  Side
 		exp   decimal.Decimal
 	}{
 		{
 			name:  "buy expensive",
-			price: 41.085,
+			price: decimal.RequireFromString("41.085"),
 			side:  Buy,
 			exp:   decimal.RequireFromString("41.09"),
 		},
 		{
 			name:  "buy cheap no rounding",
-			price: 0.9999,
+			price: decimal.RequireFromString("0.9999"),
 			side:  Buy,
 			exp:   decimal.RequireFromString("0.9999"),
 		},
 		{
 			name:  "buy cheap rounding",
-			price: 0.12182,
+			price: decimal.RequireFromString("0.12182"),
 			side:  Buy,
 			exp:   decimal.RequireFromString("0.1219"),
 		},
 		{
 			name:  "sell expensive",
-			price: 41.085,
+			price: decimal.RequireFromString("41.085"),
 			side:  Sell,
 			exp:   decimal.RequireFromString("41.08"),
 		},
