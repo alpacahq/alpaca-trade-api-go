@@ -253,26 +253,23 @@ func (alp alpacaClientContainer) rebalance(currPrice, avg float64) error {
 
 // Submit a limit order if quantity is above 0.
 func (alp alpacaClientContainer) submitLimitOrder(qty int, symbol string, price float64, side string) error {
-	if qty > 0 {
-		adjSide := alpaca.Side(side)
-		limPrice := decimal.NewFromFloat(price)
-		decimalQty := decimal.NewFromInt(int64(qty))
-		order, err := alp.tradeClient.PlaceOrder(alpaca.PlaceOrderRequest{
-			Symbol:      symbol,
-			Qty:         &decimalQty,
-			Side:        adjSide,
-			Type:        "limit",
-			LimitPrice:  &limPrice,
-			TimeInForce: "day",
-		})
-		if err == nil {
-			fmt.Printf("Limit order of | %d %s %s | sent.\n", qty, symbol, side)
-		} else {
-			fmt.Printf("Order of | %d %s %s | did not go through: %v.\n", qty, symbol, side, err)
-		}
-		algo.lastOrder = order.ID
-		return err
+	if qty <= 0 {
+		fmt.Printf("Quantity is <= 0, order of | %d %s %s | not sent.\n", qty, symbol, side)
 	}
-	fmt.Printf("Quantity is <= 0, order of | %d %s %s | not sent.\n", qty, symbol, side)
+	adjSide := alpaca.Side(side)
+	decimalQty := decimal.NewFromInt(int64(qty))
+	order, err := alp.tradeClient.PlaceOrder(alpaca.PlaceOrderRequest{
+		Symbol:      symbol,
+		Qty:         &decimalQty,
+		Side:        adjSide,
+		Type:        "limit",
+		LimitPrice:  alpaca.RoundLimitPrice(price, adjSide),
+		TimeInForce: "day",
+	})
+	if err != nil {
+		return fmt.Errorf("qty=%d symbol=%s side=%s: %w", qty, symbol, side, err)
+	}
+	fmt.Printf("Limit order of | %d %s %s | sent.\n", qty, symbol, side)
+	algo.lastOrder = order.ID
 	return nil
 }
