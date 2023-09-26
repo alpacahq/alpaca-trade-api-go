@@ -279,20 +279,15 @@ func (alp alpacaClientContainer) sendOrder(targetQty int) (string, error) {
 		fmt.Printf("Selling %d shares.\n", int64(qty))
 	}
 
-	// Follow [L] instructions to use limit orders
 	if qty > 0 {
-		// [L] Uncomment line below
-		limitPrice := decimal.NewFromFloat(alp.lastPrice)
-
 		alp.currOrder = randomString()
 		decimalQty := decimal.NewFromFloat(qty)
 		alp.client.PlaceOrder(alpaca.PlaceOrderRequest{
-			Symbol: alp.stock,
-			Qty:    &decimalQty,
-			Side:   side,
-			Type:   alpaca.Limit, // [L] Change to alpaca.Limit
-			// [L] Uncomment line below
-			LimitPrice:    &limitPrice,
+			Symbol:        alp.stock,
+			Qty:           &decimalQty,
+			Side:          side,
+			Type:          alpaca.Limit,
+			LimitPrice:    alpaca.RoundLimitPrice(decimal.NewFromFloat(alp.lastPrice), side),
 			TimeInForce:   alpaca.Day,
 			ClientOrderID: alp.currOrder,
 		})
