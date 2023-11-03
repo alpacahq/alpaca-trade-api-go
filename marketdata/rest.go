@@ -36,6 +36,8 @@ type ClientOpts struct {
 	Currency string
 	// HTTPClient to be used for each http request.
 	HTTPClient *http.Client
+	// Host used to set the http request's host
+	RequestHost string
 }
 
 // Client is the alpaca marketdata Client.
@@ -89,6 +91,9 @@ var DefaultClient = NewClient(ClientOpts{})
 
 func defaultDo(c *Client, req *http.Request) (*http.Response, error) {
 	req.Header.Set("User-Agent", alpaca.Version())
+	if c.opts.RequestHost != "" {
+		req.Host = c.opts.RequestHost
+	}
 
 	if c.opts.OAuth != "" {
 		req.Header.Set("Authorization", "Bearer "+c.opts.OAuth)
