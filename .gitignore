@@ -13,3 +13,6 @@
 .vscode
 .idea
 vendor
+
+# Temp directory
+tmp/
