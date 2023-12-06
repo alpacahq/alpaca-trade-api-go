@@ -235,26 +235,37 @@ func TestGetCalendar(t *testing.T) {
 	c := DefaultClient
 	// successful
 	c.do = func(c *Client, req *http.Request) (*http.Response, error) {
-		assert.Equal(t, "2018-01-01", req.URL.Query().Get("start"))
-		assert.Equal(t, "2018-01-02", req.URL.Query().Get("end"))
-		calendar := []CalendarDay{
+		assert.Equal(t, "2023-01-01", req.URL.Query().Get("start"))
+		assert.Equal(t, "2023-01-03", req.URL.Query().Get("end"))
+		jsonResp := `[
 			{
-				Date:  "2018-01-01",
-				Open:  time.Now().Format(time.RFC3339),
-				Close: time.Now().Format(time.RFC3339),
-			},
-		}
+				"date": "2023-01-03",
+				"open": "09:30",
+				"close": "16:00",
+				"session_open": "0400",
+				"session_close": "2000",
+				"settlement_date": "2023-01-05"
+			}
+		]`
 		return &http.Response{
-			Body: genBody(calendar),
+			Body: nopCloser{strings.NewReader(jsonResp)},
 		}, nil
 	}
 
 	calendar, err := c.GetCalendar(GetCalendarRequest{
-		Start: time.Date(2018, 1, 1, 0, 0, 0, 0, time.UTC),
-		End:   time.Date(2018, 1, 2, 0, 0, 0, 0, time.UTC),
+		Start: time.Date(2023, 1, 1, 0, 0, 0, 0, time.UTC),
+		End:   time.Date(2023, 1, 3, 0, 0, 0, 0, time.UTC),
 	})
 	require.NoError(t, err)
 	assert.Len(t, calendar, 1)
+	assert.Equal(t, CalendarDay{
+		Date:           "2023-01-03",
+		Open:           "09:30",
+		Close:          "16:00",
+		SessionOpen:    "0400",
+		SessionClose:   "2000",
+		SettlementDate: "2023-01-05",
+	}, calendar[0])
 
 	// api failure
 	c.do = func(c *Client, req *http.Request) (*http.Response, error) {
