@@ -61,7 +61,7 @@ alpaca.StreamTradeUpdatesInBackground(context.TODO(), func(tu alpaca.TradeUpdate
 
 // Send a single AAPL order
 qty := decimal.NewFromInt(1)
-if _, err := alpaca.PlaceOrder(alpaca.PlaceOrderRequest{
+if _, err := alpaca.PlaceOrder(context.Background(), alpaca.PlaceOrderRequest{
 	Symbol:      "AAPL",
 	Qty:         &qty,
 	Side:        "buy",
