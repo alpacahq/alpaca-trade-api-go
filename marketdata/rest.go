@@ -1401,7 +1401,7 @@ func GetNews(ctx context.Context, req GetNewsRequest) ([]News, error) {
 }
 
 func (c *Client) get(ctx context.Context, u *url.URL) (*http.Response, error) {
-	req, err := http.NewRequest(http.MethodGet, u.String(), nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u.String(), nil)
 	if err != nil {
 		return nil, err
 	}
