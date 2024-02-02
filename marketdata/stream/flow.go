@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/alpacahq/alpaca-trade-api-go/v3/internal/ctxtime"
 	"github.com/vmihailenco/msgpack/v5"
 )
 
@@ -38,7 +39,9 @@ func (c *client) initialize(ctx context.Context) error {
 			}
 			sleepDuration := 500 * time.Millisecond * time.Duration(authRetryDelayMultiplier*n)
 			c.logger.Infof("datav2stream: retrying auth in %s, attempt %d/%d", sleepDuration, i+1, authRetryCount+1)
-			time.Sleep(sleepDuration)
+			if err := ctxtime.Sleep(ctx, sleepDuration); err != nil {
+				return fmt.Errorf("cancel retry: %w", err)
+			}
 		}
 		ctxWithTimeout, cancel := context.WithTimeout(ctx, initializeTimeout)
 		defer cancel()

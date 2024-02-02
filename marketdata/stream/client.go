@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/alpacahq/alpaca-trade-api-go/v3/internal/ctxtime"
 	"github.com/alpacahq/alpaca-trade-api-go/v3/marketdata"
 )
 
@@ -19,19 +20,21 @@ type client struct {
 	key     string
 	secret  string
 
-	reconnectLimit     int
-	reconnectDelay     time.Duration
-	connectCallback    func()
-	disconnectCallback func()
-	processorCount     int
-	bufferSize         int
-	connectOnce        sync.Once
-	connectCalled      bool
-	hasTerminated      bool
-	terminatedChan     chan error
-	conn               conn
-	in                 chan []byte
-	subChanges         chan []byte
+	connectionCtx       context.Context
+	connectionCtxCancel context.CancelFunc
+	reconnectLimit      int
+	reconnectDelay      time.Duration
+	connectCallback     func()
+	disconnectCallback  func()
+	processorCount      int
+	bufferSize          int
+	connectOnce         sync.Once
+	connectCalled       bool
+	hasTerminated       bool
+	terminatedChan      chan error
+	conn                conn
+	in                  chan []byte
+	subChanges          chan []byte
 
 	sub subscriptions
 
@@ -44,9 +47,12 @@ type client struct {
 }
 
 func newClient() *client {
+	connectCtx, connectCtxCancel := context.WithCancel(context.Background())
 	return &client{
-		terminatedChan: make(chan error, 1),
-		subChanges:     make(chan []byte, 1),
+		terminatedChan:      make(chan error, 1),
+		subChanges:          make(chan []byte, 1),
+		connectionCtx:       connectCtx,
+		connectionCtxCancel: connectCtxCancel,
 	}
 }
 
@@ -263,10 +269,10 @@ func (nc *NewsClient) constructURL() (url.URL, error) {
 	return url.URL{Scheme: scheme, Host: ub.Host, Path: ub.Path}, nil
 }
 
-func (c *client) connect(ctx context.Context, u url.URL) error {
+func (c *client) connect(initialCtx context.Context, u url.URL) error {
 	err := ErrConnectCalledMultipleTimes
 	c.connectOnce.Do(func() {
-		err = c.connectAndMaintainConnection(ctx, u)
+		err = c.connectAndMaintainConnection(initialCtx, u)
 		if err != nil {
 			c.terminatedChan <- err
 			close(c.terminatedChan)
@@ -276,10 +282,14 @@ func (c *client) connect(ctx context.Context, u url.URL) error {
 	return err
 }
 
-func (c *client) connectAndMaintainConnection(ctx context.Context, u url.URL) error {
+func (c *client) connectAndMaintainConnection(initialCtx context.Context, u url.URL) error {
 	initialResultCh := make(chan error)
-	go c.maintainConnection(ctx, u, initialResultCh)
+	go c.maintainConnection(initialCtx, u, initialResultCh)
 	return <-initialResultCh
+}
+
+func (c *client) Terminate() {
+	c.connectionCtxCancel()
 }
 
 // Terminated returns a channel that the client sends an error to when it has terminated.
@@ -292,7 +302,7 @@ func (c *client) Terminated() <-chan error {
 // and recreates them if there was an error as long as reconnectLimit consecutive
 // connection initialization errors don't occur. It sends the first connection
 // initialization's result to initialResultCh.
-func (c *client) maintainConnection(ctx context.Context, u url.URL, initialResultCh chan<- error) {
+func (c *client) maintainConnection(initialCtx context.Context, u url.URL, initialResultCh chan<- error) {
 	var connError error
 	failedAttemptsInARow := 0
 	connectedAtLeastOnce := false
@@ -327,6 +337,10 @@ func (c *client) maintainConnection(ctx context.Context, u url.URL, initialResul
 	}
 
 	for {
+		ctx := c.connectionCtx
+		if !connectedAtLeastOnce {
+			ctx = initialCtx
+		}
 		select {
 		case <-ctx.Done():
 			if !connectedAtLeastOnce {
@@ -344,7 +358,12 @@ func (c *client) maintainConnection(ctx context.Context, u url.URL, initialResul
 				sendError(e)
 				return
 			}
-			time.Sleep(time.Duration(failedAttemptsInARow) * c.reconnectDelay)
+			if err := ctxtime.Sleep(ctx, time.Duration(failedAttemptsInARow)*c.reconnectDelay); err != nil {
+				c.logger.Errorf("datav2stream: cancel reconnect: %v", err)
+				e := fmt.Errorf("cancel reconnect: %v", err)
+				sendError(e)
+				return
+			}
 			failedAttemptsInARow++
 			c.logger.Infof("datav2stream: connecting to %s, attempt %d/%d ...", u.String(), failedAttemptsInARow, c.reconnectLimit)
 			conn, err := c.connCreator(ctx, u)
@@ -394,13 +413,13 @@ func (c *client) maintainConnection(ctx context.Context, u url.URL, initialResul
 			wg.Add(c.processorCount + 3)
 			closeCh := make(chan struct{})
 			for i := 0; i < c.processorCount; i++ {
-				go c.messageProcessor(ctx, &wg)
+				go c.messageProcessor(c.connectionCtx, &wg)
 			}
-			go c.connPinger(ctx, &wg, closeCh)
-			go c.connReader(ctx, &wg, closeCh)
-			go c.connWriter(ctx, &wg, closeCh)
+			go c.connPinger(c.connectionCtx, &wg, closeCh)
+			go c.connReader(c.connectionCtx, &wg, closeCh)
+			go c.connWriter(c.connectionCtx, &wg, closeCh)
 			wg.Wait()
-			if ctx.Err() != nil {
+			if c.connectionCtx.Err() != nil {
 				c.logger.Infof("datav2stream: disconnected")
 			} else {
 				c.logger.Warnf("datav2stream: connection lost")

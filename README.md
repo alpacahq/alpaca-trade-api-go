@@ -37,7 +37,7 @@ func main() {
 		APISecret: "YOUR_API_SECRET",
 		BaseURL:   "https://paper-api.alpaca.markets",
 	})
-	acct, err := client.GetAccount()
+	acct, err := client.GetAccount(context.Background())
 	if err != nil {
 		panic(err)
 	}

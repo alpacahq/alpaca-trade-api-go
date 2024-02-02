@@ -61,10 +61,12 @@ func init() {
 		BaseURL:   baseURL,
 	})
 
-	// Cancel any open orders so they don't interfere with this script
-	client.CancelAllOrders()
+	ctx := context.Background()
 
-	pos, err := client.GetPosition(stock)
+	// Cancel any open orders so they don't interfere with this script
+	client.CancelAllOrders(ctx)
+
+	pos, err := client.GetPosition(ctx, stock)
 	position := int64(0)
 	if err != nil {
 		// No position exists
@@ -73,7 +75,7 @@ func init() {
 	}
 
 	// Figure out how much money we have to work with, accounting for margin
-	acct, err := client.GetAccount()
+	acct, err := client.GetAccount(ctx)
 	if err != nil {
 		panic(err)
 	}
@@ -102,24 +104,26 @@ func init() {
 }
 
 func main() {
+	ctx := context.Background()
+
 	// First, cancel any existing orders so they don't impact our buying power
-	orders, _ := alpacaClient.client.GetOrders(alpaca.GetOrdersRequest{
+	orders, _ := alpacaClient.client.GetOrders(ctx, alpaca.GetOrdersRequest{
 		Status: "open",
 		Until:  time.Now(),
 		Limit:  100,
 	})
 	for _, order := range orders {
-		_ = alpacaClient.client.CancelOrder(order.ID)
+		_ = alpacaClient.client.CancelOrder(ctx, order.ID)
 	}
 
 	feed := "iex" // Use sip if you have proper subscription
 	c := stream.NewStocksClient(feed)
-	if err := c.Connect(context.TODO()); err != nil {
+	if err := c.Connect(ctx); err != nil {
 		panic(err)
 	}
-	c.SubscribeToTrades(handleTrades, alpacaClient.stock)
+	c.SubscribeToTrades(ctx, handleTrades, alpacaClient.stock)
 
-	alpacaClient.client.StreamTradeUpdatesInBackground(context.TODO(), handleTradeUpdates)
+	alpacaClient.client.StreamTradeUpdatesInBackground(ctx, handleTradeUpdates)
 
 	if err := <-c.Terminated(); err != nil {
 		panic(err)
@@ -139,6 +143,8 @@ func handleTrades(trade stream.Trade) {
 	}
 	alpacaClient.lastTradeTime = now
 
+	ctx := context.Background()
+
 	alpacaClient.tickIndex = (alpacaClient.tickIndex + 1) % alpacaClient.tickSize
 	if alpacaClient.tickIndex == 0 {
 		// It's time to update
@@ -148,12 +154,14 @@ func handleTrades(trade stream.Trade) {
 		tickClose := trade.Price
 		alpacaClient.lastPrice = tickClose
 
-		alpacaClient.processTick(tickOpen, tickClose)
+		alpacaClient.processTick(ctx, tickOpen, tickClose)
 	}
 }
 
 // Listen for updates to our orders
 func handleTradeUpdates(tu alpaca.TradeUpdate) {
+	ctx := context.Background()
+
 	fmt.Printf("%s event received for order %s.\n", tu.Event, tu.Order.ID)
 
 	if tu.Order.Symbol != alpacaClient.stock {
@@ -166,7 +174,7 @@ func handleTradeUpdates(tu alpaca.TradeUpdate) {
 
 	if eventType == "fill" || eventType == "partial_fill" {
 		// Our position size has changed
-		pos, err := alpacaClient.client.GetPosition(alpacaClient.stock)
+		pos, err := alpacaClient.client.GetPosition(ctx, alpacaClient.stock)
 		if err != nil {
 			alpacaClient.position = 0
 		} else {
@@ -189,7 +197,7 @@ func handleTradeUpdates(tu alpaca.TradeUpdate) {
 	}
 }
 
-func (alp alpacaClientContainer) processTick(tickOpen float64, tickClose float64) {
+func (alp alpacaClientContainer) processTick(ctx context.Context, tickOpen float64, tickClose float64) {
 	// Update streak info
 	diff := tickClose - tickOpen
 	if math.Abs(diff) >= .01 {
@@ -202,7 +210,7 @@ func (alp alpacaClientContainer) processTick(tickOpen float64, tickClose float64
 
 			// Empty out the position
 			if alp.position != 0 {
-				_, err := alp.sendOrder(0)
+				_, err := alp.sendOrder(ctx, 0)
 				if err != nil {
 					panic(err)
 				}
@@ -229,7 +237,7 @@ func (alp alpacaClientContainer) processTick(tickOpen float64, tickClose float64
 			// We don't want to have two orders open at once
 			if int64(targetQty)-alp.position != 0 {
 				if alpacaClient.currOrder != "" {
-					err := alp.client.CancelOrder(alpacaClient.currOrder)
+					err := alp.client.CancelOrder(ctx, alpacaClient.currOrder)
 					if err != nil {
 						panic(err)
 					}
@@ -237,7 +245,7 @@ func (alp alpacaClientContainer) processTick(tickOpen float64, tickClose float64
 					alpacaClient.currOrder = ""
 				}
 
-				_, err := alp.sendOrder(targetQty)
+				_, err := alp.sendOrder(ctx, targetQty)
 				if err != nil {
 					panic(err)
 				}
@@ -246,7 +254,7 @@ func (alp alpacaClientContainer) processTick(tickOpen float64, tickClose float64
 	}
 
 	// Update our account balance
-	acct, err := alp.client.GetAccount()
+	acct, err := alp.client.GetAccount(ctx)
 	if err != nil {
 		panic(err)
 	}
@@ -254,7 +262,7 @@ func (alp alpacaClientContainer) processTick(tickOpen float64, tickClose float64
 	alp.equity, _ = acct.Equity.Float64()
 }
 
-func (alp alpacaClientContainer) sendOrder(targetQty int) (string, error) {
+func (alp alpacaClientContainer) sendOrder(ctx context.Context, targetQty int) (string, error) {
 	delta := float64(int64(targetQty) - alp.position)
 
 	fmt.Printf("Ordering towards %d...\n", targetQty)
@@ -282,7 +290,7 @@ func (alp alpacaClientContainer) sendOrder(targetQty int) (string, error) {
 	if qty > 0 {
 		alp.currOrder = randomString()
 		decimalQty := decimal.NewFromFloat(qty)
-		alp.client.PlaceOrder(alpaca.PlaceOrderRequest{
+		alp.client.PlaceOrder(ctx, alpaca.PlaceOrderRequest{
 			Symbol:        alp.stock,
 			Qty:           &decimalQty,
 			Side:          side,

@@ -1,7 +1,7 @@
 package stream
 
 import (
-	"time"
+	"context"
 
 	"github.com/vmihailenco/msgpack/v5"
 )
@@ -11,182 +11,182 @@ type subChangeRequest struct {
 	result chan error
 }
 
-func (sc *StocksClient) SubscribeToTrades(handler func(Trade), symbols ...string) error {
+func (sc *StocksClient) SubscribeToTrades(ctx context.Context, handler func(Trade), symbols ...string) error {
 	sc.handler.mu.Lock()
 	sc.handler.tradeHandler = handler
 	sc.handler.mu.Unlock()
-	return sc.client.handleSubChange(true, subscriptions{trades: symbols})
+	return sc.client.handleSubChange(ctx, true, subscriptions{trades: symbols})
 }
 
-func (sc *StocksClient) SubscribeToQuotes(handler func(Quote), symbols ...string) error {
+func (sc *StocksClient) SubscribeToQuotes(ctx context.Context, handler func(Quote), symbols ...string) error {
 	sc.handler.mu.Lock()
 	sc.handler.quoteHandler = handler
 	sc.handler.mu.Unlock()
-	return sc.client.handleSubChange(true, subscriptions{quotes: symbols})
+	return sc.client.handleSubChange(ctx, true, subscriptions{quotes: symbols})
 }
 
-func (sc *StocksClient) SubscribeToBars(handler func(Bar), symbols ...string) error {
+func (sc *StocksClient) SubscribeToBars(ctx context.Context, handler func(Bar), symbols ...string) error {
 	sc.handler.mu.Lock()
 	sc.handler.barHandler = handler
 	sc.handler.mu.Unlock()
-	return sc.client.handleSubChange(true, subscriptions{bars: symbols})
+	return sc.client.handleSubChange(ctx, true, subscriptions{bars: symbols})
 }
 
-func (sc *StocksClient) SubscribeToUpdatedBars(handler func(Bar), symbols ...string) error {
+func (sc *StocksClient) SubscribeToUpdatedBars(ctx context.Context, handler func(Bar), symbols ...string) error {
 	sc.handler.mu.Lock()
 	sc.handler.updatedBarHandler = handler
 	sc.handler.mu.Unlock()
-	return sc.client.handleSubChange(true, subscriptions{updatedBars: symbols})
+	return sc.client.handleSubChange(ctx, true, subscriptions{updatedBars: symbols})
 }
 
-func (sc *StocksClient) SubscribeToDailyBars(handler func(Bar), symbols ...string) error {
+func (sc *StocksClient) SubscribeToDailyBars(ctx context.Context, handler func(Bar), symbols ...string) error {
 	sc.handler.mu.Lock()
 	sc.handler.dailyBarHandler = handler
 	sc.handler.mu.Unlock()
-	return sc.client.handleSubChange(true, subscriptions{dailyBars: symbols})
+	return sc.client.handleSubChange(ctx, true, subscriptions{dailyBars: symbols})
 }
 
-func (sc *StocksClient) SubscribeToStatuses(handler func(TradingStatus), symbols ...string) error {
+func (sc *StocksClient) SubscribeToStatuses(ctx context.Context, handler func(TradingStatus), symbols ...string) error {
 	sc.handler.mu.Lock()
 	sc.handler.tradingStatusHandler = handler
 	sc.handler.mu.Unlock()
-	return sc.client.handleSubChange(true, subscriptions{statuses: symbols})
+	return sc.client.handleSubChange(ctx, true, subscriptions{statuses: symbols})
 }
 
-func (sc *StocksClient) SubscribeToLULDs(handler func(LULD), symbols ...string) error {
+func (sc *StocksClient) SubscribeToLULDs(ctx context.Context, handler func(LULD), symbols ...string) error {
 	sc.handler.mu.Lock()
 	sc.handler.luldHandler = handler
 	sc.handler.mu.Unlock()
-	return sc.client.handleSubChange(true, subscriptions{lulds: symbols})
+	return sc.client.handleSubChange(ctx, true, subscriptions{lulds: symbols})
 }
 
-func (sc *StocksClient) RegisterCancelErrors(handler func(TradeCancelError)) {
+func (sc *StocksClient) RegisterCancelErrors(ctx context.Context, handler func(TradeCancelError)) {
 	sc.handler.mu.Lock()
 	sc.handler.cancelErrorHandler = handler
 	sc.handler.mu.Unlock()
 }
 
-func (sc *StocksClient) RegisterCorrections(handler func(TradeCorrection)) {
+func (sc *StocksClient) RegisterCorrections(ctx context.Context, handler func(TradeCorrection)) {
 	sc.handler.mu.Lock()
 	sc.handler.correctionHandler = handler
 	sc.handler.mu.Unlock()
 }
 
-func (sc *StocksClient) UnsubscribeFromTrades(symbols ...string) error {
-	return sc.handleSubChange(false, subscriptions{trades: symbols})
+func (sc *StocksClient) UnsubscribeFromTrades(ctx context.Context, symbols ...string) error {
+	return sc.handleSubChange(ctx, false, subscriptions{trades: symbols})
 }
 
-func (sc *StocksClient) UnsubscribeFromQuotes(symbols ...string) error {
-	return sc.handleSubChange(false, subscriptions{quotes: symbols})
+func (sc *StocksClient) UnsubscribeFromQuotes(ctx context.Context, symbols ...string) error {
+	return sc.handleSubChange(ctx, false, subscriptions{quotes: symbols})
 }
 
-func (sc *StocksClient) UnsubscribeFromBars(symbols ...string) error {
-	return sc.handleSubChange(false, subscriptions{bars: symbols})
+func (sc *StocksClient) UnsubscribeFromBars(ctx context.Context, symbols ...string) error {
+	return sc.handleSubChange(ctx, false, subscriptions{bars: symbols})
 }
 
-func (sc *StocksClient) UnsubscribeFromUpdatedBars(symbols ...string) error {
-	return sc.handleSubChange(false, subscriptions{updatedBars: symbols})
+func (sc *StocksClient) UnsubscribeFromUpdatedBars(ctx context.Context, symbols ...string) error {
+	return sc.handleSubChange(ctx, false, subscriptions{updatedBars: symbols})
 }
 
-func (sc *StocksClient) UnsubscribeFromDailyBars(symbols ...string) error {
-	return sc.handleSubChange(false, subscriptions{dailyBars: symbols})
+func (sc *StocksClient) UnsubscribeFromDailyBars(ctx context.Context, symbols ...string) error {
+	return sc.handleSubChange(ctx, false, subscriptions{dailyBars: symbols})
 }
 
-func (sc *StocksClient) UnsubscribeFromStatuses(symbols ...string) error {
-	return sc.handleSubChange(false, subscriptions{statuses: symbols})
+func (sc *StocksClient) UnsubscribeFromStatuses(ctx context.Context, symbols ...string) error {
+	return sc.handleSubChange(ctx, false, subscriptions{statuses: symbols})
 }
 
-func (sc *StocksClient) UnsubscribeFromLULDs(symbols ...string) error {
-	return sc.handleSubChange(false, subscriptions{lulds: symbols})
+func (sc *StocksClient) UnsubscribeFromLULDs(ctx context.Context, symbols ...string) error {
+	return sc.handleSubChange(ctx, false, subscriptions{lulds: symbols})
 }
 
-func (sc *StocksClient) UnregisterCancelErrors() {
+func (sc *StocksClient) UnregisterCancelErrors(ctx context.Context) {
 	sc.handler.mu.Lock()
 	sc.handler.cancelErrorHandler = func(TradeCancelError) {}
 	sc.handler.mu.Unlock()
 }
 
-func (sc *StocksClient) UnregisterCorrections() {
+func (sc *StocksClient) UnregisterCorrections(ctx context.Context) {
 	sc.handler.mu.Lock()
 	sc.handler.correctionHandler = func(TradeCorrection) {}
 	sc.handler.mu.Unlock()
 }
 
-func (cc *CryptoClient) SubscribeToTrades(handler func(CryptoTrade), symbols ...string) error {
+func (cc *CryptoClient) SubscribeToTrades(ctx context.Context, handler func(CryptoTrade), symbols ...string) error {
 	cc.handler.mu.Lock()
 	cc.handler.tradeHandler = handler
 	cc.handler.mu.Unlock()
-	return cc.client.handleSubChange(true, subscriptions{trades: symbols})
+	return cc.client.handleSubChange(ctx, true, subscriptions{trades: symbols})
 }
 
-func (cc *CryptoClient) SubscribeToQuotes(handler func(CryptoQuote), symbols ...string) error {
+func (cc *CryptoClient) SubscribeToQuotes(ctx context.Context, handler func(CryptoQuote), symbols ...string) error {
 	cc.handler.mu.Lock()
 	cc.handler.quoteHandler = handler
 	cc.handler.mu.Unlock()
-	return cc.client.handleSubChange(true, subscriptions{quotes: symbols})
+	return cc.client.handleSubChange(ctx, true, subscriptions{quotes: symbols})
 }
 
-func (cc *CryptoClient) SubscribeToBars(handler func(CryptoBar), symbols ...string) error {
+func (cc *CryptoClient) SubscribeToBars(ctx context.Context, handler func(CryptoBar), symbols ...string) error {
 	cc.handler.mu.Lock()
 	cc.handler.barHandler = handler
 	cc.handler.mu.Unlock()
-	return cc.client.handleSubChange(true, subscriptions{bars: symbols})
+	return cc.client.handleSubChange(ctx, true, subscriptions{bars: symbols})
 }
 
-func (cc *CryptoClient) SubscribeToUpdatedBars(handler func(CryptoBar), symbols ...string) error {
+func (cc *CryptoClient) SubscribeToUpdatedBars(ctx context.Context, handler func(CryptoBar), symbols ...string) error {
 	cc.handler.mu.Lock()
 	cc.handler.updatedBarHandler = handler
 	cc.handler.mu.Unlock()
-	return cc.client.handleSubChange(true, subscriptions{updatedBars: symbols})
+	return cc.client.handleSubChange(ctx, true, subscriptions{updatedBars: symbols})
 }
 
-func (cc *CryptoClient) SubscribeToDailyBars(handler func(CryptoBar), symbols ...string) error {
+func (cc *CryptoClient) SubscribeToDailyBars(ctx context.Context, handler func(CryptoBar), symbols ...string) error {
 	cc.handler.mu.Lock()
 	cc.handler.dailyBarHandler = handler
 	cc.handler.mu.Unlock()
-	return cc.client.handleSubChange(true, subscriptions{dailyBars: symbols})
+	return cc.client.handleSubChange(ctx, true, subscriptions{dailyBars: symbols})
 }
 
-func (cc *CryptoClient) SubscribeToOrderbooks(handler func(CryptoOrderbook), symbols ...string) error {
+func (cc *CryptoClient) SubscribeToOrderbooks(ctx context.Context, handler func(CryptoOrderbook), symbols ...string) error {
 	cc.handler.mu.Lock()
 	cc.handler.orderbookHandler = handler
 	cc.handler.mu.Unlock()
-	return cc.client.handleSubChange(true, subscriptions{orderbooks: symbols})
+	return cc.client.handleSubChange(ctx, true, subscriptions{orderbooks: symbols})
 }
 
-func (cc *CryptoClient) UnsubscribeFromTrades(symbols ...string) error {
-	return cc.handleSubChange(false, subscriptions{trades: symbols})
+func (cc *CryptoClient) UnsubscribeFromTrades(ctx context.Context, symbols ...string) error {
+	return cc.handleSubChange(ctx, false, subscriptions{trades: symbols})
 }
 
-func (cc *CryptoClient) UnsubscribeFromQuotes(symbols ...string) error {
-	return cc.handleSubChange(false, subscriptions{quotes: symbols})
+func (cc *CryptoClient) UnsubscribeFromQuotes(ctx context.Context, symbols ...string) error {
+	return cc.handleSubChange(ctx, false, subscriptions{quotes: symbols})
 }
 
-func (cc *CryptoClient) UnsubscribeFromBars(symbols ...string) error {
-	return cc.handleSubChange(false, subscriptions{bars: symbols})
+func (cc *CryptoClient) UnsubscribeFromBars(ctx context.Context, symbols ...string) error {
+	return cc.handleSubChange(ctx, false, subscriptions{bars: symbols})
 }
 
-func (cc *CryptoClient) UnsubscribeFromUpdatedBars(symbols ...string) error {
-	return cc.handleSubChange(false, subscriptions{updatedBars: symbols})
+func (cc *CryptoClient) UnsubscribeFromUpdatedBars(ctx context.Context, symbols ...string) error {
+	return cc.handleSubChange(ctx, false, subscriptions{updatedBars: symbols})
 }
 
-func (cc *CryptoClient) UnsubscribeFromDailyBars(symbols ...string) error {
-	return cc.handleSubChange(false, subscriptions{dailyBars: symbols})
+func (cc *CryptoClient) UnsubscribeFromDailyBars(ctx context.Context, symbols ...string) error {
+	return cc.handleSubChange(ctx, false, subscriptions{dailyBars: symbols})
 }
 
-func (cc *CryptoClient) UnsubscribeFromOrderbooks(symbols ...string) error {
-	return cc.handleSubChange(false, subscriptions{orderbooks: symbols})
+func (cc *CryptoClient) UnsubscribeFromOrderbooks(ctx context.Context, symbols ...string) error {
+	return cc.handleSubChange(ctx, false, subscriptions{orderbooks: symbols})
 }
 
-func (nc *NewsClient) SubscribeToNews(handler func(News), symbols ...string) error {
+func (nc *NewsClient) SubscribeToNews(ctx context.Context, handler func(News), symbols ...string) error {
 	nc.handler.mu.Lock()
 	nc.handler.newsHandler = handler
 	nc.handler.mu.Unlock()
-	return nc.client.handleSubChange(true, subscriptions{news: symbols})
+	return nc.client.handleSubChange(ctx, true, subscriptions{news: symbols})
 }
 
-func (nc *NewsClient) UnsubscribeFromNews(symbols ...string) error {
-	return nc.handleSubChange(false, subscriptions{news: symbols})
+func (nc *NewsClient) UnsubscribeFromNews(ctx context.Context, symbols ...string) error {
+	return nc.handleSubChange(ctx, false, subscriptions{news: symbols})
 }
 
 type subscriptions struct {
@@ -209,9 +209,7 @@ func (s subscriptions) noSubscribeCallNecessary() bool {
 		len(s.orderbooks) == 0 && len(s.news) == 0
 }
 
-var timeAfter = time.After
-
-func (c *client) handleSubChange(subscribe bool, changes subscriptions) error {
+func (c *client) handleSubChange(ctx context.Context, subscribe bool, changes subscriptions) error {
 	if !c.connectCalled {
 		return ErrSubscriptionChangeBeforeConnect
 	}
@@ -225,7 +223,7 @@ func (c *client) handleSubChange(subscribe bool, changes subscriptions) error {
 	}
 
 	request := subChangeRequest{
-		result: make(chan error),
+		result: make(chan error, 1),
 		msg:    msg,
 	}
 
@@ -236,13 +234,12 @@ func (c *client) handleSubChange(subscribe bool, changes subscriptions) error {
 	select {
 	case err := <-request.result:
 		return err
-	case <-timeAfter(3 * time.Second):
+	case <-ctx.Done():
 		c.pendingSubChangeMutex.Lock()
 		defer c.pendingSubChangeMutex.Unlock()
 		c.pendingSubChange = nil
+		return ctx.Err()
 	}
-
-	return ErrSubscriptionChangeTimeout
 }
 
 func (c *client) setSubChangeRequest(request *subChangeRequest) error {

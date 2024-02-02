@@ -2,6 +2,7 @@ package alpaca
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -12,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/alpacahq/alpaca-trade-api-go/v3/internal/ctxtime"
 	"github.com/mailru/easyjson"
 	"github.com/shopspring/decimal"
 )
@@ -104,7 +106,9 @@ func defaultDo(c *Client, req *http.Request) (*http.Response, error) {
 		if i >= c.opts.RetryLimit {
 			break
 		}
-		time.Sleep(c.opts.RetryDelay)
+		if err := ctxtime.Sleep(req.Context(), c.opts.RetryDelay); err != nil {
+			return nil, err
+		}
 	}
 
 	if err = verify(resp); err != nil {
@@ -115,13 +119,13 @@ func defaultDo(c *Client, req *http.Request) (*http.Response, error) {
 }
 
 // GetAccount returns the user's account information.
-func (c *Client) GetAccount() (*Account, error) {
+func (c *Client) GetAccount(ctx context.Context) (*Account, error) {
 	u, err := url.Parse(fmt.Sprintf("%s/%s/account", c.opts.BaseURL, apiVersion))
 	if err != nil {
 		return nil, err
 	}
 
-	resp, err := c.get(u)
+	resp, err := c.get(ctx, u)
 	if err != nil {
 		return nil, err
 	}
@@ -134,13 +138,13 @@ func (c *Client) GetAccount() (*Account, error) {
 }
 
 // GetAccountConfigurations returns the current account configurations
-func (c *Client) GetAccountConfigurations() (*AccountConfigurations, error) {
+func (c *Client) GetAccountConfigurations(ctx context.Context) (*AccountConfigurations, error) {
 	u, err := url.Parse(fmt.Sprintf("%s/%s/account/configurations", c.opts.BaseURL, apiVersion))
 	if err != nil {
 		return nil, err
 	}
 
-	resp, err := c.get(u)
+	resp, err := c.get(ctx, u)
 	if err != nil {
 		return nil, err
 	}
@@ -161,13 +165,13 @@ type UpdateAccountConfigurationsRequest struct {
 }
 
 // UpdateAccountConfigurations updates the account configs.
-func (c *Client) UpdateAccountConfigurations(req UpdateAccountConfigurationsRequest) (*AccountConfigurations, error) {
+func (c *Client) UpdateAccountConfigurations(ctx context.Context, req UpdateAccountConfigurationsRequest) (*AccountConfigurations, error) {
 	u, err := url.Parse(fmt.Sprintf("%s/%s/account/configurations", c.opts.BaseURL, apiVersion))
 	if err != nil {
 		return nil, err
 	}
 
-	resp, err := c.patch(u, req)
+	resp, err := c.patch(ctx, u, req)
 	if err != nil {
 		return nil, err
 	}
@@ -189,7 +193,7 @@ type GetAccountActivitiesRequest struct {
 }
 
 // GetAccountActivities returns the account activities.
-func (c *Client) GetAccountActivities(req GetAccountActivitiesRequest) ([]AccountActivity, error) {
+func (c *Client) GetAccountActivities(ctx context.Context, req GetAccountActivitiesRequest) ([]AccountActivity, error) {
 	u, err := url.Parse(fmt.Sprintf("%s/%s/account/activities", c.opts.BaseURL, apiVersion))
 	if err != nil {
 		return nil, err
@@ -216,7 +220,7 @@ func (c *Client) GetAccountActivities(req GetAccountActivitiesRequest) ([]Accoun
 	}
 	u.RawQuery = q.Encode()
 
-	resp, err := c.get(u)
+	resp, err := c.get(ctx, u)
 	if err != nil {
 		return nil, err
 	}
@@ -236,7 +240,7 @@ type GetPortfolioHistoryRequest struct {
 }
 
 // GetPortfolioHistory returns the portfolio history.
-func (c *Client) GetPortfolioHistory(req GetPortfolioHistoryRequest) (*PortfolioHistory, error) {
+func (c *Client) GetPortfolioHistory(ctx context.Context, req GetPortfolioHistoryRequest) (*PortfolioHistory, error) {
 	u, err := url.Parse(fmt.Sprintf("%s/%s/account/portfolio/history", c.opts.BaseURL, apiVersion))
 	if err != nil {
 		return nil, err
@@ -255,7 +259,7 @@ func (c *Client) GetPortfolioHistory(req GetPortfolioHistoryRequest) (*Portfolio
 	query.Set("extended_hours", strconv.FormatBool(req.ExtendedHours))
 	u.RawQuery = query.Encode()
 
-	resp, err := c.get(u)
+	resp, err := c.get(ctx, u)
 	if err != nil {
 		return nil, err
 	}
@@ -268,13 +272,13 @@ func (c *Client) GetPortfolioHistory(req GetPortfolioHistoryRequest) (*Portfolio
 }
 
 // GetPositions returns the account's open positions.
-func (c *Client) GetPositions() ([]Position, error) {
+func (c *Client) GetPositions(ctx context.Context) ([]Position, error) {
 	u, err := url.Parse(fmt.Sprintf("%s/%s/positions", c.opts.BaseURL, apiVersion))
 	if err != nil {
 		return nil, err
 	}
 
-	resp, err := c.get(u)
+	resp, err := c.get(ctx, u)
 	if err != nil {
 		return nil, err
 	}
@@ -287,7 +291,7 @@ func (c *Client) GetPositions() ([]Position, error) {
 }
 
 // GetPosition returns the account's position for the provided symbol.
-func (c *Client) GetPosition(symbol string) (*Position, error) {
+func (c *Client) GetPosition(ctx context.Context, symbol string) (*Position, error) {
 	u, err := url.Parse(fmt.Sprintf("%s/%s/positions/%s", c.opts.BaseURL, apiVersion, symbol))
 	if err != nil {
 		return nil, err
@@ -297,7 +301,7 @@ func (c *Client) GetPosition(symbol string) (*Position, error) {
 	q.Set("symbol", symbol)
 	u.RawQuery = q.Encode()
 
-	resp, err := c.get(u)
+	resp, err := c.get(ctx, u)
 	if err != nil {
 		return nil, err
 	}
@@ -314,7 +318,7 @@ type CloseAllPositionsRequest struct {
 }
 
 // CloseAllPositions liquidates all open positions at market price.
-func (c *Client) CloseAllPositions(req CloseAllPositionsRequest) ([]Order, error) {
+func (c *Client) CloseAllPositions(ctx context.Context, req CloseAllPositionsRequest) ([]Order, error) {
 	u, err := url.Parse(fmt.Sprintf("%s/%s/positions", c.opts.BaseURL, apiVersion))
 	if err != nil {
 		return nil, err
@@ -324,7 +328,7 @@ func (c *Client) CloseAllPositions(req CloseAllPositionsRequest) ([]Order, error
 	q.Set("cancel_orders", strconv.FormatBool(req.CancelOrders))
 	u.RawQuery = q.Encode()
 
-	resp, err := c.delete(u)
+	resp, err := c.delete(ctx, u)
 	if err != nil {
 		return nil, err
 	}
@@ -347,7 +351,7 @@ type ClosePositionRequest struct {
 }
 
 // ClosePosition liquidates the position for the given symbol at market price.
-func (c *Client) ClosePosition(symbol string, req ClosePositionRequest) (*Order, error) {
+func (c *Client) ClosePosition(ctx context.Context, symbol string, req ClosePositionRequest) (*Order, error) {
 	u, err := url.Parse(fmt.Sprintf("%s/%s/positions/%s", c.opts.BaseURL, apiVersion, symbol))
 	if err != nil {
 		return nil, err
@@ -362,7 +366,7 @@ func (c *Client) ClosePosition(symbol string, req ClosePositionRequest) (*Order,
 	}
 	u.RawQuery = q.Encode()
 
-	resp, err := c.delete(u)
+	resp, err := c.delete(ctx, u)
 	if err != nil {
 		return nil, err
 	}
@@ -375,13 +379,13 @@ func (c *Client) ClosePosition(symbol string, req ClosePositionRequest) (*Order,
 }
 
 // GetClock returns the current market clock.
-func (c *Client) GetClock() (*Clock, error) {
+func (c *Client) GetClock(ctx context.Context) (*Clock, error) {
 	u, err := url.Parse(fmt.Sprintf("%s/%s/clock", c.opts.BaseURL, apiVersion))
 	if err != nil {
 		return nil, err
 	}
 
-	resp, err := c.get(u)
+	resp, err := c.get(ctx, u)
 	if err != nil {
 		return nil, err
 	}
@@ -399,7 +403,7 @@ type GetCalendarRequest struct {
 }
 
 // GetCalendar returns the market calendar.
-func (c *Client) GetCalendar(req GetCalendarRequest) ([]CalendarDay, error) {
+func (c *Client) GetCalendar(ctx context.Context, req GetCalendarRequest) ([]CalendarDay, error) {
 	u, err := url.Parse(fmt.Sprintf("%s/%s/calendar", c.opts.BaseURL, apiVersion))
 	if err != nil {
 		return nil, err
@@ -414,7 +418,7 @@ func (c *Client) GetCalendar(req GetCalendarRequest) ([]CalendarDay, error) {
 	}
 	u.RawQuery = q.Encode()
 
-	resp, err := c.get(u)
+	resp, err := c.get(ctx, u)
 	if err != nil {
 		return nil, err
 	}
@@ -439,7 +443,7 @@ type GetOrdersRequest struct {
 }
 
 // GetOrders returns the list of orders for an account.
-func (c *Client) GetOrders(req GetOrdersRequest) ([]Order, error) {
+func (c *Client) GetOrders(ctx context.Context, req GetOrdersRequest) ([]Order, error) {
 	urlString := fmt.Sprintf("%s/%s/orders", c.opts.BaseURL, apiVersion)
 
 	u, err := url.Parse(urlString)
@@ -472,7 +476,7 @@ func (c *Client) GetOrders(req GetOrdersRequest) ([]Order, error) {
 	}
 	u.RawQuery = q.Encode()
 
-	resp, err := c.get(u)
+	resp, err := c.get(ctx, u)
 	if err != nil {
 		return nil, err
 	}
@@ -512,13 +516,13 @@ type StopLoss struct {
 }
 
 // PlaceOrder submits an order request to buy or sell an asset.
-func (c *Client) PlaceOrder(req PlaceOrderRequest) (*Order, error) {
+func (c *Client) PlaceOrder(ctx context.Context, req PlaceOrderRequest) (*Order, error) {
 	u, err := url.Parse(fmt.Sprintf("%s/%s/orders", c.opts.BaseURL, apiVersion))
 	if err != nil {
 		return nil, err
 	}
 
-	resp, err := c.post(u, req)
+	resp, err := c.post(ctx, u, req)
 	if err != nil {
 		return nil, err
 	}
@@ -531,13 +535,13 @@ func (c *Client) PlaceOrder(req PlaceOrderRequest) (*Order, error) {
 }
 
 // GetOrder submits a request to get an order by the order ID.
-func (c *Client) GetOrder(orderID string) (*Order, error) {
+func (c *Client) GetOrder(ctx context.Context, orderID string) (*Order, error) {
 	u, err := url.Parse(fmt.Sprintf("%s/%s/orders/%s", c.opts.BaseURL, apiVersion, orderID))
 	if err != nil {
 		return nil, err
 	}
 
-	resp, err := c.get(u)
+	resp, err := c.get(ctx, u)
 	if err != nil {
 		return nil, err
 	}
@@ -550,7 +554,7 @@ func (c *Client) GetOrder(orderID string) (*Order, error) {
 }
 
 // GetOrderByClientOrderID submits a request to get an order by the client order ID.
-func (c *Client) GetOrderByClientOrderID(clientOrderID string) (*Order, error) {
+func (c *Client) GetOrderByClientOrderID(ctx context.Context, clientOrderID string) (*Order, error) {
 	u, err := url.Parse(fmt.Sprintf("%s/%s/orders:by_client_order_id", c.opts.BaseURL, apiVersion))
 	if err != nil {
 		return nil, err
@@ -560,7 +564,7 @@ func (c *Client) GetOrderByClientOrderID(clientOrderID string) (*Order, error) {
 	q.Set("client_order_id", clientOrderID)
 	u.RawQuery = q.Encode()
 
-	resp, err := c.get(u)
+	resp, err := c.get(ctx, u)
 	if err != nil {
 		return nil, err
 	}
@@ -582,13 +586,13 @@ type ReplaceOrderRequest struct {
 }
 
 // ReplaceOrder submits a request to replace an order by id
-func (c *Client) ReplaceOrder(orderID string, req ReplaceOrderRequest) (*Order, error) {
+func (c *Client) ReplaceOrder(ctx context.Context, orderID string, req ReplaceOrderRequest) (*Order, error) {
 	u, err := url.Parse(fmt.Sprintf("%s/%s/orders/%s", c.opts.BaseURL, apiVersion, orderID))
 	if err != nil {
 		return nil, err
 	}
 
-	resp, err := c.patch(u, req)
+	resp, err := c.patch(ctx, u, req)
 	if err != nil {
 		return nil, err
 	}
@@ -601,13 +605,13 @@ func (c *Client) ReplaceOrder(orderID string, req ReplaceOrderRequest) (*Order, 
 }
 
 // CancelOrder submits a request to cancel an open order.
-func (c *Client) CancelOrder(orderID string) error {
+func (c *Client) CancelOrder(ctx context.Context, orderID string) error {
 	u, err := url.Parse(fmt.Sprintf("%s/%s/orders/%s", c.opts.BaseURL, apiVersion, orderID))
 	if err != nil {
 		return err
 	}
 
-	resp, err := c.delete(u)
+	resp, err := c.delete(ctx, u)
 	if err != nil {
 		return err
 	}
@@ -616,13 +620,13 @@ func (c *Client) CancelOrder(orderID string) error {
 }
 
 // CancelAllOrders submits a request to cancel all orders.
-func (c *Client) CancelAllOrders() error {
+func (c *Client) CancelAllOrders(ctx context.Context) error {
 	u, err := url.Parse(fmt.Sprintf("%s/%s/orders", c.opts.BaseURL, apiVersion))
 	if err != nil {
 		return err
 	}
 
-	resp, err := c.delete(u)
+	resp, err := c.delete(ctx, u)
 	if err != nil {
 		return err
 	}
@@ -636,7 +640,7 @@ type GetAssetsRequest struct {
 }
 
 // GetAssets returns the list of assets.
-func (c *Client) GetAssets(req GetAssetsRequest) ([]Asset, error) {
+func (c *Client) GetAssets(ctx context.Context, req GetAssetsRequest) ([]Asset, error) {
 	u, err := url.Parse(fmt.Sprintf("%s/%s/assets", c.opts.BaseURL, apiVersion))
 	if err != nil {
 		return nil, err
@@ -654,7 +658,7 @@ func (c *Client) GetAssets(req GetAssetsRequest) ([]Asset, error) {
 	}
 	u.RawQuery = q.Encode()
 
-	resp, err := c.get(u)
+	resp, err := c.get(ctx, u)
 	if err != nil {
 		return nil, err
 	}
@@ -667,13 +671,13 @@ func (c *Client) GetAssets(req GetAssetsRequest) ([]Asset, error) {
 }
 
 // GetAsset returns an asset for the given symbol.
-func (c *Client) GetAsset(symbol string) (*Asset, error) {
+func (c *Client) GetAsset(ctx context.Context, symbol string) (*Asset, error) {
 	u, err := url.Parse(fmt.Sprintf("%s/%s/assets/%v", c.opts.BaseURL, apiVersion, symbol))
 	if err != nil {
 		return nil, err
 	}
 
-	resp, err := c.get(u)
+	resp, err := c.get(ctx, u)
 	if err != nil {
 		return nil, err
 	}
@@ -694,7 +698,7 @@ type GetAnnouncementsRequest struct {
 	DateType DateType  `json:"date_type"`
 }
 
-func (c *Client) GetAnnouncements(req GetAnnouncementsRequest) ([]Announcement, error) {
+func (c *Client) GetAnnouncements(ctx context.Context, req GetAnnouncementsRequest) ([]Announcement, error) {
 	u, err := url.Parse(fmt.Sprintf("%s/%s/corporate_actions/announcements", c.opts.BaseURL, apiVersion))
 	if err != nil {
 		return nil, err
@@ -721,7 +725,7 @@ func (c *Client) GetAnnouncements(req GetAnnouncementsRequest) ([]Announcement, 
 	}
 	u.RawQuery = q.Encode()
 
-	resp, err := c.get(u)
+	resp, err := c.get(ctx, u)
 	if err != nil {
 		return nil, err
 	}
@@ -734,14 +738,14 @@ func (c *Client) GetAnnouncements(req GetAnnouncementsRequest) ([]Announcement, 
 	return announcements, nil
 }
 
-func (c *Client) GetAnnouncement(announcementID string) (*Announcement, error) {
+func (c *Client) GetAnnouncement(ctx context.Context, announcementID string) (*Announcement, error) {
 	u, err := url.Parse(fmt.Sprintf("%s/%s/corporate_actions/announcements/%s",
 		c.opts.BaseURL, apiVersion, announcementID))
 	if err != nil {
 		return nil, err
 	}
 
-	resp, err := c.get(u)
+	resp, err := c.get(ctx, u)
 	if err != nil {
 		return nil, err
 	}
@@ -754,13 +758,13 @@ func (c *Client) GetAnnouncement(announcementID string) (*Announcement, error) {
 }
 
 // GetAccount returns the user's account information.
-func (c *Client) GetWatchlists() ([]Watchlist, error) {
+func (c *Client) GetWatchlists(ctx context.Context) ([]Watchlist, error) {
 	u, err := url.Parse(fmt.Sprintf("%s/%s/watchlists", c.opts.BaseURL, apiVersion))
 	if err != nil {
 		return nil, err
 	}
 
-	resp, err := c.get(u)
+	resp, err := c.get(ctx, u)
 	if err != nil {
 		return nil, err
 	}
@@ -772,13 +776,13 @@ func (c *Client) GetWatchlists() ([]Watchlist, error) {
 	return watchlists, nil
 }
 
-func (c *Client) CreateWatchlist(req CreateWatchlistRequest) (*Watchlist, error) {
+func (c *Client) CreateWatchlist(ctx context.Context, req CreateWatchlistRequest) (*Watchlist, error) {
 	u, err := url.Parse(fmt.Sprintf("%s/%s/watchlists", c.opts.BaseURL, apiVersion))
 	if err != nil {
 		return nil, err
 	}
 
-	resp, err := c.post(u, req)
+	resp, err := c.post(ctx, u, req)
 	if err != nil {
 		return nil, err
 	}
@@ -790,13 +794,13 @@ func (c *Client) CreateWatchlist(req CreateWatchlistRequest) (*Watchlist, error)
 	return watchlist, nil
 }
 
-func (c *Client) GetWatchlist(watchlistID string) (*Watchlist, error) {
+func (c *Client) GetWatchlist(ctx context.Context, watchlistID string) (*Watchlist, error) {
 	u, err := url.Parse(fmt.Sprintf("%s/%s/watchlists/%s", c.opts.BaseURL, apiVersion, watchlistID))
 	if err != nil {
 		return nil, err
 	}
 
-	resp, err := c.get(u)
+	resp, err := c.get(ctx, u)
 	if err != nil {
 		return nil, err
 	}
@@ -808,13 +812,13 @@ func (c *Client) GetWatchlist(watchlistID string) (*Watchlist, error) {
 	return watchlist, nil
 }
 
-func (c *Client) UpdateWatchlist(watchlistID string, req UpdateWatchlistRequest) (*Watchlist, error) {
+func (c *Client) UpdateWatchlist(ctx context.Context, watchlistID string, req UpdateWatchlistRequest) (*Watchlist, error) {
 	u, err := url.Parse(fmt.Sprintf("%s/%s/watchlists/%s", c.opts.BaseURL, apiVersion, watchlistID))
 	if err != nil {
 		return nil, err
 	}
 
-	resp, err := c.put(u, req)
+	resp, err := c.put(ctx, u, req)
 	if err != nil {
 		return nil, err
 	}
@@ -828,7 +832,7 @@ func (c *Client) UpdateWatchlist(watchlistID string, req UpdateWatchlistRequest)
 
 var ErrSymbolMissing = fmt.Errorf("symbol missing from request")
 
-func (c *Client) AddSymbolToWatchlist(watchlistID string, req AddSymbolToWatchlistRequest) (*Watchlist, error) {
+func (c *Client) AddSymbolToWatchlist(ctx context.Context, watchlistID string, req AddSymbolToWatchlistRequest) (*Watchlist, error) {
 	if req.Symbol == "" {
 		return nil, ErrSymbolMissing
 	}
@@ -838,7 +842,7 @@ func (c *Client) AddSymbolToWatchlist(watchlistID string, req AddSymbolToWatchli
 		return nil, err
 	}
 
-	resp, err := c.post(u, req)
+	resp, err := c.post(ctx, u, req)
 	if err != nil {
 		return nil, err
 	}
@@ -850,7 +854,7 @@ func (c *Client) AddSymbolToWatchlist(watchlistID string, req AddSymbolToWatchli
 	return watchlist, nil
 }
 
-func (c *Client) RemoveSymbolFromWatchlist(watchlistID string, req RemoveSymbolFromWatchlistRequest) error {
+func (c *Client) RemoveSymbolFromWatchlist(ctx context.Context, watchlistID string, req RemoveSymbolFromWatchlistRequest) error {
 	if req.Symbol == "" {
 		return ErrSymbolMissing
 	}
@@ -860,177 +864,177 @@ func (c *Client) RemoveSymbolFromWatchlist(watchlistID string, req RemoveSymbolF
 		return err
 	}
 
-	_, err = c.delete(u)
+	_, err = c.delete(ctx, u)
 	return err
 }
 
-func (c *Client) DeleteWatchlist(watchlistID string) error {
+func (c *Client) DeleteWatchlist(ctx context.Context, watchlistID string) error {
 	u, err := url.Parse(fmt.Sprintf("%s/%s/watchlists/%s", c.opts.BaseURL, apiVersion, watchlistID))
 	if err != nil {
 		return err
 	}
 
-	_, err = c.delete(u)
+	_, err = c.delete(ctx, u)
 	return err
 }
 
 // GetAccount returns the user's account information
 // using the default Alpaca client.
-func GetAccount() (*Account, error) {
-	return DefaultClient.GetAccount()
+func GetAccount(ctx context.Context) (*Account, error) {
+	return DefaultClient.GetAccount(ctx)
 }
 
 // GetAccountConfigurations returns the current account configurations
-func GetAccountConfigurations() (*AccountConfigurations, error) {
-	return DefaultClient.GetAccountConfigurations()
+func GetAccountConfigurations(ctx context.Context) (*AccountConfigurations, error) {
+	return DefaultClient.GetAccountConfigurations(ctx)
 }
 
 // UpdateAccountConfigurations updates the account configs.
-func UpdateAccountConfigurations(req UpdateAccountConfigurationsRequest) (*AccountConfigurations, error) {
-	return DefaultClient.UpdateAccountConfigurations(req)
+func UpdateAccountConfigurations(ctx context.Context, req UpdateAccountConfigurationsRequest) (*AccountConfigurations, error) {
+	return DefaultClient.UpdateAccountConfigurations(ctx, req)
 }
 
 // GetAccountActivities returns the account activities.
-func GetAccountActivities(req GetAccountActivitiesRequest) ([]AccountActivity, error) {
-	return DefaultClient.GetAccountActivities(req)
+func GetAccountActivities(ctx context.Context, req GetAccountActivitiesRequest) ([]AccountActivity, error) {
+	return DefaultClient.GetAccountActivities(ctx, req)
 }
 
 // GetPortfolioHistory returns the portfolio history.
-func GetPortfolioHistory(req GetPortfolioHistoryRequest) (*PortfolioHistory, error) {
-	return DefaultClient.GetPortfolioHistory(req)
+func GetPortfolioHistory(ctx context.Context, req GetPortfolioHistoryRequest) (*PortfolioHistory, error) {
+	return DefaultClient.GetPortfolioHistory(ctx, req)
 }
 
 // GetPositions lists the account's open positions.
-func GetPositions() ([]Position, error) {
-	return DefaultClient.GetPositions()
+func GetPositions(ctx context.Context) ([]Position, error) {
+	return DefaultClient.GetPositions(ctx)
 }
 
 // GetPosition returns the account's position for the provided symbol.
-func GetPosition(symbol string) (*Position, error) {
-	return DefaultClient.GetPosition(symbol)
+func GetPosition(ctx context.Context, symbol string) (*Position, error) {
+	return DefaultClient.GetPosition(ctx, symbol)
 }
 
 // CloseAllPositions liquidates all open positions at market price.
-func CloseAllPositions(req CloseAllPositionsRequest) ([]Order, error) {
-	return DefaultClient.CloseAllPositions(req)
+func CloseAllPositions(ctx context.Context, req CloseAllPositionsRequest) ([]Order, error) {
+	return DefaultClient.CloseAllPositions(ctx, req)
 }
 
 // ClosePosition liquidates the position for the given symbol at market price.
-func ClosePosition(symbol string, req ClosePositionRequest) (*Order, error) {
-	return DefaultClient.ClosePosition(symbol, req)
+func ClosePosition(ctx context.Context, symbol string, req ClosePositionRequest) (*Order, error) {
+	return DefaultClient.ClosePosition(ctx, symbol, req)
 }
 
 // GetClock returns the current market clock.
-func GetClock() (*Clock, error) {
-	return DefaultClient.GetClock()
+func GetClock(ctx context.Context) (*Clock, error) {
+	return DefaultClient.GetClock(ctx)
 }
 
 // GetCalendar returns the market calendar.
-func GetCalendar(req GetCalendarRequest) ([]CalendarDay, error) {
-	return DefaultClient.GetCalendar(req)
+func GetCalendar(ctx context.Context, req GetCalendarRequest) ([]CalendarDay, error) {
+	return DefaultClient.GetCalendar(ctx, req)
 }
 
 // GetOrders returns the list of orders for an account.
-func GetOrders(req GetOrdersRequest) ([]Order, error) {
-	return DefaultClient.GetOrders(req)
+func GetOrders(ctx context.Context, req GetOrdersRequest) ([]Order, error) {
+	return DefaultClient.GetOrders(ctx, req)
 }
 
 // PlaceOrder submits an order request to buy or sell an asset.
-func PlaceOrder(req PlaceOrderRequest) (*Order, error) {
-	return DefaultClient.PlaceOrder(req)
+func PlaceOrder(ctx context.Context, req PlaceOrderRequest) (*Order, error) {
+	return DefaultClient.PlaceOrder(ctx, req)
 }
 
 // GetOrder submits a request to get an order by the order ID.
-func GetOrder(orderID string) (*Order, error) {
-	return DefaultClient.GetOrder(orderID)
+func GetOrder(ctx context.Context, orderID string) (*Order, error) {
+	return DefaultClient.GetOrder(ctx, orderID)
 }
 
 // GetOrderByClientOrderID submits a request to get an order by the client order ID.
-func GetOrderByClientOrderID(clientOrderID string) (*Order, error) {
-	return DefaultClient.GetOrderByClientOrderID(clientOrderID)
+func GetOrderByClientOrderID(ctx context.Context, clientOrderID string) (*Order, error) {
+	return DefaultClient.GetOrderByClientOrderID(ctx, clientOrderID)
 }
 
 // ReplaceOrder submits a request to replace an order by id
-func ReplaceOrder(orderID string, req ReplaceOrderRequest) (*Order, error) {
-	return DefaultClient.ReplaceOrder(orderID, req)
+func ReplaceOrder(ctx context.Context, orderID string, req ReplaceOrderRequest) (*Order, error) {
+	return DefaultClient.ReplaceOrder(ctx, orderID, req)
 }
 
 // CancelOrder submits a request to cancel an open order.
-func CancelOrder(orderID string) error {
-	return DefaultClient.CancelOrder(orderID)
+func CancelOrder(ctx context.Context, orderID string) error {
+	return DefaultClient.CancelOrder(ctx, orderID)
 }
 
 // CancelAllOrders submits a request to cancel all orders.
-func CancelAllOrders() error {
-	return DefaultClient.CancelAllOrders()
+func CancelAllOrders(ctx context.Context) error {
+	return DefaultClient.CancelAllOrders(ctx)
 }
 
 // GetAssets returns the list of assets.
-func GetAssets(req GetAssetsRequest) ([]Asset, error) {
-	return DefaultClient.GetAssets(req)
+func GetAssets(ctx context.Context, req GetAssetsRequest) ([]Asset, error) {
+	return DefaultClient.GetAssets(ctx, req)
 }
 
 // GetAsset returns an asset for the given symbol.
-func GetAsset(symbol string) (*Asset, error) {
-	return DefaultClient.GetAsset(symbol)
+func GetAsset(ctx context.Context, symbol string) (*Asset, error) {
+	return DefaultClient.GetAsset(ctx, symbol)
 }
 
 // GetAnnouncements returns a list of announcements
 // with the default Alpaca client.
-func GetAnnouncements(req GetAnnouncementsRequest) ([]Announcement, error) {
-	return DefaultClient.GetAnnouncements(req)
+func GetAnnouncements(ctx context.Context, req GetAnnouncementsRequest) ([]Announcement, error) {
+	return DefaultClient.GetAnnouncements(ctx, req)
 }
 
 // GetAnnouncement returns a single announcement
 // with the default Alpaca client.
-func GetAnnouncement(announcementID string) (*Announcement, error) {
-	return DefaultClient.GetAnnouncement(announcementID)
+func GetAnnouncement(ctx context.Context, announcementID string) (*Announcement, error) {
+	return DefaultClient.GetAnnouncement(ctx, announcementID)
 }
 
 // GetWatchlists returns a list of watchlists
 // with the default Alpaca client.
-func GetWatchlists() ([]Watchlist, error) {
-	return DefaultClient.GetWatchlists()
+func GetWatchlists(ctx context.Context) ([]Watchlist, error) {
+	return DefaultClient.GetWatchlists(ctx)
 }
 
 // CreateWatchlist creates a new watchlist
 // with the default Alpaca client.
-func CreateWatchlist(req CreateWatchlistRequest) (*Watchlist, error) {
-	return DefaultClient.CreateWatchlist(req)
+func CreateWatchlist(ctx context.Context, req CreateWatchlistRequest) (*Watchlist, error) {
+	return DefaultClient.CreateWatchlist(ctx, req)
 }
 
 // GetWatchlist returns a single watchlist by getting the watchlist id
 // with the default Alpaca client.
-func GetWatchlist(watchlistID string) (*Watchlist, error) {
-	return DefaultClient.GetWatchlist(watchlistID)
+func GetWatchlist(ctx context.Context, watchlistID string) (*Watchlist, error) {
+	return DefaultClient.GetWatchlist(ctx, watchlistID)
 }
 
 // UpdateWatchlist updates a watchlist by getting the watchlist id
 // with the default Alpaca client.
-func UpdateWatchlist(watchlistID string, req UpdateWatchlistRequest) (*Watchlist, error) {
-	return DefaultClient.UpdateWatchlist(watchlistID, req)
+func UpdateWatchlist(ctx context.Context, watchlistID string, req UpdateWatchlistRequest) (*Watchlist, error) {
+	return DefaultClient.UpdateWatchlist(ctx, watchlistID, req)
 }
 
 // DeleteWatchlist deletes a watchlist by getting the watchlist id
 // with the default Alpaca client.
-func DeleteWatchlist(watchlistID string) error {
-	return DefaultClient.DeleteWatchlist(watchlistID)
+func DeleteWatchlist(ctx context.Context, watchlistID string) error {
+	return DefaultClient.DeleteWatchlist(ctx, watchlistID)
 }
 
 // AddSymbolToWatchlist adds an asset to a watchlist by getting the watchlist id
 // with the default Alpaca client.
-func AddSymbolToWatchlist(watchlistID string, req AddSymbolToWatchlistRequest) (*Watchlist, error) {
-	return DefaultClient.AddSymbolToWatchlist(watchlistID, req)
+func AddSymbolToWatchlist(ctx context.Context, watchlistID string, req AddSymbolToWatchlistRequest) (*Watchlist, error) {
+	return DefaultClient.AddSymbolToWatchlist(ctx, watchlistID, req)
 }
 
 // RemoveSymbolFromWatchlist removes an asset from a watchlist by getting the watchlist id
 // with the default Alpaca client.
-func RemoveSymbolFromWatchlist(watchlistID string, req RemoveSymbolFromWatchlistRequest) error {
-	return DefaultClient.RemoveSymbolFromWatchlist(watchlistID, req)
+func RemoveSymbolFromWatchlist(ctx context.Context, watchlistID string, req RemoveSymbolFromWatchlistRequest) error {
+	return DefaultClient.RemoveSymbolFromWatchlist(ctx, watchlistID, req)
 }
 
-func (c *Client) get(u *url.URL) (*http.Response, error) {
-	req, err := http.NewRequest(http.MethodGet, u.String(), nil)
+func (c *Client) get(ctx context.Context, u *url.URL) (*http.Response, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u.String(), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -1038,13 +1042,13 @@ func (c *Client) get(u *url.URL) (*http.Response, error) {
 	return c.do(c, req)
 }
 
-func (c *Client) post(u *url.URL, data interface{}) (*http.Response, error) {
+func (c *Client) post(ctx context.Context, u *url.URL, data interface{}) (*http.Response, error) {
 	buf, err := json.Marshal(data)
 	if err != nil {
 		return nil, err
 	}
 
-	req, err := http.NewRequest(http.MethodPost, u.String(), bytes.NewReader(buf))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, u.String(), bytes.NewReader(buf))
 	if err != nil {
 		return nil, err
 	}
@@ -1052,13 +1056,13 @@ func (c *Client) post(u *url.URL, data interface{}) (*http.Response, error) {
 	return c.do(c, req)
 }
 
-func (c *Client) put(u *url.URL, data interface{}) (*http.Response, error) {
+func (c *Client) put(ctx context.Context, u *url.URL, data interface{}) (*http.Response, error) {
 	buf, err := json.Marshal(data)
 	if err != nil {
 		return nil, err
 	}
 
-	req, err := http.NewRequest(http.MethodPut, u.String(), bytes.NewReader(buf))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPut, u.String(), bytes.NewReader(buf))
 	if err != nil {
 		return nil, err
 	}
@@ -1066,13 +1070,13 @@ func (c *Client) put(u *url.URL, data interface{}) (*http.Response, error) {
 	return c.do(c, req)
 }
 
-func (c *Client) patch(u *url.URL, data interface{}) (*http.Response, error) {
+func (c *Client) patch(ctx context.Context, u *url.URL, data interface{}) (*http.Response, error) {
 	buf, err := json.Marshal(data)
 	if err != nil {
 		return nil, err
 	}
 
-	req, err := http.NewRequest(http.MethodPatch, u.String(), bytes.NewReader(buf))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPatch, u.String(), bytes.NewReader(buf))
 	if err != nil {
 		return nil, err
 	}
@@ -1080,8 +1084,8 @@ func (c *Client) patch(u *url.URL, data interface{}) (*http.Response, error) {
 	return c.do(c, req)
 }
 
-func (c *Client) delete(u *url.URL) (*http.Response, error) {
-	req, err := http.NewRequest(http.MethodDelete, u.String(), nil)
+func (c *Client) delete(ctx context.Context, u *url.URL) (*http.Response, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodDelete, u.String(), nil)
 	if err != nil {
 		return nil, err
 	}

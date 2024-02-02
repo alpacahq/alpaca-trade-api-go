@@ -27,6 +27,7 @@ var tests = []struct {
 
 type streamClient interface {
 	Connect(ctx context.Context) error
+	Terminate()
 	Terminated() <-chan error
 }
 
@@ -273,7 +274,7 @@ func TestCallbacksCalledOnConnectAndDisconnect(t *testing.T) {
 
 			// Now force the stream to disconnect via context and assert disconnect callback is
 			// called after waiting a small amount of time to wait for the stream to shut down.
-			cancel()
+			c.Terminate()
 			select {
 			case <-disconnects:
 			case <-time.After(time.Second):
@@ -287,61 +288,61 @@ func TestCallbacksCalledOnConnectAndDisconnect(t *testing.T) {
 
 func TestSubscribeBeforeConnectStocks(t *testing.T) {
 	c := NewStocksClient(marketdata.IEX)
-
-	err := c.SubscribeToTrades(func(trade Trade) {})
+	ctx := context.Background()
+	err := c.SubscribeToTrades(ctx, func(trade Trade) {})
 	assert.Equal(t, ErrSubscriptionChangeBeforeConnect, err)
-	err = c.SubscribeToQuotes(func(quote Quote) {})
+	err = c.SubscribeToQuotes(ctx, func(quote Quote) {})
 	assert.Equal(t, ErrSubscriptionChangeBeforeConnect, err)
-	err = c.SubscribeToBars(func(bar Bar) {})
+	err = c.SubscribeToBars(ctx, func(bar Bar) {})
 	assert.Equal(t, ErrSubscriptionChangeBeforeConnect, err)
-	err = c.SubscribeToUpdatedBars(func(bar Bar) {})
+	err = c.SubscribeToUpdatedBars(ctx, func(bar Bar) {})
 	assert.Equal(t, ErrSubscriptionChangeBeforeConnect, err)
-	err = c.SubscribeToDailyBars(func(bar Bar) {})
+	err = c.SubscribeToDailyBars(ctx, func(bar Bar) {})
 	assert.Equal(t, ErrSubscriptionChangeBeforeConnect, err)
-	err = c.SubscribeToStatuses(func(ts TradingStatus) {})
+	err = c.SubscribeToStatuses(ctx, func(ts TradingStatus) {})
 	assert.Equal(t, ErrSubscriptionChangeBeforeConnect, err)
-	err = c.SubscribeToLULDs(func(luld LULD) {})
+	err = c.SubscribeToLULDs(ctx, func(luld LULD) {})
 	assert.Equal(t, ErrSubscriptionChangeBeforeConnect, err)
-	err = c.UnsubscribeFromTrades()
+	err = c.UnsubscribeFromTrades(ctx)
 	assert.Equal(t, ErrSubscriptionChangeBeforeConnect, err)
-	err = c.UnsubscribeFromQuotes()
+	err = c.UnsubscribeFromQuotes(ctx)
 	assert.Equal(t, ErrSubscriptionChangeBeforeConnect, err)
-	err = c.UnsubscribeFromBars()
+	err = c.UnsubscribeFromBars(ctx)
 	assert.Equal(t, ErrSubscriptionChangeBeforeConnect, err)
-	err = c.UnsubscribeFromDailyBars()
+	err = c.UnsubscribeFromDailyBars(ctx)
 	assert.Equal(t, ErrSubscriptionChangeBeforeConnect, err)
-	err = c.UnsubscribeFromStatuses()
+	err = c.UnsubscribeFromStatuses(ctx)
 	assert.Equal(t, ErrSubscriptionChangeBeforeConnect, err)
-	err = c.UnsubscribeFromLULDs()
+	err = c.UnsubscribeFromLULDs(ctx)
 	assert.Equal(t, ErrSubscriptionChangeBeforeConnect, err)
 }
 
 func TestSubscribeBeforeConnectCrypto(t *testing.T) {
 	c := NewCryptoClient(marketdata.US)
-
-	err := c.SubscribeToTrades(func(trade CryptoTrade) {})
+	ctx := context.Background()
+	err := c.SubscribeToTrades(ctx, func(trade CryptoTrade) {})
 	assert.Equal(t, ErrSubscriptionChangeBeforeConnect, err)
-	err = c.SubscribeToQuotes(func(quote CryptoQuote) {})
+	err = c.SubscribeToQuotes(ctx, func(quote CryptoQuote) {})
 	assert.Equal(t, ErrSubscriptionChangeBeforeConnect, err)
-	err = c.SubscribeToBars(func(bar CryptoBar) {})
+	err = c.SubscribeToBars(ctx, func(bar CryptoBar) {})
 	assert.Equal(t, ErrSubscriptionChangeBeforeConnect, err)
-	err = c.SubscribeToUpdatedBars(func(bar CryptoBar) {})
+	err = c.SubscribeToUpdatedBars(ctx, func(bar CryptoBar) {})
 	assert.Equal(t, ErrSubscriptionChangeBeforeConnect, err)
-	err = c.SubscribeToDailyBars(func(bar CryptoBar) {})
+	err = c.SubscribeToDailyBars(ctx, func(bar CryptoBar) {})
 	assert.Equal(t, ErrSubscriptionChangeBeforeConnect, err)
-	err = c.SubscribeToOrderbooks(func(ob CryptoOrderbook) {})
+	err = c.SubscribeToOrderbooks(ctx, func(ob CryptoOrderbook) {})
 	assert.Equal(t, ErrSubscriptionChangeBeforeConnect, err)
-	err = c.UnsubscribeFromTrades()
+	err = c.UnsubscribeFromTrades(ctx)
 	assert.Equal(t, ErrSubscriptionChangeBeforeConnect, err)
-	err = c.UnsubscribeFromQuotes()
+	err = c.UnsubscribeFromQuotes(ctx)
 	assert.Equal(t, ErrSubscriptionChangeBeforeConnect, err)
-	err = c.UnsubscribeFromBars()
+	err = c.UnsubscribeFromBars(ctx)
 	assert.Equal(t, ErrSubscriptionChangeBeforeConnect, err)
-	err = c.UnsubscribeFromUpdatedBars()
+	err = c.UnsubscribeFromUpdatedBars(ctx)
 	assert.Equal(t, ErrSubscriptionChangeBeforeConnect, err)
-	err = c.UnsubscribeFromDailyBars()
+	err = c.UnsubscribeFromDailyBars(ctx)
 	assert.Equal(t, ErrSubscriptionChangeBeforeConnect, err)
-	err = c.UnsubscribeFromOrderbooks()
+	err = c.UnsubscribeFromOrderbooks(ctx)
 	assert.Equal(t, ErrSubscriptionChangeBeforeConnect, err)
 }
 
@@ -361,13 +362,13 @@ func TestSubscribeMultipleCallsStocks(t *testing.T) {
 
 	subErrCh := make(chan error, 2)
 	subFunc := func() {
-		subErrCh <- c.SubscribeToTrades(func(trade Trade) {}, "ALPACA")
+		subErrCh <- c.SubscribeToTrades(ctx, func(trade Trade) {}, "ALPACA")
 	}
 
 	// calling two Subscribes at the same time and also calling a sub change
 	// without modifying symbols (should succeed immediately)
 	go subFunc()
-	err = c.SubscribeToTrades(func(trade Trade) {})
+	err = c.SubscribeToTrades(ctx, func(trade Trade) {})
 	assert.NoError(t, err)
 	go subFunc()
 
@@ -388,6 +389,7 @@ func TestSubscribeCalledButClientTerminatesCrypto(t *testing.T) {
 		}))
 
 	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
 	err := c.Connect(ctx)
 	require.NoError(t, err)
@@ -395,9 +397,8 @@ func TestSubscribeCalledButClientTerminatesCrypto(t *testing.T) {
 	checkInitialMessagesSentByClient(t, connection, "my_key", "my_secret", c.sub)
 	subErrCh := make(chan error, 1)
 	subFunc := func() {
-		subErrCh <- c.SubscribeToTrades(func(trade CryptoTrade) {}, "PACOIN")
+		subErrCh <- c.SubscribeToTrades(ctx, func(trade CryptoTrade) {}, "PACOIN")
 	}
-
 	// calling Subscribe
 	go subFunc()
 	// making sure Subscribe got called
@@ -405,14 +406,14 @@ func TestSubscribeCalledButClientTerminatesCrypto(t *testing.T) {
 	require.Equal(t, "subscribe", subMsg["action"])
 	require.ElementsMatch(t, []string{"PACOIN"}, subMsg["trades"])
 	// terminating the client
-	cancel()
+	c.Terminate()
 
 	err = <-subErrCh
 	assert.Error(t, err)
 	assert.True(t, errors.Is(err, ErrSubscriptionChangeInterrupted))
 
 	// Subscribing after the client has terminated results in an error
-	err = c.SubscribeToQuotes(func(quote CryptoQuote) {}, "BTC/USD", "ETC/USD")
+	err = c.SubscribeToQuotes(context.Background(), func(quote CryptoQuote) {}, "BTC/USD", "ETC/USD")
 	assert.Error(t, err)
 	assert.True(t, errors.Is(err, ErrSubscriptionChangeAfterTerminated))
 }
@@ -422,19 +423,12 @@ func TestSubscriptionTimeout(t *testing.T) {
 	defer connection.close()
 	writeInitialFlowMessagesToConn(t, connection, subscriptions{})
 
-	mockTimeAfterCh := make(chan time.Time)
-	timeAfter = func(d time.Duration) <-chan time.Time {
-		return mockTimeAfterCh
-	}
-	defer func() {
-		timeAfter = time.After
-	}()
-
 	c := NewStocksClient(marketdata.IEX,
 		WithCredentials("a", "b"),
 		withConnCreator(func(ctx context.Context, u url.URL) (conn, error) {
 			return connection, nil
 		}))
+
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -443,33 +437,41 @@ func TestSubscriptionTimeout(t *testing.T) {
 	checkInitialMessagesSentByClient(t, connection, "a", "b", subscriptions{})
 
 	subErrCh := make(chan error, 2)
-	subFunc := func() {
-		subErrCh <- c.SubscribeToTrades(func(trade Trade) {}, "ALPACA")
+	subFunc := func(ctx context.Context) {
+		subErrCh <- c.SubscribeToTrades(ctx, func(trade Trade) {}, "ALPACA")
 	}
 
-	go subFunc()
-	subMsg := expectWrite(t, connection)
-	require.Equal(t, "subscribe", subMsg["action"])
-	require.ElementsMatch(t, []string{"ALPACA"}, subMsg["trades"])
+	{
+		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Microsecond)
+		defer cancel()
+		time.Sleep(10 * time.Microsecond)
+		go subFunc(ctx)
+		subMsg := expectWrite(t, connection)
+		require.Equal(t, "subscribe", subMsg["action"])
+		require.ElementsMatch(t, []string{"ALPACA"}, subMsg["trades"])
 
-	mockTimeAfterCh <- time.Now()
-	err = <-subErrCh
-	assert.Error(t, err)
-	assert.True(t, errors.Is(err, ErrSubscriptionChangeTimeout), "actual: %s", err)
+		err = <-subErrCh
+		assert.Error(t, err)
+		assert.True(t, errors.Is(err, context.DeadlineExceeded), "actual: %s", err)
+	}
 
-	// after a timeout we should be able to send a new request
-	go subFunc()
-	subMsg = expectWrite(t, connection)
-	require.Equal(t, "subscribe", subMsg["action"])
-	require.ElementsMatch(t, []string{"ALPACA"}, subMsg["trades"])
+	// wait longer
+	{
+		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+		defer cancel()
+		go subFunc(ctx)
+		subMsg := expectWrite(t, connection)
+		require.Equal(t, "subscribe", subMsg["action"])
+		require.ElementsMatch(t, []string{"ALPACA"}, subMsg["trades"])
 
-	connection.readCh <- serializeToMsgpack(t, []subWithT{
-		{
-			Type:   "subscription",
-			Trades: []string{"ALPACA"},
-		},
-	})
-	require.NoError(t, <-subErrCh)
+		connection.readCh <- serializeToMsgpack(t, []subWithT{
+			{
+				Type:   "subscription",
+				Trades: []string{"ALPACA"},
+			},
+		})
+		require.NoError(t, <-subErrCh)
+	}
 }
 
 func TestSubscriptionChangeInvalid(t *testing.T) {
@@ -491,7 +493,7 @@ func TestSubscriptionChangeInvalid(t *testing.T) {
 
 	subErrCh := make(chan error, 2)
 	subFunc := func() {
-		subErrCh <- c.SubscribeToTrades(func(trade Trade) {}, "ALPACA")
+		subErrCh <- c.SubscribeToTrades(ctx, func(trade Trade) {}, "ALPACA")
 	}
 
 	go subFunc()
@@ -533,7 +535,7 @@ func TestSubscriptionAcrossConnectionIssues(t *testing.T) {
 	trades1 := []string{"AL", "PACA"}
 	subRes := make(chan error)
 	go func() {
-		subRes <- c.SubscribeToTrades(func(trade Trade) {}, "AL", "PACA")
+		subRes <- c.SubscribeToTrades(ctx, func(trade Trade) {}, "AL", "PACA")
 	}()
 	sub := expectWrite(t, conn1)
 	require.Equal(t, "subscribe", sub["action"])
@@ -577,7 +579,7 @@ func TestSubscriptionAcrossConnectionIssues(t *testing.T) {
 
 	// call an unsubscribe with the connection being down
 	unsubRes := make(chan error)
-	go func() { unsubRes <- c.UnsubscribeFromTrades("AL") }()
+	go func() { unsubRes <- c.UnsubscribeFromTrades(ctx, "AL") }()
 
 	// connection starts up, proper messages (auth,sub,unsub)
 	checkInitialMessagesSentByClient(t, conn3, key, secret, subscriptions{trades: trades1})
@@ -622,7 +624,7 @@ func TestSubscribeFailsDueToError(t *testing.T) {
 	// attempting sub change
 	subRes := make(chan error)
 	subFunc := func() {
-		subRes <- c.SubscribeToTrades(func(trade CryptoTrade) {}, "PACOIN")
+		subRes <- c.SubscribeToTrades(ctx, func(trade CryptoTrade) {}, "PACOIN")
 	}
 	go subFunc()
 	// wait for message to be written

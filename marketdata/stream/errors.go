@@ -25,9 +25,6 @@ var (
 	// ErrSubscriptionChangeInterrupted is returned when a subscription change was in progress when the client
 	// has terminated
 	ErrSubscriptionChangeInterrupted = errors.New("subscription change interrupted by client termination")
-	// ErrSubscriptionChangeTimeout is returned when the server does not return a proper
-	// subscription response after a subscription change request.
-	ErrSubscriptionChangeTimeout = errors.New("subscription change timeout")
 )
 
 // The following errors are returned when the client receives an error message from the server
