@@ -24,6 +24,11 @@ type StreamTradeUpdatesRequest struct {
 
 // StreamTradeUpdates streams the trade updates of the account.
 func (c *Client) StreamTradeUpdates(ctx context.Context, handler func(TradeUpdate), req StreamTradeUpdatesRequest) error {
+	return c.StreamTradeUpdatesComplex(ctx, nil, handler, req)
+}
+
+// StreamTradeUpdatesComplex like StreamTradeUpdates, but has ready callback
+func (c *Client) StreamTradeUpdatesComplex(ctx context.Context, ready func(), handler func(TradeUpdate), req StreamTradeUpdatesRequest) error {
 	transport := http.Transport{
 		DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
 			return net.DialTimeout(network, addr, 5*time.Second)
@@ -71,6 +76,10 @@ func (c *Client) StreamTradeUpdates(ctx context.Context, handler func(TradeUpdat
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
 		return fmt.Errorf("%s (HTTP %d)", body, resp.StatusCode)
+	}
+
+	if ready != nil {
+		ready()
 	}
 
 	reader := bufio.NewReader(resp.Body)
