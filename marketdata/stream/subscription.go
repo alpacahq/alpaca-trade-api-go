@@ -210,7 +210,7 @@ func (s subscriptions) noSubscribeCallNecessary() bool {
 }
 
 func (c *client) handleSubChange(ctx context.Context, subscribe bool, changes subscriptions) error {
-	if !c.connectCalled {
+	if !c.connectCalled.Load() {
 		return ErrSubscriptionChangeBeforeConnect
 	}
 

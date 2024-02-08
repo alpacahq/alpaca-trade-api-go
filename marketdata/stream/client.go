@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"regexp"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/alpacahq/alpaca-trade-api-go/v3/internal/ctxtime"
@@ -29,7 +30,7 @@ type client struct {
 	processorCount      int
 	bufferSize          int
 	connectOnce         sync.Once
-	connectCalled       bool
+	connectCalled       atomic.Bool
 	hasTerminated       bool
 	terminatedChan      chan error
 	conn                conn
@@ -277,7 +278,7 @@ func (c *client) connect(initialCtx context.Context, u url.URL) error {
 			c.terminatedChan <- err
 			close(c.terminatedChan)
 		}
-		c.connectCalled = true
+		c.connectCalled.Store(true)
 	})
 	return err
 }
@@ -289,7 +290,9 @@ func (c *client) connectAndMaintainConnection(initialCtx context.Context, u url.
 }
 
 func (c *client) Terminate() {
-	c.connectionCtxCancel()
+	if c.connectCalled.Load() {
+		c.connectionCtxCancel()
+	}
 }
 
 // Terminated returns a channel that the client sends an error to when it has terminated.
