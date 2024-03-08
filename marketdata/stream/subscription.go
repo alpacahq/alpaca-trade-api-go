@@ -178,6 +178,40 @@ func (cc *CryptoClient) UnsubscribeFromOrderbooks(symbols ...string) error {
 	return cc.handleSubChange(false, subscriptions{orderbooks: symbols})
 }
 
+func (cc *OptionClient) SubscribeToTrades(handler func(OptionTrade), symbols ...string) error {
+	cc.handler.mu.Lock()
+	cc.handler.tradeHandler = handler
+	cc.handler.mu.Unlock()
+	return cc.client.handleSubChange(true, subscriptions{trades: symbols})
+}
+
+func (cc *OptionClient) SubscribeToQuotes(handler func(OptionQuote), symbols ...string) error {
+	cc.handler.mu.Lock()
+	cc.handler.quoteHandler = handler
+	cc.handler.mu.Unlock()
+	return cc.client.handleSubChange(true, subscriptions{quotes: symbols})
+}
+
+func (cc *OptionClient) UnsubscribeFromTrades(symbols ...string) error {
+	return cc.handleSubChange(false, subscriptions{trades: symbols})
+}
+
+func (cc *OptionClient) UnsubscribeFromQuotes(symbols ...string) error {
+	return cc.handleSubChange(false, subscriptions{quotes: symbols})
+}
+
+func (cc *OptionClient) UnsubscribeFromBars(symbols ...string) error {
+	return cc.handleSubChange(false, subscriptions{bars: symbols})
+}
+
+func (cc *OptionClient) UnsubscribeFromUpdatedBars(symbols ...string) error {
+	return cc.handleSubChange(false, subscriptions{updatedBars: symbols})
+}
+
+func (cc *OptionClient) UnsubscribeFromDailyBars(symbols ...string) error {
+	return cc.handleSubChange(false, subscriptions{dailyBars: symbols})
+}
+
 func (nc *NewsClient) SubscribeToNews(handler func(News), symbols ...string) error {
 	nc.handler.mu.Lock()
 	nc.handler.newsHandler = handler

@@ -1114,6 +1114,79 @@ func TestCoreFunctionalityCrypto(t *testing.T) {
 	}
 }
 
+func TestCoreFunctionalityOption(t *testing.T) {
+	connection := newMockConn()
+	defer connection.close()
+	const spx1 = "SPXW240308P05120000"
+	const spx2 = "SPXW240308P05075000"
+	writeInitialFlowMessagesToConn(t, connection, subscriptions{
+		trades: []string{spx1},
+		quotes: []string{spx2},
+	})
+
+	trades := make(chan OptionTrade, 10)
+	quotes := make(chan OptionQuote, 10)
+	c := NewOptionClient(marketdata.US,
+		WithOptionTrades(func(t OptionTrade) { trades <- t }, spx1),
+		WithOptionQuotes(func(q OptionQuote) { quotes <- q }, spx2),
+		withConnCreator(func(ctx context.Context, u url.URL) (conn, error) {
+			return connection, nil
+		}))
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// connecting with the client
+	err := c.Connect(ctx)
+	require.NoError(t, err)
+
+	connection.readCh <- serializeToMsgpack(t, []interface{}{
+		optionTradeWithT{
+			Type:      "t",
+			Symbol:    spx1,
+			Exchange:  "C",
+			Price:     5.06,
+			Size:      1,
+			Timestamp: time.Date(2024, 3, 8, 11, 41, 24, 727071744, time.UTC),
+			Condition: "I",
+		},
+		optionQuoteWithT{
+			Type:        "q",
+			Symbol:      spx2,
+			BidExchange: "C",
+			BidPrice:    0.7,
+			BidSize:     476,
+			AskExchange: "C",
+			AskPrice:    0.8,
+			AskSize:     921,
+			Timestamp:   time.Date(2024, 3, 8, 12, 3, 19, 245168896, time.UTC),
+			Condition:   "B",
+		},
+	})
+
+	// checking contents
+	select {
+	case trade := <-trades:
+		assert.Equal(t, spx1, trade.Symbol)
+		assert.Equal(t, "C", trade.Exchange)
+		assert.Equal(t, 5.06, trade.Price)
+		assert.Equal(t, "I", trade.Condition)
+	case <-time.After(time.Second):
+		require.Fail(t, "no trade received in time")
+	}
+
+	select {
+	case quote := <-quotes:
+		assert.Equal(t, spx2, quote.Symbol)
+		assert.EqualValues(t, 0.8, quote.AskPrice)
+		assert.EqualValues(t, 921, quote.AskSize)
+		assert.EqualValues(t, 0.7, quote.BidPrice)
+		assert.EqualValues(t, "C", quote.BidExchange)
+		assert.Equal(t, "B", quote.Condition)
+	case <-time.After(time.Second):
+		require.Fail(t, "no quote received in time")
+	}
+}
+
 func TestCoreFunctionalityNews(t *testing.T) {
 	connection := newMockConn()
 	defer connection.close()

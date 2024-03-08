@@ -183,6 +183,31 @@ type cryptoOrderbookEntry struct {
 	Size  float64 `msgpack:"s"`
 }
 
+// optionTradeWithT is the incoming option trade message that also contains the T type key
+type optionTradeWithT struct {
+	Type      string    `msgpack:"T"`
+	Symbol    string    `msgpack:"S"`
+	Exchange  string    `msgpack:"x"`
+	Price     float64   `msgpack:"p"`
+	Size      uint32    `msgpack:"s"`
+	Timestamp time.Time `msgpack:"t"`
+	Condition string    `msgpack:"c"`
+}
+
+// optionQuoteWithT is the incoming option quote message that also contains the T type key
+type optionQuoteWithT struct {
+	Type        string    `msgpack:"T"`
+	Symbol      string    `msgpack:"S"`
+	BidExchange string    `msgpack:"bx"`
+	BidPrice    float64   `msgpack:"bp"`
+	BidSize     uint32    `msgpack:"bs"`
+	AskExchange string    `msgpack:"ax"`
+	AskPrice    float64   `msgpack:"ap"`
+	AskSize     uint32    `msgpack:"as"`
+	Timestamp   time.Time `msgpack:"t"`
+	Condition   string    `msgpack:"c"`
+}
+
 type newsWithT struct {
 	Type      string    `msgpack:"T"`
 	ID        int       `msgpack:"id"`

@@ -166,6 +166,29 @@ type CryptoOrderbookEntry struct {
 	Size  float64
 }
 
+// OptionTrade is an option trade that happened on the market
+type OptionTrade struct {
+	Symbol    string
+	Exchange  string
+	Price     float64
+	Size      uint32
+	Timestamp time.Time
+	Condition string
+}
+
+// OptionQuote is an option quote from the market
+type OptionQuote struct {
+	Symbol      string
+	BidExchange string
+	BidPrice    float64
+	BidSize     uint32
+	AskExchange string
+	AskPrice    float64
+	AskSize     uint32
+	Timestamp   time.Time
+	Condition   string
+}
+
 type News struct {
 	ID        int
 	Author    string

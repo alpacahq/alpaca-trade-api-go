@@ -647,6 +647,133 @@ func (h *cryptoMsgHandler) handleNews(d *msgpack.Decoder, n int) error {
 	return discardMapContents(d, n)
 }
 
+type optionsMsgHandler struct {
+	mu           sync.RWMutex
+	tradeHandler func(trade OptionTrade)
+	quoteHandler func(quote OptionQuote)
+}
+
+var _ msgHandler = (*optionsMsgHandler)(nil)
+
+func (h *optionsMsgHandler) handleTrade(d *msgpack.Decoder, n int) error {
+	trade := OptionTrade{}
+	for i := 0; i < n; i++ {
+		key, err := d.DecodeString()
+		if err != nil {
+			return err
+		}
+		switch key {
+		case "S":
+			trade.Symbol, err = d.DecodeString()
+		case "x":
+			trade.Exchange, err = d.DecodeString()
+		case "p":
+			trade.Price, err = d.DecodeFloat64()
+		case "s":
+			trade.Size, err = d.DecodeUint32()
+		case "t":
+			trade.Timestamp, err = d.DecodeTime()
+		case "c":
+			trade.Condition, err = d.DecodeString()
+		default:
+			err = d.Skip()
+		}
+		if err != nil {
+			return err
+		}
+	}
+	h.mu.RLock()
+	tradeHandler := h.tradeHandler
+	h.mu.RUnlock()
+	tradeHandler(trade)
+	return nil
+}
+
+func (h *optionsMsgHandler) handleQuote(d *msgpack.Decoder, n int) error {
+	quote := OptionQuote{}
+	for i := 0; i < n; i++ {
+		key, err := d.DecodeString()
+		if err != nil {
+			return err
+		}
+		switch key {
+		case "S":
+			quote.Symbol, err = d.DecodeString()
+		case "bx":
+			quote.BidExchange, err = d.DecodeString()
+		case "bp":
+			quote.BidPrice, err = d.DecodeFloat64()
+		case "bs":
+			quote.BidSize, err = d.DecodeUint32()
+		case "ax":
+			quote.AskExchange, err = d.DecodeString()
+		case "ap":
+			quote.AskPrice, err = d.DecodeFloat64()
+		case "as":
+			quote.AskSize, err = d.DecodeUint32()
+		case "t":
+			quote.Timestamp, err = d.DecodeTime()
+		case "c":
+			quote.Condition, err = d.DecodeString()
+		default:
+			err = d.Skip()
+		}
+		if err != nil {
+			return err
+		}
+	}
+	h.mu.RLock()
+	quoteHandler := h.quoteHandler
+	h.mu.RUnlock()
+	quoteHandler(quote)
+	return nil
+}
+
+func (h *optionsMsgHandler) handleBar(d *msgpack.Decoder, n int) error {
+	// should not happen!
+	return discardMapContents(d, n)
+}
+
+func (h *optionsMsgHandler) handleUpdatedBar(d *msgpack.Decoder, n int) error {
+	// should not happen!
+	return discardMapContents(d, n)
+}
+
+func (h *optionsMsgHandler) handleDailyBar(d *msgpack.Decoder, n int) error {
+	// should not happen!
+	return discardMapContents(d, n)
+}
+
+func (h *optionsMsgHandler) handleTradingStatus(d *msgpack.Decoder, n int) error {
+	// should not happen!
+	return discardMapContents(d, n)
+}
+
+func (h *optionsMsgHandler) handleLULD(d *msgpack.Decoder, n int) error {
+	// should not happen!
+	return discardMapContents(d, n)
+}
+
+func (h *optionsMsgHandler) handleCancelError(d *msgpack.Decoder, n int) error {
+	// should not happen!
+	return discardMapContents(d, n)
+}
+
+func (h *optionsMsgHandler) handleCorrection(d *msgpack.Decoder, n int) error {
+	// should not happen!
+	return discardMapContents(d, n)
+}
+
+func (h *optionsMsgHandler) handleOrderbook(d *msgpack.Decoder, n int) error {
+	// should not happen!
+	return discardMapContents(d, n)
+}
+
+func (h *optionsMsgHandler) handleNews(d *msgpack.Decoder, n int) error {
+	// should not happen!
+	return discardMapContents(d, n)
+}
+
 type newsMsgHandler struct {
 	mu          sync.RWMutex
 	newsHandler func(news News)
