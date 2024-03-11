@@ -105,53 +105,54 @@ func main() {
 	}()
 
 	for {
-		func() {
-			ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
-			defer cancel()
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		isOpen, err := a.awaitMarketOpen(ctx)
+		if err != nil {
+			log.Fatalf("Failed to wait for market open: %v", err)
+		}
+		if !isOpen {
+			time.Sleep(1 * time.Minute)
+			return
+		}
+		fmt.Printf("The market is open! Waiting for %s minute bars...\n", a.stock)
 
-			isOpen, err := a.awaitMarketOpen(ctx)
-			if err != nil {
-				log.Fatalf("Failed to wait for market open: %v", err)
-			}
-			if !isOpen {
-				time.Sleep(1 * time.Minute)
-				return
-			}
-			fmt.Printf("The market is open! Waiting for %s minute bars...\n", a.stock)
+		// Reset the moving average for the day
+		a.movingAverage = movingaverage.New(windowSize)
 
-			// Reset the moving average for the day
-			a.movingAverage = movingaverage.New(windowSize)
+		ctx, cancel = context.WithTimeout(context.Background(), 60*time.Second)
+		defer cancel()
+		bars, err := a.dataClient.GetBars(ctx, a.stock, marketdata.GetBarsRequest{
+			TimeFrame: marketdata.OneMin,
+			Start:     time.Now().Add(-1 * (windowSize + 1) * time.Minute),
+			End:       time.Now(),
+			Feed:      a.feed,
+		})
+		if err != nil {
+			log.Fatalf("Failed to get historical bar: %v", err)
+		}
+		for _, bar := range bars {
+			a.movingAverage.Add(bar.Close)
+		}
+		a.shouldTrade.Store(true)
 
-			bars, err := a.dataClient.GetBars(ctx, a.stock, marketdata.GetBarsRequest{
-				TimeFrame: marketdata.OneMin,
-				Start:     time.Now().Add(-1 * (windowSize + 1) * time.Minute),
-				End:       time.Now(),
-				Feed:      a.feed,
-			})
-			if err != nil {
-				log.Fatalf("Failed to get historical bar: %v", err)
-			}
-			for _, bar := range bars {
-				a.movingAverage.Add(bar.Close)
-			}
-			a.shouldTrade.Store(true)
+		// During market open we react on the minute bars (onBar)
+		clock, err := a.tradeClient.GetClock(ctx)
+		if err != nil {
+			log.Fatalf("Failed to get clock: %v", err)
+		}
+		untilClose := clock.NextClose.Sub(clock.Timestamp.Add(-15 * time.Minute))
+		time.Sleep(untilClose)
 
-			// During market open we react on the minute bars (onBar)
+		fmt.Println("Market closing soon. Closing position.")
+		a.shouldTrade.Store(false)
 
-			clock, err := a.tradeClient.GetClock(ctx)
-			if err != nil {
-				log.Fatalf("Failed to get clock: %v", err)
-			}
-			untilClose := clock.NextClose.Sub(clock.Timestamp.Add(-15 * time.Minute))
-			time.Sleep(untilClose)
-
-			fmt.Println("Market closing soon. Closing position.")
-			a.shouldTrade.Store(false)
-			if _, err := a.tradeClient.ClosePosition(ctx, a.stock, alpaca.ClosePositionRequest{}); err != nil {
-				log.Fatalf("Failed to close position: %v", a.stock)
-			}
-			fmt.Println("Position closed.")
-		}()
+		ctx, cancel = context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		if _, err := a.tradeClient.ClosePosition(ctx, a.stock, alpaca.ClosePositionRequest{}); err != nil {
+			log.Fatalf("Failed to close position: %v", a.stock)
+		}
+		fmt.Println("Position closed.")
 	}
 }
 
