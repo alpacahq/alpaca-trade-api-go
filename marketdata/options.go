@@ -247,7 +247,7 @@ func (c *Client) GetOptionSnapshot(symbol string, req GetOptionSnapshotRequest) 
 	return &snapshot, nil
 }
 
-// GetOptionSnapshots returns the snapshots for multiple symbol
+// GetOptionSnapshots returns the snapshots for multiple symbols
 func (c *Client) GetOptionSnapshots(symbols []string, req GetOptionSnapshotRequest) (map[string]OptionSnapshot, error) {
 	u, err := url.Parse(fmt.Sprintf("%s/%s/snapshots", c.opts.BaseURL, optionPrefix))
 	if err != nil {
@@ -335,7 +335,7 @@ func GetOptionSnapshot(symbol string, req GetOptionSnapshotRequest) (*OptionSnap
 	return DefaultClient.GetOptionSnapshot(symbol, req)
 }
 
-// GetOptionSnapshots returns the snapshots for multiple symbol
+// GetOptionSnapshots returns the snapshots for multiple symbols
 func GetOptionSnapshots(symbols []string, req GetOptionSnapshotRequest) (map[string]OptionSnapshot, error) {
 	return DefaultClient.GetOptionSnapshots(symbols, req)
 }

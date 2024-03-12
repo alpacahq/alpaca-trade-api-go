@@ -200,18 +200,6 @@ func (cc *OptionClient) UnsubscribeFromQuotes(symbols ...string) error {
 	return cc.handleSubChange(false, subscriptions{quotes: symbols})
 }
 
-func (cc *OptionClient) UnsubscribeFromBars(symbols ...string) error {
-	return cc.handleSubChange(false, subscriptions{bars: symbols})
-}
-
-func (cc *OptionClient) UnsubscribeFromUpdatedBars(symbols ...string) error {
-	return cc.handleSubChange(false, subscriptions{updatedBars: symbols})
-}
-
-func (cc *OptionClient) UnsubscribeFromDailyBars(symbols ...string) error {
-	return cc.handleSubChange(false, subscriptions{dailyBars: symbols})
-}
-
 func (nc *NewsClient) SubscribeToNews(handler func(News), symbols ...string) error {
 	nc.handler.mu.Lock()
 	nc.handler.newsHandler = handler
