@@ -65,7 +65,7 @@ func (c *client) configure(o options) {
 	c.connCreator = o.connCreator
 }
 
-// StocksClient is a client that connects to an Alpaca Data V2 stream server
+// StocksClient is a client that connects to the Alpaca stream server
 // and handles communication both ways.
 //
 // After constructing, Connect() must be called before any subscription changes
@@ -146,7 +146,7 @@ func constructURL(base, feed string) (url.URL, error) {
 	return url.URL{Scheme: scheme, Host: ub.Host, Path: ub.Path}, nil
 }
 
-// CryptoClient is a client that connects to an Alpaca Data V2 stream server
+// CryptoClient is a client that connects to an Alpaca stream server
 // and handles communication both ways.
 //
 // After constructing, Connect() must be called before any subscription changes
@@ -208,6 +208,67 @@ func (cc *CryptoClient) Connect(ctx context.Context) error {
 }
 
 func (cc *CryptoClient) constructURL() (url.URL, error) {
+	return constructURL(cc.baseURL, cc.feed)
+}
+
+// OptionClient is a client that connects to an Alpaca stream server
+// and handles communication both ways.
+//
+// After constructing, Connect() must be called before any subscription changes
+// are called. Connect keeps the connection alive and reestablishes it until
+// a configured number of retries has not been exceeded.
+//
+// Terminated() returns a channel that the client sends an error to when it has terminated.
+// A client can not be reused once it has terminated!
+//
+// SubscribeTo... and UnsubscribeFrom... can be used to modify subscriptions and
+// the handler used to process incoming trades/quotes/bars. These block until an
+// irrecoverable error occurs or if they succeed.
+//
+// Note that subscription changes can not be called concurrently.
+type OptionClient struct {
+	*client
+
+	feed    marketdata.OptionFeed
+	handler *optionsMsgHandler
+}
+
+// NewOptionClient returns a new OptionClient that will connect to the option feed
+// and whose default configurations are modified by opts.
+func NewOptionClient(feed marketdata.OptionFeed, opts ...OptionOption) *OptionClient {
+	cc := OptionClient{
+		client:  newClient(),
+		feed:    feed,
+		handler: &optionsMsgHandler{},
+	}
+	cc.client.handler = cc.handler
+	o := defaultOptionOptions()
+	o.applyOption(opts...)
+	cc.configure(*o)
+	return &cc
+}
+
+func (cc *OptionClient) configure(o optionOptions) {
+	cc.client.configure(o.options)
+	cc.handler.tradeHandler = o.tradeHandler
+	cc.handler.quoteHandler = o.quoteHandler
+}
+
+// Connect establishes a connection and **reestablishes it when errors occur**
+// as long as the configured number of retries has not been exceeded.
+//
+// It blocks until the connection has been established for the first time (or it failed to do so).
+//
+// **Should only be called once!**
+func (cc *OptionClient) Connect(ctx context.Context) error {
+	u, err := cc.constructURL()
+	if err != nil {
+		return err
+	}
+	return cc.connect(ctx, u)
+}
+
+func (cc *OptionClient) constructURL() (url.URL, error) {
 	return constructURL(cc.baseURL, cc.feed)
 }
 

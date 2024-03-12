@@ -33,6 +33,14 @@ const (
 	US CryptoFeed = "us"
 )
 
+// OptionFeed defines the source feed of option data.
+type OptionFeed = string
+
+const (
+	OPRA       Feed = "opra"
+	Indicative Feed = "indicative"
+)
+
 // TakerSide is the taker's side: one of B, S or -. B is buy, S is sell and - is unknown.
 type TakerSide = string
 
@@ -219,6 +227,43 @@ type News struct {
 	Symbols   []string    `json:"symbols"`
 }
 
+// OptionTrade is an option trade that happened on the market
+type OptionTrade struct {
+	Timestamp time.Time `json:"t"`
+	Price     float64   `json:"p"`
+	Size      uint32    `json:"s"`
+	Exchange  string    `json:"x"`
+	Condition string    `json:"c"`
+}
+
+// OptionBar is an aggregate of option trades
+type OptionBar struct {
+	Timestamp  time.Time `json:"t"`
+	Open       float64   `json:"o"`
+	High       float64   `json:"h"`
+	Low        float64   `json:"l"`
+	Close      float64   `json:"c"`
+	Volume     uint64    `json:"v"`
+	TradeCount uint64    `json:"n"`
+	VWAP       float64   `json:"vw"`
+}
+
+// OptionQuote is an option NBBO (National Best Bid and Offer)
+type OptionQuote struct {
+	Timestamp   time.Time `json:"t"`
+	BidPrice    float64   `json:"bp"`
+	BidSize     uint32    `json:"bs"`
+	BidExchange string    `json:"bx"`
+	AskPrice    float64   `json:"ap"`
+	AskSize     uint32    `json:"as"`
+	AskExchange string    `json:"ax"`
+	Condition   string    `json:"c"`
+}
+
+type OptionSnapshot struct {
+	LatestTrade *OptionTrade `json:"latestTrade"`
+	LatestQuote *OptionQuote `json:"latestQuote"`
+}
 type multiTradeResponse struct {
 	NextPageToken *string            `json:"next_page_token"`
 	Trades        map[string][]Trade `json:"trades"`
@@ -281,4 +326,26 @@ type latestCryptoQuotesResponse struct {
 type newsResponse struct {
 	NextPageToken *string `json:"next_page_token"`
 	News          []News  `json:"news"`
+}
+
+type multiOptionTradeResponse struct {
+	NextPageToken *string                  `json:"next_page_token"`
+	Trades        map[string][]OptionTrade `json:"trades"`
+}
+
+type multiOptionBarResponse struct {
+	NextPageToken *string                `json:"next_page_token"`
+	Bars          map[string][]OptionBar `json:"bars"`
+}
+
+type latestOptionTradesResponse struct {
+	Trades map[string]OptionTrade `json:"trades"`
+}
+
+type latestOptionQuotesResponse struct {
+	Quotes map[string]OptionQuote `json:"quotes"`
+}
+
+type optionSnapshotsResponse struct {
+	Snapshots map[string]OptionSnapshot `json:"snapshots"`
 }

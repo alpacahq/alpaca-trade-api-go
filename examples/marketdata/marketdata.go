@@ -4,8 +4,10 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"sort"
 	"strconv"
 	"strings"
+	"text/tabwriter"
 	"time"
 
 	"github.com/alpacahq/alpaca-trade-api-go/v3/marketdata"
@@ -120,6 +122,53 @@ func cryptoQuote() {
 	fmt.Println()
 }
 
+func optionChain() {
+	chain, err := marketdata.GetOptionChain("AAPL", marketdata.GetOptionSnapshotRequest{})
+	if err != nil {
+		panic(err)
+	}
+	type snap struct {
+		marketdata.OptionSnapshot
+		Symbol string
+	}
+	calls, puts := []snap{}, []snap{}
+	for symbol, snapshot := range chain {
+		if strings.Contains(symbol, "C") {
+			calls = append(calls, snap{OptionSnapshot: snapshot, Symbol: symbol})
+		} else {
+			puts = append(puts, snap{OptionSnapshot: snapshot, Symbol: symbol})
+		}
+	}
+	sort.Slice(calls, func(i, j int) bool { return calls[i].Symbol < calls[j].Symbol })
+	sort.Slice(puts, func(i, j int) bool { return puts[i].Symbol < puts[j].Symbol })
+	printSnaps := func(snaps []snap) {
+		tw := tabwriter.NewWriter(os.Stdout, 0, 0, 1, ' ', 0)
+		fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\n", "Contract name", "Last trade time", "Price", "Bid", "Ask")
+		for _, s := range snaps {
+			ts := ""
+			if s.LatestTrade != nil {
+				ts = s.LatestTrade.Timestamp.Format(time.RFC3339)
+			}
+			price := float64(0)
+			if s.LatestTrade != nil {
+				price = s.LatestTrade.Price
+			}
+			bid, ask := float64(0), float64(0)
+			if s.LatestQuote != nil {
+				bid = s.LatestQuote.BidPrice
+				ask = s.LatestQuote.AskPrice
+			}
+			fmt.Fprintf(tw, "%s\t%s\t%g\t%g\t%g\n", s.Symbol, ts, price, bid, ask)
+		}
+		tw.Flush()
+	}
+	fmt.Println("CALLS")
+	printSnaps(calls)
+	fmt.Println()
+	fmt.Println("PUTS")
+	printSnaps(puts)
+}
+
 type example struct {
 	Name string
 	Func func()
@@ -134,6 +183,7 @@ func main() {
 		{Name: "news", Func: news},
 		{Name: "auctions", Func: auctions},
 		{Name: "crypto_quote", Func: cryptoQuote},
+		{Name: "option_chain", Func: optionChain},
 	}
 	for {
 		fmt.Println("Examples: ")
