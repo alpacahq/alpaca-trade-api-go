@@ -10,6 +10,8 @@ import (
 	"text/tabwriter"
 	"time"
 
+	"cloud.google.com/go/civil"
+
 	"github.com/alpacahq/alpaca-trade-api-go/v3/marketdata"
 )
 
@@ -169,6 +171,21 @@ func optionChain() {
 	printSnaps(puts)
 }
 
+func corporateActions() {
+	cas, err := marketdata.GetCorporateActions(marketdata.GetCorporateActionsRequest{
+		Symbols: []string{"TSLA"},
+		Types:   []string{"forward_split"},
+		Start:   civil.Date{Year: 2018, Month: 1, Day: 1},
+	})
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println("TSLA forward splits:")
+	for _, split := range cas.ForwardSplits {
+		fmt.Printf(" - %+v\n", split)
+	}
+}
+
 type example struct {
 	Name string
 	Func func()
@@ -184,6 +201,7 @@ func main() {
 		{Name: "auctions", Func: auctions},
 		{Name: "crypto_quote", Func: cryptoQuote},
 		{Name: "option_chain", Func: optionChain},
+		{Name: "corporate_actions", Func: corporateActions},
 	}
 	for {
 		fmt.Println("Examples: ")

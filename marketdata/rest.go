@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"cloud.google.com/go/civil"
 	"github.com/mailru/easyjson"
 
 	"github.com/alpacahq/alpaca-trade-api-go/v3/alpaca"
@@ -141,7 +142,9 @@ type baseRequest struct {
 }
 
 func (c *Client) setBaseQuery(q url.Values, req baseRequest) {
-	q.Set("symbols", strings.Join(req.Symbols, ","))
+	if len(req.Symbols) > 0 {
+		q.Set("symbols", strings.Join(req.Symbols, ","))
+	}
 	if !req.Start.IsZero() {
 		q.Set("start", req.Start.Format(time.RFC3339Nano))
 	}
@@ -1240,6 +1243,103 @@ func (c *Client) GetNews(req GetNewsRequest) ([]News, error) {
 	return news, nil
 }
 
+// GetCorporateActionsRequest contains optional parameters for getting corporate actions.
+type GetCorporateActionsRequest struct {
+	// Symbols is the list of company symbols
+	Symbols []string
+	// Types is the list of corporate actions types. Available types:
+	//
+	// The following types are supported:
+	//  - reverse_split
+	//  - forward_split
+	//  - unit_split
+	//  - cash_dividend
+	//  - stock_dividend
+	//  - spin_off
+	//  - cash_merger
+	//  - stock_merger
+	//  - stock_and_cash_merger
+	//  - redemption
+	//  - name_change
+	//  - worthless_removal
+	Types []string
+	// Start is the inclusive beginning of the interval
+	Start civil.Date
+	// End is the inclusive end of the interval
+	End civil.Date
+	// TotalLimit is the limit of the total number of the returned trades.
+	// If missing, all trades between start end end will be returned.
+	TotalLimit int
+	// PageLimit is the pagination size. If empty, the default page size will be used.
+	PageLimit int
+	// Sort is the sort direction of the data
+	Sort Sort
+}
+
+// GetCorporateActions returns the corporate actions based on the given req.
+func (c *Client) GetCorporateActions(req GetCorporateActionsRequest) (CorporateActions, error) {
+	u, err := url.Parse(fmt.Sprintf("%s/v1beta1/corporate-actions", c.opts.BaseURL))
+	if err != nil {
+		return CorporateActions{}, err
+	}
+
+	q := u.Query()
+	if len(req.Symbols) > 0 {
+		q.Set("symbols", strings.Join(req.Symbols, ","))
+	}
+	if !req.Start.IsZero() {
+		q.Set("start", req.Start.String())
+	}
+	if !req.End.IsZero() {
+		q.Set("end", req.End.String())
+	}
+	if req.Sort != "" {
+		q.Set("sort", string(req.Sort))
+	}
+	if len(req.Types) > 0 {
+		q.Set("types", strings.Join(req.Types, ","))
+	}
+
+	cas := CorporateActions{}
+	received := 0
+	for req.TotalLimit == 0 || received < req.TotalLimit {
+		setQueryLimit(q, req.TotalLimit, req.PageLimit, received, v2MaxLimit)
+		u.RawQuery = q.Encode()
+
+		resp, err := c.get(u)
+		if err != nil {
+			return cas, err
+		}
+
+		var casResp corporateActionsResponse
+		if err = unmarshal(resp, &casResp); err != nil {
+			return cas, err
+		}
+		c := casResp.CorporateActions
+		cas.ReverseSplits = append(cas.ReverseSplits, c.ReverseSplits...)
+		cas.ForwardSplits = append(cas.ForwardSplits, c.ForwardSplits...)
+		cas.UnitSplits = append(cas.UnitSplits, c.UnitSplits...)
+		cas.CashDividends = append(cas.CashDividends, c.CashDividends...)
+		cas.CashMergers = append(cas.CashMergers, c.CashMergers...)
+		cas.StockMergers = append(cas.StockMergers, c.StockMergers...)
+		cas.StockAndCashMergers = append(cas.StockAndCashMergers, c.StockAndCashMergers...)
+		cas.StockDividends = append(cas.StockDividends, c.StockDividends...)
+		cas.Redemptions = append(cas.Redemptions, c.Redemptions...)
+		cas.SpinOffs = append(cas.SpinOffs, c.SpinOffs...)
+		cas.NameChanges = append(cas.NameChanges, c.NameChanges...)
+		cas.WorthlessRemovals = append(cas.WorthlessRemovals, c.WorthlessRemovals...)
+		received += (len(c.ReverseSplits) + len(c.ForwardSplits) + len(c.UnitSplits) +
+			len(c.CashDividends) + len(c.StockDividends) +
+			len(c.CashMergers) + len(c.StockMergers) + len(c.StockAndCashMergers) +
+			len(c.Redemptions) + len(c.SpinOffs) + len(c.NameChanges) + len(c.WorthlessRemovals))
+		if casResp.NextPageToken == nil {
+			break
+		}
+		q.Set("page_token", *casResp.NextPageToken)
+	}
+	return cas, nil
+}
+
 // GetTrades returns the trades for the given symbol.
 func GetTrades(symbol string, req GetTradesRequest) ([]Trade, error) {
 	return DefaultClient.GetTrades(symbol, req)
@@ -1393,6 +1493,11 @@ func GetCryptoSnapshots(symbols []string, req GetCryptoSnapshotRequest) (map[str
 // GetNews returns the news articles based on the given req.
 func GetNews(req GetNewsRequest) ([]News, error) {
 	return DefaultClient.GetNews(req)
+}
+
+// GetCorporateActions returns the corporate actions based on the given req.
+func GetCorporateActions(req GetCorporateActionsRequest) (CorporateActions, error) {
+	return DefaultClient.GetCorporateActions(req)
 }
 
 func (c *Client) get(u *url.URL) (*http.Response, error) {
