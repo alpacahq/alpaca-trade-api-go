@@ -431,8 +431,7 @@ type optionOptions struct {
 // defaultOptionOptions are the default options for a client.
 // Don't change this in a backward incompatible way!
 func defaultOptionOptions() *optionOptions {
-	// Note that this will probably change to stream.data.alpaca.markets shortly!
-	baseURL := "https://stream-options.data.alpaca.markets/v1beta1"
+	baseURL := "https://stream.data.alpaca.markets/v1beta1"
 	// Should this override option be removed?
 	if s := os.Getenv("DATA_PROXY_WS"); s != "" {
 		baseURL = s
