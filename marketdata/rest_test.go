@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"cloud.google.com/go/civil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -1228,5 +1229,164 @@ func TestGetNews_ClientSideValidationErrors(t *testing.T) {
 			assert.Error(t, err)
 			assert.Contains(t, err.Error(), tc.expectedError)
 		})
+	}
+}
+
+func TestGetCorporateActions(t *testing.T) {
+	resp := `{
+		"corporate_actions": {
+			"forward_splits": [
+				{
+					"due_bill_redemption_date": "2024-03-14",
+					"ex_date": "2024-03-13",
+					"new_rate": 5,
+					"old_rate": 1,
+					"payable_date": "2024-03-12",
+					"process_date": "2024-03-13",
+					"record_date": "2024-03-11",
+					"symbol": "FBL"
+				},
+				{
+					"due_bill_redemption_date": "2024-03-14",
+					"ex_date": "2024-03-13",
+					"new_rate": 6,
+					"old_rate": 1,
+					"payable_date": "2024-03-12",
+					"process_date": "2024-03-13",
+					"record_date": "2024-03-11",
+					"symbol": "NVDL"
+				}
+			],
+			"name_changes": [
+				{
+					"new_symbol": "ZEO",
+					"old_symbol": "ESAC",
+					"process_date": "2024-03-14"
+				},
+				{
+					"new_symbol": "ZEOWW",
+					"old_symbol": "ESACW",
+					"process_date": "2024-03-14"
+				},
+				{
+					"new_symbol": "XTIA",
+					"old_symbol": "INPX",
+					"process_date": "2024-03-13"
+				},
+				{
+					"new_symbol": "IRRXW",
+					"old_symbol": "IRRX.WS",
+					"process_date": "2024-03-12"
+				},
+				{
+					"new_symbol": "NMHI",
+					"old_symbol": "LBBB",
+					"process_date": "2024-03-12"
+				},
+				{
+					"new_symbol": "NMHIW",
+					"old_symbol": "LBBBW",
+					"process_date": "2024-03-12"
+				},
+				{
+					"new_symbol": "POLCQ",
+					"old_symbol": "POLC",
+					"process_date": "2024-03-11"
+				},
+				{
+					"new_symbol": "NRDE",
+					"old_symbol": "RIDEQ",
+					"process_date": "2024-03-14"
+				},
+				{
+					"new_symbol": "NTRP",
+					"old_symbol": "SASI",
+					"process_date": "2024-03-13"
+				}
+			],
+			"stock_mergers": [
+				{
+					"acquiree_rate": 1,
+					"acquiree_symbol": "FAZE",
+					"acquirer_rate": 0.13091,
+					"acquirer_symbol": "GAME",
+					"effective_date": "2024-03-11",
+					"payable_date": "2024-03-11",
+					"process_date": "2024-03-11"
+				},
+				{
+					"acquiree_rate": 1,
+					"acquiree_symbol": "LBBBR",
+					"acquirer_rate": 0.1,
+					"acquirer_symbol": "NMHI",
+					"effective_date": "2024-03-12",
+					"payable_date": "2024-03-12",
+					"process_date": "2024-03-12"
+				}
+			],
+			"worthless_removals": [
+				{
+					"process_date": "2024-03-12",
+					"symbol": "EACPW"
+				},
+				{
+					"process_date": "2024-03-12",
+					"symbol": "ZSANQ"
+				}
+			]
+		},
+		"next_page_token": null
+	}`
+	c := DefaultClient
+	c.do = func(c *Client, req *http.Request) (*http.Response, error) {
+		assert.Equal(t, "/v1beta1/corporate-actions", req.URL.Path)
+		assert.Equal(t, "forward_split,name_change,worthless_removal,stock_merger",
+			req.URL.Query().Get("types"))
+		assert.Equal(t, "2024-03-10", req.URL.Query().Get("start"))
+		assert.Equal(t, "2024-03-14", req.URL.Query().Get("end"))
+		return &http.Response{
+			Body: io.NopCloser(strings.NewReader(resp)),
+		}, nil
+	}
+	got, err := c.GetCorporateActions(GetCorporateActionsRequest{
+		Types:      []string{"forward_split", "name_change", "worthless_removal", "stock_merger"},
+		Start:      civil.Date{Year: 2024, Month: 3, Day: 10},
+		End:        civil.Date{Year: 2024, Month: 3, Day: 14},
+		TotalLimit: 5,
+		PageLimit:  2,
+	})
+	require.NoError(t, err)
+	if assert.Len(t, got.ForwardSplits, 2) {
+		assert.Equal(t, ForwardSplit{
+			Symbol:                "FBL",
+			NewRate:               5,
+			OldRate:               1,
+			ProcessDate:           civil.Date{Year: 2024, Month: 3, Day: 13},
+			ExDate:                civil.Date{Year: 2024, Month: 3, Day: 13},
+			RecordDate:            &civil.Date{Year: 2024, Month: 3, Day: 11},
+			PayableDate:           &civil.Date{Year: 2024, Month: 3, Day: 12},
+			DueBillRedemptionDate: &civil.Date{Year: 2024, Month: 3, Day: 14},
+		}, got.ForwardSplits[0])
+	}
+	if assert.Len(t, got.NameChanges, 9) {
+		assert.Equal(t, NameChange{
+			NewSymbol:   "NTRP",
+			OldSymbol:   "SASI",
+			ProcessDate: civil.Date{Year: 2024, Month: 3, Day: 13},
+		}, got.NameChanges[8])
+	}
+	if assert.Len(t, got.StockMergers, 2) {
+		assert.Equal(t, StockMerger{
+			AcquirerSymbol: "GAME",
+			AcquirerRate:   0.13091,
+			AcquireeSymbol: "FAZE",
+			AcquireeRate:   1,
+			ProcessDate:    civil.Date{Year: 2024, Month: 3, Day: 11},
+			EffectiveDate:  civil.Date{Year: 2024, Month: 3, Day: 11},
+			PayableDate:    &civil.Date{Year: 2024, Month: 3, Day: 11},
+		}, got.StockMergers[0])
+	}
+	if assert.Len(t, got.WorthlessRemovals, 2) {
+		assert.Equal(t, "EACPW", got.WorthlessRemovals[0].Symbol)
 	}
 }
