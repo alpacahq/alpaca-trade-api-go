@@ -262,6 +262,13 @@ func (c *client) handleSubChange(subscribe bool, changes subscriptions) error {
 		c.pendingSubChangeMutex.Lock()
 		defer c.pendingSubChangeMutex.Unlock()
 		c.pendingSubChange = nil
+		// Drain the c.subChanges channel to avoid waiting size 1 channel when connection is lost.
+		// Please consider using connect/disconnect callbacks to avoid requesting sub change during disconnection.
+		select {
+		case <-c.subChanges:
+			c.logger.Warnf("datav2stream: removed sub changes request due to timeout")
+		default:
+		}
 	}
 
 	return ErrSubscriptionChangeTimeout
