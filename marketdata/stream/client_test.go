@@ -659,18 +659,8 @@ func TestSubscriptionTwiceAcrossConnectionIssues(t *testing.T) {
 	// server accepts subscription
 	conn1.readCh <- serializeToMsgpack(t, []subWithT{
 		{
-			Type:         "subscription",
-			Trades:       trades1,
-			Quotes:       nil,
-			Bars:         nil,
-			UpdatedBars:  nil,
-			DailyBars:    nil,
-			Statuses:     nil,
-			LULDs:        nil,
-			CancelErrors: nil,
-			Corrections:  nil,
-			Orderbooks:   nil,
-			News:         nil,
+			Type:   "subscription",
+			Trades: trades1,
 		},
 	})
 	err = <-subRes
