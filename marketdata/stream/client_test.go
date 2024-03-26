@@ -693,7 +693,6 @@ func TestSubscriptionTwiceAcrossConnectionIssues(t *testing.T) {
 	// establish 2nd connection
 	conn2 := newMockConn()
 	writeInitialFlowMessagesToConn(t, conn2, subscriptions{trades: trades1})
-	// writeInitialFlowMessagesToConn(t, conn2, subscriptions{})
 	c.connCreator = func(ctx context.Context, u url.URL) (conn, error) {
 		return conn2, nil
 	}
