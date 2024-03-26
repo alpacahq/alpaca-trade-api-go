@@ -226,7 +226,7 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Alpaca3(in *jlexer
 		in.Delim('[')
 		if *out == nil {
 			if !in.IsDelim(']') {
-				*out = make(calendarDaySlice, 0, 1)
+				*out = make(calendarDaySlice, 0, 0)
 			} else {
 				*out = calendarDaySlice{}
 			}
@@ -2476,6 +2476,12 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Alpaca17(in *jlexe
 			out.Open = string(in.String())
 		case "close":
 			out.Close = string(in.String())
+		case "session_open":
+			out.SessionOpen = string(in.String())
+		case "session_close":
+			out.SessionClose = string(in.String())
+		case "settlement_date":
+			out.SettlementDate = string(in.String())
 		default:
 			in.SkipRecursive()
 		}
@@ -2504,6 +2510,21 @@ func easyjson3e8ab7adEncodeGithubComAlpacahqAlpacaTradeApiGoV3Alpaca17(out *jwri
 		const prefix string = ",\"close\":"
 		out.RawString(prefix)
 		out.String(string(in.Close))
+	}
+	{
+		const prefix string = ",\"session_open\":"
+		out.RawString(prefix)
+		out.String(string(in.SessionOpen))
+	}
+	{
+		const prefix string = ",\"session_close\":"
+		out.RawString(prefix)
+		out.String(string(in.SessionClose))
+	}
+	{
+		const prefix string = ",\"settlement_date\":"
+		out.RawString(prefix)
+		out.String(string(in.SettlementDate))
 	}
 	out.RawByte('}')
 }
