@@ -41,6 +41,13 @@ const (
 	Indicative Feed = "indicative"
 )
 
+type OptionType = string
+
+const (
+	Call OptionType = "call"
+	Put  OptionType = "put"
+)
+
 // TakerSide is the taker's side: one of B, S or -. B is buy, S is sell and - is unknown.
 type TakerSide = string
 
@@ -403,9 +410,19 @@ type OptionQuote struct {
 	Condition   string    `json:"c"`
 }
 
+type OptionGreeks struct {
+	Delta float64 `json:"delta"`
+	Gamma float64 `json:"gamma"`
+	Rho   float64 `json:"rho"`
+	Theta float64 `json:"theta"`
+	Vega  float64 `json:"vega"`
+}
+
 type OptionSnapshot struct {
-	LatestTrade *OptionTrade `json:"latestTrade"`
-	LatestQuote *OptionQuote `json:"latestQuote"`
+	LatestTrade       *OptionTrade  `json:"latestTrade"`
+	LatestQuote       *OptionQuote  `json:"latestQuote"`
+	ImpliedVolatility float64       `json:"impliedVolatility,omitempty`
+	Greeks            *OptionGreeks `json:"greeks,omitempty`
 }
 type multiTradeResponse struct {
 	NextPageToken *string            `json:"next_page_token"`
@@ -495,5 +512,6 @@ type latestOptionQuotesResponse struct {
 }
 
 type optionSnapshotsResponse struct {
-	Snapshots map[string]OptionSnapshot `json:"snapshots"`
+	NextPageToken *string                   `json:"next_page_token"`
+	Snapshots     map[string]OptionSnapshot `json:"snapshots"`
 }

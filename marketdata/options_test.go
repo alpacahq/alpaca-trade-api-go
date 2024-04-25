@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"cloud.google.com/go/civil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -146,12 +147,69 @@ func TestGetOptionChain(t *testing.T) {
 		DefaultClient = NewClient(ClientOpts{})
 	}()
 	DefaultClient.do = mockResp(`{"snapshots":{"NIO240719P00002000":{"latestQuote":{"ap":1.24,"as":2183,"ax":"A","bp":0.03,"bs":1143,"bx":"A","c":"A","t":"2024-03-06T20:59:05.378523136Z"}},"NIO240405P00004000":{"latestQuote":{"ap":0.05,"as":3041,"ax":"D","bp":0.03,"bs":1726,"bx":"D","c":"C","t":"2024-03-06T20:59:59.678798848Z"},"latestTrade":{"c":"f","p":0.05,"s":17,"t":"2024-03-07T15:53:37.134486784Z","x":"I"}}}}`) //nolint:lll
-	got, err := GetOptionChain("NIO", GetOptionSnapshotRequest{})
+	got, err := GetOptionChain("NIO", GetOptionChainRequest{})
 	require.NoError(t, err)
 	require.NotNil(t, got)
-	assert.Len(t, got, 2)
+	require.Len(t, got, 2)
+	require.Contains(t, got, "NIO240719P00002000")
+	require.Contains(t, got, "NIO240405P00004000")
 	assert.Nil(t, got["NIO240719P00002000"].LatestTrade)
 	assert.Equal(t, 1.24, got["NIO240719P00002000"].LatestQuote.AskPrice)
 	assert.EqualValues(t, 1726, got["NIO240405P00004000"].LatestQuote.BidSize)
 	assert.EqualValues(t, 17, got["NIO240405P00004000"].LatestTrade.Size)
+}
+
+func TestGetOptionChainWithFilters(t *testing.T) {
+	c := DefaultClient
+	//nolint:lll
+	firstResp := `{"next_page_token":"QUFQTDI0MDQyNkMwMDE1MjUwMA==","snapshots":{"AAPL240426C00152500":{"latestQuote":{"ap":17,"as":91,"ax":"B","bp":16.25,"bs":80,"bx":"B","c":" ","t":"2024-04-24T19:59:59.782060288Z"},"latestTrade":{"c":"a","p":15.87,"s":1,"t":"2024-04-24T16:46:16.763406848Z","x":"I"}}}}`
+	secondResp := `{"next_page_token":null,"snapshots":{"AAPL240426C00155000":{"greeks":{"delta":0.9567110374646104,"gamma":0.010515010903989475,"rho":0.004041091409185355,"theta":-0.42275702792812153,"vega":0.008131530784084512},"impliedVolatility":0.9871160931510816,"latestQuote":{"ap":14.5,"as":86,"ax":"Q","bp":13.6,"bs":91,"bx":"B","c":" ","t":"2024-04-24T19:59:59.794910976Z"},"latestTrade":{"c":"a","p":14.28,"s":1,"t":"2024-04-24T19:42:55.36938496Z","x":"X"}}}}` //nolint:lll
+	c.do = func(c *Client, req *http.Request) (*http.Response, error) {
+		assert.Equal(t, "/v1beta1/options/snapshots/AAPL", req.URL.Path)
+		q := req.URL.Query()
+		assert.Equal(t, "1", q.Get("limit"))
+		assert.Equal(t, "151.123", q.Get("strike_price_gte"))
+		assert.Equal(t, "155", q.Get("strike_price_lte"))
+		assert.Equal(t, "1", q.Get("limit"))
+		assert.Equal(t, "call", q.Get("type"))
+		assert.Equal(t, "2024-04-26", q.Get("expiration_date_lte"))
+		pageToken := q.Get("page_token")
+		var resp string
+		switch pageToken {
+		case "":
+			resp = firstResp
+		case "QUFQTDI0MDQyNkMwMDE1MjUwMA==":
+			resp = secondResp
+		default:
+			require.Fail(t, "unexpected page token: "+pageToken)
+		}
+		return &http.Response{
+			Body: io.NopCloser(strings.NewReader(resp)),
+		}, nil
+	}
+	got, err := c.GetOptionChain("AAPL", GetOptionChainRequest{
+		PageLimit:         1,
+		Type:              Call,
+		StrikePriceGte:    151.123,
+		StrikePriceLte:    155,
+		ExpirationDateLte: civil.Date{Year: 2024, Month: 4, Day: 26},
+	})
+	require.NoError(t, err)
+	require.NotNil(t, got)
+	require.Len(t, got, 2)
+	require.Contains(t, got, "AAPL240426C00152500")
+	s := got["AAPL240426C00152500"]
+	assert.EqualValues(t, 17, s.LatestQuote.AskPrice)
+	assert.EqualValues(t, 15.87, s.LatestTrade.Price)
+	require.Contains(t, got, "AAPL240426C00155000")
+	s = got["AAPL240426C00155000"]
+	d := 0.1
+	assert.InDelta(t, 0.9871, s.ImpliedVolatility, d)
+	if assert.NotNil(t, s.Greeks) {
+		assert.InDelta(t, 0.9567, s.Greeks.Delta, d)
+		assert.InDelta(t, 0.0105, s.Greeks.Gamma, 0.1)
+		assert.InDelta(t, 0.004, s.Greeks.Rho, 0.1)
+		assert.InDelta(t, -0.422, s.Greeks.Theta, 0.1)
+		assert.InDelta(t, 0.0081, s.Greeks.Vega, 0.1)
+	}
 }
