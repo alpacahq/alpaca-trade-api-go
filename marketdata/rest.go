@@ -1262,6 +1262,7 @@ type GetCorporateActionsRequest struct {
 	//  - redemption
 	//  - name_change
 	//  - worthless_removal
+	//  - rights_distribution
 	Types []string
 	// Start is the inclusive beginning of the interval
 	Start civil.Date
@@ -1328,10 +1329,12 @@ func (c *Client) GetCorporateActions(req GetCorporateActionsRequest) (CorporateA
 		cas.SpinOffs = append(cas.SpinOffs, c.SpinOffs...)
 		cas.NameChanges = append(cas.NameChanges, c.NameChanges...)
 		cas.WorthlessRemovals = append(cas.WorthlessRemovals, c.WorthlessRemovals...)
+		cas.RightsDistributions = append(cas.RightsDistributions, c.RightsDistributions...)
 		received += (len(c.ReverseSplits) + len(c.ForwardSplits) + len(c.UnitSplits) +
 			len(c.CashDividends) + len(c.StockDividends) +
 			len(c.CashMergers) + len(c.StockMergers) + len(c.StockAndCashMergers) +
-			len(c.Redemptions) + len(c.SpinOffs) + len(c.NameChanges) + len(c.WorthlessRemovals))
+			len(c.Redemptions) + len(c.SpinOffs) + len(c.NameChanges) +
+			len(c.WorthlessRemovals) + len(c.RightsDistributions))
 		if casResp.NextPageToken == nil {
 			break
 		}
