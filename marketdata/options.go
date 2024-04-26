@@ -3,7 +3,10 @@ package marketdata
 import (
 	"fmt"
 	"net/url"
+	"strconv"
 	"time"
+
+	"cloud.google.com/go/civil"
 )
 
 const optionPrefix = "v1beta1/options"
@@ -231,7 +234,13 @@ func (c *Client) GetLatestOptionQuotes(symbols []string, req GetLatestOptionQuot
 }
 
 type GetOptionSnapshotRequest struct {
+	// Feed is the source of the data: opra or indicative.
 	Feed OptionFeed
+	// TotalLimit is the limit of the total number of the returned snapshots.
+	// If missing, all snapshots will be returned.
+	TotalLimit int
+	// PageLimit is the pagination size. If empty, the default page size will be used.
+	PageLimit int
 }
 
 // GetOptionSnapshot returns the snapshot for a given symbol
@@ -253,41 +262,123 @@ func (c *Client) GetOptionSnapshots(symbols []string, req GetOptionSnapshotReque
 	if err != nil {
 		return nil, err
 	}
-	c.setLatestQueryRequest(u, baseLatestRequest{
+
+	q := u.Query()
+	c.setBaseQuery(q, baseRequest{
 		Symbols: symbols,
 		Feed:    req.Feed,
 	})
 
-	resp, err := c.get(u)
-	if err != nil {
-		return nil, err
-	}
+	snapshots := make(map[string]OptionSnapshot, len(symbols))
+	received := 0
+	for req.TotalLimit == 0 || received < req.TotalLimit {
+		setQueryLimit(q, req.TotalLimit, req.PageLimit, received, v2MaxLimit)
+		u.RawQuery = q.Encode()
 
-	var snapshots optionSnapshotsResponse
-	if err = unmarshal(resp, &snapshots); err != nil {
-		return nil, err
+		resp, err := c.get(u)
+		if err != nil {
+			return nil, err
+		}
+
+		var snapshotsResp optionSnapshotsResponse
+		if err := unmarshal(resp, &snapshotsResp); err != nil {
+			return nil, err
+		}
+
+		for symbol, s := range snapshotsResp.Snapshots {
+			snapshots[symbol] = s
+			received++
+		}
+		if snapshotsResp.NextPageToken == nil {
+			break
+		}
+		q.Set("page_token", *snapshotsResp.NextPageToken)
 	}
-	return snapshots.Snapshots, nil
+	return snapshots, nil
+}
+
+type GetOptionChainRequest struct {
+	// Feed is the source of the data: opra or indicative.
+	Feed OptionFeed
+	// TotalLimit is the limit of the total number of the returned snapshots.
+	// If missing, all snapshots will be returned.
+	TotalLimit int
+	// PageLimit is the pagination size. If empty, the default page size will be used.
+	PageLimit int
+	// Type filters contracts by the type (call or put).
+	Type OptionType
+	// StrikePriceGte filters contracts with strike price greater than or equal to the specified value.
+	StrikePriceGte float64
+	// StrikePriceLte filters contracts with strike price less than or equal to the specified value.
+	StrikePriceLte float64
+	// ExpirationDate filters contracts by the exact expiration date
+	ExpirationDate civil.Date
+	// ExpirationDateGte filters contracts with expiration date greater than or equal to the specified date.
+	ExpirationDateGte civil.Date
+	// ExpirationDateLte filters contracts with expiration date less than or equal to the specified date.
+	ExpirationDateLte civil.Date
+	// RootSymbol filters contracts by the root symbol (e.g. AAPL1)
+	RootSymbol string
 }
 
 // GetOptionChain returns the snapshot chain for an underlying symbol (e.g. AAPL)
-func (c *Client) GetOptionChain(underlyingSymbol string, req GetOptionSnapshotRequest) (map[string]OptionSnapshot, error) {
+func (c *Client) GetOptionChain(underlyingSymbol string, req GetOptionChainRequest) (map[string]OptionSnapshot, error) {
 	u, err := url.Parse(fmt.Sprintf("%s/%s/snapshots/%s", c.opts.BaseURL, optionPrefix, underlyingSymbol))
 	if err != nil {
 		return nil, err
 	}
-	c.setLatestQueryRequest(u, baseLatestRequest{Feed: req.Feed})
-
-	resp, err := c.get(u)
-	if err != nil {
-		return nil, err
+	q := u.Query()
+	c.setBaseQuery(q, baseRequest{
+		Feed: req.Feed,
+	})
+	if req.Type != "" {
+		q.Set("type", req.Type)
+	}
+	if req.StrikePriceGte != 0 {
+		q.Set("strike_price_gte", strconv.FormatFloat(req.StrikePriceGte, 'f', -1, 64))
+	}
+	if req.StrikePriceLte != 0 {
+		q.Set("strike_price_lte", strconv.FormatFloat(req.StrikePriceLte, 'f', -1, 64))
+	}
+	if !req.ExpirationDate.IsZero() {
+		q.Set("expiration_date", req.ExpirationDate.String())
+	}
+	if !req.ExpirationDateLte.IsZero() {
+		q.Set("expiration_date_lte", req.ExpirationDateLte.String())
+	}
+	if !req.ExpirationDateGte.IsZero() {
+		q.Set("expiration_date_gte", req.ExpirationDateGte.String())
+	}
+	if req.RootSymbol != "" {
+		q.Set("root_symbol", req.RootSymbol)
 	}
 
-	var snapshots optionSnapshotsResponse
-	if err = unmarshal(resp, &snapshots); err != nil {
-		return nil, err
+	snapshots := make(map[string]OptionSnapshot)
+	received := 0
+	for req.TotalLimit == 0 || received < req.TotalLimit {
+		setQueryLimit(q, req.TotalLimit, req.PageLimit, received, v2MaxLimit)
+		u.RawQuery = q.Encode()
+
+		resp, err := c.get(u)
+		if err != nil {
+			return nil, err
+		}
+
+		var snapshotsResp optionSnapshotsResponse
+		if err := unmarshal(resp, &snapshotsResp); err != nil {
+			return nil, err
+		}
+
+		for symbol, s := range snapshotsResp.Snapshots {
+			snapshots[symbol] = s
+			received++
+		}
+		if snapshotsResp.NextPageToken == nil {
+			break
+		}
+		q.Set("page_token", *snapshotsResp.NextPageToken)
 	}
-	return snapshots.Snapshots, nil
+	return snapshots, nil
 }
 
 // GetOptionTrades returns the option trades for the given symbol.
@@ -341,6 +432,6 @@ func GetOptionSnapshots(symbols []string, req GetOptionSnapshotRequest) (map[str
 }
 
 // GetOptionChain returns the snapshot chain for an underlying symbol (e.g. AAPL)
-func GetOptionChain(underlyingSymbol string, req GetOptionSnapshotRequest) (map[string]OptionSnapshot, error) {
+func GetOptionChain(underlyingSymbol string, req GetOptionChainRequest) (map[string]OptionSnapshot, error) {
 	return DefaultClient.GetOptionChain(underlyingSymbol, req)
 }

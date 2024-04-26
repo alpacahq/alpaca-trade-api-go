@@ -125,7 +125,10 @@ func cryptoQuote() {
 }
 
 func optionChain() {
-	chain, err := marketdata.GetOptionChain("AAPL", marketdata.GetOptionSnapshotRequest{})
+	chain, err := marketdata.GetOptionChain("AAPL", marketdata.GetOptionChainRequest{
+		Type:              marketdata.Call,
+		ExpirationDateLte: civil.DateOf(time.Now()).AddDays(5),
+	})
 	if err != nil {
 		panic(err)
 	}
@@ -133,42 +136,48 @@ func optionChain() {
 		marketdata.OptionSnapshot
 		Symbol string
 	}
-	calls, puts := []snap{}, []snap{}
+	snaps := []snap{}
 	for symbol, snapshot := range chain {
-		if strings.Contains(symbol, "C") {
-			calls = append(calls, snap{OptionSnapshot: snapshot, Symbol: symbol})
-		} else {
-			puts = append(puts, snap{OptionSnapshot: snapshot, Symbol: symbol})
-		}
+		snaps = append(snaps, snap{OptionSnapshot: snapshot, Symbol: symbol})
 	}
-	sort.Slice(calls, func(i, j int) bool { return calls[i].Symbol < calls[j].Symbol })
-	sort.Slice(puts, func(i, j int) bool { return puts[i].Symbol < puts[j].Symbol })
-	printSnaps := func(snaps []snap) {
-		tw := tabwriter.NewWriter(os.Stdout, 0, 0, 1, ' ', 0)
-		fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\n", "Contract name", "Last trade time", "Price", "Bid", "Ask")
-		for _, s := range snaps {
-			ts := ""
-			if s.LatestTrade != nil {
-				ts = s.LatestTrade.Timestamp.Format(time.RFC3339)
-			}
-			price := float64(0)
-			if s.LatestTrade != nil {
-				price = s.LatestTrade.Price
-			}
-			bid, ask := float64(0), float64(0)
-			if s.LatestQuote != nil {
-				bid = s.LatestQuote.BidPrice
-				ask = s.LatestQuote.AskPrice
-			}
-			fmt.Fprintf(tw, "%s\t%s\t%g\t%g\t%g\n", s.Symbol, ts, price, bid, ask)
-		}
-		tw.Flush()
+	sort.Slice(snaps, func(i, j int) bool { return snaps[i].Symbol < snaps[j].Symbol })
+
+	tw := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	columns := []any{
+		"Contract name", "Last trade time", "Price", "Bid", "Ask",
+		"IV", "Delta", "Gamma", "Rho", "Theta", "Vega",
 	}
-	fmt.Println("CALLS")
-	printSnaps(calls)
-	fmt.Println()
-	fmt.Println("PUTS")
-	printSnaps(puts)
+	fmt.Fprintf(tw, strings.Repeat("%s\t", len(columns))+"\n", columns...)
+	for _, s := range snaps {
+		ts := ""
+		if s.LatestTrade != nil {
+			ts = s.LatestTrade.Timestamp.Format(time.RFC3339)
+		}
+		price := float64(0)
+		if s.LatestTrade != nil {
+			price = s.LatestTrade.Price
+		}
+		bid, ask := float64(0), float64(0)
+		if s.LatestQuote != nil {
+			bid = s.LatestQuote.BidPrice
+			ask = s.LatestQuote.AskPrice
+		}
+		iv := ""
+		if s.ImpliedVolatility != 0 {
+			iv = strconv.FormatFloat(s.ImpliedVolatility, 'f', 4, 64)
+		}
+		var delta, gamma, rho, theta, vega string
+		if s.Greeks != nil {
+			delta = strconv.FormatFloat(s.Greeks.Delta, 'f', 4, 64)
+			gamma = strconv.FormatFloat(s.Greeks.Gamma, 'f', 4, 64)
+			rho = strconv.FormatFloat(s.Greeks.Rho, 'f', 4, 64)
+			theta = strconv.FormatFloat(s.Greeks.Theta, 'f', 4, 64)
+			vega = strconv.FormatFloat(s.Greeks.Vega, 'f', 4, 64)
+		}
+		fmt.Fprintf(tw, "%s\t%s\t%g\t%g\t%g\t%s\t%s\t%s\t%s\t%s\t%s\n",
+			s.Symbol, ts, price, bid, ask, iv, delta, gamma, rho, theta, vega)
+	}
+	tw.Flush()
 }
 
 func corporateActions() {
