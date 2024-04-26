@@ -342,6 +342,17 @@ type WorthlessRemoval struct {
 	ProcessDate civil.Date `json:"process_date"`
 }
 
+type RightsDistribution struct {
+	SourceSymbol   string      `json:"source_symbol"`
+	NewSymbol      string      `json:"new_symbol"`
+	Rate           float64     `json:"rate"`
+	ProcessDate    civil.Date  `json:"process_date"`
+	ExDate         civil.Date  `json:"ex_date"`
+	PayableDate    civil.Date  `json:"payable_date,omitempty"`
+	RecordDate     *civil.Date `json:"record_date,omitempty"`
+	ExpirationDate *civil.Date `json:"expiration_date,omitempty"`
+}
+
 // CorporateActions contains corporate actions grouped by type
 type CorporateActions struct {
 	ReverseSplits       []ReverseSplit       `json:"reverse_splits,omitempty"`
@@ -356,6 +367,7 @@ type CorporateActions struct {
 	SpinOffs            []SpinOff            `json:"spin_offs,omitempty"`
 	NameChanges         []NameChange         `json:"name_changes,omitempty"`
 	WorthlessRemovals   []WorthlessRemoval   `json:"worthless_removals,omitempty"`
+	RightsDistributions []RightsDistribution `json:"rights_distributions,omitempty"`
 }
 
 // OptionTrade is an option trade that happened on the market
