@@ -314,7 +314,7 @@ type CloseAllPositionsRequest struct {
 }
 
 // CloseAllPositions liquidates all open positions at market price.
-func (c *Client) CloseAllPositions(req CloseAllPositionsRequest) ([]Order, error) {
+func (c *Client) CloseAllPositions(req CloseAllPositionsRequest) (closeAllPositionsSlice, error) {
 	u, err := url.Parse(fmt.Sprintf("%s/%s/positions", c.opts.BaseURL, apiVersion))
 	if err != nil {
 		return nil, err
@@ -329,11 +329,11 @@ func (c *Client) CloseAllPositions(req CloseAllPositionsRequest) ([]Order, error
 		return nil, err
 	}
 
-	var orders orderSlice
-	if err = unmarshal(resp, &orders); err != nil {
+	var closeAllPositions closeAllPositionsSlice
+	if err = unmarshal(resp, &closeAllPositions); err != nil {
 		return nil, err
 	}
-	return orders, nil
+	return closeAllPositions, nil
 }
 
 type ClosePositionRequest struct {
@@ -911,7 +911,7 @@ func GetPosition(symbol string) (*Position, error) {
 }
 
 // CloseAllPositions liquidates all open positions at market price.
-func CloseAllPositions(req CloseAllPositionsRequest) ([]Order, error) {
+func CloseAllPositions(req CloseAllPositionsRequest) ([]CloseAllPositionsResponse, error) {
 	return DefaultClient.CloseAllPositions(req)
 }
 
