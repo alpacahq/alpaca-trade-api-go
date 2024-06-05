@@ -373,7 +373,7 @@ func (e *APIError) Error() string {
 type closeAllPositionsSlice []CloseAllPositionsResponse
 
 type CloseAllPositionsResponse struct {
-	Symbol string      `json:"symbol"`
-	Status int         `json:"status"`
-	Body   interface{} `json:"body,omitempty"`
+	Symbol string          `json:"symbol"`
+	Status int             `json:"status"`
+	Body   json.RawMessage `json:"body,omitempty"`
 }

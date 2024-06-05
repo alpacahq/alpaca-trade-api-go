@@ -2224,12 +2224,8 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Alpaca16(in *jlexe
 		case "status":
 			out.Status = int(in.Int())
 		case "body":
-			if m, ok := out.Body.(easyjson.Unmarshaler); ok {
-				m.UnmarshalEasyJSON(in)
-			} else if m, ok := out.Body.(json.Unmarshaler); ok {
-				_ = m.UnmarshalJSON(in.Raw())
-			} else {
-				out.Body = in.Interface()
+			if data := in.Raw(); in.Ok() {
+				in.AddError((out.Body).UnmarshalJSON(data))
 			}
 		default:
 			in.SkipRecursive()
@@ -2255,16 +2251,10 @@ func easyjson3e8ab7adEncodeGithubComAlpacahqAlpacaTradeApiGoV3Alpaca16(out *jwri
 		out.RawString(prefix)
 		out.Int(int(in.Status))
 	}
-	if in.Body != nil {
+	if len(in.Body) != 0 {
 		const prefix string = ",\"body\":"
 		out.RawString(prefix)
-		if m, ok := in.Body.(easyjson.Marshaler); ok {
-			m.MarshalEasyJSON(out)
-		} else if m, ok := in.Body.(json.Marshaler); ok {
-			out.Raw(m.MarshalJSON())
-		} else {
-			out.Raw(json.Marshal(in.Body))
-		}
+		out.Raw((in.Body).MarshalJSON())
 	}
 	out.RawByte('}')
 }

@@ -314,10 +314,10 @@ type CloseAllPositionsRequest struct {
 }
 
 // CloseAllPositions liquidates all open positions at market price.
-func (c *Client) CloseAllPositions(req CloseAllPositionsRequest) (closeAllPositionsSlice, error) {
+func (c *Client) CloseAllPositions(req CloseAllPositionsRequest) (map[string]*Order, map[string]*APIError, error) {
 	u, err := url.Parse(fmt.Sprintf("%s/%s/positions", c.opts.BaseURL, apiVersion))
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	q := u.Query()
@@ -326,14 +326,35 @@ func (c *Client) CloseAllPositions(req CloseAllPositionsRequest) (closeAllPositi
 
 	resp, err := c.delete(u)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	var closeAllPositions closeAllPositionsSlice
 	if err = unmarshal(resp, &closeAllPositions); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	return closeAllPositions, nil
+
+	var (
+		orderEntityMap = make(map[string]*Order, len(closeAllPositions))
+		apiErrorMap    = make(map[string]*APIError, len(closeAllPositions))
+	)
+	for _, capr := range closeAllPositions {
+		if capr.Status == http.StatusOK {
+			var orderEntity Order
+			if err := easyjson.Unmarshal(capr.Body, &orderEntity); err != nil {
+				return nil, nil, err
+			}
+			orderEntityMap[capr.Symbol] = &orderEntity
+			continue
+		}
+		var apiErr APIError
+		if err := easyjson.Unmarshal(capr.Body, &apiErr); err != nil {
+			return nil, nil, err
+		}
+		apiErrorMap[capr.Symbol] = &apiErr
+	}
+
+	return orderEntityMap, apiErrorMap, nil
 }
 
 type ClosePositionRequest struct {
@@ -342,7 +363,7 @@ type ClosePositionRequest struct {
 	Qty decimal.Decimal
 	// Percentage of position to liquidate. Must be between 0 and 100.
 	// Would only sell fractional if position is originally fractional.
-	// Can accept up to 9 decimal points. Cannot work with qty.
+	// Can accept up to 9 decimal points. Cannot wosrk with qty.
 	Percentage decimal.Decimal
 }
 
@@ -911,7 +932,7 @@ func GetPosition(symbol string) (*Position, error) {
 }
 
 // CloseAllPositions liquidates all open positions at market price.
-func CloseAllPositions(req CloseAllPositionsRequest) ([]CloseAllPositionsResponse, error) {
+func CloseAllPositions(req CloseAllPositionsRequest) (map[string]*Order, map[string]*APIError, error) {
 	return DefaultClient.CloseAllPositions(req)
 }
 
