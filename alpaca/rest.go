@@ -3,6 +3,7 @@ package alpaca
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -314,10 +315,12 @@ type CloseAllPositionsRequest struct {
 }
 
 // CloseAllPositions liquidates all open positions at market price.
-func (c *Client) CloseAllPositions(req CloseAllPositionsRequest) (map[string]*Order, map[string]*APIError, error) {
+// It returns the list of orders that were submitted to close the positions.
+// If an error occurs while closing a position, the error will be returned
+func (c *Client) CloseAllPositions(req CloseAllPositionsRequest) ([]Order, error) {
 	u, err := url.Parse(fmt.Sprintf("%s/%s/positions", c.opts.BaseURL, apiVersion))
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	q := u.Query()
@@ -326,35 +329,40 @@ func (c *Client) CloseAllPositions(req CloseAllPositionsRequest) (map[string]*Or
 
 	resp, err := c.delete(u)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	var closeAllPositions closeAllPositionsSlice
 	if err = unmarshal(resp, &closeAllPositions); err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	var (
-		orderEntityMap = make(map[string]*Order, len(closeAllPositions))
-		apiErrorMap    = make(map[string]*APIError, len(closeAllPositions))
+		orders = make([]Order, 0, len(closeAllPositions))
+		errs   = make([]error, 0, len(closeAllPositions))
 	)
 	for _, capr := range closeAllPositions {
 		if capr.Status == http.StatusOK {
-			var orderEntity Order
-			if err := easyjson.Unmarshal(capr.Body, &orderEntity); err != nil {
-				return nil, nil, err
+			var order Order
+			if err := easyjson.Unmarshal(capr.Body, &order); err != nil {
+				return nil, err
 			}
-			orderEntityMap[capr.Symbol] = &orderEntity
+			orders = append(orders, order)
 			continue
 		}
 		var apiErr APIError
 		if err := easyjson.Unmarshal(capr.Body, &apiErr); err != nil {
-			return nil, nil, err
+			return nil, err
 		}
-		apiErrorMap[capr.Symbol] = &apiErr
+		apiErr.StatusCode = capr.Status
+		errs = append(errs, &apiErr)
 	}
 
-	return orderEntityMap, apiErrorMap, nil
+	if len(errs) > 0 {
+		return orders, errors.Join(errs...)
+	}
+
+	return orders, nil
 }
 
 type ClosePositionRequest struct {
@@ -932,7 +940,7 @@ func GetPosition(symbol string) (*Position, error) {
 }
 
 // CloseAllPositions liquidates all open positions at market price.
-func CloseAllPositions(req CloseAllPositionsRequest) (map[string]*Order, map[string]*APIError, error) {
+func CloseAllPositions(req CloseAllPositionsRequest) ([]Order, error) {
 	return DefaultClient.CloseAllPositions(req)
 }
 

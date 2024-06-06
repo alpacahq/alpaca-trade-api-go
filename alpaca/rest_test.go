@@ -182,7 +182,7 @@ func TestCancelAllPositions(t *testing.T) {
 	c := DefaultClient
 
 	closeAllPositionsResponse := []CloseAllPositionsResponse{
-		{Symbol: "AAPL", Status: 200, Body: json.RawMessage(`{"id":"0571ce61-bf65-4f0c-b3de-6f42ce628422"}`)},
+		{Symbol: "AAPL", Status: 200, Body: json.RawMessage(`{"id":"0571ce61-bf65-4f0c-b3de-6f42ce628422", "symbol": "AAPL"}`)},
 		{Symbol: "TSLA", Status: 422, Body: json.RawMessage(`{"code": 42210000, "message": "error"}`)},
 	}
 	c.do = func(c *Client, req *http.Request) (*http.Response, error) {
@@ -193,24 +193,12 @@ func TestCancelAllPositions(t *testing.T) {
 			Body: genBody(closeAllPositionsResponse),
 		}, nil
 	}
-	gotOrders, gotApiErrors, err := c.CloseAllPositions(CloseAllPositionsRequest{
+	gotOrders, err := c.CloseAllPositions(CloseAllPositionsRequest{
 		CancelOrders: true,
 	})
-	require.NoError(t, err)
-	require.Len(t, gotOrders, 1)
-	require.Len(t, gotApiErrors, 1)
-
-	aaplOrder, ok := gotOrders["AAPL"]
-	require.True(t, ok)
-	require.NotNil(t, aaplOrder)
-
-	tslaOrder, ok := gotOrders["TSLA"]
-	require.False(t, ok)
-	require.Nil(t, tslaOrder)
-
-	apiErr, ok := gotApiErrors["TSLA"]
-	require.True(t, ok)
-	require.NotNil(t, apiErr)
+	require.Error(t, err)
+	assert.Len(t, gotOrders, 1)
+	assert.Equal(t, "AAPL", gotOrders[0].Symbol)
 }
 
 func TestGetClock(t *testing.T) {
