@@ -3,6 +3,7 @@ package alpaca
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -314,6 +315,8 @@ type CloseAllPositionsRequest struct {
 }
 
 // CloseAllPositions liquidates all open positions at market price.
+// It returns the list of orders that were created to close the positions.
+// If errors occur while closing some of the positions, the errors will also be returned (possibly among orders)
 func (c *Client) CloseAllPositions(req CloseAllPositionsRequest) ([]Order, error) {
 	u, err := url.Parse(fmt.Sprintf("%s/%s/positions", c.opts.BaseURL, apiVersion))
 	if err != nil {
@@ -329,11 +332,33 @@ func (c *Client) CloseAllPositions(req CloseAllPositionsRequest) ([]Order, error
 		return nil, err
 	}
 
-	var orders orderSlice
-	if err = unmarshal(resp, &orders); err != nil {
+	var closeAllPositions closeAllPositionsSlice
+	if err = unmarshal(resp, &closeAllPositions); err != nil {
 		return nil, err
 	}
-	return orders, nil
+
+	var (
+		orders = make([]Order, 0, len(closeAllPositions))
+		errs   = make([]error, 0, len(closeAllPositions))
+	)
+	for _, capr := range closeAllPositions {
+		if capr.Status == http.StatusOK {
+			var order Order
+			if err := easyjson.Unmarshal(capr.Body, &order); err != nil {
+				return nil, err
+			}
+			orders = append(orders, order)
+			continue
+		}
+		var apiErr APIError
+		if err := easyjson.Unmarshal(capr.Body, &apiErr); err != nil {
+			return nil, err
+		}
+		apiErr.StatusCode = capr.Status
+		errs = append(errs, &apiErr)
+	}
+
+	return orders, errors.Join(errs...)
 }
 
 type ClosePositionRequest struct {

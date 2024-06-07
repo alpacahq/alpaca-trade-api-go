@@ -368,3 +368,12 @@ func (e *APIError) Error() string {
 	}
 	return fmt.Sprintf("%s (HTTP %d)", e.Message, e.StatusCode)
 }
+
+//easyjson:json
+type closeAllPositionsSlice []closeAllPositionsResponse
+
+type closeAllPositionsResponse struct {
+	Symbol string          `json:"symbol"`
+	Status int             `json:"status"`
+	Body   json.RawMessage `json:"body,omitempty"`
+}

@@ -181,25 +181,24 @@ func TestCancelPosition(t *testing.T) {
 func TestCancelAllPositions(t *testing.T) {
 	c := DefaultClient
 
-	orders := []Order{
-		{ID: "1"},
-		{ID: "2"},
+	closeAllPositionsResponse := []closeAllPositionsResponse{
+		{Symbol: "AAPL", Status: 200, Body: json.RawMessage(`{"id":"0571ce61-bf65-4f0c-b3de-6f42ce628422", "symbol": "AAPL"}`)},
+		{Symbol: "TSLA", Status: 422, Body: json.RawMessage(`{"code": 42210000, "message": "error"}`)},
 	}
 	c.do = func(c *Client, req *http.Request) (*http.Response, error) {
 		assert.Equal(t, "/v2/positions", req.URL.Path)
 		assert.Equal(t, http.MethodDelete, req.Method)
 		assert.Equal(t, "true", req.URL.Query().Get("cancel_orders"))
 		return &http.Response{
-			Body: genBody(orders),
+			Body: genBody(closeAllPositionsResponse),
 		}, nil
 	}
-	got, err := c.CloseAllPositions(CloseAllPositionsRequest{
+	gotOrders, err := c.CloseAllPositions(CloseAllPositionsRequest{
 		CancelOrders: true,
 	})
-	require.NoError(t, err)
-	require.Len(t, got, 2)
-	assert.Equal(t, "1", got[0].ID)
-	assert.Equal(t, "2", got[1].ID)
+	require.Error(t, err)
+	assert.Len(t, gotOrders, 1)
+	assert.Equal(t, "AAPL", gotOrders[0].Symbol)
 }
 
 func TestGetClock(t *testing.T) {
