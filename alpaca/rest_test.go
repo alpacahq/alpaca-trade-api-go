@@ -181,7 +181,7 @@ func TestCancelPosition(t *testing.T) {
 func TestCancelAllPositions(t *testing.T) {
 	c := DefaultClient
 
-	closeAllPositionsResponse := []CloseAllPositionsResponse{
+	closeAllPositionsResponse := []closeAllPositionsResponse{
 		{Symbol: "AAPL", Status: 200, Body: json.RawMessage(`{"id":"0571ce61-bf65-4f0c-b3de-6f42ce628422", "symbol": "AAPL"}`)},
 		{Symbol: "TSLA", Status: 422, Body: json.RawMessage(`{"code": 42210000, "message": "error"}`)},
 	}

@@ -370,9 +370,9 @@ func (e *APIError) Error() string {
 }
 
 //easyjson:json
-type closeAllPositionsSlice []CloseAllPositionsResponse
+type closeAllPositionsSlice []closeAllPositionsResponse
 
-type CloseAllPositionsResponse struct {
+type closeAllPositionsResponse struct {
 	Symbol string          `json:"symbol"`
 	Status int             `json:"status"`
 	Body   json.RawMessage `json:"body,omitempty"`

@@ -315,8 +315,8 @@ type CloseAllPositionsRequest struct {
 }
 
 // CloseAllPositions liquidates all open positions at market price.
-// It returns the list of orders that were submitted to close the positions.
-// If an error occurs while closing a position, the error will be returned
+// It returns the list of orders that were created to close the positions.
+// If errors occur while closing some of the positions, the errors will also be returned (possibly among orders)
 func (c *Client) CloseAllPositions(req CloseAllPositionsRequest) ([]Order, error) {
 	u, err := url.Parse(fmt.Sprintf("%s/%s/positions", c.opts.BaseURL, apiVersion))
 	if err != nil {
@@ -358,11 +358,7 @@ func (c *Client) CloseAllPositions(req CloseAllPositionsRequest) ([]Order, error
 		errs = append(errs, &apiErr)
 	}
 
-	if len(errs) > 0 {
-		return orders, errors.Join(errs...)
-	}
-
-	return orders, nil
+	return orders, errors.Join(errs...)
 }
 
 type ClosePositionRequest struct {
@@ -371,7 +367,7 @@ type ClosePositionRequest struct {
 	Qty decimal.Decimal
 	// Percentage of position to liquidate. Must be between 0 and 100.
 	// Would only sell fractional if position is originally fractional.
-	// Can accept up to 9 decimal points. Cannot wosrk with qty.
+	// Can accept up to 9 decimal points. Cannot work with qty.
 	Percentage decimal.Decimal
 }
 
