@@ -3017,6 +3017,12 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Alpaca23(in *jlexe
 			if data := in.Raw(); in.Ok() {
 				in.AddError((out.PerShareAmount).UnmarshalJSON(data))
 			}
+		case "order_id":
+			out.OrderID = string(in.String())
+		case "order_status":
+			out.OrderStatus = string(in.String())
+		case "status":
+			out.Status = string(in.String())
 		default:
 			in.SkipRecursive()
 		}
@@ -3100,6 +3106,21 @@ func easyjson3e8ab7adEncodeGithubComAlpacahqAlpacaTradeApiGoV3Alpaca23(out *jwri
 		const prefix string = ",\"per_share_amount\":"
 		out.RawString(prefix)
 		out.Raw((in.PerShareAmount).MarshalJSON())
+	}
+	{
+		const prefix string = ",\"order_id\":"
+		out.RawString(prefix)
+		out.String(string(in.OrderID))
+	}
+	{
+		const prefix string = ",\"order_status\":"
+		out.RawString(prefix)
+		out.String(string(in.OrderStatus))
+	}
+	{
+		const prefix string = ",\"status\":"
+		out.RawString(prefix)
+		out.String(string(in.Status))
 	}
 	out.RawByte('}')
 }
