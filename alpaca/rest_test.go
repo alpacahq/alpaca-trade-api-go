@@ -941,6 +941,7 @@ func TestGetAccountActivities(t *testing.T) {
 				"symbol":           "T",
 				"qty":              "2",
 				"per_share_amount": "0.51",
+				"status":           "executed",
 			},
 			{
 				"activity_type":    "DIV",
@@ -950,6 +951,21 @@ func TestGetAccountActivities(t *testing.T) {
 				"symbol":           "AAPL",
 				"qty":              "2",
 				"per_share_amount": "100",
+				"status":           "executed",
+			},
+			{
+				"activity_type":    "FILL",
+				"id":               "20240624093004214::18a82342-245e-4e8a-9703-87ae38d9b629",
+				"transaction_time": "2024-06-24T13:30:04.214535Z",
+				"type":             "partial_fill",
+				"price":            "3.8",
+				"qty":              "643",
+				"side":             "sell",
+				"symbol":           "AAPL",
+				"leaves_qty":       "1457",
+				"order_id":         "c0e497c2-a547-48cd-85dc-0f1f0ed1b26c",
+				"cum_qty":          "643",
+				"order_status":     "partially_filled",
 			},
 		}
 		return &http.Response{
@@ -958,10 +974,10 @@ func TestGetAccountActivities(t *testing.T) {
 	}
 
 	activities, err := c.GetAccountActivities(GetAccountActivitiesRequest{
-		ActivityTypes: []string{"DIV"},
+		ActivityTypes: []string{"DIV", "FILL"},
 	})
 	assert.NoError(t, err)
-	assert.Len(t, activities, 2)
+	assert.Len(t, activities, 3)
 	activity1 := activities[0]
 	assert.Equal(t, civil.Date{Year: 2019, Month: 8, Day: 1}, activity1.Date)
 	assert.Equal(t, "DIV", activity1.ActivityType)
@@ -970,6 +986,7 @@ func TestGetAccountActivities(t *testing.T) {
 	assert.Equal(t, "T", activity1.Symbol)
 	assert.Equal(t, decimal.NewFromInt(2), activity1.Qty)
 	assert.Equal(t, decimal.NewFromFloat32(0.51), activity1.PerShareAmount)
+	assert.Equal(t, "executed", activity1.Status)
 	activity2 := activities[1]
 	assert.Equal(t, civil.Date{Year: 2019, Month: 8, Day: 1}, activity2.Date)
 	assert.Equal(t, "DIV", activity2.ActivityType)
@@ -978,6 +995,20 @@ func TestGetAccountActivities(t *testing.T) {
 	assert.Equal(t, "AAPL", activity2.Symbol)
 	assert.Equal(t, decimal.NewFromInt(2), activity2.Qty)
 	assert.Equal(t, decimal.NewFromInt(100), activity2.PerShareAmount)
+	assert.Equal(t, "executed", activity2.Status)
+	activity3 := activities[2]
+	assert.Equal(t, "FILL", activity3.ActivityType)
+	assert.Equal(t, "20240624093004214::18a82342-245e-4e8a-9703-87ae38d9b629", activity3.ID)
+	assert.Equal(t, "2024-06-24T13:30:04.214535Z", activity3.TransactionTime.Format("2006-01-02T15:04:05.999999Z"))
+	assert.Equal(t, "partial_fill", activity3.Type)
+	assert.True(t, decimal.NewFromFloat32(3.8).Equal(activity3.Price))
+	assert.Equal(t, decimal.NewFromInt(643), activity3.Qty)
+	assert.Equal(t, "sell", activity3.Side)
+	assert.Equal(t, "AAPL", activity3.Symbol)
+	assert.Equal(t, decimal.NewFromInt(1457), activity3.LeavesQty)
+	assert.Equal(t, "c0e497c2-a547-48cd-85dc-0f1f0ed1b26c", activity3.OrderID)
+	assert.Equal(t, decimal.NewFromInt(643), activity3.CumQty)
+	assert.Equal(t, "partially_filled", activity3.OrderStatus)
 
 	// error was returned
 	c.do = func(c *Client, req *http.Request) (*http.Response, error) {
@@ -1009,6 +1040,7 @@ func TestGetAccountActivities(t *testing.T) {
 				"symbol":           "T",
 				"qty":              "2",
 				"per_share_amount": "0.51",
+				"status":           "executed",
 			},
 		}
 		return &http.Response{

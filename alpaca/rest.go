@@ -187,6 +187,8 @@ type GetAccountActivitiesRequest struct {
 	After         time.Time `json:"after"`
 	Direction     string    `json:"direction"`
 	PageSize      int       `json:"page_size"`
+	PageToken     string    `json:"page_token"`
+	Category      string    `json:"category"`
 }
 
 // GetAccountActivities returns the account activities.
@@ -214,6 +216,12 @@ func (c *Client) GetAccountActivities(req GetAccountActivitiesRequest) ([]Accoun
 	}
 	if req.PageSize != 0 {
 		q.Set("page_size", strconv.Itoa(req.PageSize))
+	}
+	if req.PageToken != "" {
+		q.Set("page_token", req.PageToken)
+	}
+	if req.Category != "" {
+		q.Set("category", req.Category)
 	}
 	u.RawQuery = q.Encode()
 
