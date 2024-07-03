@@ -58,6 +58,8 @@ type Account struct {
 	OptionsBuyingPower    string          `json:"options_buying_power"`
 	PendingTransferIn     string          `json:"pending_transfer_in"`
 	PendingTransferOut    string          `json:"pending_transfer_out"`
+	IntradayAdjustments   string          `json:"intraday_adjustments"`
+	BalanceAsof           string          `json:"balance_asof"`
 }
 
 type Order struct {
