@@ -518,21 +518,22 @@ func (c *Client) GetOrders(req GetOrdersRequest) ([]Order, error) {
 }
 
 type PlaceOrderRequest struct {
-	Symbol        string           `json:"symbol"`
-	Qty           *decimal.Decimal `json:"qty"`
-	Notional      *decimal.Decimal `json:"notional"`
-	Side          Side             `json:"side"`
-	Type          OrderType        `json:"type"`
-	TimeInForce   TimeInForce      `json:"time_in_force"`
-	LimitPrice    *decimal.Decimal `json:"limit_price"`
-	ExtendedHours bool             `json:"extended_hours"`
-	StopPrice     *decimal.Decimal `json:"stop_price"`
-	ClientOrderID string           `json:"client_order_id"`
-	OrderClass    OrderClass       `json:"order_class"`
-	TakeProfit    *TakeProfit      `json:"take_profit"`
-	StopLoss      *StopLoss        `json:"stop_loss"`
-	TrailPrice    *decimal.Decimal `json:"trail_price"`
-	TrailPercent  *decimal.Decimal `json:"trail_percent"`
+	Symbol         string           `json:"symbol"`
+	Qty            *decimal.Decimal `json:"qty"`
+	Notional       *decimal.Decimal `json:"notional"`
+	Side           Side             `json:"side"`
+	Type           OrderType        `json:"type"`
+	TimeInForce    TimeInForce      `json:"time_in_force"`
+	LimitPrice     *decimal.Decimal `json:"limit_price"`
+	ExtendedHours  bool             `json:"extended_hours"`
+	StopPrice      *decimal.Decimal `json:"stop_price"`
+	ClientOrderID  string           `json:"client_order_id"`
+	OrderClass     OrderClass       `json:"order_class"`
+	TakeProfit     *TakeProfit      `json:"take_profit"`
+	StopLoss       *StopLoss        `json:"stop_loss"`
+	TrailPrice     *decimal.Decimal `json:"trail_price"`
+	TrailPercent   *decimal.Decimal `json:"trail_percent"`
+	PositionIntent PositionIntent   `json:"position_intent"`
 }
 
 type TakeProfit struct {
