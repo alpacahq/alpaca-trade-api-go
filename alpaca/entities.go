@@ -205,6 +205,15 @@ type PortfolioHistory struct {
 
 type Side string
 
+type PositionIntent string
+
+const (
+	BuyToOpen   PositionIntent = "buy_to_open"
+	BuyToClose  PositionIntent = "buy_to_close"
+	SellToOpen  PositionIntent = "sell_to_open"
+	SellToClose PositionIntent = "sell_to_close"
+)
+
 const (
 	Buy  Side = "buy"
 	Sell Side = "sell"
