@@ -210,6 +210,15 @@ const (
 	Sell Side = "sell"
 )
 
+type PositionIntent string
+
+const (
+	BuyToOpen   PositionIntent = "buy_to_open"
+	BuyToClose  PositionIntent = "buy_to_close"
+	SellToOpen  PositionIntent = "sell_to_open"
+	SellToClose PositionIntent = "sell_to_close"
+)
+
 type OrderType string
 
 const (
