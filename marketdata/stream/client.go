@@ -33,6 +33,9 @@ type client struct {
 	in                 chan []byte
 	subChanges         chan []byte
 
+	lastBufferFillMsg time.Time
+	droppedMsgs       int
+
 	sub subscriptions
 
 	handler msgHandler
@@ -387,6 +390,17 @@ func (c *client) maintainConnection(ctx context.Context, u url.URL, initialResul
 		}
 	}
 
+	c.in = make(chan []byte, c.bufferSize)
+	pwg := sync.WaitGroup{}
+	pwg.Add(c.processorCount)
+	for i := 0; i < c.processorCount; i++ {
+		go c.messageProcessor(ctx, &pwg)
+	}
+	defer func() {
+		close(c.in)
+		pwg.Wait()
+	}()
+
 	for {
 		select {
 		case <-ctx.Done():
@@ -450,17 +464,14 @@ func (c *client) maintainConnection(ctx context.Context, u url.URL, initialResul
 			}
 			failedAttemptsInARow = 0
 
-			c.in = make(chan []byte, c.bufferSize)
 			wg := sync.WaitGroup{}
-			wg.Add(c.processorCount + 3)
+			wg.Add(3)
 			closeCh := make(chan struct{})
-			for i := 0; i < c.processorCount; i++ {
-				go c.messageProcessor(ctx, &wg)
-			}
 			go c.connPinger(ctx, &wg, closeCh)
 			go c.connReader(ctx, &wg, closeCh)
 			go c.connWriter(ctx, &wg, closeCh)
 			wg.Wait()
+
 			if ctx.Err() != nil {
 				c.logger.Infof("datav2stream: disconnected")
 			} else {
@@ -573,7 +584,6 @@ func (c *client) connReader(
 	defer func() {
 		close(closeCh)
 		c.conn.close()
-		close(c.in)
 		wg.Done()
 	}()
 
@@ -586,7 +596,18 @@ func (c *client) connReader(
 			return
 		}
 
-		c.in <- msg
+		select {
+		case c.in <- msg:
+		default:
+			c.droppedMsgs++
+			now := time.Now()
+			// Reduce the number of logs to 1 msg/sec if client buffer is full
+			if now.Add(-1 * time.Second).After(c.lastBufferFillMsg) {
+				c.logger.Warnf("datav2stream: writing to buffer failed, error: buffer full, dropped: %d", c.droppedMsgs)
+				c.droppedMsgs = 0
+				c.lastBufferFillMsg = now
+			}
+		}
 	}
 }
 
