@@ -10,6 +10,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/vmihailenco/msgpack/v5"
 
 	"github.com/alpacahq/alpaca-trade-api-go/v3/marketdata"
 )
@@ -839,6 +840,90 @@ func TestSubscribeFailsDueToError(t *testing.T) {
 	err = <-subRes
 	require.Error(t, err)
 	require.True(t, errors.Is(err, ErrSubscriptionChangeInvalidForFeed))
+}
+
+func assertBufferFills(t *testing.T, bufferFills, trades chan Trade, minID, maxID, minTrades int) {
+	timer := time.NewTimer(100 * time.Millisecond)
+	count := maxID - minID + 1
+	minFills := count - minTrades - 1
+
+	sumTrades := 0
+	sumFills := 0
+	for i := 0; i < minFills; i++ {
+		select {
+		case trade := <-bufferFills:
+			sumFills++
+			assert.LessOrEqual(t, int64(minID), trade.ID)
+			assert.GreaterOrEqual(t, int64(maxID), trade.ID)
+		case <-timer.C:
+			require.Fail(t, "buffer fill timeout")
+		}
+	}
+
+	for i := minFills; i < count; i++ {
+		select {
+		case trade := <-bufferFills:
+			sumFills++
+			assert.LessOrEqual(t, int64(minID), trade.ID)
+			assert.GreaterOrEqual(t, int64(maxID), trade.ID)
+		case trade := <-trades:
+			sumTrades++
+			assert.LessOrEqual(t, int64(minID), trade.ID)
+			assert.GreaterOrEqual(t, int64(maxID), trade.ID)
+		}
+	}
+
+	assert.LessOrEqual(t, minFills, sumFills)
+	assert.LessOrEqual(t, minTrades, sumTrades)
+}
+
+func TestCallbacksCalledOnBufferFill(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	connection := newMockConn()
+	defer connection.close()
+
+	writeInitialFlowMessagesToConn(t, connection, subscriptions{trades: []string{"ALPACA"}})
+
+	const bufferSize = 2
+	bufferFills := make(chan Trade, 10)
+	trades := make(chan Trade)
+
+	c := NewStocksClient(marketdata.IEX,
+		WithBufferSize(bufferSize),
+		WithBufferFillCallback(func(msg []byte) {
+			trades := []tradeWithT{}
+			if err := msgpack.Unmarshal(msg, &trades); err != nil {
+				require.Fail(t, "msgpack unmarshal error")
+			}
+			bufferFills <- Trade{
+				ID:     trades[0].ID,
+				Symbol: trades[0].Symbol,
+			}
+		}),
+		withConnCreator(func(ctx context.Context, u url.URL) (conn, error) { return connection, nil }),
+		WithTrades(func(t Trade) { trades <- t }, "ALPACA"),
+	)
+	require.NoError(t, c.Connect(ctx))
+
+	// The buffer size is 2 but we send at least 4 (2 buffer size, 1
+	// messageProcessor goroutine, 1 extra) trades to have a buffer fill. The
+	// messageProcessor goroutines can read c.in while the rest of messages can
+	// be queued in the buffered channel.
+	connection.readCh <- serializeToMsgpack(t, []interface{}{tradeWithT{Type: "t", Symbol: "ALPACA", ID: 1}})
+	connection.readCh <- serializeToMsgpack(t, []interface{}{tradeWithT{Type: "t", Symbol: "ALPACA", ID: 2}})
+	connection.readCh <- serializeToMsgpack(t, []interface{}{tradeWithT{Type: "t", Symbol: "ALPACA", ID: 3}})
+	connection.readCh <- serializeToMsgpack(t, []interface{}{tradeWithT{Type: "t", Symbol: "ALPACA", ID: 4}})
+	assertBufferFills(t, bufferFills, trades, 1, 4, bufferSize)
+
+	connection.readCh <- serializeToMsgpack(t, []interface{}{tradeWithT{Type: "t", Symbol: "ALPACA", ID: 5}})
+	connection.readCh <- serializeToMsgpack(t, []interface{}{tradeWithT{Type: "t", Symbol: "ALPACA", ID: 6}})
+	connection.readCh <- serializeToMsgpack(t, []interface{}{tradeWithT{Type: "t", Symbol: "ALPACA", ID: 7}})
+	connection.readCh <- serializeToMsgpack(t, []interface{}{tradeWithT{Type: "t", Symbol: "ALPACA", ID: 8}})
+	connection.readCh <- serializeToMsgpack(t, []interface{}{tradeWithT{Type: "t", Symbol: "ALPACA", ID: 9}})
+	connection.readCh <- serializeToMsgpack(t, []interface{}{tradeWithT{Type: "t", Symbol: "ALPACA", ID: 10}})
+	assertBufferFills(t, bufferFills, trades, 5, 10, bufferSize)
 }
 
 func TestPingFails(t *testing.T) {

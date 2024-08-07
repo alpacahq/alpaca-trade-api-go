@@ -33,8 +33,9 @@ type client struct {
 	in                 chan []byte
 	subChanges         chan []byte
 
-	lastBufferFillMsg time.Time
-	droppedMsgs       int
+	bufferFillCallback func([]byte)
+	lastBufferFill     time.Time
+	droppedMsgCount    int
 
 	sub subscriptions
 
@@ -61,6 +62,7 @@ func (c *client) configure(o options) {
 	c.reconnectLimit = o.reconnectLimit
 	c.reconnectDelay = o.reconnectDelay
 	c.connectCallback = o.connectCallback
+	c.bufferFillCallback = o.bufferFillCallback
 	c.disconnectCallback = o.disconnectCallback
 	c.processorCount = o.processorCount
 	c.bufferSize = o.bufferSize
@@ -599,13 +601,16 @@ func (c *client) connReader(
 		select {
 		case c.in <- msg:
 		default:
-			c.droppedMsgs++
+			c.droppedMsgCount++
 			now := time.Now()
 			// Reduce the number of logs to 1 msg/sec if client buffer is full
-			if now.Add(-1 * time.Second).After(c.lastBufferFillMsg) {
-				c.logger.Warnf("datav2stream: writing to buffer failed, error: buffer full, dropped: %d", c.droppedMsgs)
-				c.droppedMsgs = 0
-				c.lastBufferFillMsg = now
+			if now.Add(-1 * time.Second).After(c.lastBufferFill) {
+				c.logger.Warnf("datav2stream: writing to buffer failed, error: buffer full, dropped: %d", c.droppedMsgCount)
+				c.droppedMsgCount = 0
+				c.lastBufferFill = now
+			}
+			if c.bufferFillCallback != nil {
+				c.bufferFillCallback(msg)
 			}
 		}
 	}

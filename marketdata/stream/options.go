@@ -41,6 +41,7 @@ type options struct {
 	reconnectLimit     int
 	reconnectDelay     time.Duration
 	connectCallback    func()
+	bufferFillCallback func([]byte)
 	disconnectCallback func()
 	processorCount     int
 	bufferSize         int
@@ -120,6 +121,17 @@ func WithReconnectSettings(limit int, delay time.Duration) Option {
 func WithConnectCallback(callback func()) Option {
 	return newFuncOption(func(o *options) {
 		o.connectCallback = callback
+	})
+}
+
+// WithBufferFillCallback runs the callback function whenever the buffer is full
+// and msg cannot be delivered. This usually happens when trade/quote handlers
+// process the messages slowly and it cannot keep up with the pace how messages
+// are received. This callback should run fast, so avoid any blocking
+// instructions in the callback.
+func WithBufferFillCallback(callback func(msg []byte)) Option {
+	return newFuncOption(func(o *options) {
+		o.bufferFillCallback = callback
 	})
 }
 
