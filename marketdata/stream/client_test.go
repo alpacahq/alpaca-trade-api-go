@@ -894,9 +894,7 @@ func TestCallbacksCalledOnBufferFill(t *testing.T) {
 		WithBufferSize(bufferSize),
 		WithBufferFillCallback(func(msg []byte) {
 			trades := []tradeWithT{}
-			if err := msgpack.Unmarshal(msg, &trades); err != nil {
-				require.Fail(t, "msgpack unmarshal error")
-			}
+			require.NoError(t, msgpack.Unmarshal(msg, &trades))
 			bufferFills <- Trade{
 				ID:     trades[0].ID,
 				Symbol: trades[0].Symbol,
@@ -911,18 +909,14 @@ func TestCallbacksCalledOnBufferFill(t *testing.T) {
 	// messageProcessor goroutine, 1 extra) trades to have a buffer fill. The
 	// messageProcessor goroutines can read c.in while the rest of messages can
 	// be queued in the buffered channel.
-	connection.readCh <- serializeToMsgpack(t, []interface{}{tradeWithT{Type: "t", Symbol: "ALPACA", ID: 1}})
-	connection.readCh <- serializeToMsgpack(t, []interface{}{tradeWithT{Type: "t", Symbol: "ALPACA", ID: 2}})
-	connection.readCh <- serializeToMsgpack(t, []interface{}{tradeWithT{Type: "t", Symbol: "ALPACA", ID: 3}})
-	connection.readCh <- serializeToMsgpack(t, []interface{}{tradeWithT{Type: "t", Symbol: "ALPACA", ID: 4}})
+	for id := int64(1); id <= 4; id++ {
+		connection.readCh <- serializeToMsgpack(t, []any{tradeWithT{Type: "t", Symbol: "ALPACA", ID: id}})
+	}
 	assertBufferFills(t, bufferFills, trades, 1, 4, bufferSize)
 
-	connection.readCh <- serializeToMsgpack(t, []interface{}{tradeWithT{Type: "t", Symbol: "ALPACA", ID: 5}})
-	connection.readCh <- serializeToMsgpack(t, []interface{}{tradeWithT{Type: "t", Symbol: "ALPACA", ID: 6}})
-	connection.readCh <- serializeToMsgpack(t, []interface{}{tradeWithT{Type: "t", Symbol: "ALPACA", ID: 7}})
-	connection.readCh <- serializeToMsgpack(t, []interface{}{tradeWithT{Type: "t", Symbol: "ALPACA", ID: 8}})
-	connection.readCh <- serializeToMsgpack(t, []interface{}{tradeWithT{Type: "t", Symbol: "ALPACA", ID: 9}})
-	connection.readCh <- serializeToMsgpack(t, []interface{}{tradeWithT{Type: "t", Symbol: "ALPACA", ID: 10}})
+	for id := int64(5); id <= 10; id++ {
+		connection.readCh <- serializeToMsgpack(t, []any{tradeWithT{Type: "t", Symbol: "ALPACA", ID: id}})
+	}
 	assertBufferFills(t, bufferFills, trades, 5, 10, bufferSize)
 }
 

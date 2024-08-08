@@ -126,7 +126,7 @@ func WithConnectCallback(callback func()) Option {
 
 // WithBufferFillCallback runs the callback function whenever the buffer is full
 // and msg cannot be delivered. This usually happens when trade/quote handlers
-// process the messages slowly and it cannot keep up with the pace how messages
+// process the messages slowly and they cannot keep up with the pace how messages
 // are received. This callback should run fast, so avoid any blocking
 // instructions in the callback.
 func WithBufferFillCallback(callback func(msg []byte)) Option {
