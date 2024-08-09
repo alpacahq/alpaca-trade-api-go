@@ -421,8 +421,8 @@ type OptionGreeks struct {
 type OptionSnapshot struct {
 	LatestTrade       *OptionTrade  `json:"latestTrade"`
 	LatestQuote       *OptionQuote  `json:"latestQuote"`
-	ImpliedVolatility float64       `json:"impliedVolatility,omitempty`
-	Greeks            *OptionGreeks `json:"greeks,omitempty`
+	ImpliedVolatility float64       `json:"impliedVolatility,omitempty"`
+	Greeks            *OptionGreeks `json:"greeks,omitempty"`
 }
 type multiTradeResponse struct {
 	NextPageToken *string            `json:"next_page_token"`

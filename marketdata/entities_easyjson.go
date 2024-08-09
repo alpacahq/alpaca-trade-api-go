@@ -4328,19 +4328,15 @@ func easyjson3e8ab7adEncodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata35(out *
 			(*in.LatestQuote).MarshalEasyJSON(out)
 		}
 	}
-	{
+	if in.ImpliedVolatility != 0 {
 		const prefix string = ",\"impliedVolatility\":"
 		out.RawString(prefix)
 		out.Float64(float64(in.ImpliedVolatility))
 	}
-	{
+	if in.Greeks != nil {
 		const prefix string = ",\"greeks\":"
 		out.RawString(prefix)
-		if in.Greeks == nil {
-			out.RawString("null")
-		} else {
-			(*in.Greeks).MarshalEasyJSON(out)
-		}
+		(*in.Greeks).MarshalEasyJSON(out)
 	}
 	out.RawByte('}')
 }
