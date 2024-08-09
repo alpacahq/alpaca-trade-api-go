@@ -6,8 +6,10 @@ import (
 	"sync"
 )
 
-var errClose = errors.New("closed")
-var errPingDisabled = errors.New("ping disabled")
+var (
+	errClose        = errors.New("closed")
+	errPingDisabled = errors.New("ping disabled")
+)
 
 type mockConn struct {
 	pingCh       chan struct{}
