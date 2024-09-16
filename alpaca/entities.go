@@ -149,9 +149,12 @@ const (
 )
 
 type CalendarDay struct {
-	Date  string `json:"date"`
-	Open  string `json:"open"`
-	Close string `json:"close"`
+	Date           string `json:"date"`
+	Open           string `json:"open"`
+	Close          string `json:"close"`
+	SessionOpen    string `json:"session_open"`
+	SessionClose   string `json:"session_close"`
+	SettlementDate string `json:"settlement_date"`
 }
 
 //easyjson:json
