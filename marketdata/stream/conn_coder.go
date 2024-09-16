@@ -7,18 +7,18 @@ import (
 	"net/url"
 	"time"
 
-	"nhooyr.io/websocket"
+	"github.com/coder/websocket"
 
 	"github.com/alpacahq/alpaca-trade-api-go/v3/alpaca"
 )
 
-type nhooyrWebsocketConn struct {
+type coderWebsocketConn struct {
 	conn    *websocket.Conn
 	msgType websocket.MessageType
 }
 
-// newNhooyrWebsocketConn creates a new nhooyr websocket connection
-func newNhooyrWebsocketConn(ctx context.Context, u url.URL) (conn, error) {
+// newCoderWebsocketConn creates a new coder websocket connection
+func newCoderWebsocketConn(ctx context.Context, u url.URL) (conn, error) {
 	ctxWithTimeout, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
 	reqHeader := http.Header{}
@@ -35,19 +35,19 @@ func newNhooyrWebsocketConn(ctx context.Context, u url.URL) (conn, error) {
 	// Disable read limit: especially news messages can be huge.
 	conn.SetReadLimit(-1)
 
-	return &nhooyrWebsocketConn{
+	return &coderWebsocketConn{
 		conn:    conn,
 		msgType: websocket.MessageBinary,
 	}, nil
 }
 
 // close closes the websocket connection
-func (c *nhooyrWebsocketConn) close() error {
+func (c *coderWebsocketConn) close() error {
 	return c.conn.Close(websocket.StatusNormalClosure, "")
 }
 
 // ping sends a ping to the client
-func (c *nhooyrWebsocketConn) ping(ctx context.Context) error {
+func (c *coderWebsocketConn) ping(ctx context.Context) error {
 	pingCtx, cancel := context.WithTimeout(ctx, pongWait)
 	defer cancel()
 
@@ -55,13 +55,13 @@ func (c *nhooyrWebsocketConn) ping(ctx context.Context) error {
 }
 
 // readMessage blocks until it reads a single message
-func (c *nhooyrWebsocketConn) readMessage(ctx context.Context) (data []byte, err error) {
+func (c *coderWebsocketConn) readMessage(ctx context.Context) (data []byte, err error) {
 	_, data, err = c.conn.Read(ctx)
 	return data, err
 }
 
 // writeMessage writes a single message
-func (c *nhooyrWebsocketConn) writeMessage(ctx context.Context, data []byte) error {
+func (c *coderWebsocketConn) writeMessage(ctx context.Context, data []byte) error {
 	writeCtx, cancel := context.WithTimeout(ctx, writeWait)
 	defer cancel()
 
