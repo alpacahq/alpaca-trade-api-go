@@ -2,6 +2,7 @@ package alpaca
 
 import (
 	"bytes"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -31,6 +32,34 @@ func TestDefaultDo(t *testing.T) {
 		RetryDelay: time.Nanosecond,
 		RetryLimit: 2,
 		BaseURL:    ts.URL,
+	})
+	req, err := http.NewRequest("GET", ts.URL+"/custompath", nil)
+	require.NoError(t, err)
+	resp, err := defaultDo(c, req)
+	require.NoError(t, err)
+	b, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+	assert.Equal(t, "test body", string(b))
+}
+
+func TestDefaultDo_BrokerAuth(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		authHeader := r.Header.Get("Authorization")
+		if assert.NotEmpty(t, authHeader) && assert.True(t, strings.HasPrefix(authHeader, "Basic "), "%s is not basic auth", authHeader) {
+			key := authHeader[len("Basic "):]
+			b, err := base64.URLEncoding.DecodeString(key)
+			if assert.NoError(t, err) {
+				parts := strings.Split(string(b), ":")
+				assert.Equal(t, "broker_key", parts[0])
+				assert.Equal(t, "broker_secret", parts[1])
+			}
+		}
+		fmt.Fprint(w, "test body")
+	}))
+	c := NewClient(ClientOpts{
+		BrokerKey:    "broker_key",
+		BrokerSecret: "broker_secret",
+		BaseURL:      ts.URL,
 	})
 	req, err := http.NewRequest("GET", ts.URL+"/custompath", nil)
 	require.NoError(t, err)

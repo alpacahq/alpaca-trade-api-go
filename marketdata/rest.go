@@ -22,12 +22,14 @@ import (
 // Currently it contains the exact same options as the trading alpaca client,
 // but there is no guarantee that this will remain the case.
 type ClientOpts struct {
-	APIKey     string
-	APISecret  string
-	OAuth      string
-	BaseURL    string
-	RetryLimit int
-	RetryDelay time.Duration
+	APIKey       string
+	APISecret    string
+	BrokerKey    string
+	BrokerSecret string
+	OAuth        string
+	BaseURL      string
+	RetryLimit   int
+	RetryDelay   time.Duration
 	// Feed is the default feed to be used by all requests. Can be overridden per request.
 	Feed Feed
 	// CryptoFeed is the default crypto feed to be used by all requests. Can be overridden per request.
@@ -96,9 +98,12 @@ func defaultDo(c *Client, req *http.Request) (*http.Response, error) {
 		req.Host = c.opts.RequestHost
 	}
 
-	if c.opts.OAuth != "" {
+	switch {
+	case c.opts.OAuth != "":
 		req.Header.Set("Authorization", "Bearer "+c.opts.OAuth)
-	} else {
+	case c.opts.BrokerKey != "":
+		req.SetBasicAuth(c.opts.BrokerKey, c.opts.BrokerSecret)
+	default:
 		req.Header.Set("APCA-API-KEY-ID", c.opts.APIKey)
 		req.Header.Set("APCA-API-SECRET-KEY", c.opts.APISecret)
 	}
