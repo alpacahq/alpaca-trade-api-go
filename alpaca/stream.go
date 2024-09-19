@@ -23,9 +23,11 @@ type StreamTradeUpdatesRequest struct {
 }
 
 // StreamTradeUpdates streams the trade updates of the account.
-func (c *Client) StreamTradeUpdates(ctx context.Context, handler func(TradeUpdate), req StreamTradeUpdatesRequest) error {
+func (c *Client) StreamTradeUpdates(
+	ctx context.Context, handler func(TradeUpdate), req StreamTradeUpdatesRequest,
+) error {
 	transport := http.Transport{
-		DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
+		Dial: func(network, addr string) (net.Conn, error) {
 			return net.DialTimeout(network, addr, 5*time.Second)
 		},
 	}
@@ -52,7 +54,7 @@ func (c *Client) StreamTradeUpdates(ctx context.Context, handler func(TradeUpdat
 	}
 
 	u.RawQuery = q.Encode()
-	request, err := http.NewRequestWithContext(ctx, "GET", u.String(), nil)
+	request, err := http.NewRequestWithContext(ctx, http.MethodGet, u.String(), nil)
 	if err != nil {
 		return err
 	}

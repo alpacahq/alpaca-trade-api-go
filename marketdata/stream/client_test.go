@@ -3,7 +3,6 @@ package stream
 import (
 	"context"
 	"errors"
-	"fmt"
 	"net/url"
 	"testing"
 	"time"
@@ -37,7 +36,7 @@ func TestConnectFails(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			connection := newMockConn()
 			defer connection.close()
-			connCreator := func(ctx context.Context, u url.URL) (conn, error) {
+			connCreator := func(_ context.Context, _ url.URL) (conn, error) {
 				return connection, nil
 			}
 
@@ -65,8 +64,8 @@ func TestConnectFails(t *testing.T) {
 
 			err := c.Connect(ctx)
 
-			assert.Error(t, err)
-			assert.True(t, errors.Is(err, ErrNoConnected))
+			require.Error(t, err)
+			require.ErrorIs(t, err, ErrNoConnected)
 		})
 	}
 }
@@ -93,7 +92,7 @@ func TestConnectWithInvalidURL(t *testing.T) {
 
 			err := c.Connect(ctx)
 
-			assert.Error(t, err)
+			require.Error(t, err)
 		})
 	}
 }
@@ -114,7 +113,7 @@ func TestConnectImmediatelyFailsAfterIrrecoverableErrors(t *testing.T) {
 			t.Run(tt.name+"/"+ie.msg, func(t *testing.T) {
 				connection := newMockConn()
 				defer connection.close()
-				connCreator := func(ctx context.Context, u url.URL) (conn, error) {
+				connCreator := func(_ context.Context, _ url.URL) (conn, error) {
 					return connection, nil
 				}
 
@@ -140,7 +139,7 @@ func TestConnectImmediatelyFailsAfterIrrecoverableErrors(t *testing.T) {
 				// server rejects the credentials
 				connection.readCh <- serializeToMsgpack(t, []errorWithT{
 					{
-						Type: "error",
+						Type: msgTypeError,
 						Code: ie.code,
 						Msg:  ie.msg,
 					},
@@ -150,8 +149,8 @@ func TestConnectImmediatelyFailsAfterIrrecoverableErrors(t *testing.T) {
 
 				err := c.Connect(ctx)
 
-				assert.Error(t, err)
-				assert.True(t, errors.Is(err, ie.err))
+				require.Error(t, err)
+				require.ErrorIs(t, err, ie.err)
 			})
 		}
 	}
@@ -162,7 +161,7 @@ func TestContextCancelledBeforeConnect(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			connection := newMockConn()
 			defer connection.close()
-			connCreator := func(ctx context.Context, u url.URL) (conn, error) {
+			connCreator := func(_ context.Context, _ url.URL) (conn, error) {
 				return connection, nil
 			}
 
@@ -182,7 +181,7 @@ func TestContextCancelledBeforeConnect(t *testing.T) {
 			cancel()
 
 			err := c.Connect(ctx)
-			assert.Error(t, err)
+			require.Error(t, err)
 			assert.Error(t, <-c.Terminated())
 		})
 	}
@@ -193,7 +192,7 @@ func TestConnectSucceeds(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			connection := newMockConn()
 			defer connection.close()
-			connCreator := func(ctx context.Context, u url.URL) (conn, error) {
+			connCreator := func(_ context.Context, _ url.URL) (conn, error) {
 				return connection, nil
 			}
 
@@ -239,7 +238,7 @@ func TestCallbacksCalledOnConnectAndDisconnect(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			connection := newMockConn()
 			defer connection.close()
-			connCreator := func(ctx context.Context, u url.URL) (conn, error) {
+			connCreator := func(_ context.Context, _ url.URL) (conn, error) {
 				return connection, nil
 			}
 
@@ -290,19 +289,19 @@ func TestCallbacksCalledOnConnectAndDisconnect(t *testing.T) {
 func TestSubscribeBeforeConnectStocks(t *testing.T) {
 	c := NewStocksClient(marketdata.IEX)
 
-	err := c.SubscribeToTrades(func(trade Trade) {})
+	err := c.SubscribeToTrades(func(_ Trade) {})
 	assert.Equal(t, ErrSubscriptionChangeBeforeConnect, err)
-	err = c.SubscribeToQuotes(func(quote Quote) {})
+	err = c.SubscribeToQuotes(func(_ Quote) {})
 	assert.Equal(t, ErrSubscriptionChangeBeforeConnect, err)
-	err = c.SubscribeToBars(func(bar Bar) {})
+	err = c.SubscribeToBars(func(_ Bar) {})
 	assert.Equal(t, ErrSubscriptionChangeBeforeConnect, err)
-	err = c.SubscribeToUpdatedBars(func(bar Bar) {})
+	err = c.SubscribeToUpdatedBars(func(_ Bar) {})
 	assert.Equal(t, ErrSubscriptionChangeBeforeConnect, err)
-	err = c.SubscribeToDailyBars(func(bar Bar) {})
+	err = c.SubscribeToDailyBars(func(_ Bar) {})
 	assert.Equal(t, ErrSubscriptionChangeBeforeConnect, err)
-	err = c.SubscribeToStatuses(func(ts TradingStatus) {})
+	err = c.SubscribeToStatuses(func(_ TradingStatus) {})
 	assert.Equal(t, ErrSubscriptionChangeBeforeConnect, err)
-	err = c.SubscribeToLULDs(func(luld LULD) {})
+	err = c.SubscribeToLULDs(func(_ LULD) {})
 	assert.Equal(t, ErrSubscriptionChangeBeforeConnect, err)
 	err = c.UnsubscribeFromTrades()
 	assert.Equal(t, ErrSubscriptionChangeBeforeConnect, err)
@@ -321,17 +320,17 @@ func TestSubscribeBeforeConnectStocks(t *testing.T) {
 func TestSubscribeBeforeConnectCrypto(t *testing.T) {
 	c := NewCryptoClient(marketdata.US)
 
-	err := c.SubscribeToTrades(func(trade CryptoTrade) {})
+	err := c.SubscribeToTrades(func(_ CryptoTrade) {})
 	assert.Equal(t, ErrSubscriptionChangeBeforeConnect, err)
-	err = c.SubscribeToQuotes(func(quote CryptoQuote) {})
+	err = c.SubscribeToQuotes(func(_ CryptoQuote) {})
 	assert.Equal(t, ErrSubscriptionChangeBeforeConnect, err)
-	err = c.SubscribeToBars(func(bar CryptoBar) {})
+	err = c.SubscribeToBars(func(_ CryptoBar) {})
 	assert.Equal(t, ErrSubscriptionChangeBeforeConnect, err)
-	err = c.SubscribeToUpdatedBars(func(bar CryptoBar) {})
+	err = c.SubscribeToUpdatedBars(func(_ CryptoBar) {})
 	assert.Equal(t, ErrSubscriptionChangeBeforeConnect, err)
-	err = c.SubscribeToDailyBars(func(bar CryptoBar) {})
+	err = c.SubscribeToDailyBars(func(_ CryptoBar) {})
 	assert.Equal(t, ErrSubscriptionChangeBeforeConnect, err)
-	err = c.SubscribeToOrderbooks(func(ob CryptoOrderbook) {})
+	err = c.SubscribeToOrderbooks(func(_ CryptoOrderbook) {})
 	assert.Equal(t, ErrSubscriptionChangeBeforeConnect, err)
 	err = c.UnsubscribeFromTrades()
 	assert.Equal(t, ErrSubscriptionChangeBeforeConnect, err)
@@ -352,7 +351,7 @@ func TestSubscribeMultipleCallsStocks(t *testing.T) {
 	defer connection.close()
 	writeInitialFlowMessagesToConn(t, connection, subscriptions{})
 
-	c := NewStocksClient(marketdata.IEX, withConnCreator(func(ctx context.Context, u url.URL) (conn, error) {
+	c := NewStocksClient(marketdata.IEX, withConnCreator(func(_ context.Context, _ url.URL) (conn, error) {
 		return connection, nil
 	}))
 	ctx, cancel := context.WithCancel(context.Background())
@@ -363,19 +362,19 @@ func TestSubscribeMultipleCallsStocks(t *testing.T) {
 
 	subErrCh := make(chan error, 2)
 	subFunc := func() {
-		subErrCh <- c.SubscribeToTrades(func(trade Trade) {}, "ALPACA")
+		subErrCh <- c.SubscribeToTrades(func(_ Trade) {}, "ALPACA")
 	}
 
 	// calling two Subscribes at the same time and also calling a sub change
 	// without modifying symbols (should succeed immediately)
 	go subFunc()
-	err = c.SubscribeToTrades(func(trade Trade) {})
-	assert.NoError(t, err)
+	err = c.SubscribeToTrades(func(_ Trade) {})
+	require.NoError(t, err)
 	go subFunc()
 
 	err = <-subErrCh
-	assert.Error(t, err)
-	assert.True(t, errors.Is(err, ErrSubscriptionChangeAlreadyInProgress))
+	require.Error(t, err)
+	require.ErrorIs(t, err, ErrSubscriptionChangeAlreadyInProgress)
 }
 
 func TestSubscribeCalledButClientTerminatesCrypto(t *testing.T) {
@@ -385,7 +384,7 @@ func TestSubscribeCalledButClientTerminatesCrypto(t *testing.T) {
 
 	c := NewCryptoClient(marketdata.US,
 		WithCredentials("my_key", "my_secret"),
-		withConnCreator(func(ctx context.Context, u url.URL) (conn, error) {
+		withConnCreator(func(_ context.Context, _ url.URL) (conn, error) {
 			return connection, nil
 		}))
 
@@ -397,7 +396,7 @@ func TestSubscribeCalledButClientTerminatesCrypto(t *testing.T) {
 	checkInitialMessagesSentByClient(t, connection, "my_key", "my_secret", c.sub)
 	subErrCh := make(chan error, 1)
 	subFunc := func() {
-		subErrCh <- c.SubscribeToTrades(func(trade CryptoTrade) {}, "PACOIN")
+		subErrCh <- c.SubscribeToTrades(func(_ CryptoTrade) {}, "PACOIN")
 	}
 
 	// calling Subscribe
@@ -410,13 +409,13 @@ func TestSubscribeCalledButClientTerminatesCrypto(t *testing.T) {
 	cancel()
 
 	err = <-subErrCh
-	assert.Error(t, err)
-	assert.True(t, errors.Is(err, ErrSubscriptionChangeInterrupted))
+	require.Error(t, err)
+	require.ErrorIs(t, err, ErrSubscriptionChangeInterrupted)
 
 	// Subscribing after the client has terminated results in an error
-	err = c.SubscribeToQuotes(func(quote CryptoQuote) {}, "BTC/USD", "ETC/USD")
-	assert.Error(t, err)
-	assert.True(t, errors.Is(err, ErrSubscriptionChangeAfterTerminated))
+	err = c.SubscribeToQuotes(func(_ CryptoQuote) {}, "BTC/USD", "ETC/USD")
+	require.Error(t, err)
+	require.ErrorIs(t, err, ErrSubscriptionChangeAfterTerminated)
 }
 
 func TestSubscriptionTimeout(t *testing.T) {
@@ -425,7 +424,7 @@ func TestSubscriptionTimeout(t *testing.T) {
 	writeInitialFlowMessagesToConn(t, connection, subscriptions{})
 
 	mockTimeAfterCh := make(chan time.Time)
-	timeAfter = func(d time.Duration) <-chan time.Time {
+	timeAfter = func(_ time.Duration) <-chan time.Time {
 		return mockTimeAfterCh
 	}
 	defer func() {
@@ -434,7 +433,7 @@ func TestSubscriptionTimeout(t *testing.T) {
 
 	c := NewStocksClient(marketdata.IEX,
 		WithCredentials("a", "b"),
-		withConnCreator(func(ctx context.Context, u url.URL) (conn, error) {
+		withConnCreator(func(_ context.Context, _ url.URL) (conn, error) {
 			return connection, nil
 		}))
 	ctx, cancel := context.WithCancel(context.Background())
@@ -446,7 +445,7 @@ func TestSubscriptionTimeout(t *testing.T) {
 
 	subErrCh := make(chan error, 2)
 	subFunc := func() {
-		subErrCh <- c.SubscribeToTrades(func(trade Trade) {}, "ALPACA")
+		subErrCh <- c.SubscribeToTrades(func(_ Trade) {}, "ALPACA")
 	}
 
 	go subFunc()
@@ -456,8 +455,8 @@ func TestSubscriptionTimeout(t *testing.T) {
 
 	mockTimeAfterCh <- time.Now()
 	err = <-subErrCh
-	assert.Error(t, err)
-	assert.True(t, errors.Is(err, ErrSubscriptionChangeTimeout), "actual: %s", err)
+	require.Error(t, err)
+	require.ErrorIs(t, err, ErrSubscriptionChangeTimeout, "actual: %s", err)
 
 	// after a timeout we should be able to send a new request
 	go subFunc()
@@ -481,7 +480,7 @@ func TestSubscriptionChangeInvalid(t *testing.T) {
 
 	c := NewStocksClient(marketdata.IEX,
 		WithCredentials("a", "b"),
-		withConnCreator(func(ctx context.Context, u url.URL) (conn, error) {
+		withConnCreator(func(_ context.Context, _ url.URL) (conn, error) {
 			return connection, nil
 		}))
 	ctx, cancel := context.WithCancel(context.Background())
@@ -493,7 +492,7 @@ func TestSubscriptionChangeInvalid(t *testing.T) {
 
 	subErrCh := make(chan error, 2)
 	subFunc := func() {
-		subErrCh <- c.SubscribeToTrades(func(trade Trade) {}, "ALPACA")
+		subErrCh <- c.SubscribeToTrades(func(_ Trade) {}, "ALPACA")
 	}
 
 	go subFunc()
@@ -502,14 +501,14 @@ func TestSubscriptionChangeInvalid(t *testing.T) {
 	require.ElementsMatch(t, []string{"ALPACA"}, subMsg["trades"])
 	connection.readCh <- serializeToMsgpack(t, []errorWithT{
 		{
-			Type: "error",
+			Type: msgTypeError,
 			Code: 410,
 			Msg:  "invalid subscribe action for this feed",
 		},
 	})
 	err = <-subErrCh
-	assert.Error(t, err)
-	assert.True(t, errors.Is(err, ErrSubscriptionChangeInvalidForFeed), "actual: %s", err)
+	require.Error(t, err)
+	require.ErrorIs(t, err, ErrSubscriptionChangeInvalidForFeed, "actual: %s", err)
 }
 
 func TestSubscriptionAcrossConnectionIssues(t *testing.T) {
@@ -520,7 +519,7 @@ func TestSubscriptionAcrossConnectionIssues(t *testing.T) {
 	secret := "testsecret"
 	c := NewStocksClient(marketdata.IEX,
 		WithCredentials(key, secret),
-		withConnCreator(func(ctx context.Context, u url.URL) (conn, error) {
+		withConnCreator(func(_ context.Context, _ url.URL) (conn, error) {
 			return conn1, nil
 		}))
 	ctx, cancel := context.WithCancel(context.Background())
@@ -535,7 +534,7 @@ func TestSubscriptionAcrossConnectionIssues(t *testing.T) {
 	trades1 := []string{"AL", "PACA"}
 	subRes := make(chan error)
 	go func() {
-		subRes <- c.SubscribeToTrades(func(trade Trade) {}, "AL", "PACA")
+		subRes <- c.SubscribeToTrades(func(_ Trade) {}, "AL", "PACA")
 	}()
 	sub := expectWrite(t, conn1)
 	require.Equal(t, "subscribe", sub["action"])
@@ -544,7 +543,7 @@ func TestSubscriptionAcrossConnectionIssues(t *testing.T) {
 	// shutting down the first connection
 	conn2 := newMockConn()
 	writeInitialFlowMessagesToConn(t, conn2, subscriptions{})
-	c.connCreator = func(ctx context.Context, u url.URL) (conn, error) {
+	c.connCreator = func(_ context.Context, _ url.URL) (conn, error) {
 		return conn2, nil
 	}
 	conn1.close()
@@ -570,7 +569,7 @@ func TestSubscriptionAcrossConnectionIssues(t *testing.T) {
 	// the connection is shut down and the new one isn't established for a while
 	conn3 := newMockConn()
 	defer conn3.close()
-	c.connCreator = func(ctx context.Context, u url.URL) (conn, error) {
+	c.connCreator = func(_ context.Context, _ url.URL) (conn, error) {
 		time.Sleep(100 * time.Millisecond)
 		writeInitialFlowMessagesToConn(t, conn3, subscriptions{trades: trades1})
 		return conn3, nil
@@ -604,7 +603,7 @@ func TestSubscriptionAcrossConnectionIssues(t *testing.T) {
 
 func TestSubscriptionTwiceAcrossConnectionIssues(t *testing.T) {
 	mockTimeAfterCh := make(chan time.Time)
-	timeAfter = func(d time.Duration) <-chan time.Time {
+	timeAfter = func(_ time.Duration) <-chan time.Time {
 		return mockTimeAfterCh
 	}
 	defer func() {
@@ -630,7 +629,7 @@ func TestSubscriptionTwiceAcrossConnectionIssues(t *testing.T) {
 	secret := "testsecret"
 	c := NewStocksClient(marketdata.IEX,
 		WithCredentials(key, secret),
-		withConnCreator(func(ctx context.Context, u url.URL) (conn, error) {
+		withConnCreator(func(_ context.Context, _ url.URL) (conn, error) {
 			return conn1, nil
 		}),
 		WithReconnectSettings(0, 150*time.Millisecond),
@@ -651,7 +650,7 @@ func TestSubscriptionTwiceAcrossConnectionIssues(t *testing.T) {
 	trades1 := []string{"AL", "PACA"}
 	subRes := make(chan error)
 	subFunc := func() {
-		subRes <- c.SubscribeToTrades(func(trade Trade) {}, "AL", "PACA")
+		subRes <- c.SubscribeToTrades(func(_ Trade) {}, "AL", "PACA")
 	}
 	go subFunc()
 	sub := expectWrite(t, conn1)
@@ -668,8 +667,8 @@ func TestSubscriptionTwiceAcrossConnectionIssues(t *testing.T) {
 	require.NoError(t, err)
 
 	// shutting down the first connection
-	c.connCreator = func(ctx context.Context, u url.URL) (conn, error) {
-		return nil, fmt.Errorf("connection failed")
+	c.connCreator = func(_ context.Context, _ url.URL) (conn, error) {
+		return nil, errors.New("connection failed")
 	}
 	conn1.close()
 	// wait disconnect callback
@@ -680,21 +679,21 @@ func TestSubscriptionTwiceAcrossConnectionIssues(t *testing.T) {
 
 	mockTimeAfterCh <- time.Now()
 	err = <-subRes
-	assert.Error(t, err)
-	assert.True(t, errors.Is(err, ErrSubscriptionChangeTimeout), "actual: %s", err)
+	require.Error(t, err)
+	require.ErrorIs(t, err, ErrSubscriptionChangeTimeout, "actual: %s", err)
 
 	// after a timeout we should be able to get timed out again
 	go subFunc()
 
 	mockTimeAfterCh <- time.Now()
 	err = <-subRes
-	assert.Error(t, err)
-	assert.True(t, errors.Is(err, ErrSubscriptionChangeTimeout), "actual: %s", err)
+	require.Error(t, err)
+	require.ErrorIs(t, err, ErrSubscriptionChangeTimeout, "actual: %s", err)
 
 	// establish 2nd connection
 	conn2 := newMockConn()
 	writeInitialFlowMessagesToConn(t, conn2, subscriptions{trades: trades1})
-	c.connCreator = func(ctx context.Context, u url.URL) (conn, error) {
+	c.connCreator = func(_ context.Context, _ url.URL) (conn, error) {
 		return conn2, nil
 	}
 	// wait connect callback
@@ -723,7 +722,7 @@ func TestSubscriptionTwiceAcrossConnectionIssues(t *testing.T) {
 	// the connection is shut down and the new one isn't established for a while
 	conn3 := newMockConn()
 	defer conn3.close()
-	c.connCreator = func(ctx context.Context, u url.URL) (conn, error) {
+	c.connCreator = func(_ context.Context, _ url.URL) (conn, error) {
 		time.Sleep(100 * time.Millisecond)
 		writeInitialFlowMessagesToConn(t, conn3, subscriptions{trades: trades1})
 		return conn3, nil
@@ -762,7 +761,7 @@ func TestSubscribeFailsDueToError(t *testing.T) {
 
 	c := NewCryptoClient(marketdata.US,
 		WithCredentials("my_key", "my_secret"),
-		withConnCreator(func(ctx context.Context, u url.URL) (conn, error) {
+		withConnCreator(func(_ context.Context, _ url.URL) (conn, error) {
 			return connection, nil
 		}))
 
@@ -777,7 +776,7 @@ func TestSubscribeFailsDueToError(t *testing.T) {
 	// attempting sub change
 	subRes := make(chan error)
 	subFunc := func() {
-		subRes <- c.SubscribeToTrades(func(trade CryptoTrade) {}, "PACOIN")
+		subRes <- c.SubscribeToTrades(func(_ CryptoTrade) {}, "PACOIN")
 	}
 	go subFunc()
 	// wait for message to be written
@@ -788,7 +787,7 @@ func TestSubscribeFailsDueToError(t *testing.T) {
 	// sub change request fails
 	connection.readCh <- serializeToMsgpack(t, []errorWithT{
 		{
-			Type: "error",
+			Type: msgTypeError,
 			Code: 405,
 			Msg:  "symbol limit exceeded",
 		},
@@ -797,7 +796,7 @@ func TestSubscribeFailsDueToError(t *testing.T) {
 	// making sure the subscription request has failed
 	err = <-subRes
 	require.Error(t, err)
-	require.True(t, errors.Is(err, ErrSymbolLimitExceeded))
+	require.ErrorIs(t, err, ErrSymbolLimitExceeded)
 
 	// attempting another sub change
 	go subFunc()
@@ -809,7 +808,7 @@ func TestSubscribeFailsDueToError(t *testing.T) {
 	// sub change request interrupted by slow client
 	connection.readCh <- serializeToMsgpack(t, []errorWithT{
 		{
-			Type: "error",
+			Type: msgTypeError,
 			Code: 407,
 			Msg:  "slow client",
 		},
@@ -818,7 +817,7 @@ func TestSubscribeFailsDueToError(t *testing.T) {
 	// making sure the subscription request has failed
 	err = <-subRes
 	require.Error(t, err)
-	require.True(t, errors.Is(err, ErrSlowClient))
+	require.ErrorIs(t, err, ErrSlowClient)
 
 	// attempting another sub change
 	go subFunc()
@@ -830,7 +829,7 @@ func TestSubscribeFailsDueToError(t *testing.T) {
 	// sub change request fails due to incorrect due to incorrect subscription for feed
 	connection.readCh <- serializeToMsgpack(t, []errorWithT{
 		{
-			Type: "error",
+			Type: msgTypeError,
 			Code: 410,
 			Msg:  "invalid subscribe action for this feed",
 		},
@@ -839,7 +838,7 @@ func TestSubscribeFailsDueToError(t *testing.T) {
 	// making sure the subscription request has failed
 	err = <-subRes
 	require.Error(t, err)
-	require.True(t, errors.Is(err, ErrSubscriptionChangeInvalidForFeed))
+	require.ErrorIs(t, err, ErrSubscriptionChangeInvalidForFeed)
 }
 
 func assertBufferFills(t *testing.T, bufferFills, trades chan Trade, minID, maxID, minTrades int) {
@@ -900,7 +899,7 @@ func TestCallbacksCalledOnBufferFill(t *testing.T) {
 				Symbol: trades[0].Symbol,
 			}
 		}),
-		withConnCreator(func(ctx context.Context, u url.URL) (conn, error) { return connection, nil }),
+		withConnCreator(func(_ context.Context, _ url.URL) (conn, error) { return connection, nil }),
 		WithTrades(func(t Trade) { trades <- t }, "ALPACA"),
 	)
 	require.NoError(t, c.Connect(ctx))
@@ -925,7 +924,7 @@ func TestPingFails(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			connection := newMockConn()
 			defer connection.close()
-			connCreator := func(ctx context.Context, u url.URL) (conn, error) {
+			connCreator := func(_ context.Context, _ url.URL) (conn, error) {
 				return connection, nil
 			}
 
@@ -956,11 +955,11 @@ func TestPingFails(t *testing.T) {
 			connErr := errors.New("no connection")
 			switch tt.name {
 			case stocksTests:
-				c.(*StocksClient).connCreator = func(ctx context.Context, u url.URL) (conn, error) {
+				c.(*StocksClient).connCreator = func(_ context.Context, _ url.URL) (conn, error) {
 					return nil, connErr
 				}
 			case cryptoTests:
-				c.(*CryptoClient).connCreator = func(ctx context.Context, u url.URL) (conn, error) {
+				c.(*CryptoClient).connCreator = func(_ context.Context, _ url.URL) (conn, error) {
 					return nil, connErr
 				}
 			}
@@ -970,8 +969,8 @@ func TestPingFails(t *testing.T) {
 			testTicker.Tick()
 
 			err = <-c.Terminated()
-			assert.Error(t, err)
-			assert.True(t, errors.Is(err, connErr))
+			require.Error(t, err)
+			require.ErrorIs(t, err, connErr)
 		})
 	}
 }
@@ -1008,7 +1007,7 @@ func TestCoreFunctionalityStocks(t *testing.T) {
 		WithLULDs(func(l LULD) { lulds <- l }, "ALPACA"),
 		WithCancelErrors(func(tce TradeCancelError) { cancelErrors <- tce }),
 		WithCorrections(func(tc TradeCorrection) { corrections <- tc }),
-		withConnCreator(func(ctx context.Context, u url.URL) (conn, error) {
+		withConnCreator(func(_ context.Context, _ url.URL) (conn, error) {
 			return connection, nil
 		}))
 	ctx, cancel := context.WithCancel(context.Background())
@@ -1213,7 +1212,7 @@ func TestCoreFunctionalityCrypto(t *testing.T) {
 		WithCryptoUpdatedBars(func(b CryptoBar) { updatedBars <- b }, "BCH/USD"),
 		WithCryptoDailyBars(func(b CryptoBar) { dailyBars <- b }, "BCH/USD"),
 		WithCryptoOrderbooks(func(ob CryptoOrderbook) { orderbooks <- ob }, "SHIB/USD"),
-		withConnCreator(func(ctx context.Context, u url.URL) (conn, error) {
+		withConnCreator(func(_ context.Context, _ url.URL) (conn, error) {
 			return connection, nil
 		}))
 	ctx, cancel := context.WithCancel(context.Background())
@@ -1268,7 +1267,7 @@ func TestCoreFunctionalityCrypto(t *testing.T) {
 			Exchange:  "TST",
 			Price:     4123.123,
 			Size:      34.876,
-			Id:        25,
+			ID:        25,
 			TakerSide: "S",
 		},
 	})
@@ -1340,8 +1339,8 @@ func TestCoreFunctionalityCrypto(t *testing.T) {
 	select {
 	case ob := <-orderbooks:
 		assert.Equal(t, "SHIB/USD", ob.Symbol)
-		assert.Equal(t, 2, len(ob.Bids))
-		assert.Equal(t, 2, len(ob.Asks))
+		assert.Len(t, ob.Bids, 2)
+		assert.Len(t, ob.Asks, 2)
 	case <-time.After(time.Second):
 		require.Fail(t, "no orderbook received in time")
 	}
@@ -1362,7 +1361,7 @@ func TestCoreFunctionalityOption(t *testing.T) {
 	c := NewOptionClient(marketdata.US,
 		WithOptionTrades(func(t OptionTrade) { trades <- t }, spx1),
 		WithOptionQuotes(func(q OptionQuote) { quotes <- q }, spx2),
-		withConnCreator(func(ctx context.Context, u url.URL) (conn, error) {
+		withConnCreator(func(_ context.Context, _ url.URL) (conn, error) {
 			return connection, nil
 		}))
 	ctx, cancel := context.WithCancel(context.Background())
@@ -1430,7 +1429,7 @@ func TestCoreFunctionalityNews(t *testing.T) {
 	news := make(chan News, 10)
 	c := NewNewsClient(
 		WithNews(func(n News) { news <- n }, "AAPL"),
-		withConnCreator(func(ctx context.Context, u url.URL) (conn, error) {
+		withConnCreator(func(_ context.Context, _ url.URL) (conn, error) {
 			return connection, nil
 		}))
 	ctx, cancel := context.WithCancel(context.Background())

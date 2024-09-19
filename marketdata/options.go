@@ -171,7 +171,9 @@ func (c *Client) GetLatestOptionTrade(symbol string, req GetLatestOptionTradeReq
 }
 
 // GetLatestOptionTrades returns the latest option trades for the given symbols
-func (c *Client) GetLatestOptionTrades(symbols []string, req GetLatestOptionTradeRequest) (map[string]OptionTrade, error) {
+func (c *Client) GetLatestOptionTrades(
+	symbols []string, req GetLatestOptionTradeRequest,
+) (map[string]OptionTrade, error) {
 	u, err := url.Parse(fmt.Sprintf("%s/%s/trades/latest", c.opts.BaseURL, optionPrefix))
 	if err != nil {
 		return nil, err
@@ -185,6 +187,7 @@ func (c *Client) GetLatestOptionTrades(symbols []string, req GetLatestOptionTrad
 	if err != nil {
 		return nil, err
 	}
+	defer closeResp(resp)
 
 	var latestTradesResp latestOptionTradesResponse
 	if err = unmarshal(resp, &latestTradesResp); err != nil {
@@ -211,7 +214,9 @@ func (c *Client) GetLatestOptionQuote(symbol string, req GetLatestOptionQuoteReq
 }
 
 // GetLatestOptionQuotes returns the latest option quotes for the given symbols
-func (c *Client) GetLatestOptionQuotes(symbols []string, req GetLatestOptionQuoteRequest) (map[string]OptionQuote, error) {
+func (c *Client) GetLatestOptionQuotes(
+	symbols []string, req GetLatestOptionQuoteRequest,
+) (map[string]OptionQuote, error) {
 	u, err := url.Parse(fmt.Sprintf("%s/%s/quotes/latest", c.opts.BaseURL, optionPrefix))
 	if err != nil {
 		return nil, err
@@ -225,6 +230,7 @@ func (c *Client) GetLatestOptionQuotes(symbols []string, req GetLatestOptionQuot
 	if err != nil {
 		return nil, err
 	}
+	defer closeResp(resp)
 
 	var latestQuotesResp latestOptionQuotesResponse
 	if err = unmarshal(resp, &latestQuotesResp); err != nil {

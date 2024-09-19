@@ -51,48 +51,53 @@ func (c *client) handleMessage(b []byte) error {
 		if key != "T" {
 			return fmt.Errorf("first key is not T but: %s", key)
 		}
-		T, err := d.DecodeString()
+		msgType, err := d.DecodeString()
 		if err != nil {
 			return err
 		}
 		n-- // T already processed
 
-		switch T {
-		case "t":
-			err = c.handler.handleTrade(d, n)
-		case "q":
-			err = c.handler.handleQuote(d, n)
-		case "b":
-			err = c.handler.handleBar(d, n)
-		case "u":
-			err = c.handler.handleUpdatedBar(d, n)
-		case "d":
-			err = c.handler.handleDailyBar(d, n)
-		case "s":
-			err = c.handler.handleTradingStatus(d, n)
-		case "l":
-			err = c.handler.handleLULD(d, n)
-		case "x":
-			err = c.handler.handleCancelError(d, n)
-		case "c":
-			err = c.handler.handleCorrection(d, n)
-		case "o":
-			err = c.handler.handleOrderbook(d, n)
-		case "n":
-			err = c.handler.handleNews(d, n)
-		case "subscription":
-			err = c.handleSubscriptionMessage(d, n)
-		case "error":
-			err = c.handleErrorMessage(d, n)
-		default:
-			err = c.handleOther(d, n)
-		}
-		if err != nil {
+		if err := c.handleMessageType(msgType, d, n); err != nil {
 			return err
 		}
 	}
 
 	return nil
+}
+
+const msgTypeError = "error"
+
+func (c *client) handleMessageType(msgType string, d *msgpack.Decoder, n int) error {
+	switch msgType {
+	case "t":
+		return c.handler.handleTrade(d, n)
+	case "q":
+		return c.handler.handleQuote(d, n)
+	case "b":
+		return c.handler.handleBar(d, n)
+	case "u":
+		return c.handler.handleUpdatedBar(d, n)
+	case "d":
+		return c.handler.handleDailyBar(d, n)
+	case "s":
+		return c.handler.handleTradingStatus(d, n)
+	case "l":
+		return c.handler.handleLULD(d, n)
+	case "x":
+		return c.handler.handleCancelError(d, n)
+	case "c":
+		return c.handler.handleCorrection(d, n)
+	case "o":
+		return c.handler.handleOrderbook(d, n)
+	case "n":
+		return c.handler.handleNews(d, n)
+	case "subscription":
+		return c.handleSubscriptionMessage(d, n)
+	case msgTypeError:
+		return c.handleErrorMessage(d, n)
+	default:
+		return c.handleOther(d, n)
+	}
 }
 
 type stocksMsgHandler struct {
@@ -130,8 +135,6 @@ func (h *stocksMsgHandler) handleTrade(d *msgpack.Decoder, n int) error {
 			trade.Size, err = d.DecodeUint32()
 		case "t":
 			trade.Timestamp, err = d.DecodeTime()
-		case "r":
-			trade.internal.ReceivedAt, err = d.DecodeTime()
 		case "c":
 			trade.Conditions, err = decodeStringSlice(d)
 		case "z":
@@ -174,8 +177,6 @@ func (h *stocksMsgHandler) handleQuote(d *msgpack.Decoder, n int) error {
 			quote.AskSize, err = d.DecodeUint32()
 		case "t":
 			quote.Timestamp, err = d.DecodeTime()
-		case "r":
-			quote.internal.ReceivedAt, err = d.DecodeTime()
 		case "c":
 			quote.Conditions, err = decodeStringSlice(d)
 		case "z":
@@ -1013,11 +1014,11 @@ func decodeStringSlice(d *msgpack.Decoder) ([]string, error) {
 	}
 	res := make([]string, length)
 	for i := 0; i < length; i++ {
-		if s, err := d.DecodeString(); err != nil {
+		s, err := d.DecodeString()
+		if err != nil {
 			return nil, err
-		} else {
-			res[i] = s
 		}
+		res[i] = s
 	}
 	return res, nil
 }
@@ -1033,11 +1034,11 @@ func decodeCryptoOrderbookEntrySlice(d *msgpack.Decoder) ([]CryptoOrderbookEntry
 	}
 	res := make([]CryptoOrderbookEntry, length)
 	for i := 0; i < length; i++ {
-		if e, err := decodeCryptoOrderbookEntry(d); err != nil {
+		e, err := decodeCryptoOrderbookEntry(d)
+		if err != nil {
 			return nil, err
-		} else {
-			res[i] = e
 		}
+		res[i] = e
 	}
 	return res, nil
 }

@@ -1,7 +1,6 @@
 package stream
 
 import (
-	"os"
 	"testing"
 	"time"
 
@@ -25,9 +24,9 @@ func TestDefaultOptions(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			os.Setenv("APCA_API_KEY_ID", "testkey")
-			os.Setenv("APCA_API_SECRET_KEY", "testsecret")
-			os.Setenv("DATA_PROXY_WS", test.dataProxyWSVal)
+			t.Setenv("APCA_API_KEY_ID", "testkey")
+			t.Setenv("APCA_API_SECRET_KEY", "testsecret")
+			t.Setenv("DATA_PROXY_WS", test.dataProxyWSVal)
 
 			o := defaultStockOptions()
 
@@ -65,15 +64,15 @@ func TestConfigureStocks(t *testing.T) {
 		WithReconnectSettings(42, 322*time.Nanosecond),
 		WithProcessors(322),
 		WithBufferSize(1000000),
-		WithTrades(func(t Trade) {}, "ALPACA"),
-		WithQuotes(func(q Quote) {}, "AL", "PACA"),
-		WithBars(func(b Bar) {}, "ALP", "ACA"),
-		WithUpdatedBars(func(b Bar) {}, "AAPL"),
-		WithDailyBars(func(b Bar) {}, "LPACA"),
-		WithStatuses(func(ts TradingStatus) {}, "ALPACA"),
-		WithLULDs(func(l LULD) {}, "ALPA", "CA"),
-		WithCancelErrors(func(tce TradeCancelError) {}),
-		WithCorrections(func(tc TradeCorrection) {}),
+		WithTrades(func(_ Trade) {}, "ALPACA"),
+		WithQuotes(func(_ Quote) {}, "AL", "PACA"),
+		WithBars(func(_ Bar) {}, "ALP", "ACA"),
+		WithUpdatedBars(func(_ Bar) {}, "AAPL"),
+		WithDailyBars(func(_ Bar) {}, "LPACA"),
+		WithStatuses(func(_ TradingStatus) {}, "ALPACA"),
+		WithLULDs(func(_ LULD) {}, "ALPA", "CA"),
+		WithCancelErrors(func(_ TradeCancelError) {}),
+		WithCorrections(func(_ TradeCorrection) {}),
 	)
 
 	assert.EqualValues(t, logger, c.logger)
