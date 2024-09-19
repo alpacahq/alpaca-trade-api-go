@@ -15,7 +15,7 @@ import (
 
 func TestGetOptionTrades(t *testing.T) {
 	c := DefaultClient
-	c.do = func(c *Client, req *http.Request) (*http.Response, error) {
+	c.do = func(_ *Client, _ *http.Request) (*http.Response, error) {
 		resp := `{"next_page_token":"QUFQTDI0MDMwOEMwMDE3MjUwMHwxNzA5NjU3OTk5MTA5MzE5NDI0fFU=","trades":{"AAPL240308C00172500":[{"c":"g","p":0.98,"s":4,"t":"2024-03-05T16:59:59.816906752Z","x":"C"},{"c":"I","p":0.99,"s":1,"t":"2024-03-05T16:59:59.109319424Z","x":"U"}]}}` //nolint:lll
 		return &http.Response{
 			Body: io.NopCloser(strings.NewReader(resp)),
@@ -48,7 +48,7 @@ func TestGetOptionTrades(t *testing.T) {
 func TestGetOptionBars(t *testing.T) {
 	c := DefaultClient
 	resp := `{"bars":{"AAPL240308C00172500":[{"c":1.1,"h":1.26,"l":1.1,"n":15,"o":1.23,"t":"2024-03-05T14:00:00Z","v":82,"vw":1.187683},{"c":0.99,"h":1.14,"l":0.83,"n":1545,"o":1,"t":"2024-03-05T15:00:00Z","v":9959,"vw":0.959978},{"c":0.98,"h":1.15,"l":0.85,"n":1075,"o":0.93,"t":"2024-03-05T16:00:00Z","v":7637,"vw":0.965448},{"c":0.97,"h":1.15,"l":0.93,"n":1096,"o":0.99,"t":"2024-03-05T17:00:00Z","v":8483,"vw":1.028201},{"c":0.91,"h":1.1,"l":0.88,"n":903,"o":0.96,"t":"2024-03-05T18:00:00Z","v":7925,"vw":0.96723},{"c":0.9,"h":1,"l":0.88,"n":423,"o":0.9,"t":"2024-03-05T19:00:00Z","v":2895,"vw":0.931516},{"c":0.97,"h":1,"l":0.87,"n":543,"o":0.92,"t":"2024-03-05T20:00:00Z","v":5669,"vw":0.9383}]},"next_page_token":null}` //nolint:lll
-	c.do = func(c *Client, req *http.Request) (*http.Response, error) {
+	c.do = func(_ *Client, req *http.Request) (*http.Response, error) {
 		assert.Equal(t, "/v1beta1/options/bars", req.URL.Path)
 		assert.Equal(t, "AAPL240308C00172500", req.URL.Query().Get("symbols"))
 		assert.Equal(t, "2024-03-05T00:00:00Z", req.URL.Query().Get("start"))
@@ -79,7 +79,8 @@ func TestGetOptionBars(t *testing.T) {
 
 func TestGetLatestOptionTrade(t *testing.T) {
 	c := DefaultClient
-	c.do = mockResp(`{"trades":{"BABA260116P00125000":{"c":"f","p":49.61,"s":1,"t":"2024-02-26T18:23:18.79373184Z","x":"D"}}}`)
+	c.do = mockResp(
+		`{"trades":{"BABA260116P00125000":{"c":"f","p":49.61,"s":1,"t":"2024-02-26T18:23:18.79373184Z","x":"D"}}}`)
 	got, err := c.GetLatestOptionTrade("BABA260116P00125000", GetLatestOptionTradeRequest{})
 	require.NoError(t, err)
 	require.NotNil(t, got)
@@ -101,7 +102,7 @@ func TestGetLatestOptionTrade(t *testing.T) {
 
 func TestGetLatestOptionQuote(t *testing.T) {
 	c := DefaultClient
-	c.do = mockResp(`{"quotes":{"SPXW240327P04925000":{"ap":11.7,"as":103,"ax":"C","bp":11.4,"bs":172,"bx":"C","c":"A","t":"2024-03-07T13:54:51.985563136Z"}}}`)
+	c.do = mockResp(`{"quotes":{"SPXW240327P04925000":{"ap":11.7,"as":103,"ax":"C","bp":11.4,"bs":172,"bx":"C","c":"A","t":"2024-03-07T13:54:51.985563136Z"}}}`) //nolint:lll
 	got, err := c.GetLatestOptionQuote("SPXW240327P04925000", GetLatestOptionQuoteRequest{})
 	require.NoError(t, err)
 	require.NotNil(t, got)
@@ -119,7 +120,7 @@ func TestGetLatestOptionQuote(t *testing.T) {
 
 func TestGetOptionSnapshot(t *testing.T) {
 	c := DefaultClient
-	c.do = mockResp(`{"snapshots":{"SPXW240327P04925000":{"latestQuote":{"ap":11.6,"as":59,"ax":"C","bp":11.3,"bs":180,"bx":"C","c":"A","t":"2024-03-07T13:56:22.278961408Z"},"latestTrade":{"c":"g","p":14.85,"s":2,"t":"2024-03-05T16:36:57.709309696Z","x":"C"}}}}`)
+	c.do = mockResp(`{"snapshots":{"SPXW240327P04925000":{"latestQuote":{"ap":11.6,"as":59,"ax":"C","bp":11.3,"bs":180,"bx":"C","c":"A","t":"2024-03-07T13:56:22.278961408Z"},"latestTrade":{"c":"g","p":14.85,"s":2,"t":"2024-03-05T16:36:57.709309696Z","x":"C"}}}}`) //nolint:lll
 	got, err := c.GetOptionSnapshot("SPXW240327P04925000", GetOptionSnapshotRequest{})
 	require.NoError(t, err)
 	require.NotNil(t, got)
@@ -164,7 +165,7 @@ func TestGetOptionChainWithFilters(t *testing.T) {
 	//nolint:lll
 	firstResp := `{"next_page_token":"QUFQTDI0MDQyNkMwMDE1MjUwMA==","snapshots":{"AAPL240426C00152500":{"latestQuote":{"ap":17,"as":91,"ax":"B","bp":16.25,"bs":80,"bx":"B","c":" ","t":"2024-04-24T19:59:59.782060288Z"},"latestTrade":{"c":"a","p":15.87,"s":1,"t":"2024-04-24T16:46:16.763406848Z","x":"I"}}}}`
 	secondResp := `{"next_page_token":null,"snapshots":{"AAPL240426C00155000":{"greeks":{"delta":0.9567110374646104,"gamma":0.010515010903989475,"rho":0.004041091409185355,"theta":-0.42275702792812153,"vega":0.008131530784084512},"impliedVolatility":0.9871160931510816,"latestQuote":{"ap":14.5,"as":86,"ax":"Q","bp":13.6,"bs":91,"bx":"B","c":" ","t":"2024-04-24T19:59:59.794910976Z"},"latestTrade":{"c":"a","p":14.28,"s":1,"t":"2024-04-24T19:42:55.36938496Z","x":"X"}}}}` //nolint:lll
-	c.do = func(c *Client, req *http.Request) (*http.Response, error) {
+	c.do = func(_ *Client, req *http.Request) (*http.Response, error) {
 		assert.Equal(t, "/v1beta1/options/snapshots/AAPL", req.URL.Path)
 		q := req.URL.Query()
 		assert.Equal(t, "1", q.Get("limit"))

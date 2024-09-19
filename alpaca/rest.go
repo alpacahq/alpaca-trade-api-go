@@ -126,6 +126,7 @@ func (c *Client) GetAccount() (*Account, error) {
 	if err != nil {
 		return nil, err
 	}
+	defer closeResp(resp)
 
 	var account Account
 	if err = unmarshal(resp, &account); err != nil {
@@ -145,6 +146,7 @@ func (c *Client) GetAccountConfigurations() (*AccountConfigurations, error) {
 	if err != nil {
 		return nil, err
 	}
+	defer closeResp(resp)
 
 	var configs AccountConfigurations
 	if err = unmarshal(resp, &configs); err != nil {
@@ -172,6 +174,7 @@ func (c *Client) UpdateAccountConfigurations(req UpdateAccountConfigurationsRequ
 	if err != nil {
 		return nil, err
 	}
+	defer closeResp(resp)
 
 	var configs AccountConfigurations
 	if err = unmarshal(resp, &configs); err != nil {
@@ -229,6 +232,7 @@ func (c *Client) GetAccountActivities(req GetAccountActivitiesRequest) ([]Accoun
 	if err != nil {
 		return nil, err
 	}
+	defer closeResp(resp)
 
 	var activities accountSlice
 	if err = unmarshal(resp, &activities); err != nil {
@@ -268,6 +272,7 @@ func (c *Client) GetPortfolioHistory(req GetPortfolioHistoryRequest) (*Portfolio
 	if err != nil {
 		return nil, err
 	}
+	defer closeResp(resp)
 
 	var history PortfolioHistory
 	if err = unmarshal(resp, &history); err != nil {
@@ -287,6 +292,7 @@ func (c *Client) GetPositions() ([]Position, error) {
 	if err != nil {
 		return nil, err
 	}
+	defer closeResp(resp)
 
 	var positions positionSlice
 	if err = unmarshal(resp, &positions); err != nil {
@@ -310,6 +316,7 @@ func (c *Client) GetPosition(symbol string) (*Position, error) {
 	if err != nil {
 		return nil, err
 	}
+	defer closeResp(resp)
 
 	var position Position
 	if err = unmarshal(resp, &position); err != nil {
@@ -339,6 +346,7 @@ func (c *Client) CloseAllPositions(req CloseAllPositionsRequest) ([]Order, error
 	if err != nil {
 		return nil, err
 	}
+	defer closeResp(resp)
 
 	var closeAllPositions closeAllPositionsSlice
 	if err = unmarshal(resp, &closeAllPositions); err != nil {
@@ -399,6 +407,7 @@ func (c *Client) ClosePosition(symbol string, req ClosePositionRequest) (*Order,
 	if err != nil {
 		return nil, err
 	}
+	defer closeResp(resp)
 
 	var order Order
 	if err = unmarshal(resp, &order); err != nil {
@@ -418,6 +427,7 @@ func (c *Client) GetClock() (*Clock, error) {
 	if err != nil {
 		return nil, err
 	}
+	defer closeResp(resp)
 
 	var clock Clock
 	if err = unmarshal(resp, &clock); err != nil {
@@ -451,6 +461,7 @@ func (c *Client) GetCalendar(req GetCalendarRequest) ([]CalendarDay, error) {
 	if err != nil {
 		return nil, err
 	}
+	defer closeResp(resp)
 
 	var calendar calendarDaySlice
 	if err = unmarshal(resp, &calendar); err != nil {
@@ -509,6 +520,7 @@ func (c *Client) GetOrders(req GetOrdersRequest) ([]Order, error) {
 	if err != nil {
 		return nil, err
 	}
+	defer closeResp(resp)
 
 	var orders orderSlice
 	if err = unmarshal(resp, &orders); err != nil {
@@ -556,6 +568,7 @@ func (c *Client) PlaceOrder(req PlaceOrderRequest) (*Order, error) {
 	if err != nil {
 		return nil, err
 	}
+	defer closeResp(resp)
 
 	var order Order
 	if err = unmarshal(resp, &order); err != nil {
@@ -575,6 +588,7 @@ func (c *Client) GetOrder(orderID string) (*Order, error) {
 	if err != nil {
 		return nil, err
 	}
+	defer closeResp(resp)
 
 	var order Order
 	if err = unmarshal(resp, &order); err != nil {
@@ -598,6 +612,7 @@ func (c *Client) GetOrderByClientOrderID(clientOrderID string) (*Order, error) {
 	if err != nil {
 		return nil, err
 	}
+	defer closeResp(resp)
 
 	var order Order
 	if err = unmarshal(resp, &order); err != nil {
@@ -626,6 +641,7 @@ func (c *Client) ReplaceOrder(orderID string, req ReplaceOrderRequest) (*Order, 
 	if err != nil {
 		return nil, err
 	}
+	defer closeResp(resp)
 
 	var order Order
 	if err = unmarshal(resp, &order); err != nil {
@@ -692,6 +708,7 @@ func (c *Client) GetAssets(req GetAssetsRequest) ([]Asset, error) {
 	if err != nil {
 		return nil, err
 	}
+	defer closeResp(resp)
 
 	var assets assetSlice
 	if err = unmarshal(resp, &assets); err != nil {
@@ -711,6 +728,7 @@ func (c *Client) GetAsset(symbol string) (*Asset, error) {
 	if err != nil {
 		return nil, err
 	}
+	defer closeResp(resp)
 
 	var asset Asset
 	if err = unmarshal(resp, &asset); err != nil {
@@ -759,6 +777,7 @@ func (c *Client) GetAnnouncements(req GetAnnouncementsRequest) ([]Announcement, 
 	if err != nil {
 		return nil, err
 	}
+	defer closeResp(resp)
 
 	var announcements announcementSlice
 	if err = unmarshal(resp, &announcements); err != nil {
@@ -779,6 +798,7 @@ func (c *Client) GetAnnouncement(announcementID string) (*Announcement, error) {
 	if err != nil {
 		return nil, err
 	}
+	defer closeResp(resp)
 
 	var announcement Announcement
 	if err = unmarshal(resp, &announcement); err != nil {
@@ -798,6 +818,7 @@ func (c *Client) GetWatchlists() ([]Watchlist, error) {
 	if err != nil {
 		return nil, err
 	}
+	defer closeResp(resp)
 
 	var watchlists watchlistSlice
 	if err = unmarshal(resp, &watchlists); err != nil {
@@ -816,6 +837,7 @@ func (c *Client) CreateWatchlist(req CreateWatchlistRequest) (*Watchlist, error)
 	if err != nil {
 		return nil, err
 	}
+	defer closeResp(resp)
 
 	watchlist := &Watchlist{}
 	if err = unmarshal(resp, watchlist); err != nil {
@@ -834,6 +856,7 @@ func (c *Client) GetWatchlist(watchlistID string) (*Watchlist, error) {
 	if err != nil {
 		return nil, err
 	}
+	defer closeResp(resp)
 
 	watchlist := &Watchlist{}
 	if err = unmarshal(resp, watchlist); err != nil {
@@ -852,6 +875,7 @@ func (c *Client) UpdateWatchlist(watchlistID string, req UpdateWatchlistRequest)
 	if err != nil {
 		return nil, err
 	}
+	defer closeResp(resp)
 
 	watchlist := &Watchlist{}
 	if err = unmarshal(resp, watchlist); err != nil {
@@ -860,7 +884,7 @@ func (c *Client) UpdateWatchlist(watchlistID string, req UpdateWatchlistRequest)
 	return watchlist, nil
 }
 
-var ErrSymbolMissing = fmt.Errorf("symbol missing from request")
+var ErrSymbolMissing = errors.New("symbol missing from request")
 
 func (c *Client) AddSymbolToWatchlist(watchlistID string, req AddSymbolToWatchlistRequest) (*Watchlist, error) {
 	if req.Symbol == "" {
@@ -876,6 +900,7 @@ func (c *Client) AddSymbolToWatchlist(watchlistID string, req AddSymbolToWatchli
 	if err != nil {
 		return nil, err
 	}
+	defer closeResp(resp)
 
 	watchlist := &Watchlist{}
 	if err = unmarshal(resp, watchlist); err != nil {
@@ -894,8 +919,12 @@ func (c *Client) RemoveSymbolFromWatchlist(watchlistID string, req RemoveSymbolF
 		return err
 	}
 
-	_, err = c.delete(u)
-	return err
+	resp, err := c.delete(u)
+	if err != nil {
+		return err
+	}
+	closeResp(resp)
+	return nil
 }
 
 func (c *Client) DeleteWatchlist(watchlistID string) error {
@@ -904,8 +933,12 @@ func (c *Client) DeleteWatchlist(watchlistID string) error {
 		return err
 	}
 
-	_, err = c.delete(u)
-	return err
+	resp, err := c.delete(u)
+	if err != nil {
+		return err
+	}
+	closeResp(resp)
+	return nil
 }
 
 // GetAccount returns the user's account information
@@ -1132,10 +1165,11 @@ func verify(resp *http.Response) error {
 }
 
 func unmarshal(resp *http.Response, v easyjson.Unmarshaler) error {
-	defer func() {
-		// The underlying TCP connection can not be reused if the body is not fully read
-		_, _ = io.Copy(io.Discard, resp.Body)
-		resp.Body.Close()
-	}()
 	return easyjson.UnmarshalFromReader(resp.Body, v)
+}
+
+func closeResp(resp *http.Response) {
+	// The underlying TCP connection can not be reused if the body is not fully read
+	_, _ = io.Copy(io.Discard, resp.Body)
+	resp.Body.Close()
 }

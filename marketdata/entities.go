@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"cloud.google.com/go/civil"
-
 	// Required for easyjson generation
 	_ "github.com/mailru/easyjson/gen"
 )

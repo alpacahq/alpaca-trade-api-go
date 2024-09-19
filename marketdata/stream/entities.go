@@ -19,18 +19,6 @@ type Trade struct {
 	Timestamp  time.Time
 	Conditions []string
 	Tape       string
-
-	internal tradeInternal
-}
-
-type tradeInternal struct {
-	ReceivedAt time.Time
-}
-
-// Internal contains internal fields. There aren't any behavioural or backward compatibility
-// promises for them: they can be empty or removed in the future. You should not use them at all.
-func (t Trade) Internal() tradeInternal {
-	return t.internal
 }
 
 // Quote is a stock quote from the market
@@ -45,18 +33,6 @@ type Quote struct {
 	Timestamp   time.Time
 	Conditions  []string
 	Tape        string
-
-	internal quoteInternal
-}
-
-type quoteInternal struct {
-	ReceivedAt time.Time
-}
-
-// Internal contains internal fields. There aren't any behavioural or backward compatibility
-// promises for them: they can be empty or removed in the future. You should not use them at all.
-func (q Quote) Internal() quoteInternal {
-	return q.internal
 }
 
 // Bar is an aggregate of trades
@@ -202,7 +178,7 @@ type News struct {
 }
 
 // errorMessage is an error received from the server
-type errorMessage struct {
+type errorMessage struct { //nolint:errname // Not an actual error.
 	msg  string
 	code int
 }

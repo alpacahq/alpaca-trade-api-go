@@ -24,6 +24,7 @@ func newCoderWebsocketConn(ctx context.Context, u url.URL) (conn, error) {
 	reqHeader := http.Header{}
 	reqHeader.Set("Content-Type", "application/msgpack")
 	reqHeader.Set("User-Agent", alpaca.Version())
+	//nolint:bodyclose // According to its docs: you never need to close resp.Body yourself
 	conn, _, err := websocket.Dial(ctxWithTimeout, u.String(), &websocket.DialOptions{
 		CompressionMode: websocket.CompressionContextTakeover,
 		HTTPHeader:      reqHeader,
@@ -55,8 +56,8 @@ func (c *coderWebsocketConn) ping(ctx context.Context) error {
 }
 
 // readMessage blocks until it reads a single message
-func (c *coderWebsocketConn) readMessage(ctx context.Context) (data []byte, err error) {
-	_, data, err = c.conn.Read(ctx)
+func (c *coderWebsocketConn) readMessage(ctx context.Context) ([]byte, error) {
+	_, data, err := c.conn.Read(ctx)
 	return data, err
 }
 

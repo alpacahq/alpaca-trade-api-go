@@ -128,7 +128,7 @@ type cryptoTradeWithT struct {
 	Price     float64   `msgpack:"p"`
 	Size      float64   `msgpack:"s"`
 	Timestamp time.Time `msgpack:"t"`
-	Id        int64     `msgpack:"i"`
+	ID        int64     `msgpack:"i"`
 	TakerSide string    `msgpack:"tks"`
 	// NewField is for testing correct handling of added fields in the future
 	NewField uint64 `msgpack:"n"`
@@ -377,7 +377,7 @@ var testCryptoTrade = cryptoTradeWithT{
 	Price:     100,
 	Size:      10.1,
 	Timestamp: testTime,
-	Id:        32,
+	ID:        32,
 	TakerSide: "B",
 }
 
@@ -441,7 +441,7 @@ var testOther = other{
 }
 
 var testError = errorWithT{
-	Type: "error",
+	Type: msgTypeError,
 	Msg:  "test",
 	Code: 322,
 }
@@ -492,11 +492,11 @@ func TestHandleMessagesStocks(t *testing.T) {
 	subscriptionMessages := make([]subscriptions, 0)
 
 	var em errorMessage
-	errMessageHandler = func(c *client, e errorMessage) error {
+	errMessageHandler = func(_ *client, e errorMessage) error {
 		em = e
 		return nil
 	}
-	subMessageHandler = func(c *client, s subscriptions) error {
+	subMessageHandler = func(_ *client, s subscriptions) error {
 		subscriptionMessages = append(subscriptionMessages, s)
 		return nil
 	}
@@ -548,7 +548,6 @@ func TestHandleMessagesStocks(t *testing.T) {
 	assert.EqualValues(t, testTrade.Price, trade.Price)
 	assert.EqualValues(t, testTrade.Size, trade.Size)
 	assert.True(t, trade.Timestamp.Equal(testTime))
-	assert.True(t, trade.Internal().ReceivedAt.Equal(testTime2))
 	assert.EqualValues(t, testTrade.Conditions, trade.Conditions)
 	assert.EqualValues(t, testTrade.Tape, trade.Tape)
 
@@ -602,7 +601,6 @@ func TestHandleMessagesStocks(t *testing.T) {
 	assert.EqualValues(t, testQuote.AskPrice, quote.AskPrice)
 	assert.EqualValues(t, testQuote.AskSize, quote.AskSize)
 	assert.True(t, quote.Timestamp.Equal(testTime))
-	assert.True(t, quote.Internal().ReceivedAt.Equal(testTime2))
 	assert.EqualValues(t, testQuote.Conditions, quote.Conditions)
 	assert.EqualValues(t, testQuote.Tape, quote.Tape)
 
@@ -671,11 +669,11 @@ func TestHandleMessagesCrypto(t *testing.T) {
 	subscriptionMessages := make([]subscriptions, 0)
 
 	var em errorMessage
-	errMessageHandler = func(c *client, e errorMessage) error {
+	errMessageHandler = func(_ *client, e errorMessage) error {
 		em = e
 		return nil
 	}
-	subMessageHandler = func(c *client, s subscriptions) error {
+	subMessageHandler = func(_ *client, s subscriptions) error {
 		subscriptionMessages = append(subscriptionMessages, s)
 		return nil
 	}
@@ -713,7 +711,7 @@ func TestHandleMessagesCrypto(t *testing.T) {
 	assert.EqualValues(t, testCryptoTrade.Exchange, trade.Exchange)
 	assert.EqualValues(t, testCryptoTrade.Price, trade.Price)
 	assert.EqualValues(t, testCryptoTrade.Size, trade.Size)
-	assert.EqualValues(t, testCryptoTrade.Id, trade.ID)
+	assert.EqualValues(t, testCryptoTrade.ID, trade.ID)
 	assert.EqualValues(t, testCryptoTrade.TakerSide, trade.TakerSide)
 	assert.True(t, trade.Timestamp.Equal(testTime))
 
@@ -779,9 +777,9 @@ func BenchmarkHandleMessages(b *testing.B) {
 	msgs, _ := msgpack.Marshal([]interface{}{testTrade, testQuote, testBar})
 	c := &client{
 		handler: &stocksMsgHandler{
-			tradeHandler: func(trade Trade) {},
-			quoteHandler: func(quote Quote) {},
-			barHandler:   func(bar Bar) {},
+			tradeHandler: func(_ Trade) {},
+			quoteHandler: func(_ Quote) {},
+			barHandler:   func(_ Bar) {},
 		},
 	}
 
