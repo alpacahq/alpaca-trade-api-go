@@ -19,12 +19,14 @@ import (
 
 // ClientOpts contains options for the alpaca client
 type ClientOpts struct {
-	APIKey     string
-	APISecret  string
-	OAuth      string
-	BaseURL    string
-	RetryLimit int
-	RetryDelay time.Duration
+	APIKey       string
+	APISecret    string
+	BrokerKey    string
+	BrokerSecret string
+	OAuth        string
+	BaseURL      string
+	RetryLimit   int
+	RetryDelay   time.Duration
 	// HTTPClient to be used for each http request.
 	HTTPClient *http.Client
 }
@@ -85,9 +87,12 @@ const (
 func defaultDo(c *Client, req *http.Request) (*http.Response, error) {
 	req.Header.Set("User-Agent", Version())
 
-	if c.opts.OAuth != "" {
+	switch {
+	case c.opts.OAuth != "":
 		req.Header.Set("Authorization", "Bearer "+c.opts.OAuth)
-	} else {
+	case c.opts.BrokerKey != "":
+		req.SetBasicAuth(c.opts.BrokerKey, c.opts.BrokerSecret)
+	default:
 		req.Header.Set("APCA-API-KEY-ID", c.opts.APIKey)
 		req.Header.Set("APCA-API-SECRET-KEY", c.opts.APISecret)
 	}
