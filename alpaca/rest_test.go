@@ -45,7 +45,9 @@ func TestDefaultDo(t *testing.T) {
 func TestDefaultDo_BrokerAuth(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		authHeader := r.Header.Get("Authorization")
-		if assert.NotEmpty(t, authHeader) && assert.True(t, strings.HasPrefix(authHeader, "Basic "), "%s is not basic auth", authHeader) {
+		notEmpty := assert.NotEmpty(t, authHeader)
+		basicAuth := assert.True(t, strings.HasPrefix(authHeader, "Basic "), "%s is not basic auth", authHeader)
+		if notEmpty && basicAuth {
 			key := authHeader[len("Basic "):]
 			b, err := base64.URLEncoding.DecodeString(key)
 			if assert.NoError(t, err) {
@@ -61,7 +63,7 @@ func TestDefaultDo_BrokerAuth(t *testing.T) {
 		BrokerSecret: "broker_secret",
 		BaseURL:      ts.URL,
 	})
-	req, err := http.NewRequest("GET", ts.URL+"/custompath", nil)
+	req, err := http.NewRequest(http.MethodGet, ts.URL+"/custompath", nil)
 	require.NoError(t, err)
 	resp, err := defaultDo(c, req)
 	require.NoError(t, err)
