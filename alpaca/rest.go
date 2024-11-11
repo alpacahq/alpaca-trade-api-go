@@ -1197,6 +1197,16 @@ func GetAsset(symbol string) (*Asset, error) {
 	return DefaultClient.GetAsset(symbol)
 }
 
+// GetOptionContracts returns the list of Option Contracts.
+func GetOptionContracts(req GetOptionContractsRequest) ([]OptionContract, error) {
+	return DefaultClient.GetOptionContracts(req)
+}
+
+// GetOptionContract returns an option contract by symbol or contract ID.
+func GetOptionContract(symbolOrID string) (*OptionContract, error) {
+	return DefaultClient.GetOptionContract(symbolOrID)
+}
+
 // GetAnnouncements returns a list of announcements
 // with the default Alpaca client.
 func GetAnnouncements(req GetAnnouncementsRequest) ([]Announcement, error) {
