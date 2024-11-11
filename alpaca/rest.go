@@ -9,10 +9,12 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"reflect"
 	"strconv"
 	"strings"
 	"time"
 
+	"cloud.google.com/go/civil"
 	"github.com/mailru/easyjson"
 	"github.com/shopspring/decimal"
 )
@@ -740,6 +742,121 @@ func (c *Client) GetAsset(symbol string) (*Asset, error) {
 		return nil, err
 	}
 	return &asset, nil
+}
+
+type GetOptionContractsRequest struct {
+	UnderlyingSymbols string           `json:"underlying_symbols"`
+	ShowDeliverable   *bool            `json:"show_deliverables"`
+	Status            *OptionStatus    `json:"status"`
+	ExpirationDate    *civil.Date      `json:"expiration_date"`
+	ExpirationDateGTE *civil.Date      `json:"expiration_date_gte"`
+	ExpirationDateLTE *civil.Date      `json:"expiration_date_lte"`
+	RootSymbol        *string          `json:"root_symbol"`
+	Type              *OptionType      `json:"type"`
+	Style             *OptionStyle     `json:"style"`
+	StrikePriceGTE    *decimal.Decimal `json:"strike_price_gte"`
+	StrikePriceLTE    *decimal.Decimal `json:"strike_price_lte"`
+	Limit             *int             `json:"limit"`
+	PPInd             *bool            `json:"ppind"`
+}
+
+// GetOptionContracts returns the list of Option Contracts.
+func (c *Client) GetOptionContracts(req GetOptionContractsRequest) ([]OptionContract, error) {
+	u, err := url.Parse(fmt.Sprintf("%s/%s/options/contracts", c.opts.BaseURL, apiVersion))
+	if err != nil {
+		return nil, err
+	}
+
+	q := u.Query()
+
+	structType := reflect.TypeOf(req)
+	structValue := reflect.ValueOf(req)
+
+	for i := 0; i < structType.NumField(); i++ {
+		fieldType := structType.Field(i)
+		fieldValue := structValue.Field(i)
+
+		kind := fieldType.Type.Kind()
+
+		if kind == reflect.String {
+			v := fieldValue.String()
+			if v != "" {
+				q.Set(fieldType.Tag.Get("json"), v)
+			}
+			continue
+		}
+
+		// else it's a reflect.Ptr:
+		if kind != reflect.Ptr {
+			panic("GetOptionContractsRequest's struct was changed this should be a pointer")
+		}
+
+		// if it's not a nil value then we do somthing with it
+		if !fieldValue.IsNil() {
+			subFieldType := fieldType.Type.Elem()
+			subFieldValue := fieldValue.Elem()
+
+			// again we only really care about the string because it could be empty
+			if subFieldType.Kind() == reflect.String {
+				v := subFieldValue.String()
+				if v != "" {
+					q.Set(fieldType.Tag.Get("json"), v)
+				}
+			} else {
+				q.Set(fieldType.Tag.Get("json"), fmt.Sprint(subFieldValue))
+			}
+		}
+	}
+
+	optionContracts := make([]OptionContract, 0)
+	for {
+		u.RawQuery = q.Encode()
+
+		resp, err := c.get(u)
+		if err != nil {
+			return nil, err
+		}
+
+		// bs, err := ioutil.ReadAll(resp.Body)
+		// fmt.Println(string(bs))
+
+		var response optionContractsResponse
+		if err = unmarshal(resp, &response); err != nil {
+			return nil, err
+		}
+
+		optionContracts = append(optionContracts, response.OptionContracts...)
+
+		if response.NextPageToken == nil {
+			break
+		}
+
+		fmt.Println("setting page_token:", *response.NextPageToken)
+		q.Set("page_token", *response.NextPageToken)
+		closeResp(resp)
+	}
+
+	return optionContracts, nil
+}
+
+// GetOptionContract returns the Option Contracts.
+func (c *Client) GetOptionContract(symbolOrID string) (*OptionContract, error) {
+	u, err := url.Parse(fmt.Sprintf("%s/%s/options/contracts/%v", c.opts.BaseURL, apiVersion, symbolOrID))
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := c.get(u)
+	if err != nil {
+		return nil, err
+	}
+	defer closeResp(resp)
+
+	var optionContract OptionContract
+	if err = unmarshal(resp, &optionContract); err != nil {
+		return nil, err
+	}
+	return &optionContract, nil
 }
 
 type GetAnnouncementsRequest struct {

@@ -9,6 +9,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -906,6 +907,123 @@ func TestGetAssetFromJSON(t *testing.T) {
 	asset, err = c.GetAsset("APCA")
 	require.Error(t, err)
 	assert.Nil(t, asset)
+}
+
+func TestGetOptionContracts(t *testing.T) {
+	c := DefaultClient
+	// successful with nils
+	request := GetOptionContractsRequest{
+		UnderlyingSymbols: "some_symbol1,some_symbol2",
+	}
+	expectedID := "some_id"
+	c.do = func(_ *Client, req *http.Request) (*http.Response, error) {
+		assert.Equal(t, request.UnderlyingSymbols, req.URL.Query().Get("underlying_symbols"))
+		response := optionContractsResponse{
+			OptionContracts: []OptionContract{
+				{
+					ID:             expectedID,
+					ExpirationDate: civil.Date{Year: 1, Month: 1, Day: 1},
+				},
+			},
+		}
+		return &http.Response{
+			Body: genBody(response),
+		}, nil
+	}
+
+	contracts, err := c.GetOptionContracts(request)
+	require.NoError(t, err)
+	require.Len(t, contracts, 1)
+	assert.Equal(t, expectedID, contracts[0].ID)
+
+	// successful without nils
+	showDeliverable := true
+	status := OptionStatusActive
+	rootSymbol := "some_symbol"
+	ocType := OptionTypeCall
+	style := OptionStyleEuropean
+	priceGTE := decimal.NewFromInt(10)
+	limit := 5
+	ppind := false
+	request = GetOptionContractsRequest{
+		UnderlyingSymbols: "some_symbol",
+		ShowDeliverable:   &showDeliverable,
+		Status:            &status,
+		ExpirationDate:    &civil.Date{Year: 2000, Month: 01, Day: 01},
+		RootSymbol:        &rootSymbol,
+		Type:              &ocType,
+		Style:             &style,
+		StrikePriceGTE:    &priceGTE,
+		Limit:             &limit,
+		PPInd:             &ppind,
+	}
+	c.do = func(_ *Client, req *http.Request) (*http.Response, error) {
+		assert.Equal(t, request.UnderlyingSymbols, req.URL.Query().Get("underlying_symbols"))
+		assert.Equal(t, strconv.FormatBool(*request.ShowDeliverable), req.URL.Query().Get("show_deliverables"))
+		assert.Equal(t, fmt.Sprint(*request.Status), req.URL.Query().Get("status"))
+		assert.Equal(t, fmt.Sprint(*request.ExpirationDate), req.URL.Query().Get("expiration_date"))
+		assert.Equal(t, *request.RootSymbol, req.URL.Query().Get("root_symbol"))
+		assert.Equal(t, fmt.Sprint(*request.Type), req.URL.Query().Get("type"))
+		assert.Equal(t, fmt.Sprint(*request.Style), req.URL.Query().Get("style"))
+		assert.Equal(t, fmt.Sprint(*request.StrikePriceGTE), req.URL.Query().Get("strike_price_gte"))
+		assert.Equal(t, strconv.Itoa(*request.Limit), req.URL.Query().Get("limit"))
+		assert.Equal(t, strconv.FormatBool(*request.PPInd), req.URL.Query().Get("ppind"))
+
+		assets := optionContractsResponse{
+			OptionContracts: []OptionContract{
+				{
+					ID:             expectedID,
+					ExpirationDate: civil.Date{Year: 1, Month: 1, Day: 1},
+				},
+			},
+		}
+		return &http.Response{
+			Body: genBody(assets),
+		}, nil
+	}
+
+	contracts, err = c.GetOptionContracts(request)
+	require.NoError(t, err)
+	require.Len(t, contracts, 1)
+	assert.Equal(t, expectedID, contracts[0].ID)
+
+	// api failure
+	c.do = func(_ *Client, _ *http.Request) (*http.Response, error) {
+		return &http.Response{}, errors.New("fail")
+	}
+
+	_, err = c.GetOptionContracts(GetOptionContractsRequest{})
+	require.Error(t, err)
+}
+
+func TestGetOptionContract(t *testing.T) {
+	c := DefaultClient
+	// successful with nils
+	expectedSymbol := "some_symbol"
+	expectedID := "some_id"
+	c.do = func(_ *Client, req *http.Request) (*http.Response, error) {
+		assert.True(t, strings.HasSuffix(req.URL.Path, expectedSymbol))
+
+		return &http.Response{
+			Body: genBody(OptionContract{
+				ID:             expectedID,
+				ExpirationDate: civil.Date{Year: 1, Month: 1, Day: 1},
+			}),
+		}, nil
+	}
+
+	contract, err := c.GetOptionContract(expectedSymbol)
+	require.NoError(t, err)
+	require.NotNil(t, contract)
+	assert.Equal(t, expectedID, contract.ID)
+
+	// api failure
+	c.do = func(_ *Client, _ *http.Request) (*http.Response, error) {
+		return &http.Response{}, errors.New("fail")
+	}
+
+	_, err = c.GetOptionContract(expectedSymbol)
+	require.Error(t, err)
 }
 
 func TestTestVerify(t *testing.T) {
