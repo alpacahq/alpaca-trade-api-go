@@ -839,7 +839,7 @@ func (c *Client) GetOptionContracts(req GetOptionContractsRequest) ([]OptionCont
 	return optionContracts, nil
 }
 
-// GetOptionContract returns the Option Contracts.
+// GetOptionContract returns an option contract by symbol or contract ID.
 func (c *Client) GetOptionContract(symbolOrID string) (*OptionContract, error) {
 	u, err := url.Parse(fmt.Sprintf("%s/%s/options/contracts/%v", c.opts.BaseURL, apiVersion, symbolOrID))
 	if err != nil {
