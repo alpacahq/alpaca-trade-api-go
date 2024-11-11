@@ -937,37 +937,30 @@ func TestGetOptionContracts(t *testing.T) {
 	assert.Equal(t, expectedID, contracts[0].ID)
 
 	// successful without nils
-	showDeliverable := true
-	status := OptionStatusActive
-	rootSymbol := "some_symbol"
-	ocType := OptionTypeCall
-	style := OptionStyleEuropean
-	priceGTE := decimal.NewFromInt(10)
-	limit := 5
-	ppind := false
+
 	request = GetOptionContractsRequest{
-		UnderlyingSymbols: "some_symbol",
-		ShowDeliverable:   &showDeliverable,
-		Status:            &status,
-		ExpirationDate:    &civil.Date{Year: 2000, Month: 01, Day: 01},
-		RootSymbol:        &rootSymbol,
-		Type:              &ocType,
-		Style:             &style,
-		StrikePriceGTE:    &priceGTE,
-		Limit:             &limit,
-		PPInd:             &ppind,
+		UnderlyingSymbols:     "some_symbol",
+		ShowDeliverable:       true,
+		Status:                OptionStatusActive,
+		ExpirationDate:        civil.Date{Year: 2000, Month: 01, Day: 01},
+		RootSymbol:            "some_symbol",
+		Type:                  OptionTypeCall,
+		Style:                 OptionStyleEuropean,
+		StrikePriceGTE:        decimal.NewFromInt(10),
+		TotalLimit:            1,
+		PennyProgramIndicator: true,
 	}
 	c.do = func(_ *Client, req *http.Request) (*http.Response, error) {
 		assert.Equal(t, request.UnderlyingSymbols, req.URL.Query().Get("underlying_symbols"))
-		assert.Equal(t, strconv.FormatBool(*request.ShowDeliverable), req.URL.Query().Get("show_deliverables"))
-		assert.Equal(t, fmt.Sprint(*request.Status), req.URL.Query().Get("status"))
-		assert.Equal(t, fmt.Sprint(*request.ExpirationDate), req.URL.Query().Get("expiration_date"))
-		assert.Equal(t, *request.RootSymbol, req.URL.Query().Get("root_symbol"))
-		assert.Equal(t, fmt.Sprint(*request.Type), req.URL.Query().Get("type"))
-		assert.Equal(t, fmt.Sprint(*request.Style), req.URL.Query().Get("style"))
-		assert.Equal(t, fmt.Sprint(*request.StrikePriceGTE), req.URL.Query().Get("strike_price_gte"))
-		assert.Equal(t, strconv.Itoa(*request.Limit), req.URL.Query().Get("limit"))
-		assert.Equal(t, strconv.FormatBool(*request.PPInd), req.URL.Query().Get("ppind"))
+		assert.Equal(t, strconv.FormatBool(request.ShowDeliverable), req.URL.Query().Get("show_deliverables"))
+		assert.Equal(t, string(request.Status), req.URL.Query().Get("status"))
+		assert.Equal(t, request.ExpirationDate.String(), req.URL.Query().Get("expiration_date"))
+		assert.Equal(t, request.RootSymbol, req.URL.Query().Get("root_symbol"))
+		assert.Equal(t, string(request.Type), req.URL.Query().Get("type"))
+		assert.Equal(t, string(request.Style), req.URL.Query().Get("style"))
+		assert.Equal(t, request.StrikePriceGTE.String(), req.URL.Query().Get("strike_price_gte"))
+		assert.Equal(t, strconv.Itoa(request.TotalLimit), req.URL.Query().Get("limit"))
+		assert.Equal(t, strconv.FormatBool(request.PennyProgramIndicator), req.URL.Query().Get("ppind"))
 
 		assets := optionContractsResponse{
 			OptionContracts: []OptionContract{

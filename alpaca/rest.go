@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"reflect"
 	"strconv"
 	"strings"
 	"time"
@@ -744,20 +743,45 @@ func (c *Client) GetAsset(symbol string) (*Asset, error) {
 	return &asset, nil
 }
 
+const (
+	optionContractsRequestsMaxLimit = 10000
+)
+
+func setQueryLimit(q url.Values, totalLimit, pageLimit, received, maxLimit int) {
+	limit := 0 // use server side default if unset
+	if pageLimit != 0 {
+		limit = pageLimit
+	}
+	if totalLimit != 0 {
+		remaining := totalLimit - received
+		if remaining <= 0 { // this should never happen
+			return
+		}
+		if (limit == 0 || limit > remaining) && remaining <= maxLimit {
+			limit = remaining
+		}
+	}
+
+	if limit != 0 {
+		q.Set("limit", strconv.Itoa(limit))
+	}
+}
+
 type GetOptionContractsRequest struct {
-	UnderlyingSymbols string           `json:"underlying_symbols"`
-	ShowDeliverable   *bool            `json:"show_deliverables"`
-	Status            *OptionStatus    `json:"status"`
-	ExpirationDate    *civil.Date      `json:"expiration_date"`
-	ExpirationDateGTE *civil.Date      `json:"expiration_date_gte"`
-	ExpirationDateLTE *civil.Date      `json:"expiration_date_lte"`
-	RootSymbol        *string          `json:"root_symbol"`
-	Type              *OptionType      `json:"type"`
-	Style             *OptionStyle     `json:"style"`
-	StrikePriceGTE    *decimal.Decimal `json:"strike_price_gte"`
-	StrikePriceLTE    *decimal.Decimal `json:"strike_price_lte"`
-	Limit             *int             `json:"limit"`
-	PPInd             *bool            `json:"ppind"`
+	UnderlyingSymbols     string
+	ShowDeliverable       bool
+	Status                OptionStatus
+	ExpirationDate        civil.Date
+	ExpirationDateGTE     civil.Date
+	ExpirationDateLTE     civil.Date
+	RootSymbol            string
+	Type                  OptionType
+	Style                 OptionStyle
+	StrikePriceGTE        decimal.Decimal
+	StrikePriceLTE        decimal.Decimal
+	PennyProgramIndicator bool
+	PageLimit             int
+	TotalLimit            int
 }
 
 // GetOptionContracts returns the list of Option Contracts.
@@ -769,56 +793,66 @@ func (c *Client) GetOptionContracts(req GetOptionContractsRequest) ([]OptionCont
 
 	q := u.Query()
 
-	structType := reflect.TypeOf(req)
-	structValue := reflect.ValueOf(req)
-
-	for i := 0; i < structType.NumField(); i++ {
-		fieldType := structType.Field(i)
-		fieldValue := structValue.Field(i)
-
-		kind := fieldType.Type.Kind()
-
-		if kind == reflect.String {
-			v := fieldValue.String()
-			if v != "" {
-				q.Set(fieldType.Tag.Get("json"), v)
-			}
-			continue
-		}
-
-		// else it's a reflect.Ptr:
-		if kind != reflect.Ptr {
-			panic("GetOptionContractsRequest's struct was changed this should be a pointer")
-		}
-
-		// if it's not a nil value then we do somthing with it
-		if !fieldValue.IsNil() {
-			subFieldType := fieldType.Type.Elem()
-			subFieldValue := fieldValue.Elem()
-
-			// again we only really care about the string because it could be empty
-			if subFieldType.Kind() == reflect.String {
-				v := subFieldValue.String()
-				if v != "" {
-					q.Set(fieldType.Tag.Get("json"), v)
-				}
-			} else {
-				q.Set(fieldType.Tag.Get("json"), fmt.Sprint(subFieldValue))
-			}
-		}
+	if req.UnderlyingSymbols != "" {
+		q.Set("underlying_symbols", req.UnderlyingSymbols)
 	}
+
+	q.Set("show_deliverables", strconv.FormatBool(req.ShowDeliverable))
+
+	if req.Status == OptionStatusActive || req.Status == OptionStatusInactive {
+		q.Set("status", string(req.Status))
+	}
+
+	defaultDate := civil.Date{}
+	if req.ExpirationDate != defaultDate {
+		q.Set("expiration_date", req.ExpirationDate.String())
+	}
+
+	if req.ExpirationDateGTE != defaultDate {
+		q.Set("expiration_date_gte", req.ExpirationDateGTE.String())
+	}
+
+	if req.ExpirationDateLTE != defaultDate {
+		q.Set("expiration_date_lte", req.ExpirationDateLTE.String())
+	}
+
+	if req.RootSymbol != "" {
+		q.Set("root_symbol", req.RootSymbol)
+	}
+
+	if req.Type == OptionTypeCall || req.Type == OptionTypePut {
+		q.Set("type", string(req.Type))
+	}
+
+	if req.Style == OptionStyleAmerican || req.Style == OptionStyleEuropean {
+		q.Set("style", string(req.Style))
+	}
+
+	defaultStrikePrice := decimal.Decimal{}
+	if req.StrikePriceLTE.Cmp(defaultStrikePrice) != 0 {
+		q.Set("strike_price_lte", req.StrikePriceLTE.String())
+	}
+
+	if req.StrikePriceGTE.Cmp(defaultStrikePrice) != 0 {
+		q.Set("strike_price_gte", req.StrikePriceGTE.String())
+	}
+
+	q.Set("ppind", strconv.FormatBool(req.PennyProgramIndicator))
 
 	optionContracts := make([]OptionContract, 0)
 	for {
+		setQueryLimit(q,
+			req.TotalLimit,
+			req.PageLimit,
+			len(optionContracts),
+			optionContractsRequestsMaxLimit)
+
 		u.RawQuery = q.Encode()
 
 		resp, err := c.get(u)
 		if err != nil {
 			return nil, err
 		}
-
-		// bs, err := ioutil.ReadAll(resp.Body)
-		// fmt.Println(string(bs))
 
 		var response optionContractsResponse
 		if err = unmarshal(resp, &response); err != nil {
@@ -831,7 +865,6 @@ func (c *Client) GetOptionContracts(req GetOptionContractsRequest) ([]OptionCont
 			break
 		}
 
-		fmt.Println("setting page_token:", *response.NextPageToken)
 		q.Set("page_token", *response.NextPageToken)
 		closeResp(resp)
 	}
