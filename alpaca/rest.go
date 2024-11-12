@@ -799,20 +799,19 @@ func (c *Client) GetOptionContracts(req GetOptionContractsRequest) ([]OptionCont
 
 	q.Set("show_deliverables", strconv.FormatBool(req.ShowDeliverable))
 
-	if req.Status == OptionStatusActive || req.Status == OptionStatusInactive {
+	if req.Status != "" {
 		q.Set("status", string(req.Status))
 	}
 
-	defaultDate := civil.Date{}
-	if req.ExpirationDate != defaultDate {
+	if !req.ExpirationDate.IsZero() {
 		q.Set("expiration_date", req.ExpirationDate.String())
 	}
 
-	if req.ExpirationDateGTE != defaultDate {
+	if !req.ExpirationDateGTE.IsZero() {
 		q.Set("expiration_date_gte", req.ExpirationDateGTE.String())
 	}
 
-	if req.ExpirationDateLTE != defaultDate {
+	if !req.ExpirationDateLTE.IsZero() {
 		q.Set("expiration_date_lte", req.ExpirationDateLTE.String())
 	}
 
@@ -820,27 +819,28 @@ func (c *Client) GetOptionContracts(req GetOptionContractsRequest) ([]OptionCont
 		q.Set("root_symbol", req.RootSymbol)
 	}
 
-	if req.Type == OptionTypeCall || req.Type == OptionTypePut {
+	if req.Type != "" {
 		q.Set("type", string(req.Type))
 	}
 
-	if req.Style == OptionStyleAmerican || req.Style == OptionStyleEuropean {
+	if req.Style != "" {
 		q.Set("style", string(req.Style))
 	}
 
-	defaultStrikePrice := decimal.Decimal{}
-	if req.StrikePriceLTE.Cmp(defaultStrikePrice) != 0 {
+	if req.StrikePriceLTE.IsZero() {
 		q.Set("strike_price_lte", req.StrikePriceLTE.String())
 	}
 
-	if req.StrikePriceGTE.Cmp(defaultStrikePrice) != 0 {
+	if req.StrikePriceGTE.IsZero() {
 		q.Set("strike_price_gte", req.StrikePriceGTE.String())
 	}
 
-	q.Set("ppind", strconv.FormatBool(req.PennyProgramIndicator))
+	if req.PennyProgramIndicator {
+		q.Set("ppind", "true")
+	}
 
 	optionContracts := make([]OptionContract, 0)
-	for {
+	for req.TotalLimit == 0 || len(optionContracts) < req.TotalLimit {
 		setQueryLimit(q,
 			req.TotalLimit,
 			req.PageLimit,
