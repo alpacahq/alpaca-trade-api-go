@@ -827,11 +827,11 @@ func (c *Client) GetOptionContracts(req GetOptionContractsRequest) ([]OptionCont
 		q.Set("style", string(req.Style))
 	}
 
-	if req.StrikePriceLTE.IsZero() {
+	if !req.StrikePriceLTE.IsZero() {
 		q.Set("strike_price_lte", req.StrikePriceLTE.String())
 	}
 
-	if req.StrikePriceGTE.IsZero() {
+	if !req.StrikePriceGTE.IsZero() {
 		q.Set("strike_price_gte", req.StrikePriceGTE.String())
 	}
 

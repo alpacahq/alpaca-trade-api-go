@@ -911,7 +911,7 @@ func TestGetAssetFromJSON(t *testing.T) {
 
 func TestGetOptionContracts(t *testing.T) {
 	c := DefaultClient
-	// successful with nils
+	// successful case with simple query
 	request := GetOptionContractsRequest{
 		UnderlyingSymbols: "some_symbol1,some_symbol2",
 	}
@@ -936,8 +936,7 @@ func TestGetOptionContracts(t *testing.T) {
 	require.Len(t, contracts, 1)
 	assert.Equal(t, expectedID, contracts[0].ID)
 
-	// successful without nils
-
+	// successful case with more paramters
 	request = GetOptionContractsRequest{
 		UnderlyingSymbols:     "some_symbol",
 		ShowDeliverable:       true,
@@ -991,7 +990,7 @@ func TestGetOptionContracts(t *testing.T) {
 
 func TestGetOptionContract(t *testing.T) {
 	c := DefaultClient
-	// successful with nils
+	// successful case
 	expectedSymbol := "some_symbol"
 	expectedID := "some_id"
 	c.do = func(_ *Client, req *http.Request) (*http.Response, error) {
