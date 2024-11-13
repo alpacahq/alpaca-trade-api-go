@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"cloud.google.com/go/civil"
 	"github.com/mailru/easyjson"
 	"github.com/shopspring/decimal"
 )
@@ -742,6 +743,155 @@ func (c *Client) GetAsset(symbol string) (*Asset, error) {
 	return &asset, nil
 }
 
+const (
+	optionContractsRequestsMaxLimit = 10000
+)
+
+func setQueryLimit(q url.Values, totalLimit, pageLimit, received, maxLimit int) {
+	limit := 0 // use server side default if unset
+	if pageLimit != 0 {
+		limit = pageLimit
+	}
+	if totalLimit != 0 {
+		remaining := totalLimit - received
+		if remaining <= 0 { // this should never happen
+			return
+		}
+		if (limit == 0 || limit > remaining) && remaining <= maxLimit {
+			limit = remaining
+		}
+	}
+
+	if limit != 0 {
+		q.Set("limit", strconv.Itoa(limit))
+	}
+}
+
+type GetOptionContractsRequest struct {
+	UnderlyingSymbols     string
+	ShowDeliverable       bool
+	Status                OptionStatus
+	ExpirationDate        civil.Date
+	ExpirationDateGTE     civil.Date
+	ExpirationDateLTE     civil.Date
+	RootSymbol            string
+	Type                  OptionType
+	Style                 OptionStyle
+	StrikePriceGTE        decimal.Decimal
+	StrikePriceLTE        decimal.Decimal
+	PennyProgramIndicator bool
+	PageLimit             int
+	TotalLimit            int
+}
+
+// GetOptionContracts returns the list of Option Contracts.
+func (c *Client) GetOptionContracts(req GetOptionContractsRequest) ([]OptionContract, error) {
+	u, err := url.Parse(fmt.Sprintf("%s/%s/options/contracts", c.opts.BaseURL, apiVersion))
+	if err != nil {
+		return nil, err
+	}
+
+	q := u.Query()
+
+	if req.UnderlyingSymbols != "" {
+		q.Set("underlying_symbols", req.UnderlyingSymbols)
+	}
+
+	q.Set("show_deliverables", strconv.FormatBool(req.ShowDeliverable))
+
+	if req.Status != "" {
+		q.Set("status", string(req.Status))
+	}
+
+	if !req.ExpirationDate.IsZero() {
+		q.Set("expiration_date", req.ExpirationDate.String())
+	}
+
+	if !req.ExpirationDateGTE.IsZero() {
+		q.Set("expiration_date_gte", req.ExpirationDateGTE.String())
+	}
+
+	if !req.ExpirationDateLTE.IsZero() {
+		q.Set("expiration_date_lte", req.ExpirationDateLTE.String())
+	}
+
+	if req.RootSymbol != "" {
+		q.Set("root_symbol", req.RootSymbol)
+	}
+
+	if req.Type != "" {
+		q.Set("type", string(req.Type))
+	}
+
+	if req.Style != "" {
+		q.Set("style", string(req.Style))
+	}
+
+	if !req.StrikePriceLTE.IsZero() {
+		q.Set("strike_price_lte", req.StrikePriceLTE.String())
+	}
+
+	if !req.StrikePriceGTE.IsZero() {
+		q.Set("strike_price_gte", req.StrikePriceGTE.String())
+	}
+
+	if req.PennyProgramIndicator {
+		q.Set("ppind", "true")
+	}
+
+	optionContracts := make([]OptionContract, 0)
+	for req.TotalLimit == 0 || len(optionContracts) < req.TotalLimit {
+		setQueryLimit(q,
+			req.TotalLimit,
+			req.PageLimit,
+			len(optionContracts),
+			optionContractsRequestsMaxLimit)
+
+		u.RawQuery = q.Encode()
+
+		resp, err := c.get(u)
+		if err != nil {
+			return nil, err
+		}
+
+		var response optionContractsResponse
+		if err = unmarshal(resp, &response); err != nil {
+			return nil, err
+		}
+
+		optionContracts = append(optionContracts, response.OptionContracts...)
+
+		if response.NextPageToken == nil {
+			break
+		}
+
+		q.Set("page_token", *response.NextPageToken)
+		closeResp(resp)
+	}
+
+	return optionContracts, nil
+}
+
+// GetOptionContract returns an option contract by symbol or contract ID.
+func (c *Client) GetOptionContract(symbolOrID string) (*OptionContract, error) {
+	u, err := url.Parse(fmt.Sprintf("%s/%s/options/contracts/%v", c.opts.BaseURL, apiVersion, symbolOrID))
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := c.get(u)
+	if err != nil {
+		return nil, err
+	}
+	defer closeResp(resp)
+
+	var optionContract OptionContract
+	if err = unmarshal(resp, &optionContract); err != nil {
+		return nil, err
+	}
+	return &optionContract, nil
+}
+
 type GetAnnouncementsRequest struct {
 	CATypes  []string  `json:"ca_types"`
 	Since    time.Time `json:"since"`
@@ -1045,6 +1195,16 @@ func GetAssets(req GetAssetsRequest) ([]Asset, error) {
 // GetAsset returns an asset for the given symbol.
 func GetAsset(symbol string) (*Asset, error) {
 	return DefaultClient.GetAsset(symbol)
+}
+
+// GetOptionContracts returns the list of Option Contracts.
+func GetOptionContracts(req GetOptionContractsRequest) ([]OptionContract, error) {
+	return DefaultClient.GetOptionContracts(req)
+}
+
+// GetOptionContract returns an option contract by symbol or contract ID.
+func GetOptionContract(symbolOrID string) (*OptionContract, error) {
+	return DefaultClient.GetOptionContract(symbolOrID)
 }
 
 // GetAnnouncements returns a list of announcements
