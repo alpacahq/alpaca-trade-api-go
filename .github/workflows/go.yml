@@ -31,8 +31,6 @@ jobs:
         version: v1.61
     - name: Build
       run: go build -v ./...
-    - name: Test
-      run: go test -cover -timeout 6s ./...
   test:
     runs-on: ubuntu-latest
     steps:
