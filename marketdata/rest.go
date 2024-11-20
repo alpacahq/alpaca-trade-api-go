@@ -44,6 +44,11 @@ type ClientOpts struct {
 	RequestHost string
 }
 
+type request interface {
+	cryptoFeed() CryptoFeed
+	isPerp() bool
+}
+
 // Client is the alpaca marketdata Client.
 type Client struct {
 	opts       ClientOpts
@@ -719,6 +724,7 @@ func (c *Client) GetSnapshots(symbols []string, req GetSnapshotRequest) (map[str
 }
 
 const cryptoPrefix = "v1beta3/crypto"
+const cryptoPerpPrefix = "v1beta1/crypto"
 
 type cryptoBaseRequest struct {
 	Symbols []string
@@ -755,7 +761,12 @@ type GetCryptoTradesRequest struct {
 	CryptoFeed CryptoFeed
 	// Sort is the sort direction of the data
 	Sort Sort
+	// This flag is used internally to access perpetual futures endpoints
+	perpetualFutures bool
 }
+
+func (r GetCryptoTradesRequest) cryptoFeed() CryptoFeed { return r.CryptoFeed }
+func (r GetCryptoTradesRequest) isPerp() bool           { return r.perpetualFutures }
 
 // GetCryptoTrades returns the trades for the given crypto symbol.
 func (c *Client) GetCryptoTrades(symbol string, req GetCryptoTradesRequest) ([]CryptoTrade, error) {
@@ -766,9 +777,21 @@ func (c *Client) GetCryptoTrades(symbol string, req GetCryptoTradesRequest) ([]C
 	return resp[symbol], nil
 }
 
-// GetMultiTrades returns trades for the given crypto symbols.
+// GetCryptoPerpsTrades returns the trades for the given crypto perpetual futures symbol.
+func (c *Client) GetCryptoPerpsTrades(symbol string, req GetCryptoTradesRequest) ([]CryptoTrade, error) {
+	req.perpetualFutures = true
+	return c.GetCryptoTrades(symbol, req)
+}
+
+// GetCryptoPurpsMultiTrades returns trades for the given crypto symbols.
+func (c *Client) GetCryptoPerpsMultiTrades(symbols []string, req GetCryptoTradesRequest) (map[string][]CryptoTrade, error) {
+	req.perpetualFutures = true
+	return c.GetCryptoMultiTrades(symbols, req)
+}
+
+// GetCryptoMultiTrades returns trades for the given crypto symbols.
 func (c *Client) GetCryptoMultiTrades(symbols []string, req GetCryptoTradesRequest) (map[string][]CryptoTrade, error) {
-	u, err := url.Parse(fmt.Sprintf("%s/%s/%s/trades", c.opts.BaseURL, cryptoPrefix, c.cryptoFeed(req.CryptoFeed)))
+	u, err := url.Parse(fmt.Sprintf("%s/trades", c.cryptoURL(req)))
 	if err != nil {
 		return nil, err
 	}
@@ -824,7 +847,12 @@ type GetCryptoQuotesRequest struct {
 	CryptoFeed CryptoFeed
 	// Sort is the sort direction of the data
 	Sort Sort
+	// This flag is used internally to access perpetual futures endpoints
+	perpetualFutures bool
 }
+
+func (r GetCryptoQuotesRequest) cryptoFeed() CryptoFeed { return r.CryptoFeed }
+func (r GetCryptoQuotesRequest) isPerp() bool           { return r.perpetualFutures }
 
 // GetCryptoQuotes returns the trades for the given crypto symbol.
 func (c *Client) GetCryptoQuotes(symbol string, req GetCryptoQuotesRequest) ([]CryptoQuote, error) {
@@ -835,9 +863,21 @@ func (c *Client) GetCryptoQuotes(symbol string, req GetCryptoQuotesRequest) ([]C
 	return resp[symbol], nil
 }
 
-// GetMultiQuotes returns quotes for the given crypto symbols.
+// GetCryptoPerpsQuotes returns the trades for the given crypto perps symbol.
+func (c *Client) GetCryptoPerpsQuotes(symbol string, req GetCryptoQuotesRequest) ([]CryptoQuote, error) {
+	req.perpetualFutures = true
+	return c.GetCryptoQuotes(symbol, req)
+}
+
+// GetCryptoMultiQuotes returns quotes for the given crypto symbols.
+func (c *Client) GetCryptoPerpsMultiQuotes(symbols []string, req GetCryptoQuotesRequest) (map[string][]CryptoQuote, error) {
+	req.perpetualFutures = true
+	return c.GetCryptoMultiQuotes(symbols, req)
+}
+
+// GetCryptoMultiQuotes returns quotes for the given crypto symbols.
 func (c *Client) GetCryptoMultiQuotes(symbols []string, req GetCryptoQuotesRequest) (map[string][]CryptoQuote, error) {
-	u, err := url.Parse(fmt.Sprintf("%s/%s/%s/quotes", c.opts.BaseURL, cryptoPrefix, c.cryptoFeed(req.CryptoFeed)))
+	u, err := url.Parse(fmt.Sprintf("%s/quotes", c.cryptoURL(req)))
 	if err != nil {
 		return nil, err
 	}
@@ -895,7 +935,12 @@ type GetCryptoBarsRequest struct {
 	CryptoFeed CryptoFeed
 	// Sort is the sort direction of the data
 	Sort Sort
+	// This flag is used internally to access perpetual futures endpoints
+	perpetualFutures bool
 }
+
+func (r GetCryptoBarsRequest) cryptoFeed() CryptoFeed { return r.CryptoFeed }
+func (r GetCryptoBarsRequest) isPerp() bool           { return r.perpetualFutures }
 
 func setQueryCryptoBarRequest(q url.Values, symbols []string, req GetCryptoBarsRequest) {
 	setCryptoBaseQuery(q, cryptoBaseRequest{
@@ -971,7 +1016,12 @@ func (c *Client) setLatestCryptoQueryRequest(u *url.URL, req cryptoBaseLatestReq
 
 type GetLatestCryptoBarRequest struct {
 	CryptoFeed CryptoFeed
+	// This flag is used internally to access perpetual futures endpoints
+	perpetualFutures bool
 }
+
+func (r GetLatestCryptoBarRequest) cryptoFeed() CryptoFeed { return r.CryptoFeed }
+func (r GetLatestCryptoBarRequest) isPerp() bool           { return r.perpetualFutures }
 
 func (c *Client) cryptoFeed(fromReq string) string {
 	if fromReq != "" {
@@ -981,6 +1031,29 @@ func (c *Client) cryptoFeed(fromReq string) string {
 		return c.opts.CryptoFeed
 	}
 	return "us"
+}
+
+func (c *Client) cryptoURL(fromReq request) string {
+
+	return fmt.Sprintf("%s/%s/%s", c.opts.BaseURL, func(p bool) string {
+		if !p {
+			return cryptoPrefix
+		} else {
+			return cryptoPerpPrefix
+		}
+	}(fromReq.isPerp()), func(fromReq request) string {
+
+		if fromReq.cryptoFeed() != "" {
+			return fromReq.cryptoFeed()
+		}
+		if c.opts.CryptoFeed != "" {
+			return c.opts.CryptoFeed
+		}
+		if fromReq.isPerp() {
+			return "futures/row"
+		}
+		return "us"
+	}(fromReq))
 }
 
 // GetLatestCryptoBar returns the latest bar for a given crypto symbol
@@ -1022,7 +1095,12 @@ func (c *Client) GetLatestCryptoBars(symbols []string, req GetLatestCryptoBarReq
 
 type GetLatestCryptoTradeRequest struct {
 	CryptoFeed CryptoFeed
+	// This flag is used internally to access perpetual futures endpoints
+	perpetualFutures bool
 }
+
+func (r GetLatestCryptoTradeRequest) cryptoFeed() CryptoFeed { return r.CryptoFeed }
+func (r GetLatestCryptoTradeRequest) isPerp() bool           { return r.perpetualFutures }
 
 // GetLatestCryptoTrade returns the latest trade for a given crypto symbol
 func (c *Client) GetLatestCryptoTrade(symbol string, req GetLatestCryptoTradeRequest) (*CryptoTrade, error) {
@@ -1037,12 +1115,25 @@ func (c *Client) GetLatestCryptoTrade(symbol string, req GetLatestCryptoTradeReq
 	return &trade, nil
 }
 
+// GetLatestCryptoPerpsTrade returns the latest trade for a given crypto perp symbol
+func (c *Client) GetLatestCryptoPerpsTrade(symbol string, req GetLatestCryptoTradeRequest) (*CryptoTrade, error) {
+	req.perpetualFutures = true
+	return c.GetLatestCryptoTrade(symbol, req)
+}
+
+// GetLatestCryptoPerpsTrades returns the latest trades for the given crypto  perp symbols
+func (c *Client) GetLatestCryptoPerpsTrades(
+	symbols []string, req GetLatestCryptoTradeRequest,
+) (map[string]CryptoTrade, error) {
+	req.perpetualFutures = true
+	return c.GetLatestCryptoTrades(symbols, req)
+}
+
 // GetLatestCryptoTrades returns the latest trades for the given crypto symbols
 func (c *Client) GetLatestCryptoTrades(
 	symbols []string, req GetLatestCryptoTradeRequest,
 ) (map[string]CryptoTrade, error) {
-	u, err := url.Parse(fmt.Sprintf("%s/%s/%s/latest/trades",
-		c.opts.BaseURL, cryptoPrefix, c.cryptoFeed(req.CryptoFeed)))
+	u, err := url.Parse(fmt.Sprintf("%s/latest/trades", c.cryptoURL(req)))
 	if err != nil {
 		return nil, err
 	}
@@ -1065,7 +1156,12 @@ func (c *Client) GetLatestCryptoTrades(
 
 type GetLatestCryptoQuoteRequest struct {
 	CryptoFeed CryptoFeed
+	// This flag is used internally to access perpetual futures endpoints
+	perpetualFutures bool
 }
+
+func (r GetLatestCryptoQuoteRequest) cryptoFeed() CryptoFeed { return r.CryptoFeed }
+func (r GetLatestCryptoQuoteRequest) isPerp() bool           { return r.perpetualFutures }
 
 // GetLatestCryptoQuote returns the latest quote for a given crypto symbol
 func (c *Client) GetLatestCryptoQuote(symbol string, req GetLatestCryptoQuoteRequest) (*CryptoQuote, error) {
@@ -1080,12 +1176,26 @@ func (c *Client) GetLatestCryptoQuote(symbol string, req GetLatestCryptoQuoteReq
 	return &quote, nil
 }
 
+// GetLatestCryptoPerpsQuote returns the latest quote for a given crypto perp symbol
+func (c *Client) GetLatestCryptoPerpsQuote(symbol string, req GetLatestCryptoQuoteRequest) (*CryptoQuote, error) {
+	req.perpetualFutures = true
+	return c.GetLatestCryptoQuote(symbol, req)
+}
+
+// GetLatestCryptoQuotes returns the latest quotes for the given crypto symbols
+func (c *Client) GetLatestCryptoPerpsQuotes(
+	symbols []string, req GetLatestCryptoQuoteRequest,
+) (map[string]CryptoQuote, error) {
+	req.perpetualFutures = true
+	return c.GetLatestCryptoQuotes(symbols, req)
+}
+
 // GetLatestCryptoQuotes returns the latest quotes for the given crypto symbols
 func (c *Client) GetLatestCryptoQuotes(
 	symbols []string, req GetLatestCryptoQuoteRequest,
 ) (map[string]CryptoQuote, error) {
-	u, err := url.Parse(fmt.Sprintf("%s/%s/%s/latest/quotes",
-		c.opts.BaseURL, cryptoPrefix, c.cryptoFeed(req.CryptoFeed)))
+	u, err := url.Parse(fmt.Sprintf("%s/latest/quotes", c.cryptoURL(req)))
+
 	if err != nil {
 		return nil, err
 	}
@@ -1108,7 +1218,12 @@ func (c *Client) GetLatestCryptoQuotes(
 
 type GetCryptoSnapshotRequest struct {
 	CryptoFeed CryptoFeed
+	// This flag is used internally to access perpetual futures endpoints
+	perpetualFutures bool
 }
+
+func (r GetCryptoSnapshotRequest) cryptoFeed() CryptoFeed { return r.CryptoFeed }
+func (r GetCryptoSnapshotRequest) isPerp() bool           { return r.perpetualFutures }
 
 // GetCryptoSnapshot returns the snapshot for a given crypto symbol
 func (c *Client) GetCryptoSnapshot(symbol string, req GetCryptoSnapshotRequest) (*CryptoSnapshot, error) {
@@ -1123,10 +1238,21 @@ func (c *Client) GetCryptoSnapshot(symbol string, req GetCryptoSnapshotRequest) 
 	return &snapshot, nil
 }
 
+// GetCryptoPerpsSnapshot returns the snapshot for a given crypto perps symbol
+func (c *Client) GetCryptoPerpsSnapshot(symbol string, req GetCryptoSnapshotRequest) (*CryptoSnapshot, error) {
+	req.perpetualFutures = true
+	return c.GetCryptoSnapshot(symbol, req)
+}
+
+// GetCryptoPerpsSnapshots returns the snapshots for the given crypto perps symbols
+func (c *Client) GetCryptoPerpsSnapshots(symbols []string, req GetCryptoSnapshotRequest) (map[string]CryptoSnapshot, error) {
+	req.perpetualFutures = true
+	return c.GetCryptoSnapshots(symbols, req)
+}
+
 // GetCryptoSnapshots returns the snapshots for the given crypto symbols
 func (c *Client) GetCryptoSnapshots(symbols []string, req GetCryptoSnapshotRequest) (map[string]CryptoSnapshot, error) {
-	u, err := url.Parse(fmt.Sprintf("%s/%s/%s/snapshots",
-		c.opts.BaseURL, cryptoPrefix, c.cryptoFeed(req.CryptoFeed)))
+	u, err := url.Parse(fmt.Sprintf("%s/snapshots", c.cryptoURL(req)))
 	if err != nil {
 		return nil, err
 	}
