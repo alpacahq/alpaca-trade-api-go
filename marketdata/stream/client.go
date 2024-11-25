@@ -176,16 +176,21 @@ type CryptoClient struct {
 // NewCryptoClient returns a new CryptoClient that will connect to the crypto feed
 // and whose default configurations are modified by opts.
 func NewCryptoClient(feed marketdata.CryptoFeed, opts ...CryptoOption) *CryptoClient {
-	cc := CryptoClient{
-		client:  newClient(),
-		feed:    feed,
-		handler: &cryptoMsgHandler{},
-	}
+	cc := CryptoClient{}
+	cc.init(feed, opts...)
+
+	return &cc
+}
+
+func (cc *CryptoClient) init(feed marketdata.CryptoFeed, opts ...CryptoOption) {
+	cc.client = newClient()
+	cc.feed = feed
+	cc.handler = &cryptoMsgHandler{}
+
 	cc.client.handler = cc.handler
 	o := defaultCryptoOptions()
 	o.applyCrypto(opts...)
 	cc.configure(*o)
-	return &cc
 }
 
 func (cc *CryptoClient) configure(o cryptoOptions) {
@@ -214,6 +219,25 @@ func (cc *CryptoClient) Connect(ctx context.Context) error {
 
 func (cc *CryptoClient) constructURL() (url.URL, error) {
 	return constructURL(cc.baseURL, cc.feed)
+}
+
+// This will create a crytpo perpetual futures subscriptions to the Alpaca market data services
+type CryptoPerpsClient struct {
+	CryptoClient
+}
+
+// NewCryptoClient returns a new CryptoClient that will connect to the crypto perpetual futures feed
+// Currently only the marketdata.ROW is supported.
+// Base URL will be modified to reflect the perpetual endpoint with respect to the crypto endpoint
+func NewCryptoPerpsClient(feed marketdata.CryptoFeed, opts ...CryptoOption) *CryptoPerpsClient {
+	if feed != marketdata.ROW {
+		return nil
+	}
+	// modify the base url here
+
+	cc := CryptoPerpsClient{}
+	cc.init(feed, opts...)
+	return &cc
 }
 
 // OptionClient is a client that connects to an Alpaca stream server
