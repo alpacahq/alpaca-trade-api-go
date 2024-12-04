@@ -226,14 +226,13 @@ type CryptoPerpsClient struct {
 	CryptoClient
 }
 
-// NewCryptoClient returns a new CryptoClient that will connect to the crypto perpetual futures feed
-// Currently only the marketdata.ROW is supported.
+// NewCryptoPerpsClient returns a new CryptoPerpsClient that will connect to the crypto perpetual futures feed
+// Currently only the marketdata.GLOBAL is supported.
 // Base URL will be modified to reflect the perpetual endpoint with respect to the crypto endpoint
 func NewCryptoPerpsClient(feed marketdata.CryptoFeed, opts ...CryptoOption) *CryptoPerpsClient {
-	if feed != marketdata.ROW {
+	if feed != marketdata.GLOBAL {
 		return nil
 	}
-	// modify the base url here
 
 	cc := CryptoPerpsClient{}
 	cc.init(feed, opts...)

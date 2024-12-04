@@ -29,8 +29,8 @@ type CryptoFeed = string
 
 const (
 	// US is the crypto feed for the United States.
-	US  CryptoFeed = "us"
-	ROW CryptoFeed = "row"
+	US     CryptoFeed = "us"
+	GLOBAL CryptoFeed = "global"
 )
 
 // OptionFeed defines the source feed of option data.
