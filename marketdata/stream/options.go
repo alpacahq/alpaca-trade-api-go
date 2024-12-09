@@ -434,6 +434,66 @@ func WithCryptoOrderbooks(handler func(CryptoOrderbook), symbols ...string) Cryp
 	})
 }
 
+// WithCryptoPerpsTrades configures initial perp trade symbols to subscribe to and the handler
+func WithCryptoPerpsTrades(handler func(CryptoPerpsTrade), symbols ...string) CryptoOption {
+	return newFuncCryptoOption(func(o *cryptoOptions) {
+		o.sub.trades = symbols
+		o.tradeHandler = func(trade CryptoTrade) {
+			handler(CryptoPerpsTrade(trade))
+		}
+	})
+}
+
+// WithCryptoPerpsQuotes configures initial perp quote symbols to subscribe to and the handler
+func WithCryptoPerpsQuotes(handler func(CryptoPerpsQuote), symbols ...string) CryptoOption {
+	return newFuncCryptoOption(func(o *cryptoOptions) {
+		o.sub.quotes = symbols
+		o.quoteHandler = func(quote CryptoQuote) {
+			handler(CryptoPerpsQuote(quote))
+		}
+	})
+}
+
+// WithCryptoPerpsBars configures initial perp bar symbols to subscribe to and the handler
+func WithCryptoPerpsBars(handler func(CryptoPerpsBar), symbols ...string) CryptoOption {
+	return newFuncCryptoOption(func(o *cryptoOptions) {
+		o.sub.bars = symbols
+		o.barHandler = func(bar CryptoBar) {
+			handler(CryptoPerpsBar(bar))
+		}
+	})
+}
+
+// WithCryptoPerpsUpdatedBars configures updated perp bar symbols to subscribe to and the handler
+func WithCryptoPerpsUpdatedBars(handler func(CryptoPerpsBar), symbols ...string) CryptoOption {
+	return newFuncCryptoOption(func(o *cryptoOptions) {
+		o.sub.updatedBars = symbols
+		o.updatedBarHandler = func(bar CryptoBar) {
+			handler(CryptoPerpsBar(bar))
+		}
+	})
+}
+
+// WithCryptoPerpsDailyBars configures daily perp bar symbols to subscribe to and the handler
+func WithCryptoPerpsDailyBars(handler func(CryptoPerpsBar), symbols ...string) CryptoOption {
+	return newFuncCryptoOption(func(o *cryptoOptions) {
+		o.sub.dailyBars = symbols
+		o.dailyBarHandler = func(bar CryptoBar) {
+			handler(CryptoPerpsBar(bar))
+		}
+	})
+}
+
+// WithCryptoPerpsOrderbooks configures initial perp orderbook symbols to subscribe to and the handler
+func WithCryptoPerpsOrderbooks(handler func(CryptoPerpsOrderbook), symbols ...string) CryptoOption {
+	return newFuncCryptoOption(func(o *cryptoOptions) {
+		o.sub.orderbooks = symbols
+		o.orderbookHandler = func(ob CryptoOrderbook) {
+			handler(CryptoPerpsOrderbook(ob))
+		}
+	})
+}
+
 type optionOptions struct {
 	options
 	tradeHandler func(OptionTrade)

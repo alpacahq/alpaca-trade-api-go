@@ -209,6 +209,11 @@ type CryptoSnapshot struct {
 	PrevDailyBar *CryptoBar   `json:"prevDailyBar"`
 }
 
+type CryptoPerpsTrade CryptoTrade
+type CryptoPerpsQuote CryptoQuote
+type CryptoPerpsBar CryptoBar
+type CryptoPerpsSnapshot CryptoSnapshot
+
 // CryptoSnapshots is the snapshots for multiple crypto symbols
 type CryptoSnapshots struct {
 	Snapshots map[string]CryptoSnapshot `json:"snapshots"`
