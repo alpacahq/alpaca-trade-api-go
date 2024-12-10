@@ -724,7 +724,7 @@ func (c *Client) GetSnapshots(symbols []string, req GetSnapshotRequest) (map[str
 }
 
 const cryptoPrefix = "v1beta3/crypto"
-const cryptoPerpPrefix = "v1beta1/crypto"
+const cryptoPerpPrefix = "v1beta1/crypto-perps"
 
 type cryptoBaseRequest struct {
 	Symbols []string
@@ -1120,10 +1120,25 @@ func (c *Client) GetLatestCryptoBar(symbol string, req GetLatestCryptoBarRequest
 	return &bar, nil
 }
 
+// GetLatestCryptoPerpsBar returns the latest bar for a given crypto symbol
+func (c *Client) GetLatestCryptoPerpsBar(symbol string, req GetLatestCryptoBarRequest) (*CryptoPerpsBar, error) {
+	req.perpetualFutures = true
+
+	latestBar, err := c.GetLatestCryptoBars([]string{symbol}, req)
+	if err != nil {
+		return nil, err
+	}
+	bar, ok := latestBar[symbol]
+	if !ok {
+		return nil, nil
+	}
+	perpsBar := CryptoPerpsBar(bar)
+	return &perpsBar, nil
+}
+
 // GetLatestCryptoBars returns the latest bars for the given crypto symbols
 func (c *Client) GetLatestCryptoBars(symbols []string, req GetLatestCryptoBarRequest) (map[string]CryptoBar, error) {
-	u, err := url.Parse(fmt.Sprintf("%s/%s/%s/latest/bars",
-		c.opts.BaseURL, cryptoPrefix, c.cryptoFeed(req.CryptoFeed)))
+	u, err := url.Parse(fmt.Sprintf("%s/latest/bars", c.cryptoURL(req)))
 	if err != nil {
 		return nil, err
 	}
@@ -1755,6 +1770,11 @@ func GetLatestCryptoPerpsTrades(symbols []string, req GetLatestCryptoTradeReques
 // GetLatestCryptoPerpsQuote returns the latest quote for a given crypto perps symbol
 func GetLatestCryptoPerpsQuote(symbol string, req GetLatestCryptoQuoteRequest) (*CryptoPerpsQuote, error) {
 	return DefaultClient.GetLatestCryptoPerpsQuote(symbol, req)
+}
+
+// GetLatestCryptoPerpsBar returns the latest bar for a given crypto perps symbol
+func GetLatestCryptoPerpsBar(symbol string, req GetLatestCryptoBarRequest) (*CryptoPerpsBar, error) {
+	return DefaultClient.GetLatestCryptoPerpsBar(symbol, req)
 }
 
 // GetLatestCryptoPerpsQuotes returns the latest quotes for the given crypto perps symbols

@@ -124,6 +124,33 @@ func cryptoQuote() {
 	fmt.Println()
 }
 
+func cryptoPerpsQuote() {
+	quote, err := marketdata.GetLatestCryptoPerpsQuote("BTC-PERP", marketdata.GetLatestCryptoQuoteRequest{})
+	if err != nil {
+		panic(err)
+	}
+	fmt.Printf("Latest crypto perp quote: %+v\n\n", quote)
+	fmt.Println()
+}
+
+func cryptoPerpsTrade() {
+	trade, err := marketdata.GetLatestCryptoPerpsTrade("BTC-PERP", marketdata.GetLatestCryptoTradeRequest{})
+	if err != nil {
+		panic(err)
+	}
+	fmt.Printf("Latest crypto perp trade: %+v\n\n", trade)
+	fmt.Println()
+}
+
+func cryptoPerpsBar() {
+	trade, err := marketdata.GetLatestCryptoPerpsBar("BTC-PERP", marketdata.GetLatestCryptoBarRequest{})
+	if err != nil {
+		panic(err)
+	}
+	fmt.Printf("Latest crypto perp bar: %+v\n\n", trade)
+	fmt.Println()
+}
+
 func optionChain() {
 	chain, err := marketdata.GetOptionChain("AAPL", marketdata.GetOptionChainRequest{
 		Type:              marketdata.Call,
@@ -209,6 +236,9 @@ func main() {
 		{Name: "news", Func: news},
 		{Name: "auctions", Func: auctions},
 		{Name: "crypto_quote", Func: cryptoQuote},
+		{Name: "crypto_perp_quote", Func: cryptoPerpsQuote},
+		{Name: "crypto_perp_trade", Func: cryptoPerpsTrade},
+		{Name: "crypto_perp_bar", Func: cryptoPerpsBar},
 		{Name: "option_chain", Func: optionChain},
 		{Name: "corporate_actions", Func: corporateActions},
 	}
