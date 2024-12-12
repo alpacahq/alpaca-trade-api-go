@@ -1085,15 +1085,12 @@ func (c *Client) cryptoFeed(fromReq string) string {
 }
 
 func (c *Client) cryptoURL(fromReq request) string {
-
 	return fmt.Sprintf("%s/%s/%s", c.opts.BaseURL, func(p bool) string {
 		if !p {
 			return cryptoPrefix
-		} else {
-			return cryptoPerpPrefix
 		}
+		return cryptoPerpPrefix
 	}(fromReq.isPerp()), func(fromReq request) string {
-
 		if fromReq.cryptoFeed() != "" {
 			return fromReq.cryptoFeed()
 		}
