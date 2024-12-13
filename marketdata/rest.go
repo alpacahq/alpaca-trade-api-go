@@ -1065,7 +1065,7 @@ func (c *Client) GetLatestCryptoPerpBars(
 		return nil, err
 	}
 	perpsBars := make(map[string]CryptoPerpBar, len(bars))
-	for symbol, bar := range perpsBars {
+	for symbol, bar := range bars {
 		perpsBars[symbol] = CryptoPerpBar(bar)
 	}
 
