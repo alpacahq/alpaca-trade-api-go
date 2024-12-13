@@ -178,6 +178,7 @@ func (c *client) readSubResponse(ctx context.Context) error {
 		UpdatedBars  []string `msgpack:"updatedBars"`
 		DailyBars    []string `msgpack:"dailyBars"`
 		Statuses     []string `msgpack:"statuses"`
+		Imbalances   []string `msgpack:"imbalances"`
 		LULDs        []string `msgpack:"lulds"`
 		CancelErrors []string `msgpack:"cancelErrors"`
 		Corrections  []string `msgpack:"corrections"`
@@ -207,6 +208,7 @@ func (c *client) readSubResponse(ctx context.Context) error {
 	c.sub.updatedBars = resp.UpdatedBars
 	c.sub.dailyBars = resp.DailyBars
 	c.sub.statuses = resp.Statuses
+	c.sub.imbalances = resp.Imbalances
 	c.sub.lulds = resp.LULDs
 	c.sub.cancelErrors = resp.CancelErrors
 	c.sub.corrections = resp.Corrections
