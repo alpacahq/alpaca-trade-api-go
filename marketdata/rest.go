@@ -1678,14 +1678,19 @@ func GetLatestCryptoPerpQuote(symbol string, req GetLatestCryptoQuoteRequest) (*
 	return DefaultClient.GetLatestCryptoPerpQuote(symbol, req)
 }
 
+// GetLatestCryptoPerpQuotes returns the latest quotes for the given crypto perpetual futures
+func GetLatestCryptoPerpQuotes(symbols []string, req GetLatestCryptoQuoteRequest) (map[string]CryptoPerpQuote, error) {
+	return DefaultClient.GetLatestCryptoPerpQuotes(symbols, req)
+}
+
 // GetLatestCryptoPerpBar returns the latest bar for a given crypto perpetual future
 func GetLatestCryptoPerpBar(symbol string, req GetLatestCryptoBarRequest) (*CryptoPerpBar, error) {
 	return DefaultClient.GetLatestCryptoPerpBar(symbol, req)
 }
 
-// GetLatestCryptoPerpQuotes returns the latest quotes for the given crypto perpetual futures
-func GetLatestCryptoPerpQuotes(symbols []string, req GetLatestCryptoQuoteRequest) (map[string]CryptoPerpQuote, error) {
-	return DefaultClient.GetLatestCryptoPerpQuotes(symbols, req)
+// GetLatestCryptoPerpBar returns the latest bar for a given crypto perpetual future
+func GetLatestCryptoPerpBars(symbols []string, req GetLatestCryptoBarRequest) (map[string]CryptoPerpBar, error) {
+	return DefaultClient.GetLatestCryptoPerpBars(symbols, req)
 }
 
 // GetNews returns the news articles based on the given req.
