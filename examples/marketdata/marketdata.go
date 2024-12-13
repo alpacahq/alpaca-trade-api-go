@@ -124,8 +124,8 @@ func cryptoQuote() {
 	fmt.Println()
 }
 
-func cryptoPerpsQuote() {
-	quote, err := marketdata.GetLatestCryptoPerpsQuote("BTC-PERP", marketdata.GetLatestCryptoQuoteRequest{})
+func cryptoPerpQuote() {
+	quote, err := marketdata.GetLatestCryptoPerpQuote("BTC-PERP", marketdata.GetLatestCryptoQuoteRequest{})
 	if err != nil {
 		panic(err)
 	}
@@ -133,8 +133,8 @@ func cryptoPerpsQuote() {
 	fmt.Println()
 }
 
-func cryptoPerpsTrade() {
-	trade, err := marketdata.GetLatestCryptoPerpsTrade("BTC-PERP", marketdata.GetLatestCryptoTradeRequest{})
+func cryptoPerpTrade() {
+	trade, err := marketdata.GetLatestCryptoPerpTrade("BTC-PERP", marketdata.GetLatestCryptoTradeRequest{})
 	if err != nil {
 		panic(err)
 	}
@@ -142,8 +142,8 @@ func cryptoPerpsTrade() {
 	fmt.Println()
 }
 
-func cryptoPerpsBar() {
-	trade, err := marketdata.GetLatestCryptoPerpsBar("BTC-PERP", marketdata.GetLatestCryptoBarRequest{})
+func cryptoPerpBar() {
+	trade, err := marketdata.GetLatestCryptoPerpBar("BTC-PERP", marketdata.GetLatestCryptoBarRequest{})
 	if err != nil {
 		panic(err)
 	}
@@ -236,16 +236,16 @@ func main() {
 		{Name: "news", Func: news},
 		{Name: "auctions", Func: auctions},
 		{Name: "crypto_quote", Func: cryptoQuote},
-		{Name: "crypto_perp_quote", Func: cryptoPerpsQuote},
-		{Name: "crypto_perp_trade", Func: cryptoPerpsTrade},
-		{Name: "crypto_perp_bar", Func: cryptoPerpsBar},
+		{Name: "crypto_perp_quote", Func: cryptoPerpQuote},
+		{Name: "crypto_perp_trade", Func: cryptoPerpTrade},
+		{Name: "crypto_perp_bar", Func: cryptoPerpBar},
 		{Name: "option_chain", Func: optionChain},
 		{Name: "corporate_actions", Func: corporateActions},
 	}
 	for {
 		fmt.Println("Examples: ")
 		for i, e := range examples {
-			fmt.Printf("[ %d ] %s\n", i, e.Name)
+			fmt.Printf("[ %2d ] %s\n", i, e.Name)
 		}
 		fmt.Print("Please type the number of the example you'd like to run or q to exit: ")
 		r := bufio.NewReader(os.Stdin)

@@ -142,10 +142,10 @@ type CryptoOrderbookEntry struct {
 	Size  float64
 }
 
-type CryptoPerpsTrade CryptoTrade
-type CryptoPerpsQuote CryptoQuote
-type CryptoPerpsBar CryptoBar
-type CryptoPerpsOrderbook CryptoOrderbook
+type CryptoPerpTrade CryptoTrade
+type CryptoPerpQuote CryptoQuote
+type CryptoPerpBar CryptoBar
+type CryptoPerpOrderbook CryptoOrderbook
 
 // OptionTrade is an option trade that happened on the market
 type OptionTrade struct {

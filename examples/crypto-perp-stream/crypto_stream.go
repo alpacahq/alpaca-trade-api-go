@@ -14,28 +14,27 @@ func main() {
 
 	baseURL := "ws://stream.data.alpaca.markets/v1beta1/crypto-perps"
 
-	// Creating a client that connects to iex
-	c := stream.NewCryptoPerpsClient(
+	c := stream.NewCryptoPerpClient(
 		marketdata.GLOBAL,
 		stream.WithLogger(stream.DefaultLogger()),
 		stream.WithBaseURL(baseURL), // Set the base URL
 		// configuring initial subscriptions and handlers
-		stream.WithCryptoPerpsTrades(func(ct stream.CryptoPerpsTrade) {
+		stream.WithCryptoPerpTrades(func(ct stream.CryptoPerpTrade) {
 			fmt.Printf("TRADE: %+v\n", ct)
 		}, "BTC-PERP"),
-		stream.WithCryptoPerpsQuotes(func(cq stream.CryptoPerpsQuote) {
+		stream.WithCryptoPerpQuotes(func(cq stream.CryptoPerpQuote) {
 			fmt.Printf("QUOTE: %+v\n", cq)
 		}, "BTC-PERP"),
-		stream.WithCryptoPerpsOrderbooks(func(cob stream.CryptoPerpsOrderbook) {
+		stream.WithCryptoPerpOrderbooks(func(cob stream.CryptoPerpOrderbook) {
 			fmt.Printf("ORDERBOOK: %+v\n", cob)
 		}, "BTC-PERP"),
-		stream.WithCryptoPerpsBars(func(cb stream.CryptoPerpsBar) {
+		stream.WithCryptoPerpBars(func(cb stream.CryptoPerpBar) {
 			fmt.Printf("BAR: %+v\n", cb)
 		}, "BTC-PERP"),
-		stream.WithCryptoPerpsUpdatedBars(func(cb stream.CryptoPerpsBar) {
+		stream.WithCryptoPerpUpdatedBars(func(cb stream.CryptoPerpBar) {
 			fmt.Printf("UPDATED BAR: %+v\n", cb)
 		}, "BTC-PERP"),
-		stream.WithCryptoPerpsDailyBars(func(cb stream.CryptoPerpsBar) {
+		stream.WithCryptoPerpDailyBars(func(cb stream.CryptoPerpBar) {
 			fmt.Printf("DAILY BAR: %+v\n", cb)
 		}, "BTC-PERP"),
 	)

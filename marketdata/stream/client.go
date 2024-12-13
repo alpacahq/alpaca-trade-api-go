@@ -222,19 +222,15 @@ func (cc *CryptoClient) constructURL() (url.URL, error) {
 }
 
 // This will create a crytpo perpetual futures subscriptions to the Alpaca market data services
-type CryptoPerpsClient struct {
+type CryptoPerpClient struct {
 	CryptoClient
 }
 
-// NewCryptoPerpsClient returns a new CryptoPerpsClient that will connect to the crypto perpetual futures feed
+// NewCryptoPerpClient returns a new CryptoPerpClient that will connect to the crypto perpetual futures feed
 // Currently only the marketdata.GLOBAL is supported.
 // Base URL will be modified to reflect the perpetual endpoint with respect to the crypto endpoint
-func NewCryptoPerpsClient(feed marketdata.CryptoFeed, opts ...CryptoOption) *CryptoPerpsClient {
-	if feed != marketdata.GLOBAL {
-		return nil
-	}
-
-	cc := CryptoPerpsClient{}
+func NewCryptoPerpClient(feed marketdata.CryptoFeed, opts ...CryptoOption) *CryptoPerpClient {
+	cc := CryptoPerpClient{}
 	cc.init(feed, opts...)
 	return &cc
 }

@@ -44,11 +44,6 @@ type ClientOpts struct {
 	RequestHost string
 }
 
-type request interface {
-	cryptoFeed() CryptoFeed
-	isPerp() bool
-}
-
 // Client is the alpaca marketdata Client.
 type Client struct {
 	opts       ClientOpts
@@ -777,44 +772,6 @@ func (c *Client) GetCryptoTrades(symbol string, req GetCryptoTradesRequest) ([]C
 	return resp[symbol], nil
 }
 
-// GetCryptoPerpsTrades returns the trades for the given crypto perpetual futures symbol.
-func (c *Client) GetCryptoPerpsTrades(symbol string, req GetCryptoTradesRequest) ([]CryptoPerpsTrade, error) {
-	req.perpetualFutures = true
-
-	trades, err := c.GetCryptoTrades(symbol, req)
-	if err != nil {
-		return nil, err
-	}
-
-	perpsTrades := make([]CryptoPerpsTrade, len(trades))
-	for i, trade := range trades {
-		perpsTrades[i] = CryptoPerpsTrade(trade)
-	}
-
-	return perpsTrades, nil
-}
-
-// GetCryptoPerpsMultiTrades returns trades for the given crypto perpetual futures symbols.
-func (c *Client) GetCryptoPerpsMultiTrades(symbols []string, req GetCryptoTradesRequest) (map[string][]CryptoPerpsTrade, error) {
-	req.perpetualFutures = true
-
-	trades, err := c.GetCryptoMultiTrades(symbols, req)
-	if err != nil {
-		return nil, err
-	}
-
-	perpsTrades := make(map[string][]CryptoPerpsTrade, len(trades))
-	for symbol, tradeList := range trades {
-		perpsTradeList := make([]CryptoPerpsTrade, len(tradeList))
-		for i, trade := range tradeList {
-			perpsTradeList[i] = CryptoPerpsTrade(trade)
-		}
-		perpsTrades[symbol] = perpsTradeList
-	}
-
-	return perpsTrades, nil
-}
-
 // GetCryptoMultiTrades returns trades for the given crypto symbols.
 func (c *Client) GetCryptoMultiTrades(symbols []string, req GetCryptoTradesRequest) (map[string][]CryptoTrade, error) {
 	u, err := url.Parse(fmt.Sprintf("%s/trades", c.cryptoURL(req)))
@@ -887,43 +844,6 @@ func (c *Client) GetCryptoQuotes(symbol string, req GetCryptoQuotesRequest) ([]C
 		return nil, err
 	}
 	return resp[symbol], nil
-}
-
-// GetCryptoPerpsQuotes returns the trades for the given crypto perps symbol.
-func (c *Client) GetCryptoPerpsQuotes(symbol string, req GetCryptoQuotesRequest) ([]CryptoPerpsQuote, error) {
-	req.perpetualFutures = true
-	quotes, err := c.GetCryptoQuotes(symbol, req)
-	if err != nil {
-		return nil, err
-	}
-
-	perpsQuotes := make([]CryptoPerpsQuote, len(quotes))
-	for i, quote := range quotes {
-		perpsQuotes[i] = CryptoPerpsQuote(quote)
-	}
-
-	return perpsQuotes, nil
-}
-
-// GetCryptoPerpsMultiQuotes returns quotes for the given crypto perps symbols.
-func (c *Client) GetCryptoPerpsMultiQuotes(symbols []string, req GetCryptoQuotesRequest) (map[string][]CryptoPerpsQuote, error) {
-	req.perpetualFutures = true
-
-	quotes, err := c.GetCryptoMultiQuotes(symbols, req)
-	if err != nil {
-		return nil, err
-	}
-
-	perpsQuotes := make(map[string][]CryptoPerpsQuote, len(quotes))
-	for symbol, quoteList := range quotes {
-		perpsQuoteList := make([]CryptoPerpsQuote, len(quoteList))
-		for i, quote := range quoteList {
-			perpsQuoteList[i] = CryptoPerpsQuote(quote)
-		}
-		perpsQuotes[symbol] = perpsQuoteList
-	}
-
-	return perpsQuotes, nil
 }
 
 // GetCryptoMultiQuotes returns quotes for the given crypto symbols.
@@ -1084,24 +1004,25 @@ func (c *Client) cryptoFeed(fromReq string) string {
 	return "us"
 }
 
-func (c *Client) cryptoURL(fromReq request) string {
-	return fmt.Sprintf("%s/%s/%s", c.opts.BaseURL, func(p bool) string {
-		if !p {
-			return cryptoPrefix
-		}
-		return cryptoPerpPrefix
-	}(fromReq.isPerp()), func(fromReq request) string {
-		if fromReq.cryptoFeed() != "" {
-			return fromReq.cryptoFeed()
-		}
-		if c.opts.CryptoFeed != "" {
-			return c.opts.CryptoFeed
-		}
+type cryptoRequest interface {
+	cryptoFeed() CryptoFeed
+	isPerp() bool
+}
+
+func (c *Client) cryptoURL(fromReq cryptoRequest) string {
+	prefix := cryptoPrefix
+	if fromReq.isPerp() {
+		prefix = cryptoPerpPrefix
+	}
+	feed := fromReq.cryptoFeed()
+	if feed == "" {
 		if fromReq.isPerp() {
-			return "global"
+			feed = GLOBAL
+		} else {
+			feed = US
 		}
-		return "us"
-	}(fromReq))
+	}
+	return fmt.Sprintf("%s/%s/%s", c.opts.BaseURL, prefix, feed)
 }
 
 // GetLatestCryptoBar returns the latest bar for a given crypto symbol
@@ -1117,8 +1038,8 @@ func (c *Client) GetLatestCryptoBar(symbol string, req GetLatestCryptoBarRequest
 	return &bar, nil
 }
 
-// GetLatestCryptoPerpsBar returns the latest bar for a given crypto symbol
-func (c *Client) GetLatestCryptoPerpsBar(symbol string, req GetLatestCryptoBarRequest) (*CryptoPerpsBar, error) {
+// GetLatestCryptoPerpBar returns the latest bar for a given crypto perpetual future
+func (c *Client) GetLatestCryptoPerpBar(symbol string, req GetLatestCryptoBarRequest) (*CryptoPerpBar, error) {
 	req.perpetualFutures = true
 
 	latestBar, err := c.GetLatestCryptoBars([]string{symbol}, req)
@@ -1129,8 +1050,26 @@ func (c *Client) GetLatestCryptoPerpsBar(symbol string, req GetLatestCryptoBarRe
 	if !ok {
 		return nil, nil
 	}
-	perpsBar := CryptoPerpsBar(bar)
+	perpsBar := CryptoPerpBar(bar)
 	return &perpsBar, nil
+}
+
+// GetLatestCryptoPerpBars returns the latest bars for the given crypto perpetual futures
+func (c *Client) GetLatestCryptoPerpBars(
+	symbols []string, req GetLatestCryptoBarRequest,
+) (map[string]CryptoPerpBar, error) {
+	req.perpetualFutures = true
+
+	bars, err := c.GetLatestCryptoBars(symbols, req)
+	if err != nil {
+		return nil, err
+	}
+	perpsBars := make(map[string]CryptoPerpBar, len(bars))
+	for symbol, bar := range perpsBars {
+		perpsBars[symbol] = CryptoPerpBar(bar)
+	}
+
+	return perpsBars, nil
 }
 
 // GetLatestCryptoBars returns the latest bars for the given crypto symbols
@@ -1178,8 +1117,8 @@ func (c *Client) GetLatestCryptoTrade(symbol string, req GetLatestCryptoTradeReq
 	return &trade, nil
 }
 
-// GetLatestCryptoPerpsTrade returns the latest trade for a given crypto perp symbol
-func (c *Client) GetLatestCryptoPerpsTrade(symbol string, req GetLatestCryptoTradeRequest) (*CryptoPerpsTrade, error) {
+// GetLatestCryptoPerpTrade returns the latest trade for a given crypto perp symbol
+func (c *Client) GetLatestCryptoPerpTrade(symbol string, req GetLatestCryptoTradeRequest) (*CryptoPerpTrade, error) {
 	req.perpetualFutures = true
 
 	latestTrade, err := c.GetLatestCryptoTrade(symbol, req)
@@ -1187,14 +1126,14 @@ func (c *Client) GetLatestCryptoPerpsTrade(symbol string, req GetLatestCryptoTra
 		return nil, err
 	}
 
-	perpsTrade := CryptoPerpsTrade(*latestTrade)
+	perpsTrade := CryptoPerpTrade(*latestTrade)
 	return &perpsTrade, nil
 }
 
-// GetLatestCryptoPerpsTrades returns the latest trades for the given crypto  perp symbols
-func (c *Client) GetLatestCryptoPerpsTrades(
+// GetLatestCryptoPerpTrades returns the latest trades for the given crypto perpetual futures
+func (c *Client) GetLatestCryptoPerpTrades(
 	symbols []string, req GetLatestCryptoTradeRequest,
-) (map[string]CryptoPerpsTrade, error) {
+) (map[string]CryptoPerpTrade, error) {
 	req.perpetualFutures = true
 
 	trades, err := c.GetLatestCryptoTrades(symbols, req)
@@ -1202,9 +1141,9 @@ func (c *Client) GetLatestCryptoPerpsTrades(
 		return nil, err
 	}
 
-	perpsTrades := make(map[string]CryptoPerpsTrade, len(trades))
+	perpsTrades := make(map[string]CryptoPerpTrade, len(trades))
 	for symbol, trade := range trades {
-		perpsTrades[symbol] = CryptoPerpsTrade(trade)
+		perpsTrades[symbol] = CryptoPerpTrade(trade)
 	}
 
 	return perpsTrades, nil
@@ -1257,8 +1196,8 @@ func (c *Client) GetLatestCryptoQuote(symbol string, req GetLatestCryptoQuoteReq
 	return &quote, nil
 }
 
-// GetLatestCryptoPerpsQuote returns the latest quote for a given crypto perp symbol
-func (c *Client) GetLatestCryptoPerpsQuote(symbol string, req GetLatestCryptoQuoteRequest) (*CryptoPerpsQuote, error) {
+// GetLatestCryptoPerpQuote returns the latest quote for a given crypto perp symbol
+func (c *Client) GetLatestCryptoPerpQuote(symbol string, req GetLatestCryptoQuoteRequest) (*CryptoPerpQuote, error) {
 	req.perpetualFutures = true
 
 	latestQuote, err := c.GetLatestCryptoQuote(symbol, req)
@@ -1266,14 +1205,14 @@ func (c *Client) GetLatestCryptoPerpsQuote(symbol string, req GetLatestCryptoQuo
 		return nil, err
 	}
 
-	perpsQuote := CryptoPerpsQuote(*latestQuote)
+	perpsQuote := CryptoPerpQuote(*latestQuote)
 	return &perpsQuote, nil
 }
 
-// GetLatestCryptoPerpsQuotes returns the latest quotes for the given crypto perps symbols
-func (c *Client) GetLatestCryptoPerpsQuotes(
+// GetLatestCryptoPerpQuotes returns the latest quotes for the given crypto perpetual futures
+func (c *Client) GetLatestCryptoPerpQuotes(
 	symbols []string, req GetLatestCryptoQuoteRequest,
-) (map[string]CryptoPerpsQuote, error) {
+) (map[string]CryptoPerpQuote, error) {
 	req.perpetualFutures = true
 
 	quotes, err := c.GetLatestCryptoQuotes(symbols, req)
@@ -1281,9 +1220,9 @@ func (c *Client) GetLatestCryptoPerpsQuotes(
 		return nil, err
 	}
 
-	perpsQuotes := make(map[string]CryptoPerpsQuote, len(quotes))
+	perpsQuotes := make(map[string]CryptoPerpQuote, len(quotes))
 	for symbol, quote := range quotes {
-		perpsQuotes[symbol] = CryptoPerpsQuote(quote)
+		perpsQuotes[symbol] = CryptoPerpQuote(quote)
 	}
 
 	return perpsQuotes, nil
@@ -1335,36 +1274,6 @@ func (c *Client) GetCryptoSnapshot(symbol string, req GetCryptoSnapshotRequest) 
 		return nil, nil
 	}
 	return &snapshot, nil
-}
-
-// GetCryptoPerpsSnapshot returns the snapshot for a given crypto perps symbol
-func (c *Client) GetCryptoPerpsSnapshot(symbol string, req GetCryptoSnapshotRequest) (*CryptoPerpsSnapshot, error) {
-	req.perpetualFutures = true
-
-	snapshot, err := c.GetCryptoSnapshot(symbol, req)
-	if err != nil {
-		return nil, err
-	}
-
-	perpsSnapshot := CryptoPerpsSnapshot(*snapshot)
-	return &perpsSnapshot, nil
-}
-
-// GetCryptoPerpsSnapshots returns the snapshots for the given crypto perps symbols
-func (c *Client) GetCryptoPerpsSnapshots(symbols []string, req GetCryptoSnapshotRequest) (map[string]CryptoPerpsSnapshot, error) {
-	req.perpetualFutures = true
-
-	snapshots, err := c.GetCryptoSnapshots(symbols, req)
-	if err != nil {
-		return nil, err
-	}
-
-	perpsSnapshots := make(map[string]CryptoPerpsSnapshot, len(snapshots))
-	for symbol, snapshot := range snapshots {
-		perpsSnapshots[symbol] = CryptoPerpsSnapshot(snapshot)
-	}
-
-	return perpsSnapshots, nil
 }
 
 // GetCryptoSnapshots returns the snapshots for the given crypto symbols
@@ -1754,39 +1663,29 @@ func GetCryptoSnapshots(symbols []string, req GetCryptoSnapshotRequest) (map[str
 	return DefaultClient.GetCryptoSnapshots(symbols, req)
 }
 
-// GetLatestCryptoPerpsTrade returns the latest trade for a given crypto perp symbol
-func GetLatestCryptoPerpsTrade(symbol string, req GetLatestCryptoTradeRequest) (*CryptoPerpsTrade, error) {
-	return DefaultClient.GetLatestCryptoPerpsTrade(symbol, req)
+// GetLatestCryptoPerpTrade returns the latest trade for a given crypto perp symbol
+func GetLatestCryptoPerpTrade(symbol string, req GetLatestCryptoTradeRequest) (*CryptoPerpTrade, error) {
+	return DefaultClient.GetLatestCryptoPerpTrade(symbol, req)
 }
 
-// GetLatestCryptoPerpsTrades returns the latest trades for the given crypto perps symbols
-func GetLatestCryptoPerpsTrades(symbols []string, req GetLatestCryptoTradeRequest) (map[string]CryptoPerpsTrade, error) {
-	return DefaultClient.GetLatestCryptoPerpsTrades(symbols, req)
+// GetLatestCryptoPerpTrades returns the latest trades for the given crypto perpetual futures
+func GetLatestCryptoPerpTrades(symbols []string, req GetLatestCryptoTradeRequest) (map[string]CryptoPerpTrade, error) {
+	return DefaultClient.GetLatestCryptoPerpTrades(symbols, req)
 }
 
-// GetLatestCryptoPerpsQuote returns the latest quote for a given crypto perps symbol
-func GetLatestCryptoPerpsQuote(symbol string, req GetLatestCryptoQuoteRequest) (*CryptoPerpsQuote, error) {
-	return DefaultClient.GetLatestCryptoPerpsQuote(symbol, req)
+// GetLatestCryptoPerpQuote returns the latest quote for a given crypto perpetual future
+func GetLatestCryptoPerpQuote(symbol string, req GetLatestCryptoQuoteRequest) (*CryptoPerpQuote, error) {
+	return DefaultClient.GetLatestCryptoPerpQuote(symbol, req)
 }
 
-// GetLatestCryptoPerpsBar returns the latest bar for a given crypto perps symbol
-func GetLatestCryptoPerpsBar(symbol string, req GetLatestCryptoBarRequest) (*CryptoPerpsBar, error) {
-	return DefaultClient.GetLatestCryptoPerpsBar(symbol, req)
+// GetLatestCryptoPerpBar returns the latest bar for a given crypto perpetual future
+func GetLatestCryptoPerpBar(symbol string, req GetLatestCryptoBarRequest) (*CryptoPerpBar, error) {
+	return DefaultClient.GetLatestCryptoPerpBar(symbol, req)
 }
 
-// GetLatestCryptoPerpsQuotes returns the latest quotes for the given crypto perps symbols
-func GetLatestCryptoPerpsQuotes(symbols []string, req GetLatestCryptoQuoteRequest) (map[string]CryptoPerpsQuote, error) {
-	return DefaultClient.GetLatestCryptoPerpsQuotes(symbols, req)
-}
-
-// GetCryptoPerpsSnapshot returns the snapshot for a given crypto symbol
-func GetCryptoPerpsSnapshot(symbol string, req GetCryptoSnapshotRequest) (*CryptoPerpsSnapshot, error) {
-	return DefaultClient.GetCryptoPerpsSnapshot(symbol, req)
-}
-
-// GetCryptoPerpsSnapshots returns the snapshots for the given crypto symbols
-func GetCryptoPerpsSnapshots(symbols []string, req GetCryptoSnapshotRequest) (map[string]CryptoPerpsSnapshot, error) {
-	return DefaultClient.GetCryptoPerpsSnapshots(symbols, req)
+// GetLatestCryptoPerpQuotes returns the latest quotes for the given crypto perpetual futures
+func GetLatestCryptoPerpQuotes(symbols []string, req GetLatestCryptoQuoteRequest) (map[string]CryptoPerpQuote, error) {
+	return DefaultClient.GetLatestCryptoPerpQuotes(symbols, req)
 }
 
 // GetNews returns the news articles based on the given req.
