@@ -535,6 +535,13 @@ func (c *Client) GetOrders(req GetOrdersRequest) ([]Order, error) {
 	return orders, nil
 }
 
+type Leg struct {
+	Side           Side            `json:"side"`
+	PositionIntent PositionIntent  `json:"position_intent"`
+	Symbol         string          `json:"symbol"`
+	RatioQty       decimal.Decimal `json:"ratio_qty"`
+}
+
 type PlaceOrderRequest struct {
 	Symbol         string           `json:"symbol"`
 	Qty            *decimal.Decimal `json:"qty"`
@@ -552,6 +559,7 @@ type PlaceOrderRequest struct {
 	TrailPrice     *decimal.Decimal `json:"trail_price"`
 	TrailPercent   *decimal.Decimal `json:"trail_percent"`
 	PositionIntent PositionIntent   `json:"position_intent"`
+	Legs           []Leg            `json:"legs"` // mleg order legs
 }
 
 type TakeProfit struct {

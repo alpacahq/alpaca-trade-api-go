@@ -1896,6 +1896,8 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Alpaca16(in *jlexe
 			out.Type = OrderType(in.String())
 		case "side":
 			out.Side = Side(in.String())
+		case "position_intent":
+			out.PositionIntent = PositionIntent(in.String())
 		case "time_in_force":
 			out.TimeInForce = TimeInForce(in.String())
 		case "status":
@@ -2002,6 +2004,18 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Alpaca16(in *jlexe
 			}
 		case "extended_hours":
 			out.ExtendedHours = bool(in.Bool())
+		case "ratio_qty":
+			if in.IsNull() {
+				in.Skip()
+				out.RatioQty = nil
+			} else {
+				if out.RatioQty == nil {
+					out.RatioQty = new(decimal.Decimal)
+				}
+				if data := in.Raw(); in.Ok() {
+					in.AddError((*out.RatioQty).UnmarshalJSON(data))
+				}
+			}
 		case "legs":
 			if in.IsNull() {
 				in.Skip()
@@ -2158,6 +2172,11 @@ func easyjson3e8ab7adEncodeGithubComAlpacahqAlpacaTradeApiGoV3Alpaca16(out *jwri
 		out.String(string(in.Side))
 	}
 	{
+		const prefix string = ",\"position_intent\":"
+		out.RawString(prefix)
+		out.String(string(in.PositionIntent))
+	}
+	{
 		const prefix string = ",\"time_in_force\":"
 		out.RawString(prefix)
 		out.String(string(in.TimeInForce))
@@ -2248,6 +2267,15 @@ func easyjson3e8ab7adEncodeGithubComAlpacahqAlpacaTradeApiGoV3Alpaca16(out *jwri
 		const prefix string = ",\"extended_hours\":"
 		out.RawString(prefix)
 		out.Bool(bool(in.ExtendedHours))
+	}
+	{
+		const prefix string = ",\"ratio_qty\":"
+		out.RawString(prefix)
+		if in.RatioQty == nil {
+			out.RawString("null")
+		} else {
+			out.Raw((*in.RatioQty).MarshalJSON())
+		}
 	}
 	{
 		const prefix string = ",\"legs\":"
