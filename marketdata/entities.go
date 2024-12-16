@@ -29,7 +29,8 @@ type CryptoFeed = string
 
 const (
 	// US is the crypto feed for the United States.
-	US CryptoFeed = "us"
+	US     CryptoFeed = "us"
+	GLOBAL CryptoFeed = "global"
 )
 
 // OptionFeed defines the source feed of option data.
@@ -207,6 +208,11 @@ type CryptoSnapshot struct {
 	DailyBar     *CryptoBar   `json:"dailyBar"`
 	PrevDailyBar *CryptoBar   `json:"prevDailyBar"`
 }
+
+type CryptoPerpTrade CryptoTrade
+type CryptoPerpQuote CryptoQuote
+type CryptoPerpBar CryptoBar
+type CryptoPerpSnapshot CryptoSnapshot
 
 // CryptoSnapshots is the snapshots for multiple crypto symbols
 type CryptoSnapshots struct {
