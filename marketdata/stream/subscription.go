@@ -53,6 +53,13 @@ func (sc *StocksClient) SubscribeToStatuses(handler func(TradingStatus), symbols
 	return sc.client.handleSubChange(true, subscriptions{statuses: symbols})
 }
 
+func (sc *StocksClient) SubscribeToImbalances(handler func(Imbalance), symbols ...string) error {
+	sc.handler.mu.Lock()
+	sc.handler.imbalanceHandler = handler
+	sc.handler.mu.Unlock()
+	return sc.client.handleSubChange(true, subscriptions{imbalances: symbols})
+}
+
 func (sc *StocksClient) SubscribeToLULDs(handler func(LULD), symbols ...string) error {
 	sc.handler.mu.Lock()
 	sc.handler.luldHandler = handler
@@ -96,8 +103,18 @@ func (sc *StocksClient) UnsubscribeFromStatuses(symbols ...string) error {
 	return sc.handleSubChange(false, subscriptions{statuses: symbols})
 }
 
+func (sc *StocksClient) UnsubscribeFromImbalances(symbols ...string) error {
+	return sc.handleSubChange(false, subscriptions{imbalances: symbols})
+}
+
 func (sc *StocksClient) UnsubscribeFromLULDs(symbols ...string) error {
 	return sc.handleSubChange(false, subscriptions{lulds: symbols})
+}
+
+func (sc *StocksClient) UnregisterImbalances() {
+	sc.handler.mu.Lock()
+	sc.handler.imbalanceHandler = func(Imbalance) {}
+	sc.handler.mu.Unlock()
 }
 
 func (sc *StocksClient) UnregisterCancelErrors() {
@@ -218,9 +235,10 @@ type subscriptions struct {
 	updatedBars  []string
 	dailyBars    []string
 	statuses     []string
+	imbalances   []string
 	lulds        []string
-	cancelErrors []string // Subscribed automatically.
-	corrections  []string // Subscribed automatically.
+	cancelErrors []string // Subscribed automatically with trades.
+	corrections  []string // Subscribed automatically with trades.
 	orderbooks   []string
 	news         []string
 }
@@ -301,6 +319,7 @@ func getSubChangeMessage(subscribe bool, changes subscriptions) ([]byte, error) 
 		"updatedBars": changes.updatedBars,
 		"dailyBars":   changes.dailyBars,
 		"statuses":    changes.statuses,
+		"imbalances":  changes.imbalances,
 		"lulds":       changes.lulds,
 		"orderbooks":  changes.orderbooks,
 		"news":        changes.news,
