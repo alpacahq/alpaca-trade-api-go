@@ -1044,7 +1044,7 @@ func TestGetOptionContracts(t *testing.T) {
 		UnderlyingSymbols:     "some_symbol",
 		ShowDeliverable:       true,
 		Status:                OptionStatusActive,
-		ExpirationDate:        civil.Date{Year: 2000, Month: 0o1, Day: 0o1},
+		ExpirationDate:        civil.Date{Year: 2000, Month: 1, Day: 1},
 		RootSymbol:            "some_symbol",
 		Type:                  OptionTypeCall,
 		Style:                 OptionStyleEuropean,
