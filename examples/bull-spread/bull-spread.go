@@ -16,10 +16,6 @@ import (
 
 var decimal10k = decimal.NewFromInt(10000)
 
-const (
-	oneWeek = 7
-)
-
 type Service struct {
 	tdClient *alpaca.Client
 	mdClient *marketdata.Client
@@ -70,15 +66,14 @@ func main() {
 	}
 
 	underlying := "INTC"
-	td, err := svc.mdClient.GetLatestTrade(underlying, marketdata.GetLatestTradeRequest{Feed: "iex"})
+	td, err := svc.mdClient.GetLatestTrade(underlying, marketdata.GetLatestTradeRequest{})
 	if err != nil {
 		log.Fatalf("getting latest trade for symbol %s: %v", underlying, err)
 	}
 	px := td.Price
 
 	// list contracts that are expiring at least a week from now and strike is GTE latest trade
-	now := time.Now()
-	dt := civil.DateOf(time.Date(now.Year(), now.Month(), now.Day()+oneWeek, 0, 0, 0, 0, time.UTC))
+	dt := civil.DateOf(time.Now()).AddDays(7)
 
 	// Select two contracts for the two legs of the spread:
 	// 1. long leg, strike A at latest trade
@@ -86,43 +81,40 @@ func main() {
 		long  alpaca.OptionContract
 		short alpaca.OptionContract
 	)
-	{
-		req := alpaca.GetOptionContractsRequest{
-			UnderlyingSymbols: underlying,
-			Status:            alpaca.OptionStatusActive,
-			ExpirationDateGTE: dt,
-			StrikePriceGTE:    decimal.NewFromFloat(px), // strike A
-			TotalLimit:        1,
-		}
-		contracts, err := svc.tdClient.GetOptionContracts(req)
-		if err != nil {
-			log.Fatalf("listing contracts: %v", err)
-		}
-		if len(contracts) < 1 {
-			log.Fatal("no contracts to choose from for the long leg")
-		}
-		long = contracts[0]
-		log.Printf("-> contract to be bought long: %s", long.Symbol)
+	req := alpaca.GetOptionContractsRequest{
+		UnderlyingSymbols: underlying,
+		Status:            alpaca.OptionStatusActive,
+		ExpirationDateGTE: dt,
+		StrikePriceGTE:    decimal.NewFromFloat(px), // strike A
+		TotalLimit:        1,
 	}
+	contracts, err := svc.tdClient.GetOptionContracts(req)
+	if err != nil {
+		log.Fatalf("listing contracts: %v", err)
+	}
+	if len(contracts) < 1 {
+		log.Fatal("no contracts to choose from for the long leg")
+	}
+	long = contracts[0]
+	log.Printf("-> contract to be bought long: %s", long.Symbol)
+
 	// 2. short leg, strike B at $10 above latest trade
-	{
-		req := alpaca.GetOptionContractsRequest{
-			UnderlyingSymbols: underlying,
-			Status:            alpaca.OptionStatusActive,
-			ExpirationDateGTE: dt,
-			StrikePriceGTE:    decimal.NewFromFloat(px + 10), // strike B
-			TotalLimit:        1,
-		}
-		contracts, err := svc.tdClient.GetOptionContracts(req)
-		if err != nil {
-			log.Fatalf("listing contracts: %v", err)
-		}
-		if len(contracts) < 1 {
-			log.Fatal("no contracts to choose from for the short leg")
-		}
-		short = contracts[0]
-		log.Printf("-> contract to be shorted: %s", short.Symbol)
+	req = alpaca.GetOptionContractsRequest{
+		UnderlyingSymbols: underlying,
+		Status:            alpaca.OptionStatusActive,
+		ExpirationDateGTE: dt,
+		TotalLimit:        1,
 	}
+	req.StrikePriceGTE = decimal.NewFromFloat(px + 10) // strike B
+	contracts, err = svc.tdClient.GetOptionContracts(req)
+	if err != nil {
+		log.Fatalf("listing contracts: %v", err)
+	}
+	if len(contracts) < 1 {
+		log.Fatal("no contracts to choose from for the short leg")
+	}
+	short = contracts[0]
+	log.Printf("-> contract to be shorted: %s", short.Symbol)
 
 	// Bullish Call Spread: You profit if the stock price is between the strike (A) and the
 	// higher strike (B). The maximum profit occurs when the stock is at or above strike B, but
@@ -149,13 +141,13 @@ func main() {
 		},
 	})
 	if err != nil {
-		panic(err)
+		log.Fatalf("failed to submit mleg order: %v", err)
 	}
 
 	log.Println("Strategy in place")
 	v, err := json.MarshalIndent(order, "", "\t")
 	if err != nil {
-		log.Fatal("failed to marshal order")
+		log.Fatalf("failed to marshal order: %v", err)
 	}
 	log.Println(string(v))
 }

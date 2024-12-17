@@ -537,7 +537,7 @@ func TestPlaceMLegOrder(t *testing.T) {
 	assert.Equal(t, req.OrderClass, order.OrderClass)
 
 	// verify legs
-	assert.Len(t, order.Legs, len(req.Legs))
+	require.Len(t, order.Legs, len(req.Legs))
 	for i := range req.Legs {
 		workingQty := req.Legs[i].RatioQty.Mul(*req.Qty).String()
 		assert.Equal(t, req.Legs[i].Symbol, order.Legs[i].Symbol)
