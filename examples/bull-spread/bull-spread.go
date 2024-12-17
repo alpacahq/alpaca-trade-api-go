@@ -121,7 +121,7 @@ func main() {
 			log.Fatal("no contracts to choose from for the short leg")
 		}
 		short = contracts[0]
-		log.Printf("-> contract to be shorted: %s", long.Symbol)
+		log.Printf("-> contract to be shorted: %s", short.Symbol)
 	}
 
 	// Bullish Call Spread: You profit if the stock price is between the strike (A) and the
