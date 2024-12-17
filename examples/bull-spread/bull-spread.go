@@ -16,6 +16,10 @@ import (
 
 var decimal10k = decimal.NewFromInt(10000)
 
+const (
+	oneWeek = 7
+)
+
 type Service struct {
 	tdClient *alpaca.Client
 	mdClient *marketdata.Client
@@ -74,7 +78,7 @@ func main() {
 
 	// list contracts that are expiring at least a week from now and strike is GTE latest trade
 	now := time.Now()
-	dt := civil.DateOf(time.Date(now.Year(), now.Month(), now.Day()+7, 0, 0, 0, 0, time.UTC))
+	dt := civil.DateOf(time.Date(now.Year(), now.Month(), now.Day()+oneWeek, 0, 0, 0, 0, time.UTC))
 
 	// Select two contracts for the two legs of the spread:
 	// 1. long leg, strike A at latest trade
