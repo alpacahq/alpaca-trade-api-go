@@ -54,18 +54,17 @@ func newMlegClientWrapper() (*mlegClientWrapper, error) {
 			decimal10k.String(), acct.BuyingPower.String())
 	}
 
-	service := mlegClientWrapper{tdClient: tdClient, mdClient: mdClient, acct: acct}
-	return &service, nil
+	return &mlegClientWrapper{tdClient: tdClient, mdClient: mdClient, acct: acct}, nil
 }
 
 func main() {
-	svc, err := newMlegClientWrapper()
+	mcw, err := newMlegClientWrapper()
 	if err != nil {
-		log.Fatalf("failed to intilize service: %v", err)
+		log.Fatalf("failed to initialize client wrapper: %v", err)
 	}
 
 	underlying := "INTC"
-	td, err := svc.mdClient.GetLatestTrade(underlying, marketdata.GetLatestTradeRequest{})
+	td, err := mcw.mdClient.GetLatestTrade(underlying, marketdata.GetLatestTradeRequest{})
 	if err != nil {
 		log.Fatalf("getting latest trade for symbol %s: %v", underlying, err)
 	}
@@ -87,7 +86,7 @@ func main() {
 		StrikePriceGTE:    decimal.NewFromFloat(px), // strike A
 		TotalLimit:        1,
 	}
-	contracts, err := svc.tdClient.GetOptionContracts(req)
+	contracts, err := mcw.tdClient.GetOptionContracts(req)
 	if err != nil {
 		log.Fatalf("listing contracts: %v", err)
 	}
@@ -99,7 +98,7 @@ func main() {
 
 	// 2. short leg, strike B at $10 above latest trade
 	req.StrikePriceGTE = decimal.NewFromFloat(px + 10) // strike B
-	contracts, err = svc.tdClient.GetOptionContracts(req)
+	contracts, err = mcw.tdClient.GetOptionContracts(req)
 	if err != nil {
 		log.Fatalf("listing contracts: %v", err)
 	}
@@ -113,7 +112,7 @@ func main() {
 	// higher strike (B). The maximum profit occurs when the stock is at or above strike B, but
 	// the profit is capped at the difference between the two strikes minus the premium paid (cost of the spread).
 	qty := decimal.NewFromInt(2) // instances of the strategy to be placed
-	order, err := svc.tdClient.PlaceOrder(alpaca.PlaceOrderRequest{
+	order, err := mcw.tdClient.PlaceOrder(alpaca.PlaceOrderRequest{
 		Qty:         &qty,
 		TimeInForce: alpaca.Day,
 		Type:        alpaca.Market,
