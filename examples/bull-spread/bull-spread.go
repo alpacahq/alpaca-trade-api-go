@@ -14,19 +14,17 @@ import (
 	"github.com/alpacahq/alpaca-trade-api-go/v3/marketdata"
 )
 
-var decimal10k = decimal.NewFromInt(10000)
-
-type Service struct {
+type mlegClientWrapper struct {
 	tdClient *alpaca.Client
 	mdClient *marketdata.Client
 	acct     *alpaca.Account
 }
 
-func NewService() (*Service, error) {
+func newMlegClientWrapper() (*mlegClientWrapper, error) {
 	// You can set your API key/secret here or you can use environment variables
 	apiKey := os.Getenv("APCA_API_KEY_ID")
 	apiSecret := os.Getenv("APCA_API_SECRET_KEY")
-	// NOTE: mleg complex option strategies are still in beta only availabe in Paper
+	// NOTE: mleg complex option strategies are still in beta only available in Paper
 	baseURL := "https://paper-api.alpaca.markets"
 
 	tdClient := alpaca.NewClient(alpaca.ClientOpts{
@@ -46,6 +44,7 @@ func NewService() (*Service, error) {
 	}
 
 	// Make sure we have enough green for some mleg fun
+	decimal10k := decimal.NewFromInt(10000)
 	acct, err := tdClient.GetAccount()
 	if err != nil {
 		return nil, err
@@ -55,12 +54,12 @@ func NewService() (*Service, error) {
 			decimal10k.String(), acct.BuyingPower.String())
 	}
 
-	service := Service{tdClient: tdClient, mdClient: mdClient, acct: acct}
+	service := mlegClientWrapper{tdClient: tdClient, mdClient: mdClient, acct: acct}
 	return &service, nil
 }
 
 func main() {
-	svc, err := NewService()
+	svc, err := newMlegClientWrapper()
 	if err != nil {
 		log.Fatalf("failed to intilize service: %v", err)
 	}
@@ -99,12 +98,6 @@ func main() {
 	log.Printf("-> contract to be bought long: %s", long.Symbol)
 
 	// 2. short leg, strike B at $10 above latest trade
-	req = alpaca.GetOptionContractsRequest{
-		UnderlyingSymbols: underlying,
-		Status:            alpaca.OptionStatusActive,
-		ExpirationDateGTE: dt,
-		TotalLimit:        1,
-	}
 	req.StrikePriceGTE = decimal.NewFromFloat(px + 10) // strike B
 	contracts, err = svc.tdClient.GetOptionContracts(req)
 	if err != nil {
