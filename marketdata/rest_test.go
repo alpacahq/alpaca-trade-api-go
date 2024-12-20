@@ -1409,7 +1409,7 @@ func TestLatestCryptoPerpBar(t *testing.T) {
 
 func TestLatestCryptoPerpTrade(t *testing.T) {
 	c := DefaultClient
-	c.do = mockResp(`{"trades": {"BTC-PERP": {"805227019,"p": 101761.4,"s": 0.0011,"t": "2024-12-19T09:33:36.311Z","tks": "B"}}}`)
+	c.do = mockResp(`{"trades": {"BTC-PERP": {"i": 1805227019,"p": 101761.4,"s": 0.0011,"t": "2024-12-19T09:33:36.311Z","tks": "B"}}}`)
 	got, err := c.GetLatestCryptoPerpTrade("BTC-PERP", GetLatestCryptoTradeRequest{})
 	require.NoError(t, err)
 	require.NotNil(t, got)
