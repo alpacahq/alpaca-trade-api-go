@@ -200,3 +200,14 @@ func (e errorMessage) Error() string {
 
 	return e.msg
 }
+
+type PerpPricingData struct {
+	Symbol          string
+	Timestamp       time.Time
+	Exchange        string
+	IndexPrice      float64
+	MarkPrice       float64
+	FundingRate     float64
+	OpenInterest    float64
+	NextFundingTime time.Time
+}

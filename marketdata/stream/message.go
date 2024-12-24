@@ -432,13 +432,14 @@ func (h *stocksMsgHandler) handleNews(d *msgpack.Decoder, n int) error {
 }
 
 type cryptoMsgHandler struct {
-	mu                sync.RWMutex
-	tradeHandler      func(trade CryptoTrade)
-	quoteHandler      func(quote CryptoQuote)
-	barHandler        func(bar CryptoBar)
-	updatedBarHandler func(bar CryptoBar)
-	dailyBarHandler   func(bar CryptoBar)
-	orderbookHandler  func(ob CryptoOrderbook)
+	mu                 sync.RWMutex
+	tradeHandler       func(trade CryptoTrade)
+	quoteHandler       func(quote CryptoQuote)
+	barHandler         func(bar CryptoBar)
+	updatedBarHandler  func(bar CryptoBar)
+	dailyBarHandler    func(bar CryptoBar)
+	orderbookHandler   func(ob CryptoOrderbook)
+	pricingDataHandler func(pd PerpPricingData)
 }
 
 var _ msgHandler = (*cryptoMsgHandler)(nil)
@@ -476,6 +477,24 @@ func (h *cryptoMsgHandler) handleTrade(d *msgpack.Decoder, n int) error {
 	tradeHandler := h.tradeHandler
 	h.mu.RUnlock()
 	tradeHandler(trade)
+	return nil
+}
+
+// TODO: Need to update
+func (h *cryptoMsgHandler) handlePricingData(d *msgpack.Decoder, n int) error {
+	pricing := PerpPricingData{}
+	for i := 0; i < n; i++ {
+		key, err := d.DecodeString()
+		if err != nil {
+			return err
+		}
+		switch key {
+		case "S":
+			pricing.Symbol, err = d.DecodeString()
+		case "x":
+			pricing.Exchange, err = d.DecodeString()
+		}
+	}
 	return nil
 }
 
