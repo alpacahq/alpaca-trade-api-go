@@ -154,11 +154,11 @@ func (cc *CryptoClient) SubscribeToOrderbooks(handler func(CryptoOrderbook), sym
 	return cc.client.handleSubChange(true, subscriptions{orderbooks: symbols})
 }
 
-func (cc *CryptoClient) SubscribeToPricingData(handler func(PerpPricingData), symbols ...string) error {
+func (cc *CryptoClient) SubscribeToFuturesPricing(handler func(FuturesPricing), symbols ...string) error {
 	cc.handler.mu.Lock()
-	cc.handler.pricingDataHandler = handler
+	cc.handler.futuresPricingHandler = handler
 	cc.handler.mu.Unlock()
-	return cc.client.handleSubChange(true, subscriptions{pricingData: symbols})
+	return cc.client.handleSubChange(true, subscriptions{futuresPricing: symbols})
 }
 
 func (cc *CryptoClient) UnsubscribeFromTrades(symbols ...string) error {
@@ -185,8 +185,8 @@ func (cc *CryptoClient) UnsubscribeFromOrderbooks(symbols ...string) error {
 	return cc.handleSubChange(false, subscriptions{orderbooks: symbols})
 }
 
-func (cc *CryptoClient) UnsubscribeFromPricingData(symbols ...string) error {
-	return cc.handleSubChange(false, subscriptions{pricingData: symbols})
+func (cc *CryptoClient) UnsubscribeFromFuturesPricing(symbols ...string) error {
+	return cc.handleSubChange(false, subscriptions{futuresPricing: symbols})
 }
 
 func (cc *OptionClient) SubscribeToTrades(handler func(OptionTrade), symbols ...string) error {
@@ -223,24 +223,24 @@ func (nc *NewsClient) UnsubscribeFromNews(symbols ...string) error {
 }
 
 type subscriptions struct {
-	trades       []string
-	quotes       []string
-	bars         []string
-	updatedBars  []string
-	dailyBars    []string
-	statuses     []string
-	lulds        []string
-	cancelErrors []string // Subscribed automatically.
-	corrections  []string // Subscribed automatically.
-	orderbooks   []string
-	news         []string
-	pricingData  []string
+	trades         []string
+	quotes         []string
+	bars           []string
+	updatedBars    []string
+	dailyBars      []string
+	statuses       []string
+	lulds          []string
+	cancelErrors   []string // Subscribed automatically.
+	corrections    []string // Subscribed automatically.
+	orderbooks     []string
+	news           []string
+	futuresPricing []string
 }
 
 func (s subscriptions) noSubscribeCallNecessary() bool {
 	return len(s.trades) == 0 && len(s.quotes) == 0 && len(s.bars) == 0 && len(s.updatedBars) == 0 &&
 		len(s.dailyBars) == 0 && len(s.statuses) == 0 && len(s.lulds) == 0 &&
-		len(s.orderbooks) == 0 && len(s.news) == 0
+		len(s.orderbooks) == 0 && len(s.news) == 0 && len(s.futuresPricing) == 0
 }
 
 var timeAfter = time.After
@@ -316,7 +316,7 @@ func getSubChangeMessage(subscribe bool, changes subscriptions) ([]byte, error) 
 		"lulds":       changes.lulds,
 		"orderbooks":  changes.orderbooks,
 		"news":        changes.news,
-		"pricing":     changes.pricingData,
+		"pricing":     changes.futuresPricing,
 		// No need to subscribe to cancel errors or corrections explicitly.
 	})
 }
