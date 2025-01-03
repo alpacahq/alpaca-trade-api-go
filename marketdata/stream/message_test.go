@@ -548,6 +548,7 @@ func TestHandleMessagesStocks(t *testing.T) {
 	assert.EqualValues(t, testTrade.Price, trade.Price)
 	assert.EqualValues(t, testTrade.Size, trade.Size)
 	assert.True(t, trade.Timestamp.Equal(testTime))
+	assert.True(t, trade.Internal().ReceivedAt.Equal(testTime2))
 	assert.EqualValues(t, testTrade.Conditions, trade.Conditions)
 	assert.EqualValues(t, testTrade.Tape, trade.Tape)
 
@@ -558,6 +559,7 @@ func TestHandleMessagesStocks(t *testing.T) {
 	assert.Equal(t, testTradingStatus.ReasonCode, tradingStatus.ReasonCode)
 	assert.Equal(t, testTradingStatus.ReasonMsg, tradingStatus.ReasonMsg)
 	assert.True(t, testTradingStatus.Timestamp.Equal(tradingStatus.Timestamp))
+	assert.True(t, quote.Internal().ReceivedAt.Equal(testTime2))
 	assert.Equal(t, testTradingStatus.Tape, tradingStatus.Tape)
 
 	// Verify stock luld.
