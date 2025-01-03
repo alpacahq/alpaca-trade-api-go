@@ -170,7 +170,7 @@ linters-settings:
   nolintlint:
     # Exclude following linters from requiring an explanation.
     # Default: []
-    allow-no-explanation: [ funlen, gocognit, lll ]
+    allow-no-explanation: [funlen, gocognit, lll]
     # Enable to require an explanation of nonzero length after each nolint directive.
     # Default: false
     require-explanation: true
@@ -339,7 +339,6 @@ linters:
     #- thelper # detects golang test helpers without t.Helper() call and checks the consistency of test helpers
     #- wsl # [too strict and mostly code is not more readable] whitespace linter forces you to use empty lines
 
-
 issues:
   # Maximum count of issues with the same text.
   # Set to 0 to disable.
@@ -351,9 +350,9 @@ issues:
 
   exclude-rules:
     - source: "(noinspection|TODO)"
-      linters: [ godot ]
+      linters: [godot]
     - source: "//noinspection"
-      linters: [ gocritic ]
+      linters: [gocritic]
     - path: "_test\\.go"
       linters:
         - bodyclose
@@ -364,4 +363,4 @@ issues:
         - noctx
         - wrapcheck
     - text: 'shadow: declaration of "(err|ctx)" shadows declaration at'
-      linters: [ govet ]
+      linters: [govet]

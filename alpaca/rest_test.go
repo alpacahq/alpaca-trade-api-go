@@ -444,6 +444,109 @@ func TestPlaceOrder(t *testing.T) {
 	require.Error(t, err)
 }
 
+func deciP(s string) *decimal.Decimal {
+	d := decimal.RequireFromString(s)
+	return &d
+}
+
+func TestPlaceMLegOrder(t *testing.T) {
+	c := DefaultClient
+	// mock response
+	c.do = func(_ *Client, req *http.Request) (*http.Response, error) {
+		por := PlaceOrderRequest{}
+		if err := json.NewDecoder(req.Body).Decode(&por); err != nil {
+			return nil, err
+		}
+		return &http.Response{
+			Body: genBody(Order{
+				Qty:         por.Qty,
+				TimeInForce: por.TimeInForce,
+				Type:        por.Type,
+				OrderClass:  por.OrderClass,
+				Legs: []Order{
+					{
+						Symbol:         por.Legs[0].Symbol,
+						Side:           por.Legs[0].Side,
+						PositionIntent: por.Legs[0].PositionIntent,
+						Qty:            deciP("5"), // 5*1
+					},
+					{
+						Symbol:         por.Legs[1].Symbol,
+						Side:           por.Legs[1].Side,
+						PositionIntent: por.Legs[1].PositionIntent,
+						Qty:            deciP("10"), // 5*2
+					},
+					{
+						Symbol:         por.Legs[2].Symbol,
+						Side:           por.Legs[2].Side,
+						PositionIntent: por.Legs[2].PositionIntent,
+						Qty:            deciP("5"), // 5*1
+					},
+					{
+						Symbol:         por.Legs[3].Symbol,
+						Side:           por.Legs[3].Side,
+						PositionIntent: por.Legs[3].PositionIntent,
+						Qty:            deciP("10"), // 5*2
+					},
+				},
+			}),
+		}, nil
+	}
+
+	// simulate an iron condor
+	qty := decimal.NewFromInt(5)
+	req := PlaceOrderRequest{
+		Qty:         &qty,
+		TimeInForce: Day,
+		Type:        Market,
+		OrderClass:  MLeg,
+		Legs: []Leg{
+			{
+				Symbol:         "AAPL241220P00245000", // strike A
+				Side:           Buy,
+				PositionIntent: BuyToOpen,
+				RatioQty:       decimal.NewFromInt(1),
+			},
+			{
+				Symbol:         "AAPL241220P00250000", // strike B
+				Side:           Sell,
+				PositionIntent: SellToOpen,
+				RatioQty:       decimal.NewFromInt(2),
+			},
+			{
+				Symbol:         "AAPL241220C00255000", // strike C
+				Side:           Buy,
+				PositionIntent: BuyToOpen,
+				RatioQty:       decimal.NewFromInt(1),
+			},
+			{
+				Symbol:         "AAPL241220C00260000", // strike D
+				Side:           Sell,
+				PositionIntent: SellToOpen,
+				RatioQty:       decimal.NewFromInt(2),
+			},
+		},
+	}
+
+	order, err := c.PlaceOrder(req)
+	require.NoError(t, err)
+	assert.NotNil(t, order)
+	assert.Equal(t, req.Qty, order.Qty)
+	assert.Equal(t, req.TimeInForce, order.TimeInForce)
+	assert.Equal(t, req.Type, order.Type)
+	assert.Equal(t, req.OrderClass, order.OrderClass)
+
+	// verify legs
+	require.Len(t, order.Legs, len(req.Legs))
+	for i := range req.Legs {
+		workingQty := req.Legs[i].RatioQty.Mul(*req.Qty).String()
+		assert.Equal(t, req.Legs[i].Symbol, order.Legs[i].Symbol)
+		assert.Equal(t, req.Legs[i].Side, order.Legs[i].Side)
+		assert.Equal(t, req.Legs[i].PositionIntent, order.Legs[i].PositionIntent)
+		assert.Equal(t, workingQty, order.Legs[i].Qty.String())
+	}
+}
+
 func TestGetOrder(t *testing.T) {
 	c := DefaultClient
 	// successful
@@ -941,7 +1044,7 @@ func TestGetOptionContracts(t *testing.T) {
 		UnderlyingSymbols:     "some_symbol",
 		ShowDeliverable:       true,
 		Status:                OptionStatusActive,
-		ExpirationDate:        civil.Date{Year: 2000, Month: 01, Day: 01},
+		ExpirationDate:        civil.Date{Year: 2000, Month: 1, Day: 1},
 		RootSymbol:            "some_symbol",
 		Type:                  OptionTypeCall,
 		Style:                 OptionStyleEuropean,
