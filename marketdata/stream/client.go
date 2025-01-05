@@ -201,6 +201,7 @@ func (cc *CryptoClient) configure(o cryptoOptions) {
 	cc.handler.updatedBarHandler = o.updatedBarHandler
 	cc.handler.dailyBarHandler = o.dailyBarHandler
 	cc.handler.orderbookHandler = o.orderbookHandler
+	cc.handler.futuresPricingHandler = o.pricingHandler
 }
 
 // Connect establishes a connection and **reestablishes it when errors occur**
@@ -219,20 +220,6 @@ func (cc *CryptoClient) Connect(ctx context.Context) error {
 
 func (cc *CryptoClient) constructURL() (url.URL, error) {
 	return constructURL(cc.baseURL, cc.feed)
-}
-
-// This will create a crytpo perpetual futures subscriptions to the Alpaca market data services
-type CryptoPerpClient struct {
-	CryptoClient
-}
-
-// NewCryptoPerpClient returns a new CryptoPerpClient that will connect to the crypto perpetual futures feed
-// Currently only the marketdata.GLOBAL is supported.
-// Base URL will be modified to reflect the perpetual endpoint with respect to the crypto endpoint
-func NewCryptoPerpClient(feed marketdata.CryptoFeed, opts ...CryptoOption) *CryptoPerpClient {
-	cc := CryptoPerpClient{}
-	cc.init(feed, opts...)
-	return &cc
 }
 
 // OptionClient is a client that connects to an Alpaca stream server

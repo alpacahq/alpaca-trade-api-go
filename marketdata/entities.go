@@ -212,7 +212,15 @@ type CryptoSnapshot struct {
 type CryptoPerpTrade CryptoTrade
 type CryptoPerpQuote CryptoQuote
 type CryptoPerpBar CryptoBar
-type CryptoPerpSnapshot CryptoSnapshot
+
+type CryptoPerpPricing struct {
+	IndexPrice      float64   `json:"ip"`
+	MarkPrice       float64   `json:"mp"`
+	FundingRate     float64   `json:"fr"`
+	OpenInterest    float64   `json:"oi"`
+	Timestamp       time.Time `json:"t" `
+	NextFundingTime time.Time `json:"ft"`
+}
 
 // CryptoSnapshots is the snapshots for multiple crypto symbols
 type CryptoSnapshots struct {
@@ -482,6 +490,10 @@ type latestCryptoBarsResponse struct {
 
 type latestCryptoTradesResponse struct {
 	Trades map[string]CryptoTrade `json:"trades"`
+}
+
+type latestCryptoPerpPricingResponse struct {
+	Pricing map[string]CryptoPerpPricing `json:"futuresPricing"`
 }
 
 type latestCryptoQuotesResponse struct {

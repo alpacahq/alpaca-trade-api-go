@@ -1254,6 +1254,56 @@ func (c *Client) GetLatestCryptoQuotes(
 	return latestQuotesResp.Quotes, nil
 }
 
+type GetLatestCryptoPerpPricingRequest struct {
+	CryptoFeed CryptoFeed
+	// This flag is used internally to access perpetual futures endpoints
+	perpetualFutures bool
+}
+
+func (r GetLatestCryptoPerpPricingRequest) cryptoFeed() CryptoFeed { return r.CryptoFeed }
+func (r GetLatestCryptoPerpPricingRequest) isPerp() bool           { return r.perpetualFutures }
+
+func (c *Client) GetLatestCryptoPerpPricing(
+	symbol string, req GetLatestCryptoPerpPricingRequest,
+) (*CryptoPerpPricing, error) {
+	req.perpetualFutures = true
+
+	resp, err := c.GetLatestCryptoPerpPricingData([]string{symbol}, req)
+	if err != nil {
+		return nil, err
+	}
+	pricing, ok := resp[symbol]
+	if !ok {
+		return nil, nil
+	}
+	return &pricing, nil
+}
+
+// GetLatestCryptoPerpPricingData returns the latest pricing data for the given perp symbols
+func (c *Client) GetLatestCryptoPerpPricingData(
+	symbols []string, req GetLatestCryptoPerpPricingRequest,
+) (map[string]CryptoPerpPricing, error) {
+	u, err := url.Parse(fmt.Sprintf("%s/latest/futures-pricing", c.cryptoURL(req)))
+	if err != nil {
+		return nil, err
+	}
+	c.setLatestCryptoQueryRequest(u, cryptoBaseLatestRequest{
+		Symbols: symbols,
+	})
+
+	resp, err := c.get(u)
+	if err != nil {
+		return nil, err
+	}
+	defer closeResp(resp)
+
+	var latestPricingResp latestCryptoPerpPricingResponse
+	if err = unmarshal(resp, &latestPricingResp); err != nil {
+		return nil, err
+	}
+	return latestPricingResp.Pricing, nil
+}
+
 type GetCryptoSnapshotRequest struct {
 	CryptoFeed CryptoFeed
 	// This flag is used internally to access perpetual futures endpoints
@@ -1666,6 +1716,11 @@ func GetCryptoSnapshots(symbols []string, req GetCryptoSnapshotRequest) (map[str
 // GetLatestCryptoPerpTrade returns the latest trade for a given crypto perp symbol
 func GetLatestCryptoPerpTrade(symbol string, req GetLatestCryptoTradeRequest) (*CryptoPerpTrade, error) {
 	return DefaultClient.GetLatestCryptoPerpTrade(symbol, req)
+}
+
+// GetLatestCryptoPerpPricing returns the latest perp pricing for a given crypto perp symbol
+func GetLatestCryptoPerpPricing(symbol string, req GetLatestCryptoPerpPricingRequest) (*CryptoPerpPricing, error) {
+	return DefaultClient.GetLatestCryptoPerpPricing(symbol, req)
 }
 
 // GetLatestCryptoPerpTrades returns the latest trades for the given crypto perpetual futures

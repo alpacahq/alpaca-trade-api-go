@@ -142,6 +142,15 @@ func cryptoPerpTrade() {
 	fmt.Println()
 }
 
+func cryptoPerpPricing() {
+	pricing, err := marketdata.GetLatestCryptoPerpPricing("BTC-PERP", marketdata.GetLatestCryptoPerpPricingRequest{})
+	if err != nil {
+		panic(err)
+	}
+	fmt.Printf("Latest crypto perp pricing: %+v\n\n", pricing)
+	fmt.Println()
+}
+
 func cryptoPerpBar() {
 	trade, err := marketdata.GetLatestCryptoPerpBar("BTC-PERP", marketdata.GetLatestCryptoBarRequest{})
 	if err != nil {
@@ -239,6 +248,7 @@ func main() {
 		{Name: "crypto_perp_quote", Func: cryptoPerpQuote},
 		{Name: "crypto_perp_trade", Func: cryptoPerpTrade},
 		{Name: "crypto_perp_bar", Func: cryptoPerpBar},
+		{Name: "crypto_perp_pricing", Func: cryptoPerpPricing},
 		{Name: "option_chain", Func: optionChain},
 		{Name: "corporate_actions", Func: corporateActions},
 	}
