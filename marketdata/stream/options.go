@@ -326,7 +326,7 @@ type cryptoOptions struct {
 	updatedBarHandler func(CryptoBar)
 	dailyBarHandler   func(CryptoBar)
 	orderbookHandler  func(CryptoOrderbook)
-	pricingHandler    func(FuturesPricing)
+	pricingHandler    func(CryptoFuturesPricing)
 }
 
 // defaultCryptoOptions are the default options for a client.
@@ -364,7 +364,7 @@ func defaultCryptoOptions() *cryptoOptions {
 		updatedBarHandler: func(_ CryptoBar) {},
 		dailyBarHandler:   func(_ CryptoBar) {},
 		orderbookHandler:  func(_ CryptoOrderbook) {},
-		pricingHandler:    func(_ FuturesPricing) {},
+		pricingHandler:    func(_ CryptoFuturesPricing) {},
 	}
 }
 
@@ -397,7 +397,7 @@ func WithCryptoTrades(handler func(CryptoTrade), symbols ...string) CryptoOption
 }
 
 // WithFuturesPricing configures initial pricing symbols to subscribe to and the handler
-func WithFuturesPricing(handler func(FuturesPricing), symbols ...string) CryptoOption {
+func WithFuturesPricing(handler func(CryptoFuturesPricing), symbols ...string) CryptoOption {
 	return newFuncCryptoOption(func(o *cryptoOptions) {
 		o.sub.futuresPricing = symbols
 		o.pricingHandler = handler

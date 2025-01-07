@@ -441,13 +441,13 @@ func (h *stocksMsgHandler) handleFuturesPricing(d *msgpack.Decoder, n int) error
 
 type cryptoMsgHandler struct {
 	mu                    sync.RWMutex
-	tradeHandler          func(trade CryptoTrade)
-	quoteHandler          func(quote CryptoQuote)
-	barHandler            func(bar CryptoBar)
-	updatedBarHandler     func(bar CryptoBar)
-	dailyBarHandler       func(bar CryptoBar)
-	orderbookHandler      func(ob CryptoOrderbook)
-	futuresPricingHandler func(pd FuturesPricing)
+	tradeHandler          func(CryptoTrade)
+	quoteHandler          func(CryptoQuote)
+	barHandler            func(CryptoBar)
+	updatedBarHandler     func(CryptoBar)
+	dailyBarHandler       func(CryptoBar)
+	orderbookHandler      func(CryptoOrderbook)
+	futuresPricingHandler func(CryptoFuturesPricing)
 }
 
 var _ msgHandler = (*cryptoMsgHandler)(nil)
@@ -489,7 +489,7 @@ func (h *cryptoMsgHandler) handleTrade(d *msgpack.Decoder, n int) error {
 }
 
 func (h *cryptoMsgHandler) handleFuturesPricing(d *msgpack.Decoder, n int) error {
-	pricing := FuturesPricing{}
+	pricing := CryptoFuturesPricing{}
 	for i := 0; i < n; i++ {
 		key, err := d.DecodeString()
 		if err != nil {

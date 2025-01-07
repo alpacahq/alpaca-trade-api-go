@@ -154,7 +154,7 @@ func (cc *CryptoClient) SubscribeToOrderbooks(handler func(CryptoOrderbook), sym
 	return cc.client.handleSubChange(true, subscriptions{orderbooks: symbols})
 }
 
-func (cc *CryptoClient) SubscribeToFuturesPricing(handler func(FuturesPricing), symbols ...string) error {
+func (cc *CryptoClient) SubscribeToFuturesPricing(handler func(pricing CryptoFuturesPricing), symbols ...string) error {
 	cc.handler.mu.Lock()
 	cc.handler.futuresPricingHandler = handler
 	cc.handler.mu.Unlock()
