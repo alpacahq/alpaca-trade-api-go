@@ -196,7 +196,7 @@ func (e errorMessage) Error() string {
 	return e.msg
 }
 
-type CryptoFuturesPricing struct {
+type CryptoPerpPricing struct {
 	Symbol          string
 	Timestamp       time.Time
 	Exchange        string

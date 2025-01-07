@@ -447,7 +447,7 @@ type cryptoMsgHandler struct {
 	updatedBarHandler     func(CryptoBar)
 	dailyBarHandler       func(CryptoBar)
 	orderbookHandler      func(CryptoOrderbook)
-	futuresPricingHandler func(CryptoFuturesPricing)
+	futuresPricingHandler func(CryptoPerpPricing)
 }
 
 var _ msgHandler = (*cryptoMsgHandler)(nil)
@@ -489,7 +489,7 @@ func (h *cryptoMsgHandler) handleTrade(d *msgpack.Decoder, n int) error {
 }
 
 func (h *cryptoMsgHandler) handleFuturesPricing(d *msgpack.Decoder, n int) error {
-	pricing := CryptoFuturesPricing{}
+	pricing := CryptoPerpPricing{}
 	for i := 0; i < n; i++ {
 		key, err := d.DecodeString()
 		if err != nil {
