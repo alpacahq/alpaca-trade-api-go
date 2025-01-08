@@ -111,12 +111,6 @@ func (sc *StocksClient) UnsubscribeFromLULDs(symbols ...string) error {
 	return sc.handleSubChange(false, subscriptions{lulds: symbols})
 }
 
-func (sc *StocksClient) UnregisterImbalances() {
-	sc.handler.mu.Lock()
-	sc.handler.imbalanceHandler = func(Imbalance) {}
-	sc.handler.mu.Unlock()
-}
-
 func (sc *StocksClient) UnregisterCancelErrors() {
 	sc.handler.mu.Lock()
 	sc.handler.cancelErrorHandler = func(TradeCancelError) {}
