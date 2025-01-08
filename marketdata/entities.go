@@ -493,7 +493,7 @@ type latestCryptoTradesResponse struct {
 }
 
 type latestCryptoPerpPricingResponse struct {
-	Pricing map[string]CryptoPerpPricing `json:"futuresPricing"`
+	Pricing map[string]CryptoPerpPricing `json:"pricing"`
 }
 
 type latestCryptoQuotesResponse struct {

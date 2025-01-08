@@ -399,7 +399,7 @@ func WithCryptoTrades(handler func(CryptoTrade), symbols ...string) CryptoOption
 // WithCryptoPerpPricing configures initial pricing symbols to subscribe to and the handler
 func WithCryptoPerpPricing(handler func(CryptoPerpPricing), symbols ...string) CryptoOption {
 	return newFuncCryptoOption(func(o *cryptoOptions) {
-		o.sub.futuresPricing = symbols
+		o.sub.pricing = symbols
 		o.pricingHandler = handler
 	})
 }

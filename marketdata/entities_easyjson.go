@@ -1803,7 +1803,7 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata15(in *j
 			continue
 		}
 		switch key {
-		case "futuresPricing":
+		case "pricing":
 			if in.IsNull() {
 				in.Skip()
 			} else {
@@ -1834,7 +1834,7 @@ func easyjson3e8ab7adEncodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata15(out *
 	first := true
 	_ = first
 	{
-		const prefix string = ",\"futuresPricing\":"
+		const prefix string = ",\"pricing\":"
 		out.RawString(prefix[1:])
 		if in.Pricing == nil && (out.Flags&jwriter.NilMapAsEmpty) == 0 {
 			out.RawString(`null`)

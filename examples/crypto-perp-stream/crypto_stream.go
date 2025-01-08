@@ -37,7 +37,7 @@ func main() {
 			fmt.Printf("DAILY BAR: %+v\n", cb)
 		}, "BTC-PERP"),
 		stream.WithCryptoPerpPricing(func(fp stream.CryptoPerpPricing) {
-			fmt.Printf("FUTURES PRICING: %+v\n", fp)
+			fmt.Printf("PRICING: %+v\n", fp)
 		}, "BTC-PERP"),
 	)
 

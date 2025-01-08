@@ -1782,13 +1782,13 @@ func TestCoreFunctionalityCryptoPerp(t *testing.T) {
 	connection := newMockConn()
 	defer connection.close()
 	writeInitialFlowMessagesToConn(t, connection, subscriptions{
-		trades:         []string{"BTC-PERP"},
-		quotes:         []string{"BTC-PERP"},
-		bars:           []string{"BTC-PERP"},
-		updatedBars:    []string{"BTC-PERP"},
-		dailyBars:      []string{"BTC-PERP"},
-		orderbooks:     []string{"BTC-PERP"},
-		futuresPricing: []string{"BTC-PERP"},
+		trades:      []string{"BTC-PERP"},
+		quotes:      []string{"BTC-PERP"},
+		bars:        []string{"BTC-PERP"},
+		updatedBars: []string{"BTC-PERP"},
+		dailyBars:   []string{"BTC-PERP"},
+		orderbooks:  []string{"BTC-PERP"},
+		pricing:     []string{"BTC-PERP"},
 	})
 
 	trades := make(chan CryptoTrade, 10)
