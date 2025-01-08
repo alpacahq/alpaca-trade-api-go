@@ -435,6 +435,18 @@ var testCryptoOrderbook = cryptoOrderbookWithT{
 	},
 }
 
+type cryptoPerpPricingWithT struct {
+	Type            string    `msgpack:"T"`
+	Symbol          string    `msgpack:"S"`
+	Timestamp       time.Time `msgpack:"t"`
+	Exchange        string    `msgpack:"x"`
+	IndexPrice      float64   `msgpack:"ip"`
+	MarkPrice       float64   `msgpack:"mp"`
+	FundingRate     float64   `msgpack:"fr"`
+	OpenInterest    float64   `msgpack:"oi"`
+	NextFundingTime time.Time `msgpack:"ft"`
+}
+
 var testOther = other{
 	Type:     "other",
 	Whatever: "whatever",

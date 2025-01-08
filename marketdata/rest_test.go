@@ -1468,3 +1468,19 @@ func TestLatestCryptoPerpQuotes(t *testing.T) {
 	}, got["ETH-PERP"])
 	assert.Equal(t, 1.9428, got["BTC-PERP"].BidSize)
 }
+
+func TestGetLatestCryptoPerpPricing(t *testing.T) {
+	c := DefaultClient
+	c.do = mockResp(`{"futuresPricing": {"BTC-PERP": {"t": "2024-12-19T09:33:36.311Z", "ft": "2024-12-19T10:33:36.311Z", "oi": 90.7367, "ip": 50702.8, "mp": 50652.3553, "fr": 0.000565699}}}`)
+	got, err := c.GetLatestCryptoPerpPricing("BTC-PERP", GetLatestCryptoPerpPricingRequest{})
+	require.NoError(t, err)
+	require.NotNil(t, got)
+	assert.Equal(t, CryptoPerpPricing{
+		IndexPrice:      50702.8,
+		MarkPrice:       50652.3553,
+		OpenInterest:    90.7367,
+		FundingRate:     0.000565699,
+		Timestamp:       time.Date(2024, 12, 19, 9, 33, 36, 311000000, time.UTC),
+		NextFundingTime: time.Date(2024, 12, 19, 10, 33, 36, 311000000, time.UTC),
+	}, *got)
+}
