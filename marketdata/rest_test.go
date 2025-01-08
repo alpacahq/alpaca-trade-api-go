@@ -1471,7 +1471,7 @@ func TestLatestCryptoPerpQuotes(t *testing.T) {
 
 func TestGetLatestCryptoPerpPricing(t *testing.T) {
 	c := DefaultClient
-	c.do = mockResp(`{"futuresPricing": {"BTC-PERP": {"t": "2024-12-19T09:33:36.311Z", "ft": "2024-12-19T10:33:36.311Z", "oi": 90.7367, "ip": 50702.8, "mp": 50652.3553, "fr": 0.000565699}}}`)
+	c.do = mockResp(`{"pricing": {"BTC-PERP": {"t": "2024-12-19T09:33:36.311Z", "ft": "2024-12-19T10:33:36.311Z", "oi": 90.7367, "ip": 50702.8, "mp": 50652.3553, "fr": 0.000565699}}}`)
 	got, err := c.GetLatestCryptoPerpPricing("BTC-PERP", GetLatestCryptoPerpPricingRequest{})
 	require.NoError(t, err)
 	require.NotNil(t, got)
