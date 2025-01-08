@@ -1283,7 +1283,7 @@ func (c *Client) GetLatestCryptoPerpPricing(
 func (c *Client) GetLatestCryptoPerpPricingData(
 	symbols []string, req GetLatestCryptoPerpPricingRequest,
 ) (map[string]CryptoPerpPricing, error) {
-	u, err := url.Parse(fmt.Sprintf("%s/latest/futures-pricing", c.cryptoURL(req)))
+	u, err := url.Parse(fmt.Sprintf("%s/latest/pricing", c.cryptoURL(req)))
 	if err != nil {
 		return nil, err
 	}
