@@ -154,6 +154,13 @@ func (cc *CryptoClient) SubscribeToOrderbooks(handler func(CryptoOrderbook), sym
 	return cc.client.handleSubChange(true, subscriptions{orderbooks: symbols})
 }
 
+func (cc *CryptoClient) SubscribeToPerpPricing(handler func(pricing CryptoPerpPricing), symbols ...string) error {
+	cc.handler.mu.Lock()
+	cc.handler.futuresPricingHandler = handler
+	cc.handler.mu.Unlock()
+	return cc.client.handleSubChange(true, subscriptions{pricing: symbols})
+}
+
 func (cc *CryptoClient) UnsubscribeFromTrades(symbols ...string) error {
 	return cc.handleSubChange(false, subscriptions{trades: symbols})
 }
@@ -176,6 +183,10 @@ func (cc *CryptoClient) UnsubscribeFromDailyBars(symbols ...string) error {
 
 func (cc *CryptoClient) UnsubscribeFromOrderbooks(symbols ...string) error {
 	return cc.handleSubChange(false, subscriptions{orderbooks: symbols})
+}
+
+func (cc *CryptoClient) UnsubscribeFromPerpPricing(symbols ...string) error {
+	return cc.handleSubChange(false, subscriptions{pricing: symbols})
 }
 
 func (cc *OptionClient) SubscribeToTrades(handler func(OptionTrade), symbols ...string) error {
@@ -223,12 +234,13 @@ type subscriptions struct {
 	corrections  []string // Subscribed automatically.
 	orderbooks   []string
 	news         []string
+	pricing      []string
 }
 
 func (s subscriptions) noSubscribeCallNecessary() bool {
 	return len(s.trades) == 0 && len(s.quotes) == 0 && len(s.bars) == 0 && len(s.updatedBars) == 0 &&
 		len(s.dailyBars) == 0 && len(s.statuses) == 0 && len(s.lulds) == 0 &&
-		len(s.orderbooks) == 0 && len(s.news) == 0
+		len(s.orderbooks) == 0 && len(s.news) == 0 && len(s.pricing) == 0
 }
 
 var timeAfter = time.After
@@ -304,6 +316,7 @@ func getSubChangeMessage(subscribe bool, changes subscriptions) ([]byte, error) 
 		"lulds":       changes.lulds,
 		"orderbooks":  changes.orderbooks,
 		"news":        changes.news,
+		"pricing":     changes.pricing,
 		// No need to subscribe to cancel errors or corrections explicitly.
 	})
 }

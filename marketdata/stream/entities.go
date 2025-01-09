@@ -166,13 +166,6 @@ type CryptoOrderbookEntry struct {
 	Size  float64
 }
 
-type (
-	CryptoPerpTrade     CryptoTrade
-	CryptoPerpQuote     CryptoQuote
-	CryptoPerpBar       CryptoBar
-	CryptoPerpOrderbook CryptoOrderbook
-)
-
 // OptionTrade is an option trade that happened on the market
 type OptionTrade struct {
 	Symbol    string
@@ -225,4 +218,15 @@ func (e errorMessage) Error() string {
 	}
 
 	return e.msg
+}
+
+type CryptoPerpPricing struct {
+	Symbol          string
+	Timestamp       time.Time
+	Exchange        string
+	IndexPrice      float64
+	MarkPrice       float64
+	FundingRate     float64
+	OpenInterest    float64
+	NextFundingTime time.Time
 }

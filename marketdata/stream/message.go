@@ -20,6 +20,7 @@ type msgHandler interface {
 	handleCorrection(d *msgpack.Decoder, n int) error
 	handleOrderbook(d *msgpack.Decoder, n int) error
 	handleNews(d *msgpack.Decoder, n int) error
+	handleFuturesPricing(d *msgpack.Decoder, n int) error
 }
 
 func (c *client) handleMessage(b []byte) error {
@@ -91,6 +92,8 @@ func (c *client) handleMessageType(msgType string, d *msgpack.Decoder, n int) er
 		return c.handler.handleOrderbook(d, n)
 	case "n":
 		return c.handler.handleNews(d, n)
+	case "p":
+		return c.handler.handleFuturesPricing(d, n)
 	case "subscription":
 		return c.handleSubscriptionMessage(d, n)
 	case msgTypeError:
@@ -435,14 +438,20 @@ func (h *stocksMsgHandler) handleNews(d *msgpack.Decoder, n int) error {
 	return discardMapContents(d, n)
 }
 
+func (h *stocksMsgHandler) handleFuturesPricing(d *msgpack.Decoder, n int) error {
+	// should not happen!
+	return discardMapContents(d, n)
+}
+
 type cryptoMsgHandler struct {
-	mu                sync.RWMutex
-	tradeHandler      func(trade CryptoTrade)
-	quoteHandler      func(quote CryptoQuote)
-	barHandler        func(bar CryptoBar)
-	updatedBarHandler func(bar CryptoBar)
-	dailyBarHandler   func(bar CryptoBar)
-	orderbookHandler  func(ob CryptoOrderbook)
+	mu                    sync.RWMutex
+	tradeHandler          func(CryptoTrade)
+	quoteHandler          func(CryptoQuote)
+	barHandler            func(CryptoBar)
+	updatedBarHandler     func(CryptoBar)
+	dailyBarHandler       func(CryptoBar)
+	orderbookHandler      func(CryptoOrderbook)
+	futuresPricingHandler func(CryptoPerpPricing)
 }
 
 var _ msgHandler = (*cryptoMsgHandler)(nil)
@@ -480,6 +489,44 @@ func (h *cryptoMsgHandler) handleTrade(d *msgpack.Decoder, n int) error {
 	tradeHandler := h.tradeHandler
 	h.mu.RUnlock()
 	tradeHandler(trade)
+	return nil
+}
+
+func (h *cryptoMsgHandler) handleFuturesPricing(d *msgpack.Decoder, n int) error {
+	pricing := CryptoPerpPricing{}
+	for i := 0; i < n; i++ {
+		key, err := d.DecodeString()
+		if err != nil {
+			return err
+		}
+		switch key {
+		case "S":
+			pricing.Symbol, err = d.DecodeString()
+		case "x":
+			pricing.Exchange, err = d.DecodeString()
+		case "ip":
+			pricing.IndexPrice, err = d.DecodeFloat64()
+		case "mp":
+			pricing.MarkPrice, err = d.DecodeFloat64()
+		case "fr":
+			pricing.FundingRate, err = d.DecodeFloat64()
+		case "oi":
+			pricing.OpenInterest, err = d.DecodeFloat64()
+		case "t":
+			pricing.Timestamp, err = d.DecodeTime()
+		case "ft":
+			pricing.NextFundingTime, err = d.DecodeTime()
+		default:
+			err = d.Skip()
+		}
+		if err != nil {
+			return err
+		}
+	}
+	h.mu.RLock()
+	pricingHandler := h.futuresPricingHandler
+	h.mu.RUnlock()
+	pricingHandler(pricing)
 	return nil
 }
 
@@ -779,6 +826,11 @@ func (h *optionsMsgHandler) handleNews(d *msgpack.Decoder, n int) error {
 	return discardMapContents(d, n)
 }
 
+func (h *optionsMsgHandler) handleFuturesPricing(d *msgpack.Decoder, n int) error {
+	// should not happen!
+	return discardMapContents(d, n)
+}
+
 type newsMsgHandler struct {
 	mu          sync.RWMutex
 	newsHandler func(news News)
@@ -874,6 +926,11 @@ func (h *newsMsgHandler) handleNews(d *msgpack.Decoder, n int) error {
 	h.mu.RUnlock()
 	newsHandler(news)
 	return nil
+}
+
+func (h *newsMsgHandler) handleFuturesPricing(d *msgpack.Decoder, n int) error {
+	// should not happen!
+	return discardMapContents(d, n)
 }
 
 func discardMapContents(d *msgpack.Decoder, n int) error {
