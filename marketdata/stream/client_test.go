@@ -328,6 +328,8 @@ func TestSubscribeBeforeConnectStocks(t *testing.T) {
 	assert.Equal(t, ErrSubscriptionChangeBeforeConnect, err)
 	err = c.SubscribeToStatuses(func(_ TradingStatus) {})
 	assert.Equal(t, ErrSubscriptionChangeBeforeConnect, err)
+	err = c.SubscribeToImbalances(func(_ Imbalance) {})
+	assert.Equal(t, ErrSubscriptionChangeBeforeConnect, err)
 	err = c.SubscribeToLULDs(func(_ LULD) {})
 	assert.Equal(t, ErrSubscriptionChangeBeforeConnect, err)
 	err = c.UnsubscribeFromTrades()
@@ -339,6 +341,8 @@ func TestSubscribeBeforeConnectStocks(t *testing.T) {
 	err = c.UnsubscribeFromDailyBars()
 	assert.Equal(t, ErrSubscriptionChangeBeforeConnect, err)
 	err = c.UnsubscribeFromStatuses()
+	assert.Equal(t, ErrSubscriptionChangeBeforeConnect, err)
+	err = c.UnsubscribeFromImbalances()
 	assert.Equal(t, ErrSubscriptionChangeBeforeConnect, err)
 	err = c.UnsubscribeFromLULDs()
 	assert.Equal(t, ErrSubscriptionChangeBeforeConnect, err)
@@ -1023,6 +1027,7 @@ func TestCoreFunctionalityStocks(t *testing.T) {
 		updatedBars: []string{"ALPACA"},
 		dailyBars:   []string{"LPACA"},
 		statuses:    []string{"ALPACA"},
+		imbalances:  []string{"ALPACA"},
 		lulds:       []string{"ALPACA"},
 	})
 
@@ -1032,6 +1037,7 @@ func TestCoreFunctionalityStocks(t *testing.T) {
 	updatedBars := make(chan Bar, 10)
 	dailyBars := make(chan Bar, 10)
 	tradingStatuses := make(chan TradingStatus, 10)
+	imbalances := make(chan Imbalance, 10)
 	lulds := make(chan LULD, 10)
 	cancelErrors := make(chan TradeCancelError, 10)
 	corrections := make(chan TradeCorrection, 10)
@@ -1042,6 +1048,7 @@ func TestCoreFunctionalityStocks(t *testing.T) {
 		WithUpdatedBars(func(b Bar) { updatedBars <- b }, "ALPACA"),
 		WithDailyBars(func(b Bar) { dailyBars <- b }, "LPACA"),
 		WithStatuses(func(ts TradingStatus) { tradingStatuses <- ts }, "ALPACA"),
+		WithImbalances(func(i Imbalance) { imbalances <- i }, "ALPACA"),
 		WithLULDs(func(l LULD) { lulds <- l }, "ALPACA"),
 		WithCancelErrors(func(tce TradeCancelError) { cancelErrors <- tce }),
 		WithCorrections(func(tc TradeCorrection) { corrections <- tc }),
@@ -1102,6 +1109,15 @@ func TestCoreFunctionalityStocks(t *testing.T) {
 			StatusCode: "H",
 			ReasonCode: "T12",
 			Tape:       "C",
+		},
+	})
+	// sending an order imbalance
+	connection.readCh <- serializeToMsgpack(t, []interface{}{
+		imbalanceWithT{
+			Type:   "i",
+			Symbol: "ALPACA",
+			Price:  123.456,
+			Tape:   "C",
 		},
 	})
 	// sending a LULD
@@ -1188,6 +1204,13 @@ func TestCoreFunctionalityStocks(t *testing.T) {
 		assert.Equal(t, "T12", ts.ReasonCode)
 	case <-time.After(time.Second):
 		require.Fail(t, "no trading status received in time")
+	}
+
+	select {
+	case oi := <-imbalances:
+		assert.EqualValues(t, 123.456, oi.Price)
+	case <-time.After(time.Second):
+		require.Fail(t, "no imbalance received in time")
 	}
 
 	select {
@@ -1540,6 +1563,7 @@ func writeInitialFlowMessagesToConn(
 			UpdatedBars:  sub.updatedBars,
 			DailyBars:    sub.dailyBars,
 			Statuses:     sub.statuses,
+			Imbalances:   sub.imbalances,
 			LULDs:        sub.lulds,
 			CancelErrors: sub.trades, // Subscribe automatically.
 			Corrections:  sub.trades, // Subscribe automatically.
@@ -1571,6 +1595,7 @@ func checkInitialMessagesSentByClient(
 	require.ElementsMatch(t, sub.updatedBars, s["updatedBars"])
 	require.ElementsMatch(t, sub.dailyBars, s["dailyBars"])
 	require.ElementsMatch(t, sub.statuses, s["statuses"])
+	require.ElementsMatch(t, sub.imbalances, s["imbalances"])
 	require.ElementsMatch(t, sub.lulds, s["lulds"])
 	require.NotContains(t, s, "cancelErrors")
 	require.NotContains(t, s, "corrections")

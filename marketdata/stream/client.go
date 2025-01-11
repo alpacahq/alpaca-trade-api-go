@@ -115,6 +115,7 @@ func (sc *StocksClient) configure(o stockOptions) {
 	sc.handler.updatedBarHandler = o.updatedBarHandler
 	sc.handler.dailyBarHandler = o.dailyBarHandler
 	sc.handler.tradingStatusHandler = o.tradingStatusHandler
+	sc.handler.imbalanceHandler = o.imbalanceHandler
 	sc.handler.luldHandler = o.luldHandler
 	sc.handler.cancelErrorHandler = o.cancelErrorHandler
 	sc.handler.correctionHandler = o.correctionHandler

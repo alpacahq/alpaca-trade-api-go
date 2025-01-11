@@ -83,6 +83,14 @@ type TradingStatus struct {
 	Tape       string
 }
 
+// Imbalance is an order imbalance message during LULD halts for a security
+type Imbalance struct {
+	Symbol    string
+	Price     float64
+	Timestamp time.Time
+	Tape      string
+}
+
 // LULD is a Limit Up Limit Down message
 type LULD struct {
 	Symbol         string

@@ -176,6 +176,7 @@ type stockOptions struct {
 	updatedBarHandler    func(Bar)
 	dailyBarHandler      func(Bar)
 	tradingStatusHandler func(TradingStatus)
+	imbalanceHandler     func(Imbalance)
 	luldHandler          func(LULD)
 	cancelErrorHandler   func(TradeCancelError)
 	correctionHandler    func(TradeCorrection)
@@ -206,6 +207,7 @@ func defaultStockOptions() *stockOptions {
 				updatedBars:  []string{},
 				dailyBars:    []string{},
 				statuses:     []string{},
+				imbalances:   []string{},
 				lulds:        []string{},
 				cancelErrors: []string{},
 				corrections:  []string{},
@@ -218,6 +220,7 @@ func defaultStockOptions() *stockOptions {
 		updatedBarHandler:    func(_ Bar) {},
 		dailyBarHandler:      func(_ Bar) {},
 		tradingStatusHandler: func(_ TradingStatus) {},
+		imbalanceHandler:     func(_ Imbalance) {},
 		luldHandler:          func(_ LULD) {},
 		cancelErrorHandler:   func(_ TradeCancelError) {},
 		correctionHandler:    func(_ TradeCorrection) {},
@@ -289,6 +292,14 @@ func WithStatuses(handler func(TradingStatus), symbols ...string) StockOption {
 	return newFuncStockOption(func(o *stockOptions) {
 		o.sub.statuses = symbols
 		o.tradingStatusHandler = handler
+	})
+}
+
+// WithImbalances configures initial imbalance handler.
+func WithImbalances(handler func(Imbalance), symbols ...string) StockOption {
+	return newFuncStockOption(func(o *stockOptions) {
+		o.sub.imbalances = symbols
+		o.imbalanceHandler = handler
 	})
 }
 

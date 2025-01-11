@@ -124,6 +124,7 @@ func TestInitializeAuthRetrySucceeds(t *testing.T) {
 	updatedBars := []string{"AAPL"}
 	dailyBars := []string{"CLDR"}
 	statuses := []string{"*"}
+	imbalances := []string{"PACA", "AL"}
 	lulds := []string{"AL", "PACA", "ALP"}
 	c := NewStocksClient(
 		marketdata.SIP,
@@ -134,6 +135,7 @@ func TestInitializeAuthRetrySucceeds(t *testing.T) {
 		WithUpdatedBars(func(_ Bar) {}, updatedBars...),
 		WithDailyBars(func(_ Bar) {}, dailyBars...),
 		WithStatuses(func(_ TradingStatus) {}, statuses...),
+		WithImbalances(func(_ Imbalance) {}, imbalances...),
 		WithLULDs(func(_ LULD) {}, lulds...),
 	)
 	c.conn = conn
@@ -191,9 +193,10 @@ func TestInitializeAuthRetrySucceeds(t *testing.T) {
 			"updatedBars":  updatedBars,
 			"dailyBars":    dailyBars,
 			"statuses":     statuses,
+			"imbalances":   imbalances,
 			"lulds":        lulds,
-			"cancelErrors": trades, // Subscribed automatically.
-			"corrections":  trades, // Subscribed automatically.
+			"cancelErrors": trades, // Subscribed automatically with trades.
+			"corrections":  trades, // Subscribed automatically with trades.
 		},
 	})
 
@@ -204,6 +207,7 @@ func TestInitializeAuthRetrySucceeds(t *testing.T) {
 	assert.ElementsMatch(t, updatedBars, c.sub.updatedBars)
 	assert.ElementsMatch(t, dailyBars, c.sub.dailyBars)
 	assert.ElementsMatch(t, statuses, c.sub.statuses)
+	assert.ElementsMatch(t, imbalances, c.sub.imbalances)
 	assert.ElementsMatch(t, lulds, c.sub.lulds)
 	assert.ElementsMatch(t, trades, c.sub.cancelErrors)
 	assert.ElementsMatch(t, trades, c.sub.corrections)
@@ -229,6 +233,7 @@ func TestInitializeAuthRetrySucceeds(t *testing.T) {
 	assert.ElementsMatch(t, updatedBars, sub["updatedBars"])
 	assert.ElementsMatch(t, dailyBars, sub["dailyBars"])
 	assert.ElementsMatch(t, statuses, sub["statuses"])
+	assert.ElementsMatch(t, imbalances, sub["imbalances"])
 	assert.ElementsMatch(t, lulds, sub["lulds"])
 	assert.NotContains(t, sub, "cancelErrors")
 	assert.NotContains(t, sub, "corrections")
@@ -569,6 +574,7 @@ func TestWriteSubContents(t *testing.T) {
 		updatedBars []string
 		dailyBars   []string
 		statuses    []string
+		imbalances  []string
 		lulds       []string
 	}{
 		{name: "empty"},
@@ -578,6 +584,7 @@ func TestWriteSubContents(t *testing.T) {
 		{name: "updated_bars_only", updatedBars: []string{"AAPL"}},
 		{name: "daily_bars_only", dailyBars: []string{"LPACA"}},
 		{name: "statuses_only", statuses: []string{"ALP", "ACA"}},
+		{name: "imbalances_only", imbalances: []string{"ALP", "ACA"}},
 		{name: "lulds_only", lulds: []string{"ALPA", "CA"}},
 		{
 			name:      "mix",
@@ -593,6 +600,7 @@ func TestWriteSubContents(t *testing.T) {
 			updatedBars: []string{"ALPACA"},
 			dailyBars:   []string{"ALPACA"},
 			statuses:    []string{"ALPACA"},
+			imbalances:  []string{"ALPACA"},
 			lulds:       []string{"ALPCA"},
 		},
 	}
@@ -610,6 +618,7 @@ func TestWriteSubContents(t *testing.T) {
 					updatedBars: test.updatedBars,
 					dailyBars:   test.dailyBars,
 					statuses:    test.statuses,
+					imbalances:  test.imbalances,
 					lulds:       test.lulds,
 				},
 			}
@@ -626,6 +635,7 @@ func TestWriteSubContents(t *testing.T) {
 				UpdatedBars []string `msgpack:"updatedBars"`
 				DailyBars   []string `msgpack:"dailyBars"`
 				Statuses    []string `msgpack:"statuses"`
+				Imbalances  []string `msgpack:"imbalances"`
 				LULDs       []string `msgpack:"lulds"`
 			}
 			err = msgpack.Unmarshal(msg, &got)
@@ -637,6 +647,7 @@ func TestWriteSubContents(t *testing.T) {
 			assert.ElementsMatch(t, test.updatedBars, got.UpdatedBars)
 			assert.ElementsMatch(t, test.dailyBars, got.DailyBars)
 			assert.ElementsMatch(t, test.statuses, got.Statuses)
+			assert.ElementsMatch(t, test.imbalances, got.Imbalances)
 			assert.ElementsMatch(t, test.lulds, got.LULDs)
 		})
 	}
