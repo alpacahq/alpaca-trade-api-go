@@ -22,6 +22,7 @@ import (
 type ClientOpts struct {
 	APIKey       string
 	APISecret    string
+	APIVersion   string
 	BrokerKey    string
 	BrokerSecret string
 	OAuth        string

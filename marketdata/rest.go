@@ -25,6 +25,7 @@ import (
 type ClientOpts struct {
 	APIKey       string
 	APISecret    string
+	APIVersion   string
 	BrokerKey    string
 	BrokerSecret string
 	OAuth        string
@@ -59,6 +60,9 @@ func NewClient(opts ClientOpts) *Client {
 	}
 	if opts.APISecret == "" {
 		opts.APISecret = os.Getenv("APCA_API_SECRET_KEY")
+	}
+	if opts.APIVersion == "" {
+		opts.APIVersion = os.Getenv("APCA_API_VERSION")
 	}
 	if opts.OAuth == "" {
 		opts.OAuth = os.Getenv("APCA_API_OAUTH")
@@ -718,8 +722,8 @@ func (c *Client) GetSnapshots(symbols []string, req GetSnapshotRequest) (map[str
 	return snapshots, nil
 }
 
-const cryptoPrefix = "v1beta3/crypto"
-const cryptoPerpPrefix = "v1beta1/crypto-perps"
+const cryptoPrefix = "%s/crypto"
+const cryptoPerpPrefix = "%s/crypto-perps"
 
 type cryptoBaseRequest struct {
 	Symbols []string
@@ -939,7 +943,7 @@ func (c *Client) GetCryptoBars(symbol string, req GetCryptoBarsRequest) ([]Crypt
 // GetCryptoMultiBars returns bars for the given crypto symbols.
 func (c *Client) GetCryptoMultiBars(symbols []string, req GetCryptoBarsRequest) (map[string][]CryptoBar, error) {
 	u, err := url.Parse(fmt.Sprintf("%s/%s/%s/bars",
-		c.opts.BaseURL, cryptoPrefix, c.cryptoFeed(req.CryptoFeed)))
+		c.opts.BaseURL, fmt.Sprintf(cryptoPrefix, c.opts.APIVersion), c.cryptoFeed(req.CryptoFeed)))
 	if err != nil {
 		return nil, err
 	}
@@ -1010,9 +1014,9 @@ type cryptoRequest interface {
 }
 
 func (c *Client) cryptoURL(fromReq cryptoRequest) string {
-	prefix := cryptoPrefix
+	prefix := fmt.Sprintf(cryptoPrefix, c.opts.APIVersion)
 	if fromReq.isPerp() {
-		prefix = cryptoPerpPrefix
+		prefix = fmt.Sprintf(cryptoPerpPrefix, c.opts.APIVersion)
 	}
 	feed := fromReq.cryptoFeed()
 	if feed == "" {
@@ -1499,7 +1503,7 @@ type GetCorporateActionsRequest struct {
 
 // GetCorporateActions returns the corporate actions based on the given req.
 func (c *Client) GetCorporateActions(req GetCorporateActionsRequest) (CorporateActions, error) {
-	u, err := url.Parse(fmt.Sprintf("%s/v1beta1/corporate-actions", c.opts.BaseURL))
+	u, err := url.Parse(fmt.Sprintf("%s/%s/corporate-actions", c.opts.APIVersion, c.opts.BaseURL))
 	if err != nil {
 		return CorporateActions{}, err
 	}
