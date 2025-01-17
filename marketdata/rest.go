@@ -718,8 +718,10 @@ func (c *Client) GetSnapshots(symbols []string, req GetSnapshotRequest) (map[str
 	return snapshots, nil
 }
 
-const cryptoPrefix = "v1beta3/crypto"
-const cryptoPerpPrefix = "v1beta1/crypto-perps"
+const (
+	cryptoPrefix     = "v1beta3/crypto"
+	cryptoPerpPrefix = "v1beta1/crypto-perps"
+)
 
 type cryptoBaseRequest struct {
 	Symbols []string
@@ -1233,7 +1235,6 @@ func (c *Client) GetLatestCryptoQuotes(
 	symbols []string, req GetLatestCryptoQuoteRequest,
 ) (map[string]CryptoQuote, error) {
 	u, err := url.Parse(fmt.Sprintf("%s/latest/quotes", c.cryptoURL(req)))
-
 	if err != nil {
 		return nil, err
 	}
@@ -1499,7 +1500,7 @@ type GetCorporateActionsRequest struct {
 
 // GetCorporateActions returns the corporate actions based on the given req.
 func (c *Client) GetCorporateActions(req GetCorporateActionsRequest) (CorporateActions, error) {
-	u, err := url.Parse(fmt.Sprintf("%s/v1beta1/corporate-actions", c.opts.BaseURL))
+	u, err := url.Parse(fmt.Sprintf("%s/v1/corporate-actions", c.opts.BaseURL))
 	if err != nil {
 		return CorporateActions{}, err
 	}
