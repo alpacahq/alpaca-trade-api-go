@@ -1337,7 +1337,7 @@ func TestGetCorporateActions(t *testing.T) {
 	}`
 	c := DefaultClient
 	c.do = func(_ *Client, req *http.Request) (*http.Response, error) {
-		assert.Equal(t, "/v1beta1/corporate-actions", req.URL.Path)
+		assert.Equal(t, "/v1/corporate-actions", req.URL.Path)
 		assert.Equal(t, "forward_split,name_change,worthless_removal,stock_merger",
 			req.URL.Query().Get("types"))
 		assert.Equal(t, "2024-03-10", req.URL.Query().Get("start"))
@@ -1445,7 +1445,7 @@ func TestLatestCryptoPerpQuote(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, got)
 	assert.Equal(t, CryptoPerpQuote{
-		Timestamp: time.Date(2024, 12, 19, 9, 43, 04, 92000000, time.UTC),
+		Timestamp: time.Date(2024, 12, 19, 9, 43, 0o4, 92000000, time.UTC),
 		BidPrice:  101674.7,
 		BidSize:   1.4496,
 		AskPrice:  101675.1,
