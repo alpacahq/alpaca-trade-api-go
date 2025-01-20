@@ -991,6 +991,7 @@ func TestPingFails(t *testing.T) {
 			// replacing connCreator with a new one that returns an error
 			// so connection will not be reestablished
 			connErr := errors.New("no connection")
+			//nolint:errcheck // False positive "error return value is not checked"
 			switch tt.name {
 			case stocksTests:
 				c.(*StocksClient).connCreator = func(_ context.Context, _ url.URL) (conn, error) {

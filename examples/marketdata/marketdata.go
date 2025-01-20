@@ -2,7 +2,9 @@ package main
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
+	"io"
 	"os"
 	"sort"
 	"strconv"
@@ -22,9 +24,7 @@ func trades() {
 		Start: time.Date(2021, 8, 9, 13, 30, 0, 0, time.UTC),
 		End:   time.Date(2021, 8, 9, 13, 30, 0, 10000000, time.UTC),
 	})
-	if err != nil {
-		panic(err)
-	}
+	must(err)
 	for symbol, trades := range multiTrades {
 		fmt.Println(symbol + " trades:")
 		for _, trade := range trades {
@@ -39,9 +39,7 @@ func quotes() {
 		Start:      time.Date(2021, 8, 9, 13, 30, 0, 0, time.UTC),
 		TotalLimit: 30,
 	})
-	if err != nil {
-		panic(err)
-	}
+	must(err)
 	fmt.Println("TSLA quotes:")
 	for _, quote := range quotes {
 		fmt.Printf("%+v\n", quote)
@@ -56,9 +54,7 @@ func bars() {
 		End:       time.Date(2022, 6, 22, 0, 0, 0, 0, time.UTC),
 		AsOf:      "2022-06-10", // Leaving it empty yields the same results
 	})
-	if err != nil {
-		panic(err)
-	}
+	must(err)
 	fmt.Println("META bars:")
 	for _, bar := range bars {
 		fmt.Printf("%+v\n", bar)
@@ -70,9 +66,7 @@ func adtv() {
 	start := time.Date(2021, 8, 1, 0, 0, 0, 0, time.UTC)
 	end := time.Date(2021, 9, 1, 0, 0, 0, 0, time.UTC)
 	averageVolume, count, err := getADTV("AAPL", start, end)
-	if err != nil {
-		panic(err)
-	}
+	must(err)
 	fmt.Printf("AAPL ADTV: %.2f (%d marketdays)\n", averageVolume, count)
 }
 
@@ -83,9 +77,7 @@ func news() {
 		End:        time.Date(2021, 5, 7, 0, 0, 0, 0, time.UTC),
 		TotalLimit: 4,
 	})
-	if err != nil {
-		panic(err)
-	}
+	must(err)
 	fmt.Println("news:")
 	for _, n := range news {
 		fmt.Printf("%+v\n", n)
@@ -97,11 +89,9 @@ func auctions() {
 		Start: time.Date(2022, 10, 17, 0, 0, 0, 0, time.UTC),
 		End:   time.Date(2022, 10, 20, 0, 0, 0, 0, time.UTC),
 	})
-	if err != nil {
-		panic(err)
-	}
+	must(err)
 	fmt.Println("IBM auctions:")
-	for _, da := range auctions {
+	for i, da := range auctions {
 		fmt.Printf(" Date: %s\n", da.Date)
 		fmt.Println(" Opening:")
 		for _, a := range da.Opening {
@@ -111,63 +101,45 @@ func auctions() {
 		for _, a := range da.Closing {
 			fmt.Printf("  %+v\n", a)
 		}
-		fmt.Println()
+		if i < len(auctions)-1 {
+			fmt.Println()
+		}
 	}
 }
 
-func cryptoQuote() {
+func cryptoSpot() {
+	fmt.Println("Latest BTC/USD marketdata:")
 	quote, err := marketdata.GetLatestCryptoQuote("BTC/USD", marketdata.GetLatestCryptoQuoteRequest{})
-	if err != nil {
-		panic(err)
-	}
-	fmt.Printf("Latest crypto quote: %+v\n\n", quote)
-	fmt.Println()
+	must(err)
+	fmt.Printf(" Latest quote: %+v\n", quote)
+	trade, err := marketdata.GetLatestCryptoTrade("BTC/USD", marketdata.GetLatestCryptoTradeRequest{})
+	must(err)
+	fmt.Printf(" Latest trade: %+v\n", trade)
+	bar, err := marketdata.GetLatestCryptoBar("BTC/USD", marketdata.GetLatestCryptoBarRequest{})
+	must(err)
+	fmt.Printf(" Latest bar:   %+v\n", bar)
 }
 
-func cryptoPerpQuote() {
+func cryptoPerp() {
+	fmt.Println("Latest BTC-PERP (crypto perpetual future) marketdata:")
 	quote, err := marketdata.GetLatestCryptoPerpQuote("BTC-PERP", marketdata.GetLatestCryptoQuoteRequest{})
-	if err != nil {
-		panic(err)
-	}
-	fmt.Printf("Latest crypto perp quote: %+v\n\n", quote)
-	fmt.Println()
-}
-
-func cryptoPerpTrade() {
+	must(err)
+	fmt.Printf(" Latest quote: %+v\n", quote)
 	trade, err := marketdata.GetLatestCryptoPerpTrade("BTC-PERP", marketdata.GetLatestCryptoTradeRequest{})
-	if err != nil {
-		panic(err)
-	}
-	fmt.Printf("Latest crypto perp trade: %+v\n\n", trade)
-	fmt.Println()
-}
-
-func cryptoPerpPricing() {
-	pricing, err := marketdata.GetLatestCryptoPerpPricing("BTC-PERP", marketdata.GetLatestCryptoPerpPricingRequest{})
-	if err != nil {
-		panic(err)
-	}
-	fmt.Printf("Latest crypto perp pricing: %+v\n\n", pricing)
-	fmt.Println()
-}
-
-func cryptoPerpBar() {
-	trade, err := marketdata.GetLatestCryptoPerpBar("BTC-PERP", marketdata.GetLatestCryptoBarRequest{})
-	if err != nil {
-		panic(err)
-	}
-	fmt.Printf("Latest crypto perp bar: %+v\n\n", trade)
-	fmt.Println()
+	must(err)
+	fmt.Printf(" Latest trade: %+v\n", trade)
+	bar, err := marketdata.GetLatestCryptoPerpBar("BTC-PERP", marketdata.GetLatestCryptoBarRequest{})
+	must(err)
+	fmt.Printf(" Latest bar:   %+v\n", bar)
 }
 
 func optionChain() {
+	fmt.Println("AAPL calls within 5 days")
 	chain, err := marketdata.GetOptionChain("AAPL", marketdata.GetOptionChainRequest{
 		Type:              marketdata.Call,
 		ExpirationDateLte: civil.DateOf(time.Now()).AddDays(5),
 	})
-	if err != nil {
-		panic(err)
-	}
+	must(err)
 	type snap struct {
 		marketdata.OptionSnapshot
 		Symbol string
@@ -222,9 +194,7 @@ func corporateActions() {
 		Types:   []string{"forward_split"},
 		Start:   civil.Date{Year: 2018, Month: 1, Day: 1},
 	})
-	if err != nil {
-		panic(err)
-	}
+	must(err)
 	fmt.Println("TSLA forward splits:")
 	for _, split := range cas.ForwardSplits {
 		fmt.Printf(" - %+v\n", split)
@@ -244,30 +214,25 @@ func main() {
 		{Name: "adtv", Func: adtv},
 		{Name: "news", Func: news},
 		{Name: "auctions", Func: auctions},
-		{Name: "crypto_quote", Func: cryptoQuote},
-		{Name: "crypto_perp_quote", Func: cryptoPerpQuote},
-		{Name: "crypto_perp_trade", Func: cryptoPerpTrade},
-		{Name: "crypto_perp_bar", Func: cryptoPerpBar},
-		{Name: "crypto_perp_pricing", Func: cryptoPerpPricing},
+		{Name: "crypto", Func: cryptoSpot},
+		{Name: "crypto_perp", Func: cryptoPerp},
 		{Name: "option_chain", Func: optionChain},
 		{Name: "corporate_actions", Func: corporateActions},
 	}
 	for {
 		fmt.Println("Examples: ")
 		for i, e := range examples {
-			fmt.Printf("[ %2d ] %s\n", i, e.Name)
+			fmt.Printf("[ %d ] %s\n", i, e.Name)
 		}
 		fmt.Print("Please type the number of the example you'd like to run or q to exit: ")
 		r := bufio.NewReader(os.Stdin)
 		s, err := r.ReadString('\n')
-		if err != nil {
-			panic(err)
-		}
 		s = strings.TrimSpace(s)
-		if s == "q" {
+		if s == "q" || (err != nil && errors.Is(err, io.EOF)) {
 			fmt.Println("Bye!")
-			break
+			return
 		}
+		must(err)
 		idx, err := strconv.Atoi(s)
 		if err != nil {
 			fmt.Println("Please input a number!")
@@ -302,4 +267,10 @@ func getADTV(symbol string, start, end time.Time) (av float64, n int, err error)
 	}
 	av = float64(totalVolume) / float64(n)
 	return
+}
+
+func must(err error) {
+	if err != nil {
+		panic(err)
+	}
 }
