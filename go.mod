@@ -1,6 +1,6 @@
 module github.com/alpacahq/alpaca-trade-api-go/v3
 
-go 1.20
+go 1.21
 
 require (
 	cloud.google.com/go v0.118.0
