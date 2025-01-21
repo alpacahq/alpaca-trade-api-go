@@ -124,13 +124,16 @@ func cryptoPerp() {
 	fmt.Println("Latest BTC-PERP (crypto perpetual future) marketdata:")
 	quote, err := marketdata.GetLatestCryptoPerpQuote("BTC-PERP", marketdata.GetLatestCryptoQuoteRequest{})
 	must(err)
-	fmt.Printf(" Latest quote: %+v\n", quote)
+	fmt.Printf(" Latest quote:   %+v\n", quote)
 	trade, err := marketdata.GetLatestCryptoPerpTrade("BTC-PERP", marketdata.GetLatestCryptoTradeRequest{})
 	must(err)
-	fmt.Printf(" Latest trade: %+v\n", trade)
+	fmt.Printf(" Latest trade:   %+v\n", trade)
 	bar, err := marketdata.GetLatestCryptoPerpBar("BTC-PERP", marketdata.GetLatestCryptoBarRequest{})
 	must(err)
-	fmt.Printf(" Latest bar:   %+v\n", bar)
+	fmt.Printf(" Latest bar:     %+v\n", bar)
+	pricing, err := marketdata.GetLatestCryptoPerpPricing("BTC-PERP", marketdata.GetLatestCryptoPerpPricingRequest{})
+	must(err)
+	fmt.Printf(" Latest pricing: %+v\n", pricing)
 }
 
 func optionChain() {
