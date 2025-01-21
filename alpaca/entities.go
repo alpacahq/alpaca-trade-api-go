@@ -72,6 +72,7 @@ type Order struct {
 	OrderClass     OrderClass       `json:"order_class"`
 	Type           OrderType        `json:"type"`
 	Side           Side             `json:"side"`
+	PositionIntent PositionIntent   `json:"position_intent"`
 	TimeInForce    TimeInForce      `json:"time_in_force"`
 	Status         string           `json:"status"`
 	Notional       *decimal.Decimal `json:"notional"`
@@ -84,6 +85,7 @@ type Order struct {
 	TrailPercent   *decimal.Decimal `json:"trail_percent"`
 	HWM            *decimal.Decimal `json:"hwm"`
 	ExtendedHours  bool             `json:"extended_hours"`
+	RatioQty       *decimal.Decimal `json:"ratio_qty"`
 	Legs           []Order          `json:"legs"`
 }
 
@@ -235,6 +237,7 @@ const (
 	OTO     OrderClass = "oto"
 	OCO     OrderClass = "oco"
 	Simple  OrderClass = "simple"
+	MLeg    OrderClass = "mleg"
 )
 
 type TimeInForce string
