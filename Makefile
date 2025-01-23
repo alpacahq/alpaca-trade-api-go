@@ -5,7 +5,7 @@
 help:  ## Display this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
 
-GOLANGCI_LINT_VERSION := v1.61.0
+GOLANGCI_LINT_VERSION := $(shell sed -n '/golangci-lint-action/,/version:/s/.*version: \(v[0-9.]*\).*/\1/p' .github/workflows/go.yml)
 
 .PHONY: generate
 generate: ## Generate easyjson
