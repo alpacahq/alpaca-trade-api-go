@@ -1,9 +1,9 @@
 module github.com/alpacahq/alpaca-trade-api-go/v3
 
-go 1.20
+go 1.21
 
 require (
-	cloud.google.com/go v0.99.0
+	cloud.google.com/go v0.118.0
 	github.com/RobinUS2/golang-moving-average v1.0.0
 	github.com/coder/websocket v1.8.12
 	github.com/mailru/easyjson v0.7.7
@@ -14,8 +14,8 @@ require (
 
 require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
-	github.com/google/go-cmp v0.5.8 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
+	github.com/kr/pretty v0.3.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/vmihailenco/tagparser/v2 v2.0.0 // indirect
 	gopkg.in/check.v1 v1.0.0-20190902080502-41f04d3bba15 // indirect
