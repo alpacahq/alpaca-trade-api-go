@@ -120,7 +120,7 @@ func mockErrResp() func(_ *Client, _ *http.Request) (*http.Response, error) {
 
 func TestGetTrades_Gzip(t *testing.T) {
 	c := NewClient(ClientOpts{
-		Feed: "sip",
+		Feed: SIP,
 	})
 
 	f, err := os.Open("testdata/trades.json.gz")
@@ -172,11 +172,11 @@ func TestGetTrades(t *testing.T) {
 
 func TestGetTrades_Currency(t *testing.T) {
 	c := NewClient(ClientOpts{
-		Feed:     "sip",
+		Feed:     DelayedSIP,
 		Currency: "JPY",
 	})
 	c.do = func(_ *Client, req *http.Request) (*http.Response, error) {
-		assert.Equal(t, "sip", req.URL.Query().Get("feed"))
+		assert.Equal(t, "delayed_sip", req.URL.Query().Get("feed"))
 		assert.Equal(t, "JPY", req.URL.Query().Get("currency"))
 		resp := `{"trades":{"AAPL":[{"t":"2021-10-13T08:00:00.08960768Z","x":"P","p":15922.93,"s":595,"c":["@","T"],"i":1,"z":"C"}]},"currency":"JPY","next_page_token":"QUFQTHwyMDIxLTEwLTEzVDA4OjAwOjAwLjA4OTYwNzY4MFp8UHwwOTIyMzM3MjAzNjg1NDc3NTgwOQ=="}`
 		return &http.Response{
@@ -195,7 +195,6 @@ func TestGetTrades_Currency(t *testing.T) {
 
 	c.do = func(_ *Client, req *http.Request) (*http.Response, error) {
 		resp := `{"trades":{},"currency":"MXN","next_page_token":null}`
-		assert.Equal(t, "sip", req.URL.Query().Get("feed"))
 		assert.Equal(t, "MXN", req.URL.Query().Get("currency"))
 		return &http.Response{
 			Body: io.NopCloser(strings.NewReader(resp)),
@@ -455,7 +454,7 @@ func TestGetBars(t *testing.T) {
 		Adjustment: Split,
 		Start:      time.Date(2021, 10, 15, 16, 0, 0, 0, time.UTC),
 		End:        time.Date(2021, 10, 15, 17, 0, 0, 0, time.UTC),
-		Feed:       "sip",
+		Feed:       SIP,
 	})
 	require.NoError(t, err)
 	require.Len(t, got, 5)
@@ -571,9 +570,7 @@ func TestLatestBar_Feed(t *testing.T) {
 			)),
 		}, nil
 	}
-	_, err = c.GetLatestBar("AAPL", GetLatestBarRequest{
-		Feed: "sip",
-	})
+	_, err = c.GetLatestBar("AAPL", GetLatestBarRequest{Feed: SIP})
 	require.NoError(t, err)
 }
 

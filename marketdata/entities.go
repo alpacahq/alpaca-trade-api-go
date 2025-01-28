@@ -22,6 +22,10 @@ const (
 	IEX Feed = "iex"
 	// OTC includes Over-the-Counter exchanges
 	OTC Feed = "otc"
+	// DelayedSIP is 15-minute delayed SIP. It can only be used in the latest
+	// endpoints and on the stream. For historical endpoints you can simply
+	// use sip and set the end parameter to 15 minutes ago, or leave it empty.
+	DelayedSIP Feed = "delayed_sip"
 )
 
 // CryptoFeed defines the source feed of crypto data.
@@ -209,9 +213,11 @@ type CryptoSnapshot struct {
 	PrevDailyBar *CryptoBar   `json:"prevDailyBar"`
 }
 
-type CryptoPerpTrade CryptoTrade
-type CryptoPerpQuote CryptoQuote
-type CryptoPerpBar CryptoBar
+type (
+	CryptoPerpTrade CryptoTrade
+	CryptoPerpQuote CryptoQuote
+	CryptoPerpBar   CryptoBar
+)
 
 type CryptoPerpPricing struct {
 	IndexPrice      float64   `json:"ip"`
