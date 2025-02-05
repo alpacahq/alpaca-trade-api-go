@@ -34,7 +34,7 @@ func (c *Client) StreamTradeUpdates(
 	client := http.Client{
 		Transport: &transport,
 	}
-	u, err := url.Parse(c.opts.BaseURL + "/v2beta1/events/trades")
+	u, err := url.Parse(c.opts.BaseURL + "/v2/events/trades")
 	if err != nil {
 		return err
 	}
