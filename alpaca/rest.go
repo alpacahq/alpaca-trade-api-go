@@ -558,7 +558,7 @@ type PlaceOrderRequest struct {
 	StopLoss       *StopLoss        `json:"stop_loss"`
 	TrailPrice     *decimal.Decimal `json:"trail_price"`
 	TrailPercent   *decimal.Decimal `json:"trail_percent"`
-	PositionIntent PositionIntent   `json:"position_intent"`
+	PositionIntent PositionIntent   `json:"position_intent,omitempty"`
 	Legs           []Leg            `json:"legs"` // mleg order legs
 }
 

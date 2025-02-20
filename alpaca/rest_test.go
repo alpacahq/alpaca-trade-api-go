@@ -392,14 +392,25 @@ func TestPlaceOrder(t *testing.T) {
 		if err := json.NewDecoder(req.Body).Decode(&por); err != nil {
 			return nil, err
 		}
+		order := Order{
+			Qty:         por.Qty,
+			Notional:    por.Notional,
+			Side:        por.Side,
+			TimeInForce: por.TimeInForce,
+			Type:        por.Type,
+		}
+		if por.PositionIntent != "" {
+			order.PositionIntent = por.PositionIntent
+		} else {
+			// default to BuyToOpen/SellToOpen if not specified (for testing)
+			if por.Side == Buy {
+				order.PositionIntent = BuyToOpen
+			} else {
+				order.PositionIntent = SellToOpen
+			}
+		}
 		return &http.Response{
-			Body: genBody(Order{
-				Qty:         por.Qty,
-				Notional:    por.Notional,
-				Side:        por.Side,
-				TimeInForce: por.TimeInForce,
-				Type:        por.Type,
-			}),
+			Body: genBody(order),
 		}, nil
 	}
 
@@ -418,6 +429,7 @@ func TestPlaceOrder(t *testing.T) {
 	assert.Nil(t, req.Notional)
 	assert.Nil(t, order.Notional)
 	assert.Equal(t, req.Type, order.Type)
+	assert.Equal(t, BuyToOpen, order.PositionIntent)
 
 	// successful (w/ Notional)
 	req = PlaceOrderRequest{
@@ -434,6 +446,24 @@ func TestPlaceOrder(t *testing.T) {
 	assert.Nil(t, req.Qty)
 	assert.Nil(t, order.Qty)
 	assert.Equal(t, req.Type, order.Type)
+	assert.Equal(t, BuyToOpen, order.PositionIntent)
+
+	// successful (w/ Qty,PositionIntent)
+	req = PlaceOrderRequest{
+		Qty:            &one,
+		Side:           Sell,
+		TimeInForce:    GTC,
+		Type:           Limit,
+		PositionIntent: SellToClose,
+	}
+
+	order, err = c.PlaceOrder(req)
+	require.NoError(t, err)
+	assert.NotNil(t, order)
+	assert.NotNil(t, req.Qty)
+	assert.NotNil(t, order.Qty)
+	assert.Equal(t, req.Type, order.Type)
+	assert.Equal(t, SellToClose, order.PositionIntent)
 
 	// api failure
 	c.do = func(_ *Client, _ *http.Request) (*http.Response, error) {
