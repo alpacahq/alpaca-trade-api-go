@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
-	"regexp"
+	"strings"
 	"sync"
 	"time"
 
@@ -542,11 +542,12 @@ func isErrorIrrecoverableAtInit(err error) bool {
 }
 
 func isHTTP4xx(err error) bool {
-	// Unfortunately the coder/websocket error is a simple formatted string, created by fmt.Errorf,
+	// Unfortunately, the coder/websocket error is a simple formatted string, created by fmt.Errorf,
 	// so the only check we can do is string matching
-	pattern := `expected handshake response status code 101 but got 4\d\d`
-	ok, _ := regexp.MatchString(pattern, err.Error())
-	return ok
+	if err == nil {
+		return false
+	}
+	return strings.Contains(err.Error(), "expected handshake response status code 101 but got 4")
 }
 
 func wrapIrrecoverable(err error) error {
