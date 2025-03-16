@@ -27,8 +27,9 @@ func (c *Client) StreamTradeUpdates(
 	ctx context.Context, handler func(TradeUpdate), req StreamTradeUpdatesRequest,
 ) error {
 	transport := http.Transport{
-		Dial: func(network, addr string) (net.Conn, error) {
-			return net.DialTimeout(network, addr, 5*time.Second)
+		DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
+			d := net.Dialer{Timeout: 5 * time.Second}
+			return d.DialContext(ctx, network, addr)
 		},
 	}
 	client := http.Client{
