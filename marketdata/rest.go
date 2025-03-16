@@ -1770,7 +1770,7 @@ func (c *Client) get(u *url.URL) (*http.Response, error) {
 
 func unmarshal(resp *http.Response, v easyjson.Unmarshaler) error {
 	if resp == nil || resp.Body == nil {
-		return fmt.Errorf("response or response body is nil")
+		return errors.New("response or response body is nil")
 	}
 
 	var (
@@ -1786,7 +1786,7 @@ func unmarshal(resp *http.Response, v easyjson.Unmarshaler) error {
 		}
 		defer reader.Close()
 	default:
-		defer resp.Body.Close() //Close the original response body if not gzipped.
+		defer resp.Body.Close() // Close the original response body if not gzipped.
 	}
 	return easyjson.UnmarshalFromReader(reader, v)
 }
