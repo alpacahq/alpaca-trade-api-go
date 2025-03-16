@@ -1342,6 +1342,10 @@ func unmarshal(resp *http.Response, v easyjson.Unmarshaler) error {
 }
 
 func closeResp(resp *http.Response) {
+	if resp == nil || resp.Body == nil {
+		return // Avoids panic if resp is nil
+	}
+
 	// The underlying TCP connection can not be reused if the body is not fully read
 	_, _ = io.Copy(io.Discard, resp.Body)
 	resp.Body.Close()

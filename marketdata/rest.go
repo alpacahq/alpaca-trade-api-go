@@ -1769,24 +1769,33 @@ func (c *Client) get(u *url.URL) (*http.Response, error) {
 }
 
 func unmarshal(resp *http.Response, v easyjson.Unmarshaler) error {
+	if resp == nil || resp.Body == nil {
+		return fmt.Errorf("response or response body is nil")
+	}
+
 	var (
-		reader io.ReadCloser
+		reader = resp.Body
 		err    error
 	)
 	switch resp.Header.Get("Content-Encoding") {
 	case "gzip":
 		reader, err = gzip.NewReader(resp.Body)
 		if err != nil {
+			resp.Body.Close() // Prevents resource leak if gzip.NewReader fails
 			return err
 		}
 		defer reader.Close()
 	default:
-		reader = resp.Body
+		defer resp.Body.Close() //Close the original response body if not gzipped.
 	}
 	return easyjson.UnmarshalFromReader(reader, v)
 }
 
 func closeResp(resp *http.Response) {
+	if resp == nil || resp.Body == nil {
+		return // Avoids panic if resp is nil
+	}
+
 	// The underlying TCP connection can not be reused if the body is not fully read
 	_, _ = io.Copy(io.Discard, resp.Body)
 	resp.Body.Close()
