@@ -24,11 +24,12 @@ func newCoderWebsocketConn(ctx context.Context, u url.URL) (conn, error) {
 	reqHeader := http.Header{}
 	reqHeader.Set("Content-Type", "application/msgpack")
 	reqHeader.Set("User-Agent", alpaca.Version())
-	//nolint:bodyclose // According to its docs: you never need to close resp.Body yourself
-	conn, _, err := websocket.Dial(ctxWithTimeout, u.String(), &websocket.DialOptions{
+	//nolint:bodyclose // Linter Error
+	conn, ignoredResponse, err := websocket.Dial(ctxWithTimeout, u.String(), &websocket.DialOptions{
 		CompressionMode: websocket.CompressionContextTakeover,
 		HTTPHeader:      reqHeader,
 	})
+	alpaca.CloseResp(ignoredResponse)
 	if err != nil {
 		return nil, fmt.Errorf("websocket dial: %w", err)
 	}

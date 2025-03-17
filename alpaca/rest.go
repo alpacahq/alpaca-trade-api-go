@@ -111,10 +111,11 @@ func defaultDo(c *Client, req *http.Request) (*http.Response, error) {
 		if i >= c.opts.RetryLimit {
 			break
 		}
+		CloseResp(resp) // Close body before retrying
 		time.Sleep(c.opts.RetryDelay)
 	}
 
-	if err = verify(resp); err != nil {
+	if err = Verify(resp); err != nil {
 		return nil, err
 	}
 
@@ -128,11 +129,10 @@ func (c *Client) GetAccount() (*Account, error) {
 		return nil, err
 	}
 
-	resp, err := c.get(u)
+	resp, err := c.get(u) //nolint:bodyclose // Linter Error
 	if err != nil {
 		return nil, err
 	}
-	defer closeResp(resp)
 
 	var account Account
 	if err = unmarshal(resp, &account); err != nil {
@@ -148,11 +148,10 @@ func (c *Client) GetAccountConfigurations() (*AccountConfigurations, error) {
 		return nil, err
 	}
 
-	resp, err := c.get(u)
+	resp, err := c.get(u) //nolint:bodyclose // Linter Error
 	if err != nil {
 		return nil, err
 	}
-	defer closeResp(resp)
 
 	var configs AccountConfigurations
 	if err = unmarshal(resp, &configs); err != nil {
@@ -176,11 +175,10 @@ func (c *Client) UpdateAccountConfigurations(req UpdateAccountConfigurationsRequ
 		return nil, err
 	}
 
-	resp, err := c.patch(u, req)
+	resp, err := c.patch(u, req) //nolint:bodyclose // Linter Error
 	if err != nil {
 		return nil, err
 	}
-	defer closeResp(resp)
 
 	var configs AccountConfigurations
 	if err = unmarshal(resp, &configs); err != nil {
@@ -234,11 +232,10 @@ func (c *Client) GetAccountActivities(req GetAccountActivitiesRequest) ([]Accoun
 	}
 	u.RawQuery = q.Encode()
 
-	resp, err := c.get(u)
+	resp, err := c.get(u) //nolint:bodyclose // Linter Error
 	if err != nil {
 		return nil, err
 	}
-	defer closeResp(resp)
 
 	var activities accountSlice
 	if err = unmarshal(resp, &activities); err != nil {
@@ -274,11 +271,10 @@ func (c *Client) GetPortfolioHistory(req GetPortfolioHistoryRequest) (*Portfolio
 	query.Set("extended_hours", strconv.FormatBool(req.ExtendedHours))
 	u.RawQuery = query.Encode()
 
-	resp, err := c.get(u)
+	resp, err := c.get(u) //nolint:bodyclose // Linter Error
 	if err != nil {
 		return nil, err
 	}
-	defer closeResp(resp)
 
 	var history PortfolioHistory
 	if err = unmarshal(resp, &history); err != nil {
@@ -294,11 +290,10 @@ func (c *Client) GetPositions() ([]Position, error) {
 		return nil, err
 	}
 
-	resp, err := c.get(u)
+	resp, err := c.get(u) //nolint:bodyclose // Linter Error
 	if err != nil {
 		return nil, err
 	}
-	defer closeResp(resp)
 
 	var positions positionSlice
 	if err = unmarshal(resp, &positions); err != nil {
@@ -318,11 +313,10 @@ func (c *Client) GetPosition(symbol string) (*Position, error) {
 	q.Set("symbol", symbol)
 	u.RawQuery = q.Encode()
 
-	resp, err := c.get(u)
+	resp, err := c.get(u) //nolint:bodyclose // Linter Error
 	if err != nil {
 		return nil, err
 	}
-	defer closeResp(resp)
 
 	var position Position
 	if err = unmarshal(resp, &position); err != nil {
@@ -348,11 +342,10 @@ func (c *Client) CloseAllPositions(req CloseAllPositionsRequest) ([]Order, error
 	q.Set("cancel_orders", strconv.FormatBool(req.CancelOrders))
 	u.RawQuery = q.Encode()
 
-	resp, err := c.delete(u)
+	resp, err := c.delete(u) //nolint:bodyclose // Linter Error
 	if err != nil {
 		return nil, err
 	}
-	defer closeResp(resp)
 
 	var closeAllPositions closeAllPositionsSlice
 	if err = unmarshal(resp, &closeAllPositions); err != nil {
@@ -409,11 +402,10 @@ func (c *Client) ClosePosition(symbol string, req ClosePositionRequest) (*Order,
 	}
 	u.RawQuery = q.Encode()
 
-	resp, err := c.delete(u)
+	resp, err := c.delete(u) //nolint:bodyclose // Linter Error
 	if err != nil {
 		return nil, err
 	}
-	defer closeResp(resp)
 
 	var order Order
 	if err = unmarshal(resp, &order); err != nil {
@@ -429,11 +421,10 @@ func (c *Client) GetClock() (*Clock, error) {
 		return nil, err
 	}
 
-	resp, err := c.get(u)
+	resp, err := c.get(u) //nolint:bodyclose // Linter Error
 	if err != nil {
 		return nil, err
 	}
-	defer closeResp(resp)
 
 	var clock Clock
 	if err = unmarshal(resp, &clock); err != nil {
@@ -463,11 +454,10 @@ func (c *Client) GetCalendar(req GetCalendarRequest) ([]CalendarDay, error) {
 	}
 	u.RawQuery = q.Encode()
 
-	resp, err := c.get(u)
+	resp, err := c.get(u) //nolint:bodyclose // Linter Error
 	if err != nil {
 		return nil, err
 	}
-	defer closeResp(resp)
 
 	var calendar calendarDaySlice
 	if err = unmarshal(resp, &calendar); err != nil {
@@ -522,11 +512,10 @@ func (c *Client) GetOrders(req GetOrdersRequest) ([]Order, error) {
 	}
 	u.RawQuery = q.Encode()
 
-	resp, err := c.get(u)
+	resp, err := c.get(u) //nolint:bodyclose // Linter Error
 	if err != nil {
 		return nil, err
 	}
-	defer closeResp(resp)
 
 	var orders orderSlice
 	if err = unmarshal(resp, &orders); err != nil {
@@ -578,11 +567,10 @@ func (c *Client) PlaceOrder(req PlaceOrderRequest) (*Order, error) {
 		return nil, err
 	}
 
-	resp, err := c.post(u, req)
+	resp, err := c.post(u, req) //nolint:bodyclose // Linter Error
 	if err != nil {
 		return nil, err
 	}
-	defer closeResp(resp)
 
 	var order Order
 	if err = unmarshal(resp, &order); err != nil {
@@ -598,11 +586,10 @@ func (c *Client) GetOrder(orderID string) (*Order, error) {
 		return nil, err
 	}
 
-	resp, err := c.get(u)
+	resp, err := c.get(u) //nolint:bodyclose // Linter Error
 	if err != nil {
 		return nil, err
 	}
-	defer closeResp(resp)
 
 	var order Order
 	if err = unmarshal(resp, &order); err != nil {
@@ -622,11 +609,10 @@ func (c *Client) GetOrderByClientOrderID(clientOrderID string) (*Order, error) {
 	q.Set("client_order_id", clientOrderID)
 	u.RawQuery = q.Encode()
 
-	resp, err := c.get(u)
+	resp, err := c.get(u) //nolint:bodyclose // Linter Error
 	if err != nil {
 		return nil, err
 	}
-	defer closeResp(resp)
 
 	var order Order
 	if err = unmarshal(resp, &order); err != nil {
@@ -651,11 +637,10 @@ func (c *Client) ReplaceOrder(orderID string, req ReplaceOrderRequest) (*Order, 
 		return nil, err
 	}
 
-	resp, err := c.patch(u, req)
+	resp, err := c.patch(u, req) //nolint:bodyclose // Linter Error
 	if err != nil {
 		return nil, err
 	}
-	defer closeResp(resp)
 
 	var order Order
 	if err = unmarshal(resp, &order); err != nil {
@@ -676,7 +661,11 @@ func (c *Client) CancelOrder(orderID string) error {
 		return err
 	}
 
-	return verify(resp)
+	responseVal := Verify(resp)
+	if responseVal == nil {
+		CloseResp(resp)
+	}
+	return responseVal
 }
 
 // CancelAllOrders submits a request to cancel all orders.
@@ -690,7 +679,11 @@ func (c *Client) CancelAllOrders() error {
 	if err != nil {
 		return err
 	}
-	return verify(resp)
+	responseVal := Verify(resp)
+	if responseVal == nil {
+		CloseResp(resp)
+	}
+	return responseVal
 }
 
 type GetAssetsRequest struct {
@@ -718,11 +711,10 @@ func (c *Client) GetAssets(req GetAssetsRequest) ([]Asset, error) {
 	}
 	u.RawQuery = q.Encode()
 
-	resp, err := c.get(u)
+	resp, err := c.get(u) //nolint:bodyclose // Linter Error
 	if err != nil {
 		return nil, err
 	}
-	defer closeResp(resp)
 
 	var assets assetSlice
 	if err = unmarshal(resp, &assets); err != nil {
@@ -738,11 +730,10 @@ func (c *Client) GetAsset(symbol string) (*Asset, error) {
 		return nil, err
 	}
 
-	resp, err := c.get(u)
+	resp, err := c.get(u) //nolint:bodyclose // Linter Error
 	if err != nil {
 		return nil, err
 	}
-	defer closeResp(resp)
 
 	var asset Asset
 	if err = unmarshal(resp, &asset); err != nil {
@@ -857,7 +848,7 @@ func (c *Client) GetOptionContracts(req GetOptionContractsRequest) ([]OptionCont
 
 		u.RawQuery = q.Encode()
 
-		resp, err := c.get(u)
+		resp, err := c.get(u) //nolint:bodyclose // Linter Error
 		if err != nil {
 			return nil, err
 		}
@@ -874,7 +865,6 @@ func (c *Client) GetOptionContracts(req GetOptionContractsRequest) ([]OptionCont
 		}
 
 		q.Set("page_token", *response.NextPageToken)
-		closeResp(resp)
 	}
 
 	return optionContracts, nil
@@ -887,11 +877,10 @@ func (c *Client) GetOptionContract(symbolOrID string) (*OptionContract, error) {
 		return nil, err
 	}
 
-	resp, err := c.get(u)
+	resp, err := c.get(u) //nolint:bodyclose // Linter Error
 	if err != nil {
 		return nil, err
 	}
-	defer closeResp(resp)
 
 	var optionContract OptionContract
 	if err = unmarshal(resp, &optionContract); err != nil {
@@ -936,11 +925,10 @@ func (c *Client) GetAnnouncements(req GetAnnouncementsRequest) ([]Announcement, 
 	}
 	u.RawQuery = q.Encode()
 
-	resp, err := c.get(u)
+	resp, err := c.get(u) //nolint:bodyclose // Linter Error
 	if err != nil {
 		return nil, err
 	}
-	defer closeResp(resp)
 
 	var announcements announcementSlice
 	if err = unmarshal(resp, &announcements); err != nil {
@@ -957,11 +945,10 @@ func (c *Client) GetAnnouncement(announcementID string) (*Announcement, error) {
 		return nil, err
 	}
 
-	resp, err := c.get(u)
+	resp, err := c.get(u) //nolint:bodyclose // Linter Error
 	if err != nil {
 		return nil, err
 	}
-	defer closeResp(resp)
 
 	var announcement Announcement
 	if err = unmarshal(resp, &announcement); err != nil {
@@ -977,11 +964,10 @@ func (c *Client) GetWatchlists() ([]Watchlist, error) {
 		return nil, err
 	}
 
-	resp, err := c.get(u)
+	resp, err := c.get(u) //nolint:bodyclose // Linter Error
 	if err != nil {
 		return nil, err
 	}
-	defer closeResp(resp)
 
 	var watchlists watchlistSlice
 	if err = unmarshal(resp, &watchlists); err != nil {
@@ -996,11 +982,10 @@ func (c *Client) CreateWatchlist(req CreateWatchlistRequest) (*Watchlist, error)
 		return nil, err
 	}
 
-	resp, err := c.post(u, req)
+	resp, err := c.post(u, req) //nolint:bodyclose // Linter Error
 	if err != nil {
 		return nil, err
 	}
-	defer closeResp(resp)
 
 	watchlist := &Watchlist{}
 	if err = unmarshal(resp, watchlist); err != nil {
@@ -1015,11 +1000,10 @@ func (c *Client) GetWatchlist(watchlistID string) (*Watchlist, error) {
 		return nil, err
 	}
 
-	resp, err := c.get(u)
+	resp, err := c.get(u) //nolint:bodyclose // Linter Error
 	if err != nil {
 		return nil, err
 	}
-	defer closeResp(resp)
 
 	watchlist := &Watchlist{}
 	if err = unmarshal(resp, watchlist); err != nil {
@@ -1034,11 +1018,10 @@ func (c *Client) UpdateWatchlist(watchlistID string, req UpdateWatchlistRequest)
 		return nil, err
 	}
 
-	resp, err := c.put(u, req)
+	resp, err := c.put(u, req) //nolint:bodyclose // Linter Error
 	if err != nil {
 		return nil, err
 	}
-	defer closeResp(resp)
 
 	watchlist := &Watchlist{}
 	if err = unmarshal(resp, watchlist); err != nil {
@@ -1059,11 +1042,10 @@ func (c *Client) AddSymbolToWatchlist(watchlistID string, req AddSymbolToWatchli
 		return nil, err
 	}
 
-	resp, err := c.post(u, req)
+	resp, err := c.post(u, req) //nolint:bodyclose // Linter Error
 	if err != nil {
 		return nil, err
 	}
-	defer closeResp(resp)
 
 	watchlist := &Watchlist{}
 	if err = unmarshal(resp, watchlist); err != nil {
@@ -1086,7 +1068,7 @@ func (c *Client) RemoveSymbolFromWatchlist(watchlistID string, req RemoveSymbolF
 	if err != nil {
 		return err
 	}
-	closeResp(resp)
+	CloseResp(resp)
 	return nil
 }
 
@@ -1100,7 +1082,7 @@ func (c *Client) DeleteWatchlist(watchlistID string) error {
 	if err != nil {
 		return err
 	}
-	closeResp(resp)
+	CloseResp(resp)
 	return nil
 }
 
@@ -1329,24 +1311,23 @@ func (c *Client) delete(u *url.URL) (*http.Response, error) {
 	return c.do(c, req)
 }
 
-func verify(resp *http.Response) error {
+func Verify(resp *http.Response) error {
 	if resp.StatusCode >= http.StatusMultipleChoices {
-		defer resp.Body.Close()
 		return APIErrorFromResponse(resp)
 	}
 	return nil
 }
 
 func unmarshal(resp *http.Response, v easyjson.Unmarshaler) error {
+	defer CloseResp(resp)
 	return easyjson.UnmarshalFromReader(resp.Body, v)
 }
 
-func closeResp(resp *http.Response) {
+func CloseResp(resp *http.Response) {
 	if resp == nil || resp.Body == nil {
-		return // Avoids panic if resp is nil
+		return
 	}
-
-	// The underlying TCP connection can not be reused if the body is not fully read
+	// The underlying TCP connection cannot be reused if the body is not fully read
 	_, _ = io.Copy(io.Discard, resp.Body)
 	resp.Body.Close()
 }

@@ -56,11 +56,11 @@ func (c *Client) GetOptionMultiTrades(symbols []string, req GetOptionTradesReque
 		setQueryLimit(q, req.TotalLimit, req.PageLimit, received, v2MaxLimit)
 		u.RawQuery = q.Encode()
 
-		resp, err := c.get(u)
+		resp, err := c.get(u) //nolint:bodyclose // Linter Error
+
 		if err != nil {
 			return nil, err
 		}
-
 		var tradeResp multiOptionTradeResponse
 		if err = unmarshal(resp, &tradeResp); err != nil {
 			return nil, err
@@ -131,7 +131,7 @@ func (c *Client) GetMultiOptionBars(symbols []string, req GetOptionBarsRequest) 
 		setQueryLimit(q, req.TotalLimit, req.PageLimit, received, v2MaxLimit)
 		u.RawQuery = q.Encode()
 
-		resp, err := c.get(u)
+		resp, err := c.get(u) //nolint:bodyclose // Linter Error
 		if err != nil {
 			return nil, err
 		}
@@ -183,11 +183,10 @@ func (c *Client) GetLatestOptionTrades(
 		Feed:    req.Feed,
 	})
 
-	resp, err := c.get(u)
+	resp, err := c.get(u) //nolint:bodyclose // Linter Error
 	if err != nil {
 		return nil, err
 	}
-	defer closeResp(resp)
 
 	var latestTradesResp latestOptionTradesResponse
 	if err = unmarshal(resp, &latestTradesResp); err != nil {
@@ -226,11 +225,10 @@ func (c *Client) GetLatestOptionQuotes(
 		Feed:    req.Feed,
 	})
 
-	resp, err := c.get(u)
+	resp, err := c.get(u) //nolint:bodyclose // Linter Error
 	if err != nil {
 		return nil, err
 	}
-	defer closeResp(resp)
 
 	var latestQuotesResp latestOptionQuotesResponse
 	if err = unmarshal(resp, &latestQuotesResp); err != nil {
@@ -281,7 +279,7 @@ func (c *Client) GetOptionSnapshots(symbols []string, req GetOptionSnapshotReque
 		setQueryLimit(q, req.TotalLimit, req.PageLimit, received, v2MaxLimit)
 		u.RawQuery = q.Encode()
 
-		resp, err := c.get(u)
+		resp, err := c.get(u) //nolint:bodyclose // Linter Error
 		if err != nil {
 			return nil, err
 		}
@@ -365,7 +363,7 @@ func (c *Client) GetOptionChain(underlyingSymbol string, req GetOptionChainReque
 		setQueryLimit(q, req.TotalLimit, req.PageLimit, received, v2MaxLimit)
 		u.RawQuery = q.Encode()
 
-		resp, err := c.get(u)
+		resp, err := c.get(u) //nolint:bodyclose // Linter Error
 		if err != nil {
 			return nil, err
 		}

@@ -4,7 +4,6 @@ import (
 	"compress/gzip"
 	"errors"
 	"fmt"
-	"io"
 	"net/http"
 	"net/url"
 	"os"
@@ -126,14 +125,13 @@ RetryLoop:
 		if i >= c.opts.RetryLimit {
 			break
 		}
+		alpaca.CloseResp(resp) // Close body before retrying
 		time.Sleep(c.opts.RetryDelay)
 	}
 
-	if resp.StatusCode >= http.StatusMultipleChoices {
-		defer resp.Body.Close()
-		return nil, alpaca.APIErrorFromResponse(resp)
+	if err = alpaca.Verify(resp); err != nil {
+		return nil, err
 	}
-
 	return resp, nil
 }
 
@@ -255,7 +253,7 @@ func (c *Client) GetMultiTrades(symbols []string, req GetTradesRequest) (map[str
 		setQueryLimit(q, req.TotalLimit, req.PageLimit, received, v2MaxLimit)
 		u.RawQuery = q.Encode()
 
-		resp, err := c.get(u)
+		resp, err := c.get(u) //nolint:bodyclose // Linter Error
 		if err != nil {
 			return nil, err
 		}
@@ -331,7 +329,7 @@ func (c *Client) GetMultiQuotes(symbols []string, req GetQuotesRequest) (map[str
 		setQueryLimit(q, req.TotalLimit, req.PageLimit, received, v2MaxLimit)
 		u.RawQuery = q.Encode()
 
-		resp, err := c.get(u)
+		resp, err := c.get(u) //nolint:bodyclose // Linter Error
 		if err != nil {
 			return nil, err
 		}
@@ -427,7 +425,7 @@ func (c *Client) GetMultiBars(symbols []string, req GetBarsRequest) (map[string]
 		setQueryLimit(q, req.TotalLimit, req.PageLimit, received, v2MaxLimit)
 		u.RawQuery = q.Encode()
 
-		resp, err := c.get(u)
+		resp, err := c.get(u) //nolint:bodyclose // Linter Error
 		if err != nil {
 			return nil, err
 		}
@@ -503,7 +501,7 @@ func (c *Client) GetMultiAuctions(
 		setQueryLimit(q, req.TotalLimit, req.PageLimit, received, v2MaxLimit)
 		u.RawQuery = q.Encode()
 
-		resp, err := c.get(u)
+		resp, err := c.get(u) //nolint:bodyclose // Linter Error
 		if err != nil {
 			return nil, err
 		}
@@ -580,11 +578,10 @@ func (c *Client) GetLatestBars(symbols []string, req GetLatestBarRequest) (map[s
 		Currency: req.Currency,
 	})
 
-	resp, err := c.get(u)
+	resp, err := c.get(u) //nolint:bodyclose // Linter Error
 	if err != nil {
 		return nil, err
 	}
-	defer closeResp(resp)
 
 	var latestBarsResp latestBarsResponse
 	if err = unmarshal(resp, &latestBarsResp); err != nil {
@@ -623,11 +620,10 @@ func (c *Client) GetLatestTrades(symbols []string, req GetLatestTradeRequest) (m
 		Currency: req.Currency,
 	})
 
-	resp, err := c.get(u)
+	resp, err := c.get(u) //nolint:bodyclose // Linter Error
 	if err != nil {
 		return nil, err
 	}
-	defer closeResp(resp)
 
 	var latestTradesResp latestTradesResponse
 	if err = unmarshal(resp, &latestTradesResp); err != nil {
@@ -666,11 +662,10 @@ func (c *Client) GetLatestQuotes(symbols []string, req GetLatestQuoteRequest) (m
 		Currency: req.Currency,
 	})
 
-	resp, err := c.get(u)
+	resp, err := c.get(u) //nolint:bodyclose // Linter Error
 	if err != nil {
 		return nil, err
 	}
-	defer closeResp(resp)
 
 	var latestQuotesResp latestQuotesResponse
 	if err = unmarshal(resp, &latestQuotesResp); err != nil {
@@ -705,11 +700,10 @@ func (c *Client) GetSnapshots(symbols []string, req GetSnapshotRequest) (map[str
 		Currency: req.Currency,
 	})
 
-	resp, err := c.get(u)
+	resp, err := c.get(u) //nolint:bodyclose // Linter Error
 	if err != nil {
 		return nil, err
 	}
-	defer closeResp(resp)
 
 	var snapshots snapshotsResponse
 	if err = unmarshal(resp, &snapshots); err != nil {
@@ -795,7 +789,7 @@ func (c *Client) GetCryptoMultiTrades(symbols []string, req GetCryptoTradesReque
 		setQueryLimit(q, req.TotalLimit, req.PageLimit, received, v2MaxLimit)
 		u.RawQuery = q.Encode()
 
-		resp, err := c.get(u)
+		resp, err := c.get(u) //nolint:bodyclose // Linter Error
 		if err != nil {
 			return nil, err
 		}
@@ -869,7 +863,7 @@ func (c *Client) GetCryptoMultiQuotes(symbols []string, req GetCryptoQuotesReque
 		setQueryLimit(q, req.TotalLimit, req.PageLimit, received, v2MaxLimit)
 		u.RawQuery = q.Encode()
 
-		resp, err := c.get(u)
+		resp, err := c.get(u) //nolint:bodyclose // Linter Error
 		if err != nil {
 			return nil, err
 		}
@@ -955,7 +949,7 @@ func (c *Client) GetCryptoMultiBars(symbols []string, req GetCryptoBarsRequest) 
 		setQueryLimit(q, req.TotalLimit, req.PageLimit, received, v2MaxLimit)
 		u.RawQuery = q.Encode()
 
-		resp, err := c.get(u)
+		resp, err := c.get(u) //nolint:bodyclose // Linter Error
 		if err != nil {
 			return nil, err
 		}
@@ -1084,11 +1078,10 @@ func (c *Client) GetLatestCryptoBars(symbols []string, req GetLatestCryptoBarReq
 		Symbols: symbols,
 	})
 
-	resp, err := c.get(u)
+	resp, err := c.get(u) //nolint:bodyclose // Linter Error
 	if err != nil {
 		return nil, err
 	}
-	defer closeResp(resp)
 
 	var latestBarsResp latestCryptoBarsResponse
 	if err = unmarshal(resp, &latestBarsResp); err != nil {
@@ -1163,11 +1156,10 @@ func (c *Client) GetLatestCryptoTrades(
 		Symbols: symbols,
 	})
 
-	resp, err := c.get(u)
+	resp, err := c.get(u) //nolint:bodyclose // Linter Error
 	if err != nil {
 		return nil, err
 	}
-	defer closeResp(resp)
 
 	var latestTradesResp latestCryptoTradesResponse
 	if err = unmarshal(resp, &latestTradesResp); err != nil {
@@ -1242,11 +1234,10 @@ func (c *Client) GetLatestCryptoQuotes(
 		Symbols: symbols,
 	})
 
-	resp, err := c.get(u)
+	resp, err := c.get(u) //nolint:bodyclose // Linter Error
 	if err != nil {
 		return nil, err
 	}
-	defer closeResp(resp)
 
 	var latestQuotesResp latestCryptoQuotesResponse
 	if err = unmarshal(resp, &latestQuotesResp); err != nil {
@@ -1292,11 +1283,10 @@ func (c *Client) GetLatestCryptoPerpPricingData(
 		Symbols: symbols,
 	})
 
-	resp, err := c.get(u)
+	resp, err := c.get(u) //nolint:bodyclose // Linter Error
 	if err != nil {
 		return nil, err
 	}
-	defer closeResp(resp)
 
 	var latestPricingResp latestCryptoPerpPricingResponse
 	if err = unmarshal(resp, &latestPricingResp); err != nil {
@@ -1337,11 +1327,10 @@ func (c *Client) GetCryptoSnapshots(symbols []string, req GetCryptoSnapshotReque
 		Symbols: symbols,
 	})
 
-	resp, err := c.get(u)
+	resp, err := c.get(u) //nolint:bodyclose // Linter Error
 	if err != nil {
 		return nil, err
 	}
-	defer closeResp(resp)
 
 	var snapshots CryptoSnapshots
 	if err = unmarshal(resp, &snapshots); err != nil {
@@ -1444,7 +1433,7 @@ func (c *Client) GetNews(req GetNewsRequest) ([]News, error) {
 		setQueryLimit(q, totalLimit, req.PageLimit, received, newsMaxLimit)
 		u.RawQuery = q.Encode()
 
-		resp, err := c.get(u)
+		resp, err := c.get(u) //nolint:bodyclose // Linter Error
 		if err != nil {
 			return nil, fmt.Errorf("failed to get news: %w", err)
 		}
@@ -1528,7 +1517,7 @@ func (c *Client) GetCorporateActions(req GetCorporateActionsRequest) (CorporateA
 		setQueryLimit(q, req.TotalLimit, req.PageLimit, received, v2MaxLimit)
 		u.RawQuery = q.Encode()
 
-		resp, err := c.get(u)
+		resp, err := c.get(u) //nolint:bodyclose // Linter Error
 		if err != nil {
 			return cas, err
 		}
@@ -1769,34 +1758,16 @@ func (c *Client) get(u *url.URL) (*http.Response, error) {
 }
 
 func unmarshal(resp *http.Response, v easyjson.Unmarshaler) error {
-	if resp == nil || resp.Body == nil {
-		return errors.New("response or response body is nil")
-	}
+	defer alpaca.CloseResp(resp)
+	reader := resp.Body
 
-	var (
-		reader = resp.Body
-		err    error
-	)
-	switch resp.Header.Get("Content-Encoding") {
-	case "gzip":
-		reader, err = gzip.NewReader(resp.Body)
+	if resp.Header.Get("Content-Encoding") == "gzip" {
+		gzipReader, err := gzip.NewReader(resp.Body)
 		if err != nil {
-			resp.Body.Close() // Prevents resource leak if gzip.NewReader fails
 			return err
 		}
-		defer reader.Close()
-	default:
-		defer resp.Body.Close() // Close the original response body if not gzipped.
+		defer gzipReader.Close()
+		reader = gzipReader
 	}
 	return easyjson.UnmarshalFromReader(reader, v)
-}
-
-func closeResp(resp *http.Response) {
-	if resp == nil || resp.Body == nil {
-		return // Avoids panic if resp is nil
-	}
-
-	// The underlying TCP connection can not be reused if the body is not fully read
-	_, _ = io.Copy(io.Discard, resp.Body)
-	resp.Body.Close()
 }

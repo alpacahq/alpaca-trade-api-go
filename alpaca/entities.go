@@ -2,7 +2,6 @@ package alpaca
 
 import (
 	json "encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -363,10 +362,7 @@ type APIError struct {
 }
 
 func APIErrorFromResponse(resp *http.Response) error {
-	if resp == nil {
-		return errors.New("response is response")
-	}
-	defer resp.Body.Close()
+	defer CloseResp(resp)
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
