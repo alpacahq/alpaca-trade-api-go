@@ -2,6 +2,7 @@ package marketdata
 
 import (
 	"compress/gzip"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -1564,6 +1565,33 @@ func (c *Client) GetCorporateActions(req GetCorporateActionsRequest) (CorporateA
 	return cas, nil
 }
 
+// GetExchangeCodes returns the mapping between the stock exchange codes
+// and the corresponding exchanges names, see:
+// https://docs.alpaca.markets/reference/stockmetaexchanges-1
+func (c *Client) GetExchangeCodes() (map[string]string, error) {
+	u, err := url.Parse(fmt.Sprintf("%s/v2/stocks/meta/exchanges", c.opts.BaseURL))
+	if err != nil {
+		return nil, fmt.Errorf("invalid exchange codes url: %w", err)
+	}
+
+	resp, err := c.get(u)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get news: %w", err)
+	}
+
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("unable to read request body: %w", err)
+	}
+
+	var exchangeCodes map[string]string
+	if err = json.Unmarshal(body, &exchangeCodes); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal news: %w", err)
+	}
+	return exchangeCodes, nil
+}
+
 // GetTrades returns the trades for the given symbol.
 func GetTrades(symbol string, req GetTradesRequest) ([]Trade, error) {
 	return DefaultClient.GetTrades(symbol, req)
@@ -1757,6 +1785,13 @@ func GetNews(req GetNewsRequest) ([]News, error) {
 // GetCorporateActions returns the corporate actions based on the given req.
 func GetCorporateActions(req GetCorporateActionsRequest) (CorporateActions, error) {
 	return DefaultClient.GetCorporateActions(req)
+}
+
+// GetExchangeCodes returns the mapping between the stock exchange codes
+// and the corresponding exchanges names, see:
+// https://docs.alpaca.markets/reference/stockmetaexchanges-1
+func GetExchangeCodes() (map[string]string, error) {
+	return DefaultClient.GetExchangeCodes()
 }
 
 func (c *Client) get(u *url.URL) (*http.Response, error) {

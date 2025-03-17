@@ -2,6 +2,7 @@
 package marketdata
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -1480,4 +1481,42 @@ func TestGetLatestCryptoPerpPricing(t *testing.T) {
 		Timestamp:       time.Date(2024, 12, 19, 9, 33, 36, 311000000, time.UTC),
 		NextFundingTime: time.Date(2024, 12, 19, 10, 33, 36, 311000000, time.UTC),
 	}, *got)
+}
+
+func TestGetExchangeCodes(t *testing.T) {
+	c := DefaultClient
+	expectedResp := `{
+	"A": "NYSE American (AMEX)",
+	"B": "NASDAQ OMX BX",
+	"C": "National Stock Exchange",
+	"D": "FINRA ADF",
+	"E": "Market Independent",
+	"H": "MIAX",
+	"I": "International Securities Exchange",
+	"J": "Cboe EDGA",
+	"K": "Cboe EDGX",
+	"L": "Long Term Stock Exchange",
+	"M": "Chicago Stock Exchange",
+	"N": "New York Stock Exchange",
+	"P": "NYSE Arca",
+	"Q": "NASDAQ OMX",
+	"S": "NASDAQ Small Cap",
+	"T": "NASDAQ Int",
+	"U": "Members Exchange",
+	"V": "IEX",
+	"W": "CBOE",
+	"X": "NASDAQ OMX PSX",
+	"Y": "Cboe BYX",
+	"Z": "Cboe BZ"
+	}`
+	c.do = mockResp(expectedResp)
+	got, err := c.GetExchangeCodes()
+	require.NoError(t, err)
+	var expected map[string]string
+	err = json.Unmarshal([]byte(expectedResp), &expected)
+	require.NoError(t, err)
+	require.Equal(t, got["A"], "NYSE American (AMEX)")
+	require.Equal(t, got["Z"], "Cboe BZ")
+	require.Len(t, got, 22) // 22 exchanges
+	require.Equal(t, got, expected)
 }
