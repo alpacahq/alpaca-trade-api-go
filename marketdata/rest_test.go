@@ -1515,8 +1515,5 @@ func TestGetExchangeCodes(t *testing.T) {
 	var expected map[string]string
 	err = json.Unmarshal([]byte(expectedResp), &expected)
 	require.NoError(t, err)
-	require.Equal(t, got["A"], "NYSE American (AMEX)")
-	require.Equal(t, got["Z"], "Cboe BZ")
-	require.Len(t, got, 22) // 22 exchanges
-	require.Equal(t, got, expected)
+	require.Equal(t, expected, got)
 }

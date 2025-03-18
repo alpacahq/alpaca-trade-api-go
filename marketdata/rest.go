@@ -2,7 +2,7 @@ package marketdata
 
 import (
 	"compress/gzip"
-	"encoding/json"
+	json "encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -1576,18 +1576,22 @@ func (c *Client) GetExchangeCodes() (map[string]string, error) {
 
 	resp, err := c.get(u)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get news: %w", err)
+		return nil, fmt.Errorf("failed to get exchange codes: %w", err)
 	}
 
 	defer resp.Body.Close()
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("unable to read request body: %w", err)
-	}
 
 	var exchangeCodes map[string]string
+	reader, err := getResponseReader(resp)
+	if err != nil {
+		return nil, err
+	}
+	body, err := io.ReadAll(reader)
+	if err != nil {
+		return nil, err
+	}
 	if err = json.Unmarshal(body, &exchangeCodes); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal news: %w", err)
+		return nil, fmt.Errorf("failed to unmarshal exchange codes: %w", err)
 	}
 	return exchangeCodes, nil
 }
@@ -1803,7 +1807,7 @@ func (c *Client) get(u *url.URL) (*http.Response, error) {
 	return c.do(c, req)
 }
 
-func unmarshal(resp *http.Response, v easyjson.Unmarshaler) error {
+func getResponseReader(resp *http.Response) (io.ReadCloser, error) {
 	var (
 		reader io.ReadCloser
 		err    error
@@ -1812,11 +1816,19 @@ func unmarshal(resp *http.Response, v easyjson.Unmarshaler) error {
 	case "gzip":
 		reader, err = gzip.NewReader(resp.Body)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		defer reader.Close()
 	default:
 		reader = resp.Body
+	}
+	return reader, nil
+}
+
+func unmarshal(resp *http.Response, v easyjson.Unmarshaler) error {
+	reader, err := getResponseReader(resp)
+	if err != nil {
+		return err
 	}
 	return easyjson.UnmarshalFromReader(reader, v)
 }
