@@ -693,67 +693,55 @@ type GetOptionContractsRequest struct {
 
 // GetOptionContracts returns the list of Option Contracts.
 func (c *Client) GetOptionContracts(req GetOptionContractsRequest) ([]OptionContract, error) {
-	u, err := url.Parse(fmt.Sprintf("%s/%s/options/contracts", c.opts.BaseURL, apiVersion))
-	if err != nil {
-		return nil, err
-	}
-
-	q := u.Query()
+	queryParams := make(map[string]string)
 
 	if req.UnderlyingSymbols != "" {
-		q.Set("underlying_symbols", req.UnderlyingSymbols)
+		queryParams["underlying_symbols"] = req.UnderlyingSymbols
 	}
-
-	q.Set("show_deliverables", strconv.FormatBool(req.ShowDeliverable))
+	queryParams["show_deliverables"] = strconv.FormatBool(req.ShowDeliverable)
 
 	if req.Status != "" {
-		q.Set("status", string(req.Status))
+		queryParams["status"] = string(req.Status)
 	}
-
 	if !req.ExpirationDate.IsZero() {
-		q.Set("expiration_date", req.ExpirationDate.String())
+		queryParams["expiration_date"] = req.ExpirationDate.String()
 	}
-
 	if !req.ExpirationDateGTE.IsZero() {
-		q.Set("expiration_date_gte", req.ExpirationDateGTE.String())
+		queryParams["expiration_date_gte"] = req.ExpirationDateGTE.String()
 	}
-
 	if !req.ExpirationDateLTE.IsZero() {
-		q.Set("expiration_date_lte", req.ExpirationDateLTE.String())
+		queryParams["expiration_date_lte"] = req.ExpirationDateLTE.String()
 	}
-
 	if req.RootSymbol != "" {
-		q.Set("root_symbol", req.RootSymbol)
+		queryParams["root_symbol"] = req.RootSymbol
 	}
-
 	if req.Type != "" {
-		q.Set("type", string(req.Type))
+		queryParams["type"] = string(req.Type)
 	}
-
 	if req.Style != "" {
-		q.Set("style", string(req.Style))
+		queryParams["style"] = string(req.Style)
 	}
-
 	if !req.StrikePriceLTE.IsZero() {
-		q.Set("strike_price_lte", req.StrikePriceLTE.String())
+		queryParams["strike_price_lte"] = req.StrikePriceLTE.String()
 	}
-
 	if !req.StrikePriceGTE.IsZero() {
-		q.Set("strike_price_gte", req.StrikePriceGTE.String())
+		queryParams["strike_price_gte"] = req.StrikePriceGTE.String()
 	}
-
 	if req.PennyProgramIndicator {
-		q.Set("ppind", "true")
+		queryParams["ppind"] = "true"
 	}
 
 	optionContracts := make([]OptionContract, 0)
-	for req.TotalLimit == 0 || len(optionContracts) < req.TotalLimit {
-		setQueryLimit(q,
-			req.TotalLimit,
-			req.PageLimit,
-			len(optionContracts),
-			optionContractsRequestsMaxLimit)
 
+	for req.TotalLimit == 0 || len(optionContracts) < req.TotalLimit {
+		u, err := c.buildURL("options/contracts", queryParams)
+		if err != nil {
+			return nil, err
+		}
+
+		// Set pagination limit
+		q := u.Query()
+		setQueryLimit(q, req.TotalLimit, req.PageLimit, len(optionContracts), optionContractsRequestsMaxLimit)
 		u.RawQuery = q.Encode()
 
 		resp, err := c.get(u) //nolint:bodyclose // Linter Error
@@ -772,7 +760,7 @@ func (c *Client) GetOptionContracts(req GetOptionContractsRequest) ([]OptionCont
 			break
 		}
 
-		q.Set("page_token", *response.NextPageToken)
+		queryParams["page_token"] = *response.NextPageToken
 	}
 
 	return optionContracts, nil
