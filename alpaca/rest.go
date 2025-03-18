@@ -798,39 +798,29 @@ type GetAnnouncementsRequest struct {
 }
 
 func (c *Client) GetAnnouncements(req GetAnnouncementsRequest) ([]Announcement, error) {
-	u, err := url.Parse(fmt.Sprintf("%s/%s/corporate_actions/announcements", c.opts.BaseURL, apiVersion))
-	if err != nil {
-		return nil, err
-	}
+	queryParams := make(map[string]string)
 
-	q := u.Query()
 	if len(req.CATypes) != 0 {
-		q.Set("ca_types", strings.Join(req.CATypes, ","))
+		queryParams["ca_types"] = strings.Join(req.CATypes, ",")
 	}
 	if !req.Since.IsZero() {
-		q.Set("since", req.Since.Format("2006-01-02"))
+		queryParams["since"] = req.Since.Format("2006-01-02")
 	}
 	if !req.Until.IsZero() {
-		q.Set("until", req.Until.Format("2006-01-02"))
+		queryParams["until"] = req.Until.Format("2006-01-02")
 	}
 	if req.Symbol != "" {
-		q.Set("symbol", req.Symbol)
+		queryParams["symbol"] = req.Symbol
 	}
 	if req.Cusip != "" {
-		q.Set("cusip", req.Cusip)
+		queryParams["cusip"] = req.Cusip
 	}
 	if req.DateType != "" {
-		q.Set("date_type", string(req.DateType))
-	}
-	u.RawQuery = q.Encode()
-
-	resp, err := c.get(u) //nolint:bodyclose // Linter Error
-	if err != nil {
-		return nil, err
+		queryParams["date_type"] = string(req.DateType)
 	}
 
 	var announcements announcementSlice
-	if err = unmarshal(resp, &announcements); err != nil {
+	if err := c.fetchAndUnmarshal("corporate_actions/announcements", queryParams, &announcements); err != nil {
 		return nil, err
 	}
 
