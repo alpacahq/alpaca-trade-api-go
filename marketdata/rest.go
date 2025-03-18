@@ -42,6 +42,8 @@ type ClientOpts struct {
 	HTTPClient *http.Client
 	// Host used to set the http request's host
 	RequestHost string
+	// ResponseCallback is a user defined callback to execute on the raw http.Response
+	ResponseCallback func(*http.Response)
 }
 
 // Client is the alpaca marketdata Client.
@@ -127,6 +129,10 @@ RetryLoop:
 			break
 		}
 		time.Sleep(c.opts.RetryDelay)
+	}
+
+	if c.opts.ResponseCallback != nil {
+		defer c.opts.ResponseCallback(resp)
 	}
 
 	if resp.StatusCode >= http.StatusMultipleChoices {
