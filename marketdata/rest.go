@@ -1581,7 +1581,6 @@ func (c *Client) GetExchangeCodes() (map[string]string, error) {
 
 	defer resp.Body.Close()
 
-	var exchangeCodes map[string]string
 	reader, err := getResponseReader(resp)
 	if err != nil {
 		return nil, err
@@ -1590,6 +1589,7 @@ func (c *Client) GetExchangeCodes() (map[string]string, error) {
 	if err != nil {
 		return nil, err
 	}
+	var exchangeCodes map[string]string
 	if err = json.Unmarshal(body, &exchangeCodes); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal exchange codes: %w", err)
 	}
