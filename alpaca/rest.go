@@ -129,7 +129,7 @@ func (c *Client) GetAccount() (*Account, error) {
 		return nil, err
 	}
 
-	resp, err := c.get(u) //nolint:bodyclose // Linter Error
+	resp, err := c.get(u) //nolint:bodyclose // unmarshal closes the body
 	if err != nil {
 		return nil, err
 	}
@@ -148,7 +148,7 @@ func (c *Client) GetAccountConfigurations() (*AccountConfigurations, error) {
 		return nil, err
 	}
 
-	resp, err := c.get(u) //nolint:bodyclose // Linter Error
+	resp, err := c.get(u) //nolint:bodyclose // unmarshal closes the body
 	if err != nil {
 		return nil, err
 	}
@@ -232,7 +232,7 @@ func (c *Client) GetAccountActivities(req GetAccountActivitiesRequest) ([]Accoun
 	}
 	u.RawQuery = q.Encode()
 
-	resp, err := c.get(u) //nolint:bodyclose // Linter Error
+	resp, err := c.get(u) //nolint:bodyclose // unmarshal closes the body
 	if err != nil {
 		return nil, err
 	}
@@ -271,7 +271,7 @@ func (c *Client) GetPortfolioHistory(req GetPortfolioHistoryRequest) (*Portfolio
 	query.Set("extended_hours", strconv.FormatBool(req.ExtendedHours))
 	u.RawQuery = query.Encode()
 
-	resp, err := c.get(u) //nolint:bodyclose // Linter Error
+	resp, err := c.get(u) //nolint:bodyclose // unmarshal closes the body
 	if err != nil {
 		return nil, err
 	}
@@ -290,7 +290,7 @@ func (c *Client) GetPositions() ([]Position, error) {
 		return nil, err
 	}
 
-	resp, err := c.get(u) //nolint:bodyclose // Linter Error
+	resp, err := c.get(u) //nolint:bodyclose // unmarshal closes the body
 	if err != nil {
 		return nil, err
 	}
@@ -313,7 +313,7 @@ func (c *Client) GetPosition(symbol string) (*Position, error) {
 	q.Set("symbol", symbol)
 	u.RawQuery = q.Encode()
 
-	resp, err := c.get(u) //nolint:bodyclose // Linter Error
+	resp, err := c.get(u) //nolint:bodyclose // unmarshal closes the body
 	if err != nil {
 		return nil, err
 	}
@@ -421,7 +421,7 @@ func (c *Client) GetClock() (*Clock, error) {
 		return nil, err
 	}
 
-	resp, err := c.get(u) //nolint:bodyclose // Linter Error
+	resp, err := c.get(u) //nolint:bodyclose // unmarshal closes the body
 	if err != nil {
 		return nil, err
 	}
@@ -454,7 +454,7 @@ func (c *Client) GetCalendar(req GetCalendarRequest) ([]CalendarDay, error) {
 	}
 	u.RawQuery = q.Encode()
 
-	resp, err := c.get(u) //nolint:bodyclose // Linter Error
+	resp, err := c.get(u) //nolint:bodyclose // unmarshal closes the body
 	if err != nil {
 		return nil, err
 	}
@@ -512,7 +512,7 @@ func (c *Client) GetOrders(req GetOrdersRequest) ([]Order, error) {
 	}
 	u.RawQuery = q.Encode()
 
-	resp, err := c.get(u) //nolint:bodyclose // Linter Error
+	resp, err := c.get(u) //nolint:bodyclose // unmarshal closes the body
 	if err != nil {
 		return nil, err
 	}
@@ -586,7 +586,7 @@ func (c *Client) GetOrder(orderID string) (*Order, error) {
 		return nil, err
 	}
 
-	resp, err := c.get(u) //nolint:bodyclose // Linter Error
+	resp, err := c.get(u) //nolint:bodyclose // unmarshal closes the body
 	if err != nil {
 		return nil, err
 	}
@@ -609,7 +609,7 @@ func (c *Client) GetOrderByClientOrderID(clientOrderID string) (*Order, error) {
 	q.Set("client_order_id", clientOrderID)
 	u.RawQuery = q.Encode()
 
-	resp, err := c.get(u) //nolint:bodyclose // Linter Error
+	resp, err := c.get(u) //nolint:bodyclose // unmarshal closes the body
 	if err != nil {
 		return nil, err
 	}
@@ -711,7 +711,7 @@ func (c *Client) GetAssets(req GetAssetsRequest) ([]Asset, error) {
 	}
 	u.RawQuery = q.Encode()
 
-	resp, err := c.get(u) //nolint:bodyclose // Linter Error
+	resp, err := c.get(u) //nolint:bodyclose // unmarshal closes the body
 	if err != nil {
 		return nil, err
 	}
@@ -730,7 +730,7 @@ func (c *Client) GetAsset(symbol string) (*Asset, error) {
 		return nil, err
 	}
 
-	resp, err := c.get(u) //nolint:bodyclose // Linter Error
+	resp, err := c.get(u) //nolint:bodyclose // unmarshal closes the body
 	if err != nil {
 		return nil, err
 	}
@@ -848,7 +848,7 @@ func (c *Client) GetOptionContracts(req GetOptionContractsRequest) ([]OptionCont
 
 		u.RawQuery = q.Encode()
 
-		resp, err := c.get(u) //nolint:bodyclose // Linter Error
+		resp, err := c.get(u) //nolint:bodyclose // unmarshal closes the body
 		if err != nil {
 			return nil, err
 		}
@@ -877,7 +877,7 @@ func (c *Client) GetOptionContract(symbolOrID string) (*OptionContract, error) {
 		return nil, err
 	}
 
-	resp, err := c.get(u) //nolint:bodyclose // Linter Error
+	resp, err := c.get(u) //nolint:bodyclose // unmarshal closes the body
 	if err != nil {
 		return nil, err
 	}
@@ -925,7 +925,7 @@ func (c *Client) GetAnnouncements(req GetAnnouncementsRequest) ([]Announcement, 
 	}
 	u.RawQuery = q.Encode()
 
-	resp, err := c.get(u) //nolint:bodyclose // Linter Error
+	resp, err := c.get(u) //nolint:bodyclose // unmarshal closes the body
 	if err != nil {
 		return nil, err
 	}
@@ -945,7 +945,7 @@ func (c *Client) GetAnnouncement(announcementID string) (*Announcement, error) {
 		return nil, err
 	}
 
-	resp, err := c.get(u) //nolint:bodyclose // Linter Error
+	resp, err := c.get(u) //nolint:bodyclose // unmarshal closes the body
 	if err != nil {
 		return nil, err
 	}
@@ -964,7 +964,7 @@ func (c *Client) GetWatchlists() ([]Watchlist, error) {
 		return nil, err
 	}
 
-	resp, err := c.get(u) //nolint:bodyclose // Linter Error
+	resp, err := c.get(u) //nolint:bodyclose // unmarshal closes the body
 	if err != nil {
 		return nil, err
 	}
@@ -1000,7 +1000,7 @@ func (c *Client) GetWatchlist(watchlistID string) (*Watchlist, error) {
 		return nil, err
 	}
 
-	resp, err := c.get(u) //nolint:bodyclose // Linter Error
+	resp, err := c.get(u) //nolint:bodyclose // unmarshal closes the body
 	if err != nil {
 		return nil, err
 	}

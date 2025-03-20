@@ -56,7 +56,7 @@ func (c *Client) GetOptionMultiTrades(symbols []string, req GetOptionTradesReque
 		setQueryLimit(q, req.TotalLimit, req.PageLimit, received, v2MaxLimit)
 		u.RawQuery = q.Encode()
 
-		resp, err := c.get(u) //nolint:bodyclose // Linter Error
+		resp, err := c.get(u) //nolint:bodyclose // unmarshal closes the body
 
 		if err != nil {
 			return nil, err
@@ -131,7 +131,7 @@ func (c *Client) GetMultiOptionBars(symbols []string, req GetOptionBarsRequest) 
 		setQueryLimit(q, req.TotalLimit, req.PageLimit, received, v2MaxLimit)
 		u.RawQuery = q.Encode()
 
-		resp, err := c.get(u) //nolint:bodyclose // Linter Error
+		resp, err := c.get(u) //nolint:bodyclose // unmarshal closes the body
 		if err != nil {
 			return nil, err
 		}
@@ -183,7 +183,7 @@ func (c *Client) GetLatestOptionTrades(
 		Feed:    req.Feed,
 	})
 
-	resp, err := c.get(u) //nolint:bodyclose // Linter Error
+	resp, err := c.get(u) //nolint:bodyclose // unmarshal closes the body
 	if err != nil {
 		return nil, err
 	}
@@ -225,7 +225,7 @@ func (c *Client) GetLatestOptionQuotes(
 		Feed:    req.Feed,
 	})
 
-	resp, err := c.get(u) //nolint:bodyclose // Linter Error
+	resp, err := c.get(u) //nolint:bodyclose // unmarshal closes the body
 	if err != nil {
 		return nil, err
 	}
@@ -279,7 +279,7 @@ func (c *Client) GetOptionSnapshots(symbols []string, req GetOptionSnapshotReque
 		setQueryLimit(q, req.TotalLimit, req.PageLimit, received, v2MaxLimit)
 		u.RawQuery = q.Encode()
 
-		resp, err := c.get(u) //nolint:bodyclose // Linter Error
+		resp, err := c.get(u) //nolint:bodyclose // unmarshal closes the body
 		if err != nil {
 			return nil, err
 		}
@@ -363,7 +363,7 @@ func (c *Client) GetOptionChain(underlyingSymbol string, req GetOptionChainReque
 		setQueryLimit(q, req.TotalLimit, req.PageLimit, received, v2MaxLimit)
 		u.RawQuery = q.Encode()
 
-		resp, err := c.get(u) //nolint:bodyclose // Linter Error
+		resp, err := c.get(u) //nolint:bodyclose // unmarshal closes the body
 		if err != nil {
 			return nil, err
 		}
