@@ -661,6 +661,7 @@ func (c *Client) CancelOrder(orderID string) error {
 		return err
 	}
 
+	// Verify the response and close the body, if error happens, verify will return the error and close the body
 	responseVal := Verify(resp)
 	if responseVal == nil {
 		CloseResp(resp)
