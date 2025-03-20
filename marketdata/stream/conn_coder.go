@@ -24,7 +24,7 @@ func newCoderWebsocketConn(ctx context.Context, u url.URL) (conn, error) {
 	reqHeader := http.Header{}
 	reqHeader.Set("Content-Type", "application/msgpack")
 	reqHeader.Set("User-Agent", alpaca.Version())
-	//nolint:bodyclose // Linter Error
+	//nolint:bodyclose // According to its docs: you never need to close resp.Body yourself
 	conn, ignoredResponse, err := websocket.Dial(ctxWithTimeout, u.String(), &websocket.DialOptions{
 		CompressionMode: websocket.CompressionContextTakeover,
 		HTTPHeader:      reqHeader,
