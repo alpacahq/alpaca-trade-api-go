@@ -145,7 +145,7 @@ func (c *Client) fetchAndUnmarshal(endpoint string, queryParams map[string]strin
 		return err
 	}
 
-	resp, err := c.get(u) //nolint:bodyclose // Linter Error
+	resp, err := c.get(u) //nolint:bodyclose // unmarshal closes the body
 	if err != nil {
 		return err
 	}
@@ -587,6 +587,7 @@ func (c *Client) CancelOrder(orderID string) error {
 		return err
 	}
 
+	// Verify the response and close the body, if error happens, verify will return the error and close the body
 	responseVal := Verify(resp)
 	if responseVal == nil {
 		CloseResp(resp)
@@ -693,77 +694,106 @@ type GetOptionContractsRequest struct {
 
 // GetOptionContracts returns the list of Option Contracts.
 func (c *Client) GetOptionContracts(req GetOptionContractsRequest) ([]OptionContract, error) {
-	queryParams := make(map[string]string)
-
-	if req.UnderlyingSymbols != "" {
-		queryParams["underlying_symbols"] = req.UnderlyingSymbols
-	}
-	queryParams["show_deliverables"] = strconv.FormatBool(req.ShowDeliverable)
-
-	if req.Status != "" {
-		queryParams["status"] = string(req.Status)
-	}
-	if !req.ExpirationDate.IsZero() {
-		queryParams["expiration_date"] = req.ExpirationDate.String()
-	}
-	if !req.ExpirationDateGTE.IsZero() {
-		queryParams["expiration_date_gte"] = req.ExpirationDateGTE.String()
-	}
-	if !req.ExpirationDateLTE.IsZero() {
-		queryParams["expiration_date_lte"] = req.ExpirationDateLTE.String()
-	}
-	if req.RootSymbol != "" {
-		queryParams["root_symbol"] = req.RootSymbol
-	}
-	if req.Type != "" {
-		queryParams["type"] = string(req.Type)
-	}
-	if req.Style != "" {
-		queryParams["style"] = string(req.Style)
-	}
-	if !req.StrikePriceLTE.IsZero() {
-		queryParams["strike_price_lte"] = req.StrikePriceLTE.String()
-	}
-	if !req.StrikePriceGTE.IsZero() {
-		queryParams["strike_price_gte"] = req.StrikePriceGTE.String()
-	}
-	if req.PennyProgramIndicator {
-		queryParams["ppind"] = "true"
-	}
-
+	queryParams := buildOptionContractsQueryParams(req)
 	optionContracts := make([]OptionContract, 0)
 
 	for req.TotalLimit == 0 || len(optionContracts) < req.TotalLimit {
-		u, err := c.buildURL("options/contracts", queryParams)
+		resp, nextPageToken, err := c.fetchOptionContracts(queryParams, req.TotalLimit,
+			req.PageLimit, len(optionContracts))
 		if err != nil {
 			return nil, err
 		}
 
-		// Set pagination limit
-		q := u.Query()
-		setQueryLimit(q, req.TotalLimit, req.PageLimit, len(optionContracts), optionContractsRequestsMaxLimit)
-		u.RawQuery = q.Encode()
+		optionContracts = append(optionContracts, resp.OptionContracts...)
 
-		resp, err := c.get(u) //nolint:bodyclose // Linter Error
-		if err != nil {
-			return nil, err
-		}
-
-		var response optionContractsResponse
-		if err = unmarshal(resp, &response); err != nil {
-			return nil, err
-		}
-
-		optionContracts = append(optionContracts, response.OptionContracts...)
-
-		if response.NextPageToken == nil {
+		if nextPageToken == "" {
 			break
 		}
 
-		queryParams["page_token"] = *response.NextPageToken
+		queryParams["page_token"] = nextPageToken
 	}
 
 	return optionContracts, nil
+}
+
+// buildOptionContractsQueryParams constructs query parameters from request
+func buildOptionContractsQueryParams(req GetOptionContractsRequest) map[string]string {
+	qp := map[string]string{
+		"show_deliverables": strconv.FormatBool(req.ShowDeliverable),
+	}
+
+	if req.UnderlyingSymbols != "" {
+		qp["underlying_symbols"] = req.UnderlyingSymbols
+	}
+	if req.Status != "" {
+		qp["status"] = string(req.Status)
+	}
+	if req.RootSymbol != "" {
+		qp["root_symbol"] = req.RootSymbol
+	}
+	if req.Type != "" {
+		qp["type"] = string(req.Type)
+	}
+	if req.Style != "" {
+		qp["style"] = string(req.Style)
+	}
+	if req.PennyProgramIndicator {
+		qp["ppind"] = "true"
+	}
+
+	// Date filters
+	addDateParam(qp, "expiration_date", req.ExpirationDate)
+	addDateParam(qp, "expiration_date_gte", req.ExpirationDateGTE)
+	addDateParam(qp, "expiration_date_lte", req.ExpirationDateLTE)
+
+	// Price filters
+	addDecimalParam(qp, "strike_price_lte", req.StrikePriceLTE)
+	addDecimalParam(qp, "strike_price_gte", req.StrikePriceGTE)
+
+	return qp
+}
+
+// addDateParam adds a date parameter if it's not zero
+func addDateParam(qp map[string]string, key string, value civil.Date) {
+	qp[key] = value.String()
+}
+
+// addDecimalParam adds a decimal parameter if it's not zero
+func addDecimalParam(qp map[string]string, key string, value decimal.Decimal) {
+	if !value.IsZero() {
+		qp[key] = value.String()
+	}
+}
+
+// fetchOptionContracts makes an API request and returns response + pagination token
+func (c *Client) fetchOptionContracts(queryParams map[string]string, totalLimit, pageLimit,
+	fetched int) (optionContractsResponse, string, error) {
+	u, err := c.buildURL("options/contracts", queryParams)
+	if err != nil {
+		return optionContractsResponse{}, "", err
+	}
+
+	// Set pagination limit
+	q := u.Query()
+	setQueryLimit(q, totalLimit, pageLimit, fetched, optionContractsRequestsMaxLimit)
+	u.RawQuery = q.Encode()
+
+	resp, err := c.get(u) //nolint:bodyclose // unmarshal closes the body
+	if err != nil {
+		return optionContractsResponse{}, "", err
+	}
+
+	var response optionContractsResponse
+	if err = unmarshal(resp, &response); err != nil {
+		return optionContractsResponse{}, "", err
+	}
+
+	nextPageToken := ""
+	if response.NextPageToken != nil {
+		nextPageToken = *response.NextPageToken
+	}
+
+	return response, nextPageToken, nil
 }
 
 // GetOptionContract returns an option contract by symbol or contract ID.
@@ -817,7 +847,8 @@ func (c *Client) GetAnnouncements(req GetAnnouncementsRequest) ([]Announcement, 
 
 func (c *Client) GetAnnouncement(announcementID string) (*Announcement, error) {
 	var announcement Announcement
-	if err := c.fetchAndUnmarshal(fmt.Sprintf("corporate_actions/announcements/%s", announcementID), nil, &announcement); err != nil {
+	if err := c.fetchAndUnmarshal(fmt.Sprintf("corporate_actions/announcements/%s", announcementID),
+		nil, &announcement); err != nil {
 		return nil, err
 	}
 	return &announcement, nil
@@ -852,7 +883,8 @@ func (c *Client) CreateWatchlist(req CreateWatchlistRequest) (*Watchlist, error)
 
 func (c *Client) GetWatchlist(watchlistID string) (*Watchlist, error) {
 	var watchlist Watchlist
-	if err := c.fetchAndUnmarshal(fmt.Sprintf("watchlists/%s", watchlistID), nil, &watchlist); err != nil {
+	if err := c.fetchAndUnmarshal(fmt.Sprintf("watchlists/%s", watchlistID),
+		nil, &watchlist); err != nil {
 		return nil, err
 	}
 	return &watchlist, nil
@@ -905,7 +937,8 @@ func (c *Client) RemoveSymbolFromWatchlist(watchlistID string, req RemoveSymbolF
 		return ErrSymbolMissing
 	}
 
-	u, err := url.Parse(fmt.Sprintf("%s/%s/watchlists/%s/%s", c.opts.BaseURL, apiVersion, watchlistID, req.Symbol))
+	u, err := url.Parse(fmt.Sprintf("%s/%s/watchlists/%s/%s", c.opts.BaseURL,
+		apiVersion, watchlistID, req.Symbol))
 	if err != nil {
 		return err
 	}
