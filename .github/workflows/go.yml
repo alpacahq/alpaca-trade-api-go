@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        go-version: [1.20.x, 1.21.x, 1.22.x, 1.23.x]
+        go-version: [1.20.x, 1.21.x, 1.22.x, 1.23.x, 1.24.x]
     steps:
     - uses: actions/checkout@v4
     - uses: actions/setup-go@v5
@@ -25,10 +25,10 @@ jobs:
     - uses: actions/checkout@v4
     - uses: actions/setup-go@v5
       with:
-        go-version: 1.22
+        go-version: 1.23
     - uses: golangci/golangci-lint-action@v6
       with:
-        version: v1.63.4
+        version: v1.64.8
     - name: Build
       run: go build -v ./...
   test:
@@ -37,6 +37,6 @@ jobs:
     - uses: actions/checkout@v4
     - uses: actions/setup-go@v5
       with:
-        go-version: 1.23
+        go-version: 1.24
     - name: Test
       run: go test -cover -timeout 6s ./...
