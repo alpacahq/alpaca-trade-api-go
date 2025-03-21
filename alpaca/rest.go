@@ -111,31 +111,53 @@ func defaultDo(c *Client, req *http.Request) (*http.Response, error) {
 		if i >= c.opts.RetryLimit {
 			break
 		}
+		CloseResp(resp) // Close body before retrying
 		time.Sleep(c.opts.RetryDelay)
 	}
 
-	if err = verify(resp); err != nil {
+	if err = Verify(resp); err != nil {
 		return nil, err
 	}
 
 	return resp, nil
 }
 
+// Helper function to build a URL with optional query parameters
+func (c *Client) buildURL(endpoint string, queryParams map[string]string) (*url.URL, error) {
+	u, err := url.Parse(fmt.Sprintf("%s/%s/%s", c.opts.BaseURL, apiVersion, endpoint))
+	if err != nil {
+		return nil, err
+	}
+	if queryParams != nil {
+		q := u.Query()
+		for key, value := range queryParams {
+			q.Set(key, value)
+		}
+		u.RawQuery = q.Encode()
+	}
+	return u, nil
+}
+
+// Helper function to make a GET request and unmarshal the response
+func (c *Client) fetchAndUnmarshal(endpoint string, queryParams map[string]string, result easyjson.Unmarshaler) error {
+	u, err := c.buildURL(endpoint, queryParams)
+	if err != nil {
+		return err
+	}
+
+	resp, err := c.get(u) //nolint:bodyclose // unmarshal closes the body
+	if err != nil {
+		return err
+	}
+
+	return unmarshal(resp, result)
+}
+
 // GetAccount returns the user's account information.
 func (c *Client) GetAccount() (*Account, error) {
-	u, err := url.Parse(fmt.Sprintf("%s/%s/account", c.opts.BaseURL, apiVersion))
-	if err != nil {
-		return nil, err
-	}
-
-	resp, err := c.get(u)
-	if err != nil {
-		return nil, err
-	}
-	defer closeResp(resp)
-
 	var account Account
-	if err = unmarshal(resp, &account); err != nil {
+	err := c.fetchAndUnmarshal("account", nil, &account)
+	if err != nil {
 		return nil, err
 	}
 	return &account, nil
@@ -143,19 +165,9 @@ func (c *Client) GetAccount() (*Account, error) {
 
 // GetAccountConfigurations returns the current account configurations
 func (c *Client) GetAccountConfigurations() (*AccountConfigurations, error) {
-	u, err := url.Parse(fmt.Sprintf("%s/%s/account/configurations", c.opts.BaseURL, apiVersion))
-	if err != nil {
-		return nil, err
-	}
-
-	resp, err := c.get(u)
-	if err != nil {
-		return nil, err
-	}
-	defer closeResp(resp)
-
 	var configs AccountConfigurations
-	if err = unmarshal(resp, &configs); err != nil {
+	err := c.fetchAndUnmarshal("account/configurations", nil, &configs)
+	if err != nil {
 		return nil, err
 	}
 	return &configs, nil
@@ -176,11 +188,10 @@ func (c *Client) UpdateAccountConfigurations(req UpdateAccountConfigurationsRequ
 		return nil, err
 	}
 
-	resp, err := c.patch(u, req)
+	resp, err := c.patch(u, req) //nolint:bodyclose // Linter Error
 	if err != nil {
 		return nil, err
 	}
-	defer closeResp(resp)
 
 	var configs AccountConfigurations
 	if err = unmarshal(resp, &configs); err != nil {
@@ -202,46 +213,36 @@ type GetAccountActivitiesRequest struct {
 
 // GetAccountActivities returns the account activities.
 func (c *Client) GetAccountActivities(req GetAccountActivitiesRequest) ([]AccountActivity, error) {
-	u, err := url.Parse(fmt.Sprintf("%s/%s/account/activities", c.opts.BaseURL, apiVersion))
-	if err != nil {
-		return nil, err
-	}
+	queryParams := map[string]string{}
 
-	q := u.Query()
 	if len(req.ActivityTypes) > 0 {
-		q.Set("activity_types", strings.Join(req.ActivityTypes, ","))
+		queryParams["activity_types"] = strings.Join(req.ActivityTypes, ",")
 	}
 	if !req.Date.IsZero() {
-		q.Set("date", req.Date.UTC().Format(time.RFC3339Nano))
+		queryParams["date"] = req.Date.UTC().Format(time.RFC3339Nano)
 	}
 	if !req.Until.IsZero() {
-		q.Set("until", req.Until.UTC().Format(time.RFC3339Nano))
+		queryParams["until"] = req.Until.UTC().Format(time.RFC3339Nano)
 	}
 	if !req.After.IsZero() {
-		q.Set("after", req.After.UTC().Format(time.RFC3339Nano))
+		queryParams["after"] = req.After.UTC().Format(time.RFC3339Nano)
 	}
 	if req.Direction != "" {
-		q.Set("direction", req.Direction)
+		queryParams["direction"] = req.Direction
 	}
 	if req.PageSize != 0 {
-		q.Set("page_size", strconv.Itoa(req.PageSize))
+		queryParams["page_size"] = strconv.Itoa(req.PageSize)
 	}
 	if req.PageToken != "" {
-		q.Set("page_token", req.PageToken)
+		queryParams["page_token"] = req.PageToken
 	}
 	if req.Category != "" {
-		q.Set("category", req.Category)
+		queryParams["category"] = req.Category
 	}
-	u.RawQuery = q.Encode()
-
-	resp, err := c.get(u)
-	if err != nil {
-		return nil, err
-	}
-	defer closeResp(resp)
 
 	var activities accountSlice
-	if err = unmarshal(resp, &activities); err != nil {
+	err := c.fetchAndUnmarshal("account/activities", queryParams, &activities)
+	if err != nil {
 		return nil, err
 	}
 	return activities, nil
@@ -256,32 +257,22 @@ type GetPortfolioHistoryRequest struct {
 
 // GetPortfolioHistory returns the portfolio history.
 func (c *Client) GetPortfolioHistory(req GetPortfolioHistoryRequest) (*PortfolioHistory, error) {
-	u, err := url.Parse(fmt.Sprintf("%s/%s/account/portfolio/history", c.opts.BaseURL, apiVersion))
-	if err != nil {
-		return nil, err
-	}
+	queryParams := map[string]string{}
 
-	query := u.Query()
 	if req.Period != "" {
-		query.Set("period", req.Period)
+		queryParams["period"] = req.Period
 	}
 	if req.TimeFrame != "" {
-		query.Set("timeframe", string(req.TimeFrame))
+		queryParams["timeframe"] = string(req.TimeFrame)
 	}
 	if !req.DateEnd.IsZero() {
-		query.Set("date_end", req.DateEnd.Format("2006-01-02"))
+		queryParams["date_end"] = req.DateEnd.Format("2006-01-02")
 	}
-	query.Set("extended_hours", strconv.FormatBool(req.ExtendedHours))
-	u.RawQuery = query.Encode()
-
-	resp, err := c.get(u)
-	if err != nil {
-		return nil, err
-	}
-	defer closeResp(resp)
+	queryParams["extended_hours"] = strconv.FormatBool(req.ExtendedHours)
 
 	var history PortfolioHistory
-	if err = unmarshal(resp, &history); err != nil {
+	err := c.fetchAndUnmarshal("account/portfolio/history", queryParams, &history)
+	if err != nil {
 		return nil, err
 	}
 	return &history, nil
@@ -289,19 +280,9 @@ func (c *Client) GetPortfolioHistory(req GetPortfolioHistoryRequest) (*Portfolio
 
 // GetPositions returns the account's open positions.
 func (c *Client) GetPositions() ([]Position, error) {
-	u, err := url.Parse(fmt.Sprintf("%s/%s/positions", c.opts.BaseURL, apiVersion))
-	if err != nil {
-		return nil, err
-	}
-
-	resp, err := c.get(u)
-	if err != nil {
-		return nil, err
-	}
-	defer closeResp(resp)
-
 	var positions positionSlice
-	if err = unmarshal(resp, &positions); err != nil {
+	err := c.fetchAndUnmarshal("positions", nil, &positions)
+	if err != nil {
 		return nil, err
 	}
 	return positions, nil
@@ -309,23 +290,9 @@ func (c *Client) GetPositions() ([]Position, error) {
 
 // GetPosition returns the account's position for the provided symbol.
 func (c *Client) GetPosition(symbol string) (*Position, error) {
-	u, err := url.Parse(fmt.Sprintf("%s/%s/positions/%s", c.opts.BaseURL, apiVersion, symbol))
-	if err != nil {
-		return nil, err
-	}
-
-	q := u.Query()
-	q.Set("symbol", symbol)
-	u.RawQuery = q.Encode()
-
-	resp, err := c.get(u)
-	if err != nil {
-		return nil, err
-	}
-	defer closeResp(resp)
-
 	var position Position
-	if err = unmarshal(resp, &position); err != nil {
+	err := c.fetchAndUnmarshal(fmt.Sprintf("positions/%s", symbol), map[string]string{"symbol": symbol}, &position)
+	if err != nil {
 		return nil, err
 	}
 	return &position, nil
@@ -348,11 +315,10 @@ func (c *Client) CloseAllPositions(req CloseAllPositionsRequest) ([]Order, error
 	q.Set("cancel_orders", strconv.FormatBool(req.CancelOrders))
 	u.RawQuery = q.Encode()
 
-	resp, err := c.delete(u)
+	resp, err := c.delete(u) //nolint:bodyclose // Linter Error
 	if err != nil {
 		return nil, err
 	}
-	defer closeResp(resp)
 
 	var closeAllPositions closeAllPositionsSlice
 	if err = unmarshal(resp, &closeAllPositions); err != nil {
@@ -409,11 +375,10 @@ func (c *Client) ClosePosition(symbol string, req ClosePositionRequest) (*Order,
 	}
 	u.RawQuery = q.Encode()
 
-	resp, err := c.delete(u)
+	resp, err := c.delete(u) //nolint:bodyclose // Linter Error
 	if err != nil {
 		return nil, err
 	}
-	defer closeResp(resp)
 
 	var order Order
 	if err = unmarshal(resp, &order); err != nil {
@@ -424,19 +389,9 @@ func (c *Client) ClosePosition(symbol string, req ClosePositionRequest) (*Order,
 
 // GetClock returns the current market clock.
 func (c *Client) GetClock() (*Clock, error) {
-	u, err := url.Parse(fmt.Sprintf("%s/%s/clock", c.opts.BaseURL, apiVersion))
-	if err != nil {
-		return nil, err
-	}
-
-	resp, err := c.get(u)
-	if err != nil {
-		return nil, err
-	}
-	defer closeResp(resp)
-
 	var clock Clock
-	if err = unmarshal(resp, &clock); err != nil {
+	err := c.fetchAndUnmarshal("clock", nil, &clock)
+	if err != nil {
 		return nil, err
 	}
 	return &clock, nil
@@ -449,28 +404,17 @@ type GetCalendarRequest struct {
 
 // GetCalendar returns the market calendar.
 func (c *Client) GetCalendar(req GetCalendarRequest) ([]CalendarDay, error) {
-	u, err := url.Parse(fmt.Sprintf("%s/%s/calendar", c.opts.BaseURL, apiVersion))
-	if err != nil {
-		return nil, err
-	}
-
-	q := u.Query()
+	queryParams := map[string]string{}
 	if !req.Start.IsZero() {
-		q.Set("start", req.Start.Format("2006-01-02"))
+		queryParams["start"] = req.Start.Format("2006-01-02")
 	}
 	if !req.End.IsZero() {
-		q.Set("end", req.End.Format("2006-01-02"))
+		queryParams["end"] = req.End.Format("2006-01-02")
 	}
-	u.RawQuery = q.Encode()
-
-	resp, err := c.get(u)
-	if err != nil {
-		return nil, err
-	}
-	defer closeResp(resp)
 
 	var calendar calendarDaySlice
-	if err = unmarshal(resp, &calendar); err != nil {
+	err := c.fetchAndUnmarshal("calendar", queryParams, &calendar)
+	if err != nil {
 		return nil, err
 	}
 	return calendar, nil
@@ -490,46 +434,35 @@ type GetOrdersRequest struct {
 
 // GetOrders returns the list of orders for an account.
 func (c *Client) GetOrders(req GetOrdersRequest) ([]Order, error) {
-	urlString := fmt.Sprintf("%s/%s/orders", c.opts.BaseURL, apiVersion)
+	queryParams := map[string]string{}
 
-	u, err := url.Parse(urlString)
-	if err != nil {
-		return nil, err
-	}
-
-	q := u.Query()
 	if req.Status != "" {
-		q.Set("status", req.Status)
+		queryParams["status"] = req.Status
 	}
 	if req.Limit != 0 {
-		q.Set("limit", strconv.Itoa(req.Limit))
+		queryParams["limit"] = strconv.Itoa(req.Limit)
 	}
 	if !req.After.IsZero() {
-		q.Set("after", req.After.Format(time.RFC3339))
+		queryParams["after"] = req.After.Format(time.RFC3339)
 	}
 	if !req.Until.IsZero() {
-		q.Set("until", req.Until.Format(time.RFC3339))
+		queryParams["until"] = req.Until.Format(time.RFC3339)
 	}
 	if req.Direction != "" {
-		q.Set("direction", req.Direction)
+		queryParams["direction"] = req.Direction
 	}
 	if req.Side != "" {
-		q.Set("side", req.Side)
+		queryParams["side"] = req.Side
 	}
-	q.Set("nested", strconv.FormatBool(req.Nested))
-	if len(req.Symbols) > 0 {
-		q.Set("symbols", strings.Join(req.Symbols, ","))
-	}
-	u.RawQuery = q.Encode()
+	queryParams["nested"] = strconv.FormatBool(req.Nested)
 
-	resp, err := c.get(u)
-	if err != nil {
-		return nil, err
+	if len(req.Symbols) > 0 {
+		queryParams["symbols"] = strings.Join(req.Symbols, ",")
 	}
-	defer closeResp(resp)
 
 	var orders orderSlice
-	if err = unmarshal(resp, &orders); err != nil {
+	err := c.fetchAndUnmarshal("orders", queryParams, &orders)
+	if err != nil {
 		return nil, err
 	}
 	return orders, nil
@@ -578,11 +511,10 @@ func (c *Client) PlaceOrder(req PlaceOrderRequest) (*Order, error) {
 		return nil, err
 	}
 
-	resp, err := c.post(u, req)
+	resp, err := c.post(u, req) //nolint:bodyclose // Linter Error
 	if err != nil {
 		return nil, err
 	}
-	defer closeResp(resp)
 
 	var order Order
 	if err = unmarshal(resp, &order); err != nil {
@@ -593,19 +525,9 @@ func (c *Client) PlaceOrder(req PlaceOrderRequest) (*Order, error) {
 
 // GetOrder submits a request to get an order by the order ID.
 func (c *Client) GetOrder(orderID string) (*Order, error) {
-	u, err := url.Parse(fmt.Sprintf("%s/%s/orders/%s", c.opts.BaseURL, apiVersion, orderID))
-	if err != nil {
-		return nil, err
-	}
-
-	resp, err := c.get(u)
-	if err != nil {
-		return nil, err
-	}
-	defer closeResp(resp)
-
 	var order Order
-	if err = unmarshal(resp, &order); err != nil {
+	err := c.fetchAndUnmarshal(fmt.Sprintf("orders/%s", orderID), nil, &order)
+	if err != nil {
 		return nil, err
 	}
 	return &order, nil
@@ -613,23 +535,13 @@ func (c *Client) GetOrder(orderID string) (*Order, error) {
 
 // GetOrderByClientOrderID submits a request to get an order by the client order ID.
 func (c *Client) GetOrderByClientOrderID(clientOrderID string) (*Order, error) {
-	u, err := url.Parse(fmt.Sprintf("%s/%s/orders:by_client_order_id", c.opts.BaseURL, apiVersion))
-	if err != nil {
-		return nil, err
+	queryParams := map[string]string{
+		"client_order_id": clientOrderID,
 	}
-
-	q := u.Query()
-	q.Set("client_order_id", clientOrderID)
-	u.RawQuery = q.Encode()
-
-	resp, err := c.get(u)
-	if err != nil {
-		return nil, err
-	}
-	defer closeResp(resp)
 
 	var order Order
-	if err = unmarshal(resp, &order); err != nil {
+	err := c.fetchAndUnmarshal("orders:by_client_order_id", queryParams, &order)
+	if err != nil {
 		return nil, err
 	}
 	return &order, nil
@@ -651,11 +563,10 @@ func (c *Client) ReplaceOrder(orderID string, req ReplaceOrderRequest) (*Order, 
 		return nil, err
 	}
 
-	resp, err := c.patch(u, req)
+	resp, err := c.patch(u, req) //nolint:bodyclose // Linter Error
 	if err != nil {
 		return nil, err
 	}
-	defer closeResp(resp)
 
 	var order Order
 	if err = unmarshal(resp, &order); err != nil {
@@ -676,7 +587,12 @@ func (c *Client) CancelOrder(orderID string) error {
 		return err
 	}
 
-	return verify(resp)
+	// Verify the response and close the body, if error happens, verify will return the error and close the body
+	responseVal := Verify(resp)
+	if responseVal == nil {
+		CloseResp(resp)
+	}
+	return responseVal
 }
 
 // CancelAllOrders submits a request to cancel all orders.
@@ -690,7 +606,11 @@ func (c *Client) CancelAllOrders() error {
 	if err != nil {
 		return err
 	}
-	return verify(resp)
+	responseVal := Verify(resp)
+	if responseVal == nil {
+		CloseResp(resp)
+	}
+	return responseVal
 }
 
 type GetAssetsRequest struct {
@@ -701,31 +621,21 @@ type GetAssetsRequest struct {
 
 // GetAssets returns the list of assets.
 func (c *Client) GetAssets(req GetAssetsRequest) ([]Asset, error) {
-	u, err := url.Parse(fmt.Sprintf("%s/%s/assets", c.opts.BaseURL, apiVersion))
-	if err != nil {
-		return nil, err
-	}
+	queryParams := map[string]string{}
 
-	q := u.Query()
 	if req.Status != "" {
-		q.Set("status", req.Status)
+		queryParams["status"] = req.Status
 	}
 	if req.AssetClass != "" {
-		q.Set("asset_class", req.AssetClass)
+		queryParams["asset_class"] = req.AssetClass
 	}
 	if req.Exchange != "" {
-		q.Set("exchange", req.Exchange)
+		queryParams["exchange"] = req.Exchange
 	}
-	u.RawQuery = q.Encode()
-
-	resp, err := c.get(u)
-	if err != nil {
-		return nil, err
-	}
-	defer closeResp(resp)
 
 	var assets assetSlice
-	if err = unmarshal(resp, &assets); err != nil {
+	err := c.fetchAndUnmarshal("assets", queryParams, &assets)
+	if err != nil {
 		return nil, err
 	}
 	return assets, nil
@@ -733,19 +643,9 @@ func (c *Client) GetAssets(req GetAssetsRequest) ([]Asset, error) {
 
 // GetAsset returns an asset for the given symbol.
 func (c *Client) GetAsset(symbol string) (*Asset, error) {
-	u, err := url.Parse(fmt.Sprintf("%s/%s/assets/%v", c.opts.BaseURL, apiVersion, symbol))
-	if err != nil {
-		return nil, err
-	}
-
-	resp, err := c.get(u)
-	if err != nil {
-		return nil, err
-	}
-	defer closeResp(resp)
-
 	var asset Asset
-	if err = unmarshal(resp, &asset); err != nil {
+	err := c.fetchAndUnmarshal(fmt.Sprintf("assets/%v", symbol), nil, &asset)
+	if err != nil {
 		return nil, err
 	}
 	return &asset, nil
@@ -794,107 +694,113 @@ type GetOptionContractsRequest struct {
 
 // GetOptionContracts returns the list of Option Contracts.
 func (c *Client) GetOptionContracts(req GetOptionContractsRequest) ([]OptionContract, error) {
-	u, err := url.Parse(fmt.Sprintf("%s/%s/options/contracts", c.opts.BaseURL, apiVersion))
-	if err != nil {
-		return nil, err
-	}
-
-	q := u.Query()
-
-	if req.UnderlyingSymbols != "" {
-		q.Set("underlying_symbols", req.UnderlyingSymbols)
-	}
-
-	q.Set("show_deliverables", strconv.FormatBool(req.ShowDeliverable))
-
-	if req.Status != "" {
-		q.Set("status", string(req.Status))
-	}
-
-	if !req.ExpirationDate.IsZero() {
-		q.Set("expiration_date", req.ExpirationDate.String())
-	}
-
-	if !req.ExpirationDateGTE.IsZero() {
-		q.Set("expiration_date_gte", req.ExpirationDateGTE.String())
-	}
-
-	if !req.ExpirationDateLTE.IsZero() {
-		q.Set("expiration_date_lte", req.ExpirationDateLTE.String())
-	}
-
-	if req.RootSymbol != "" {
-		q.Set("root_symbol", req.RootSymbol)
-	}
-
-	if req.Type != "" {
-		q.Set("type", string(req.Type))
-	}
-
-	if req.Style != "" {
-		q.Set("style", string(req.Style))
-	}
-
-	if !req.StrikePriceLTE.IsZero() {
-		q.Set("strike_price_lte", req.StrikePriceLTE.String())
-	}
-
-	if !req.StrikePriceGTE.IsZero() {
-		q.Set("strike_price_gte", req.StrikePriceGTE.String())
-	}
-
-	if req.PennyProgramIndicator {
-		q.Set("ppind", "true")
-	}
-
+	queryParams := buildOptionContractsQueryParams(req)
 	optionContracts := make([]OptionContract, 0)
+
 	for req.TotalLimit == 0 || len(optionContracts) < req.TotalLimit {
-		setQueryLimit(q,
-			req.TotalLimit,
-			req.PageLimit,
-			len(optionContracts),
-			optionContractsRequestsMaxLimit)
-
-		u.RawQuery = q.Encode()
-
-		resp, err := c.get(u)
+		resp, nextPageToken, err := c.fetchOptionContracts(queryParams, req.TotalLimit,
+			req.PageLimit, len(optionContracts))
 		if err != nil {
 			return nil, err
 		}
 
-		var response optionContractsResponse
-		if err = unmarshal(resp, &response); err != nil {
-			return nil, err
-		}
+		optionContracts = append(optionContracts, resp.OptionContracts...)
 
-		optionContracts = append(optionContracts, response.OptionContracts...)
-
-		if response.NextPageToken == nil {
+		if nextPageToken == "" {
 			break
 		}
 
-		q.Set("page_token", *response.NextPageToken)
-		closeResp(resp)
+		queryParams["page_token"] = nextPageToken
 	}
 
 	return optionContracts, nil
 }
 
+// buildOptionContractsQueryParams constructs query parameters from request
+func buildOptionContractsQueryParams(req GetOptionContractsRequest) map[string]string {
+	qp := map[string]string{
+		"show_deliverables": strconv.FormatBool(req.ShowDeliverable),
+	}
+
+	if req.UnderlyingSymbols != "" {
+		qp["underlying_symbols"] = req.UnderlyingSymbols
+	}
+	if req.Status != "" {
+		qp["status"] = string(req.Status)
+	}
+	if req.RootSymbol != "" {
+		qp["root_symbol"] = req.RootSymbol
+	}
+	if req.Type != "" {
+		qp["type"] = string(req.Type)
+	}
+	if req.Style != "" {
+		qp["style"] = string(req.Style)
+	}
+	if req.PennyProgramIndicator {
+		qp["ppind"] = "true"
+	}
+
+	// Date filters
+	addDateParam(qp, "expiration_date", req.ExpirationDate)
+	addDateParam(qp, "expiration_date_gte", req.ExpirationDateGTE)
+	addDateParam(qp, "expiration_date_lte", req.ExpirationDateLTE)
+
+	// Price filters
+	addDecimalParam(qp, "strike_price_lte", req.StrikePriceLTE)
+	addDecimalParam(qp, "strike_price_gte", req.StrikePriceGTE)
+
+	return qp
+}
+
+// addDateParam adds a date parameter if it's not zero
+func addDateParam(qp map[string]string, key string, value civil.Date) {
+	qp[key] = value.String()
+}
+
+// addDecimalParam adds a decimal parameter if it's not zero
+func addDecimalParam(qp map[string]string, key string, value decimal.Decimal) {
+	if !value.IsZero() {
+		qp[key] = value.String()
+	}
+}
+
+// fetchOptionContracts makes an API request and returns response + pagination token
+func (c *Client) fetchOptionContracts(queryParams map[string]string, totalLimit, pageLimit,
+	fetched int) (optionContractsResponse, string, error) {
+	u, err := c.buildURL("options/contracts", queryParams)
+	if err != nil {
+		return optionContractsResponse{}, "", err
+	}
+
+	// Set pagination limit
+	q := u.Query()
+	setQueryLimit(q, totalLimit, pageLimit, fetched, optionContractsRequestsMaxLimit)
+	u.RawQuery = q.Encode()
+
+	resp, err := c.get(u) //nolint:bodyclose // unmarshal closes the body
+	if err != nil {
+		return optionContractsResponse{}, "", err
+	}
+
+	var response optionContractsResponse
+	if err = unmarshal(resp, &response); err != nil {
+		return optionContractsResponse{}, "", err
+	}
+
+	nextPageToken := ""
+	if response.NextPageToken != nil {
+		nextPageToken = *response.NextPageToken
+	}
+
+	return response, nextPageToken, nil
+}
+
 // GetOptionContract returns an option contract by symbol or contract ID.
 func (c *Client) GetOptionContract(symbolOrID string) (*OptionContract, error) {
-	u, err := url.Parse(fmt.Sprintf("%s/%s/options/contracts/%v", c.opts.BaseURL, apiVersion, symbolOrID))
-	if err != nil {
-		return nil, err
-	}
-
-	resp, err := c.get(u)
-	if err != nil {
-		return nil, err
-	}
-	defer closeResp(resp)
-
 	var optionContract OptionContract
-	if err = unmarshal(resp, &optionContract); err != nil {
+	err := c.fetchAndUnmarshal(fmt.Sprintf("options/contracts/%v", symbolOrID), nil, &optionContract)
+	if err != nil {
 		return nil, err
 	}
 	return &optionContract, nil
@@ -910,40 +816,29 @@ type GetAnnouncementsRequest struct {
 }
 
 func (c *Client) GetAnnouncements(req GetAnnouncementsRequest) ([]Announcement, error) {
-	u, err := url.Parse(fmt.Sprintf("%s/%s/corporate_actions/announcements", c.opts.BaseURL, apiVersion))
-	if err != nil {
-		return nil, err
-	}
+	queryParams := make(map[string]string)
 
-	q := u.Query()
 	if len(req.CATypes) != 0 {
-		q.Set("ca_types", strings.Join(req.CATypes, ","))
+		queryParams["ca_types"] = strings.Join(req.CATypes, ",")
 	}
 	if !req.Since.IsZero() {
-		q.Set("since", req.Since.Format("2006-01-02"))
+		queryParams["since"] = req.Since.Format("2006-01-02")
 	}
 	if !req.Until.IsZero() {
-		q.Set("until", req.Until.Format("2006-01-02"))
+		queryParams["until"] = req.Until.Format("2006-01-02")
 	}
 	if req.Symbol != "" {
-		q.Set("symbol", req.Symbol)
+		queryParams["symbol"] = req.Symbol
 	}
 	if req.Cusip != "" {
-		q.Set("cusip", req.Cusip)
+		queryParams["cusip"] = req.Cusip
 	}
 	if req.DateType != "" {
-		q.Set("date_type", string(req.DateType))
+		queryParams["date_type"] = string(req.DateType)
 	}
-	u.RawQuery = q.Encode()
-
-	resp, err := c.get(u)
-	if err != nil {
-		return nil, err
-	}
-	defer closeResp(resp)
 
 	var announcements announcementSlice
-	if err = unmarshal(resp, &announcements); err != nil {
+	if err := c.fetchAndUnmarshal("corporate_actions/announcements", queryParams, &announcements); err != nil {
 		return nil, err
 	}
 
@@ -951,20 +846,9 @@ func (c *Client) GetAnnouncements(req GetAnnouncementsRequest) ([]Announcement, 
 }
 
 func (c *Client) GetAnnouncement(announcementID string) (*Announcement, error) {
-	u, err := url.Parse(fmt.Sprintf("%s/%s/corporate_actions/announcements/%s",
-		c.opts.BaseURL, apiVersion, announcementID))
-	if err != nil {
-		return nil, err
-	}
-
-	resp, err := c.get(u)
-	if err != nil {
-		return nil, err
-	}
-	defer closeResp(resp)
-
 	var announcement Announcement
-	if err = unmarshal(resp, &announcement); err != nil {
+	if err := c.fetchAndUnmarshal(fmt.Sprintf("corporate_actions/announcements/%s", announcementID),
+		nil, &announcement); err != nil {
 		return nil, err
 	}
 	return &announcement, nil
@@ -972,19 +856,8 @@ func (c *Client) GetAnnouncement(announcementID string) (*Announcement, error) {
 
 // GetAccount returns the user's account information.
 func (c *Client) GetWatchlists() ([]Watchlist, error) {
-	u, err := url.Parse(fmt.Sprintf("%s/%s/watchlists", c.opts.BaseURL, apiVersion))
-	if err != nil {
-		return nil, err
-	}
-
-	resp, err := c.get(u)
-	if err != nil {
-		return nil, err
-	}
-	defer closeResp(resp)
-
 	var watchlists watchlistSlice
-	if err = unmarshal(resp, &watchlists); err != nil {
+	if err := c.fetchAndUnmarshal("watchlists", nil, &watchlists); err != nil {
 		return nil, err
 	}
 	return watchlists, nil
@@ -996,11 +869,10 @@ func (c *Client) CreateWatchlist(req CreateWatchlistRequest) (*Watchlist, error)
 		return nil, err
 	}
 
-	resp, err := c.post(u, req)
+	resp, err := c.post(u, req) //nolint:bodyclose // Linter Error
 	if err != nil {
 		return nil, err
 	}
-	defer closeResp(resp)
 
 	watchlist := &Watchlist{}
 	if err = unmarshal(resp, watchlist); err != nil {
@@ -1010,22 +882,12 @@ func (c *Client) CreateWatchlist(req CreateWatchlistRequest) (*Watchlist, error)
 }
 
 func (c *Client) GetWatchlist(watchlistID string) (*Watchlist, error) {
-	u, err := url.Parse(fmt.Sprintf("%s/%s/watchlists/%s", c.opts.BaseURL, apiVersion, watchlistID))
-	if err != nil {
+	var watchlist Watchlist
+	if err := c.fetchAndUnmarshal(fmt.Sprintf("watchlists/%s", watchlistID),
+		nil, &watchlist); err != nil {
 		return nil, err
 	}
-
-	resp, err := c.get(u)
-	if err != nil {
-		return nil, err
-	}
-	defer closeResp(resp)
-
-	watchlist := &Watchlist{}
-	if err = unmarshal(resp, watchlist); err != nil {
-		return nil, err
-	}
-	return watchlist, nil
+	return &watchlist, nil
 }
 
 func (c *Client) UpdateWatchlist(watchlistID string, req UpdateWatchlistRequest) (*Watchlist, error) {
@@ -1034,11 +896,10 @@ func (c *Client) UpdateWatchlist(watchlistID string, req UpdateWatchlistRequest)
 		return nil, err
 	}
 
-	resp, err := c.put(u, req)
+	resp, err := c.put(u, req) //nolint:bodyclose // Linter Error
 	if err != nil {
 		return nil, err
 	}
-	defer closeResp(resp)
 
 	watchlist := &Watchlist{}
 	if err = unmarshal(resp, watchlist); err != nil {
@@ -1059,11 +920,10 @@ func (c *Client) AddSymbolToWatchlist(watchlistID string, req AddSymbolToWatchli
 		return nil, err
 	}
 
-	resp, err := c.post(u, req)
+	resp, err := c.post(u, req) //nolint:bodyclose // Linter Error
 	if err != nil {
 		return nil, err
 	}
-	defer closeResp(resp)
 
 	watchlist := &Watchlist{}
 	if err = unmarshal(resp, watchlist); err != nil {
@@ -1077,7 +937,8 @@ func (c *Client) RemoveSymbolFromWatchlist(watchlistID string, req RemoveSymbolF
 		return ErrSymbolMissing
 	}
 
-	u, err := url.Parse(fmt.Sprintf("%s/%s/watchlists/%s/%s", c.opts.BaseURL, apiVersion, watchlistID, req.Symbol))
+	u, err := url.Parse(fmt.Sprintf("%s/%s/watchlists/%s/%s", c.opts.BaseURL,
+		apiVersion, watchlistID, req.Symbol))
 	if err != nil {
 		return err
 	}
@@ -1086,7 +947,7 @@ func (c *Client) RemoveSymbolFromWatchlist(watchlistID string, req RemoveSymbolF
 	if err != nil {
 		return err
 	}
-	closeResp(resp)
+	CloseResp(resp)
 	return nil
 }
 
@@ -1100,7 +961,7 @@ func (c *Client) DeleteWatchlist(watchlistID string) error {
 	if err != nil {
 		return err
 	}
-	closeResp(resp)
+	CloseResp(resp)
 	return nil
 }
 
@@ -1329,20 +1190,23 @@ func (c *Client) delete(u *url.URL) (*http.Response, error) {
 	return c.do(c, req)
 }
 
-func verify(resp *http.Response) error {
+func Verify(resp *http.Response) error {
 	if resp.StatusCode >= http.StatusMultipleChoices {
-		defer resp.Body.Close()
 		return APIErrorFromResponse(resp)
 	}
 	return nil
 }
 
 func unmarshal(resp *http.Response, v easyjson.Unmarshaler) error {
+	defer CloseResp(resp)
 	return easyjson.UnmarshalFromReader(resp.Body, v)
 }
 
-func closeResp(resp *http.Response) {
-	// The underlying TCP connection can not be reused if the body is not fully read
+func CloseResp(resp *http.Response) {
+	if resp == nil || resp.Body == nil {
+		return
+	}
+	// The underlying TCP connection cannot be reused if the body is not fully read
 	_, _ = io.Copy(io.Discard, resp.Body)
 	resp.Body.Close()
 }
