@@ -29,7 +29,9 @@ type tradeInternal struct {
 
 // Internal contains internal fields. There aren't any behavioural or backward compatibility
 // promises for them: they can be empty or removed in the future. You should not use them at all.
-func (t Trade) Internal() tradeInternal { //nolint:revive // We intentionally return an unexported struct here
+//
+//nolint:revive // We intentionally return an unexported struct here
+func (t Trade) Internal() tradeInternal {
 	return t.internal
 }
 
@@ -55,7 +57,9 @@ type quoteInternal struct {
 
 // Internal contains internal fields. There aren't any behavioural or backward compatibility
 // promises for them: they can be empty or removed in the future. You should not use them at all.
-func (q Quote) Internal() quoteInternal { //nolint:revive // We intentionally return an unexported struct here
+//
+//nolint:revive // We intentionally return an unexported struct here
+func (q Quote) Internal() quoteInternal {
 	return q.internal
 }
 
