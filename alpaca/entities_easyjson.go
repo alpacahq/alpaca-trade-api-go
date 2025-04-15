@@ -3029,6 +3029,8 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Alpaca22(in *jlexe
 			out.ID = string(in.String())
 		case "class":
 			out.Class = AssetClass(in.String())
+		case "cusip":
+			out.CUSIP = string(in.String())
 		case "exchange":
 			out.Exchange = string(in.String())
 		case "symbol":
@@ -3041,14 +3043,22 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Alpaca22(in *jlexe
 			out.Tradable = bool(in.Bool())
 		case "marginable":
 			out.Marginable = bool(in.Bool())
-		case "maintenance_margin_requirement":
-			out.MaintenanceMarginRequirement = uint(in.Uint())
 		case "shortable":
 			out.Shortable = bool(in.Bool())
 		case "easy_to_borrow":
 			out.EasyToBorrow = bool(in.Bool())
 		case "fractionable":
 			out.Fractionable = bool(in.Bool())
+		case "maintenance_margin_requirement":
+			out.MaintenanceMarginRequirement = uint(in.Uint())
+		case "margin_requirement_long":
+			if data := in.Raw(); in.Ok() {
+				in.AddError((out.MarginRequirementLong).UnmarshalJSON(data))
+			}
+		case "margin_requirement_short":
+			if data := in.Raw(); in.Ok() {
+				in.AddError((out.MarginRequirementShort).UnmarshalJSON(data))
+			}
 		case "attributes":
 			if in.IsNull() {
 				in.Skip()
@@ -3097,6 +3107,11 @@ func easyjson3e8ab7adEncodeGithubComAlpacahqAlpacaTradeApiGoV3Alpaca22(out *jwri
 		out.String(string(in.Class))
 	}
 	{
+		const prefix string = ",\"cusip\":"
+		out.RawString(prefix)
+		out.String(string(in.CUSIP))
+	}
+	{
 		const prefix string = ",\"exchange\":"
 		out.RawString(prefix)
 		out.String(string(in.Exchange))
@@ -3127,11 +3142,6 @@ func easyjson3e8ab7adEncodeGithubComAlpacahqAlpacaTradeApiGoV3Alpaca22(out *jwri
 		out.Bool(bool(in.Marginable))
 	}
 	{
-		const prefix string = ",\"maintenance_margin_requirement\":"
-		out.RawString(prefix)
-		out.Uint(uint(in.MaintenanceMarginRequirement))
-	}
-	{
 		const prefix string = ",\"shortable\":"
 		out.RawString(prefix)
 		out.Bool(bool(in.Shortable))
@@ -3145,6 +3155,21 @@ func easyjson3e8ab7adEncodeGithubComAlpacahqAlpacaTradeApiGoV3Alpaca22(out *jwri
 		const prefix string = ",\"fractionable\":"
 		out.RawString(prefix)
 		out.Bool(bool(in.Fractionable))
+	}
+	{
+		const prefix string = ",\"maintenance_margin_requirement\":"
+		out.RawString(prefix)
+		out.Uint(uint(in.MaintenanceMarginRequirement))
+	}
+	{
+		const prefix string = ",\"margin_requirement_long\":"
+		out.RawString(prefix)
+		out.Raw((in.MarginRequirementLong).MarshalJSON())
+	}
+	{
+		const prefix string = ",\"margin_requirement_short\":"
+		out.RawString(prefix)
+		out.Raw((in.MarginRequirementShort).MarshalJSON())
 	}
 	{
 		const prefix string = ",\"attributes\":"
