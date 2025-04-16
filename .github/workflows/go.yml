@@ -2,9 +2,9 @@ name: Go
 
 on:
   push:
-    branches: [ master ]
+    branches: [master]
   pull_request:
-    branches: [ master ]
+    branches: [master]
 
 jobs:
   build:
@@ -13,30 +13,34 @@ jobs:
       matrix:
         go-version: [1.20.x, 1.21.x, 1.22.x, 1.23.x, 1.24.x]
     steps:
-    - uses: actions/checkout@v4
-    - uses: actions/setup-go@v5
-      with:
-        go-version: ${{ matrix.go-version }}
-    - name: Build
-      run: go build -v ./...
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ matrix.go-version }}
+      - name: Build
+        run: go build -v ./...
   lint:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
-    - uses: actions/setup-go@v5
-      with:
-        go-version: 1.23
-    - uses: golangci/golangci-lint-action@v6
-      with:
-        version: v1.64.8
-    - name: Build
-      run: go build -v ./...
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: 1.23
+      - uses: golangci/golangci-lint-action@v6
+        with:
+          version: v1.64.8
+      - name: Build
+        run: go build -v ./...
+      - name: Make sure the generated files are up-to-date
+        run: |
+          make generate
+          git diff --exit-code
   test:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
-    - uses: actions/setup-go@v5
-      with:
-        go-version: 1.24
-    - name: Test
-      run: go test -cover -timeout 6s ./...
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: 1.24
+      - name: Test
+        run: go test -cover -timeout 6s ./...
