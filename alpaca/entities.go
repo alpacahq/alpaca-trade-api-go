@@ -129,6 +129,7 @@ type Asset struct {
 	Shortable                    bool            `json:"shortable"`
 	EasyToBorrow                 bool            `json:"easy_to_borrow"`
 	Fractionable                 bool            `json:"fractionable"`
+	// Deprecated: Please use margin_requirement_long or margin_requirement_short instead. Note that these fields are of type string.
 	MaintenanceMarginRequirement uint            `json:"maintenance_margin_requirement"`
 	MarginRequirementLong        decimal.Decimal `json:"margin_requirement_long"`
 	MarginRequirementShort       decimal.Decimal `json:"margin_requirement_short"`
