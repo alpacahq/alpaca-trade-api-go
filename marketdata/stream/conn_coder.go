@@ -7,54 +7,48 @@ import (
 	"net/url"
 	"time"
 
-	"nhooyr.io/websocket"
+	"github.com/coder/websocket"
 
 	"github.com/alpacahq/alpaca-trade-api-go/v3/alpaca"
 )
 
-type nhooyrWebsocketConn struct {
+type coderWebsocketConn struct {
 	conn    *websocket.Conn
 	msgType websocket.MessageType
 }
 
-// newNhooyrWebsocketConn creates a new nhooyr websocket connection
-func newNhooyrWebsocketConn(ctx context.Context, u url.URL) (conn, error) {
+// newCoderWebsocketConn creates a new coder websocket connection
+func newCoderWebsocketConn(ctx context.Context, u url.URL) (conn, error) {
 	ctxWithTimeout, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
 	reqHeader := http.Header{}
 	reqHeader.Set("Content-Type", "application/msgpack")
 	reqHeader.Set("User-Agent", alpaca.Version())
+	//nolint:bodyclose // According to its docs: you never need to close resp.Body yourself
 	conn, _, err := websocket.Dial(ctxWithTimeout, u.String(), &websocket.DialOptions{
 		CompressionMode: websocket.CompressionContextTakeover,
 		HTTPHeader:      reqHeader,
 	})
-
 	if err != nil {
 		return nil, fmt.Errorf("websocket dial: %w", err)
 	}
 
-	// If the client receives a message larger than the read limit, the read will fail and the
-	// connection will be restarted.
-	// The normal messages (trade, quotes, etc.) are well under the 64 kB websocket single frame limit,
-	// however an unlimited user can subscribe to many symbols (in multiple subscribe calls),
-	// and the server always returns ALL the subscribed symbols.
-	// Increasing the read limit should not have a negative affect on performance or anything,
-	// but it makes possible to read these large messages.
-	conn.SetReadLimit(1024 * 1024)
+	// Disable read limit: especially news messages can be huge.
+	conn.SetReadLimit(-1)
 
-	return &nhooyrWebsocketConn{
+	return &coderWebsocketConn{
 		conn:    conn,
 		msgType: websocket.MessageBinary,
 	}, nil
 }
 
 // close closes the websocket connection
-func (c *nhooyrWebsocketConn) close() error {
+func (c *coderWebsocketConn) close() error {
 	return c.conn.Close(websocket.StatusNormalClosure, "")
 }
 
 // ping sends a ping to the client
-func (c *nhooyrWebsocketConn) ping(ctx context.Context) error {
+func (c *coderWebsocketConn) ping(ctx context.Context) error {
 	pingCtx, cancel := context.WithTimeout(ctx, pongWait)
 	defer cancel()
 
@@ -62,13 +56,13 @@ func (c *nhooyrWebsocketConn) ping(ctx context.Context) error {
 }
 
 // readMessage blocks until it reads a single message
-func (c *nhooyrWebsocketConn) readMessage(ctx context.Context) (data []byte, err error) {
-	_, data, err = c.conn.Read(ctx)
+func (c *coderWebsocketConn) readMessage(ctx context.Context) ([]byte, error) {
+	_, data, err := c.conn.Read(ctx)
 	return data, err
 }
 
 // writeMessage writes a single message
-func (c *nhooyrWebsocketConn) writeMessage(ctx context.Context, data []byte) error {
+func (c *coderWebsocketConn) writeMessage(ctx context.Context, data []byte) error {
 	writeCtx, cancel := context.WithTimeout(ctx, writeWait)
 	defer cancel()
 

@@ -17,6 +17,10 @@ type CryptoOption interface {
 	applyCrypto(*cryptoOptions)
 }
 
+type OptionOption interface {
+	applyOption(*optionOptions)
+}
+
 type NewsOption interface {
 	applyNews(*newsOptions)
 }
@@ -25,6 +29,7 @@ type NewsOption interface {
 type Option interface {
 	StockOption
 	CryptoOption
+	OptionOption
 	NewsOption
 }
 
@@ -36,6 +41,7 @@ type options struct {
 	reconnectLimit     int
 	reconnectDelay     time.Duration
 	connectCallback    func()
+	bufferFillCallback func([]byte)
 	disconnectCallback func()
 	processorCount     int
 	bufferSize         int
@@ -54,6 +60,10 @@ func (fo *funcOption) applyCrypto(o *cryptoOptions) {
 }
 
 func (fo *funcOption) applyStock(o *stockOptions) {
+	fo.f(&o.options)
+}
+
+func (fo *funcOption) applyOption(o *optionOptions) {
 	fo.f(&o.options)
 }
 
@@ -114,6 +124,17 @@ func WithConnectCallback(callback func()) Option {
 	})
 }
 
+// WithBufferFillCallback runs the callback function whenever the buffer is full
+// and msg cannot be delivered. This usually happens when trade/quote handlers
+// process the messages slowly and they cannot keep up with the pace how messages
+// are received. This callback should run fast, so avoid any blocking
+// instructions in the callback.
+func WithBufferFillCallback(callback func(msg []byte)) Option {
+	return newFuncOption(func(o *options) {
+		o.bufferFillCallback = callback
+	})
+}
+
 // WithDisconnectCallback runs the callback function after the streaming connection disconnects.
 // If the stream is terminated and can't reconnect, the disconnect callback will timeout one second
 // after reaching the end of the stream's maintenance (if it is still running). This is to avoid
@@ -155,6 +176,7 @@ type stockOptions struct {
 	updatedBarHandler    func(Bar)
 	dailyBarHandler      func(Bar)
 	tradingStatusHandler func(TradingStatus)
+	imbalanceHandler     func(Imbalance)
 	luldHandler          func(LULD)
 	cancelErrorHandler   func(TradeCancelError)
 	correctionHandler    func(TradeCorrection)
@@ -185,21 +207,23 @@ func defaultStockOptions() *stockOptions {
 				updatedBars:  []string{},
 				dailyBars:    []string{},
 				statuses:     []string{},
+				imbalances:   []string{},
 				lulds:        []string{},
 				cancelErrors: []string{},
 				corrections:  []string{},
 			},
-			connCreator: newNhooyrWebsocketConn,
+			connCreator: newCoderWebsocketConn,
 		},
-		tradeHandler:         func(t Trade) {},
-		quoteHandler:         func(q Quote) {},
-		barHandler:           func(b Bar) {},
-		updatedBarHandler:    func(b Bar) {},
-		dailyBarHandler:      func(b Bar) {},
-		tradingStatusHandler: func(ts TradingStatus) {},
-		luldHandler:          func(l LULD) {},
-		cancelErrorHandler:   func(tce TradeCancelError) {},
-		correctionHandler:    func(tc TradeCorrection) {},
+		tradeHandler:         func(_ Trade) {},
+		quoteHandler:         func(_ Quote) {},
+		barHandler:           func(_ Bar) {},
+		updatedBarHandler:    func(_ Bar) {},
+		dailyBarHandler:      func(_ Bar) {},
+		tradingStatusHandler: func(_ TradingStatus) {},
+		imbalanceHandler:     func(_ Imbalance) {},
+		luldHandler:          func(_ LULD) {},
+		cancelErrorHandler:   func(_ TradeCancelError) {},
+		correctionHandler:    func(_ TradeCorrection) {},
 	}
 }
 
@@ -271,6 +295,14 @@ func WithStatuses(handler func(TradingStatus), symbols ...string) StockOption {
 	})
 }
 
+// WithImbalances configures initial imbalance handler.
+func WithImbalances(handler func(Imbalance), symbols ...string) StockOption {
+	return newFuncStockOption(func(o *stockOptions) {
+		o.sub.imbalances = symbols
+		o.imbalanceHandler = handler
+	})
+}
+
 // WithLULDs configures initial LULD symbols to subscribe to and the handler
 func WithLULDs(handler func(LULD), symbols ...string) StockOption {
 	return newFuncStockOption(func(o *stockOptions) {
@@ -305,6 +337,7 @@ type cryptoOptions struct {
 	updatedBarHandler func(CryptoBar)
 	dailyBarHandler   func(CryptoBar)
 	orderbookHandler  func(CryptoOrderbook)
+	pricingHandler    func(CryptoPerpPricing)
 }
 
 // defaultCryptoOptions are the default options for a client.
@@ -334,14 +367,15 @@ func defaultCryptoOptions() *cryptoOptions {
 				dailyBars:   []string{},
 				orderbooks:  []string{},
 			},
-			connCreator: newNhooyrWebsocketConn,
+			connCreator: newCoderWebsocketConn,
 		},
-		tradeHandler:      func(t CryptoTrade) {},
-		quoteHandler:      func(q CryptoQuote) {},
-		barHandler:        func(b CryptoBar) {},
-		updatedBarHandler: func(b CryptoBar) {},
-		dailyBarHandler:   func(b CryptoBar) {},
-		orderbookHandler:  func(ob CryptoOrderbook) {},
+		tradeHandler:      func(_ CryptoTrade) {},
+		quoteHandler:      func(_ CryptoQuote) {},
+		barHandler:        func(_ CryptoBar) {},
+		updatedBarHandler: func(_ CryptoBar) {},
+		dailyBarHandler:   func(_ CryptoBar) {},
+		orderbookHandler:  func(_ CryptoOrderbook) {},
+		pricingHandler:    func(_ CryptoPerpPricing) {},
 	}
 }
 
@@ -370,6 +404,14 @@ func WithCryptoTrades(handler func(CryptoTrade), symbols ...string) CryptoOption
 	return newFuncCryptoOption(func(o *cryptoOptions) {
 		o.sub.trades = symbols
 		o.tradeHandler = handler
+	})
+}
+
+// WithCryptoPerpPricing configures initial pricing symbols to subscribe to and the handler
+func WithCryptoPerpPricing(handler func(CryptoPerpPricing), symbols ...string) CryptoOption {
+	return newFuncCryptoOption(func(o *cryptoOptions) {
+		o.sub.pricing = symbols
+		o.pricingHandler = handler
 	})
 }
 
@@ -413,6 +455,81 @@ func WithCryptoOrderbooks(handler func(CryptoOrderbook), symbols ...string) Cryp
 	})
 }
 
+type optionOptions struct {
+	options
+	tradeHandler func(OptionTrade)
+	quoteHandler func(OptionQuote)
+}
+
+// defaultOptionOptions are the default options for a client.
+// Don't change this in a backward incompatible way!
+func defaultOptionOptions() *optionOptions {
+	baseURL := "https://stream.data.alpaca.markets/v1beta1"
+	// Should this override option be removed?
+	if s := os.Getenv("DATA_PROXY_WS"); s != "" {
+		baseURL = s
+	}
+
+	return &optionOptions{
+		options: options{
+			logger:         DefaultLogger(),
+			baseURL:        baseURL,
+			key:            os.Getenv("APCA_API_KEY_ID"),
+			secret:         os.Getenv("APCA_API_SECRET_KEY"),
+			reconnectLimit: 20,
+			reconnectDelay: 150 * time.Millisecond,
+			processorCount: 1,
+			bufferSize:     100000,
+			sub: subscriptions{
+				trades:      []string{},
+				quotes:      []string{},
+				bars:        []string{},
+				updatedBars: []string{},
+				dailyBars:   []string{},
+			},
+			connCreator: newCoderWebsocketConn,
+		},
+		tradeHandler: func(_ OptionTrade) {},
+		quoteHandler: func(_ OptionQuote) {},
+	}
+}
+
+func (o *optionOptions) applyOption(opts ...OptionOption) {
+	for _, opt := range opts {
+		opt.applyOption(o)
+	}
+}
+
+type funcOptionOption struct {
+	f func(*optionOptions)
+}
+
+func (fo *funcOptionOption) applyOption(o *optionOptions) {
+	fo.f(o)
+}
+
+func newFuncOptionOption(f func(*optionOptions)) *funcOptionOption {
+	return &funcOptionOption{
+		f: f,
+	}
+}
+
+// WithOptionTrades configures initial trade symbols to subscribe to and the handler
+func WithOptionTrades(handler func(OptionTrade), symbols ...string) OptionOption {
+	return newFuncOptionOption(func(o *optionOptions) {
+		o.sub.trades = symbols
+		o.tradeHandler = handler
+	})
+}
+
+// WithOptionQuotes configures initial quote symbols to subscribe to and the handler
+func WithOptionQuotes(handler func(OptionQuote), symbols ...string) OptionOption {
+	return newFuncOptionOption(func(o *optionOptions) {
+		o.sub.quotes = symbols
+		o.quoteHandler = handler
+	})
+}
+
 type newsOptions struct {
 	options
 	newsHandler func(News)
@@ -434,9 +551,9 @@ func defaultNewsOptions() *newsOptions {
 			sub: subscriptions{
 				news: []string{},
 			},
-			connCreator: newNhooyrWebsocketConn,
+			connCreator: newCoderWebsocketConn,
 		},
-		newsHandler: func(n News) {},
+		newsHandler: func(_ News) {},
 	}
 }
 

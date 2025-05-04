@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
-	"regexp"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -37,6 +37,10 @@ type client struct {
 	in                  chan []byte
 	subChanges          chan []byte
 
+	bufferFillCallback func([]byte)
+	lastBufferFill     time.Time
+	droppedMsgCount    int
+
 	sub subscriptions
 
 	handler msgHandler
@@ -65,6 +69,7 @@ func (c *client) configure(o options) {
 	c.reconnectLimit = o.reconnectLimit
 	c.reconnectDelay = o.reconnectDelay
 	c.connectCallback = o.connectCallback
+	c.bufferFillCallback = o.bufferFillCallback
 	c.disconnectCallback = o.disconnectCallback
 	c.processorCount = o.processorCount
 	c.bufferSize = o.bufferSize
@@ -72,7 +77,7 @@ func (c *client) configure(o options) {
 	c.connCreator = o.connCreator
 }
 
-// StocksClient is a client that connects to an Alpaca Data V2 stream server
+// StocksClient is a client that connects to the Alpaca stream server
 // and handles communication both ways.
 //
 // After constructing, Connect() must be called before any subscription changes
@@ -117,6 +122,7 @@ func (sc *StocksClient) configure(o stockOptions) {
 	sc.handler.updatedBarHandler = o.updatedBarHandler
 	sc.handler.dailyBarHandler = o.dailyBarHandler
 	sc.handler.tradingStatusHandler = o.tradingStatusHandler
+	sc.handler.imbalanceHandler = o.imbalanceHandler
 	sc.handler.luldHandler = o.luldHandler
 	sc.handler.cancelErrorHandler = o.cancelErrorHandler
 	sc.handler.correctionHandler = o.correctionHandler
@@ -153,7 +159,7 @@ func constructURL(base, feed string) (url.URL, error) {
 	return url.URL{Scheme: scheme, Host: ub.Host, Path: ub.Path}, nil
 }
 
-// CryptoClient is a client that connects to an Alpaca Data V2 stream server
+// CryptoClient is a client that connects to an Alpaca stream server
 // and handles communication both ways.
 //
 // After constructing, Connect() must be called before any subscription changes
@@ -178,16 +184,21 @@ type CryptoClient struct {
 // NewCryptoClient returns a new CryptoClient that will connect to the crypto feed
 // and whose default configurations are modified by opts.
 func NewCryptoClient(feed marketdata.CryptoFeed, opts ...CryptoOption) *CryptoClient {
-	cc := CryptoClient{
-		client:  newClient(),
-		feed:    feed,
-		handler: &cryptoMsgHandler{},
-	}
+	cc := CryptoClient{}
+	cc.init(feed, opts...)
+
+	return &cc
+}
+
+func (cc *CryptoClient) init(feed marketdata.CryptoFeed, opts ...CryptoOption) {
+	cc.client = newClient()
+	cc.feed = feed
+	cc.handler = &cryptoMsgHandler{}
+
 	cc.client.handler = cc.handler
 	o := defaultCryptoOptions()
 	o.applyCrypto(opts...)
 	cc.configure(*o)
-	return &cc
 }
 
 func (cc *CryptoClient) configure(o cryptoOptions) {
@@ -198,6 +209,7 @@ func (cc *CryptoClient) configure(o cryptoOptions) {
 	cc.handler.updatedBarHandler = o.updatedBarHandler
 	cc.handler.dailyBarHandler = o.dailyBarHandler
 	cc.handler.orderbookHandler = o.orderbookHandler
+	cc.handler.futuresPricingHandler = o.pricingHandler
 }
 
 // Connect establishes a connection and **reestablishes it when errors occur**
@@ -215,6 +227,67 @@ func (cc *CryptoClient) Connect(ctx context.Context) error {
 }
 
 func (cc *CryptoClient) constructURL() (url.URL, error) {
+	return constructURL(cc.baseURL, cc.feed)
+}
+
+// OptionClient is a client that connects to an Alpaca stream server
+// and handles communication both ways.
+//
+// After constructing, Connect() must be called before any subscription changes
+// are called. Connect keeps the connection alive and reestablishes it until
+// a configured number of retries has not been exceeded.
+//
+// Terminated() returns a channel that the client sends an error to when it has terminated.
+// A client can not be reused once it has terminated!
+//
+// SubscribeTo... and UnsubscribeFrom... can be used to modify subscriptions and
+// the handler used to process incoming trades/quotes/bars. These block until an
+// irrecoverable error occurs or if they succeed.
+//
+// Note that subscription changes can not be called concurrently.
+type OptionClient struct {
+	*client
+
+	feed    marketdata.OptionFeed
+	handler *optionsMsgHandler
+}
+
+// NewOptionClient returns a new OptionClient that will connect to the option feed
+// and whose default configurations are modified by opts.
+func NewOptionClient(feed marketdata.OptionFeed, opts ...OptionOption) *OptionClient {
+	cc := OptionClient{
+		client:  newClient(),
+		feed:    feed,
+		handler: &optionsMsgHandler{},
+	}
+	cc.client.handler = cc.handler
+	o := defaultOptionOptions()
+	o.applyOption(opts...)
+	cc.configure(*o)
+	return &cc
+}
+
+func (cc *OptionClient) configure(o optionOptions) {
+	cc.client.configure(o.options)
+	cc.handler.tradeHandler = o.tradeHandler
+	cc.handler.quoteHandler = o.quoteHandler
+}
+
+// Connect establishes a connection and **reestablishes it when errors occur**
+// as long as the configured number of retries has not been exceeded.
+//
+// It blocks until the connection has been established for the first time (or it failed to do so).
+//
+// **Should only be called once!**
+func (cc *OptionClient) Connect(ctx context.Context) error {
+	u, err := cc.constructURL()
+	if err != nil {
+		return err
+	}
+	return cc.connect(ctx, u)
+}
+
+func (cc *OptionClient) constructURL() (url.URL, error) {
 	return constructURL(cc.baseURL, cc.feed)
 }
 
@@ -305,7 +378,7 @@ func (c *client) Terminated() <-chan error {
 // and recreates them if there was an error as long as reconnectLimit consecutive
 // connection initialization errors don't occur. It sends the first connection
 // initialization's result to initialResultCh.
-func (c *client) maintainConnection(initialCtx context.Context, u url.URL, initialResultCh chan<- error) {
+func (c *client) maintainConnection(initialCtx context.Context, u url.URL, initialResultCh chan<- error) { //nolint:funlen,gocognit,lll // TODO: Refactor this.
 	var connError error
 	failedAttemptsInARow := 0
 	connectedAtLeastOnce := false
@@ -339,6 +412,17 @@ func (c *client) maintainConnection(initialCtx context.Context, u url.URL, initi
 		}
 	}
 
+	c.in = make(chan []byte, c.bufferSize)
+	pwg := sync.WaitGroup{}
+	pwg.Add(c.processorCount)
+	for i := 0; i < c.processorCount; i++ {
+		go c.messageProcessor(c.connectionCtx, &pwg)
+	}
+	defer func() {
+		close(c.in)
+		pwg.Wait()
+	}()
+
 	for {
 		ctx := c.connectionCtx
 		if !connectedAtLeastOnce {
@@ -368,7 +452,8 @@ func (c *client) maintainConnection(initialCtx context.Context, u url.URL, initi
 				return
 			}
 			failedAttemptsInARow++
-			c.logger.Infof("datav2stream: connecting to %s, attempt %d/%d ...", u.String(), failedAttemptsInARow, c.reconnectLimit)
+			c.logger.Infof("datav2stream: connecting to %s, attempt %d/%d ...",
+				u.String(), failedAttemptsInARow, c.reconnectLimit)
 			conn, err := c.connCreator(ctx, u)
 			if err != nil {
 				connError = err
@@ -411,17 +496,14 @@ func (c *client) maintainConnection(initialCtx context.Context, u url.URL, initi
 			}
 			failedAttemptsInARow = 0
 
-			c.in = make(chan []byte, c.bufferSize)
 			wg := sync.WaitGroup{}
-			wg.Add(c.processorCount + 3)
+			wg.Add(3)
 			closeCh := make(chan struct{})
-			for i := 0; i < c.processorCount; i++ {
-				go c.messageProcessor(c.connectionCtx, &wg)
-			}
 			go c.connPinger(c.connectionCtx, &wg, closeCh)
 			go c.connReader(c.connectionCtx, &wg, closeCh)
 			go c.connWriter(c.connectionCtx, &wg, closeCh)
 			wg.Wait()
+
 			if c.connectionCtx.Err() != nil {
 				c.logger.Infof("datav2stream: disconnected")
 			} else {
@@ -482,11 +564,12 @@ func isErrorIrrecoverableAtInit(err error) bool {
 }
 
 func isHTTP4xx(err error) bool {
-	// Unfortunately the nhoory error is a simple formatted string, created by fmt.Errorf,
+	// Unfortunately, the coder/websocket error is a simple formatted string, created by fmt.Errorf,
 	// so the only check we can do is string matching
-	pattern := `expected handshake response status code 101 but got 4\d\d`
-	ok, _ := regexp.MatchString(pattern, err.Error())
-	return ok
+	if err == nil {
+		return false
+	}
+	return strings.Contains(err.Error(), "expected handshake response status code 101 but got 4")
 }
 
 func wrapIrrecoverable(err error) error {
@@ -534,7 +617,6 @@ func (c *client) connReader(
 	defer func() {
 		close(closeCh)
 		c.conn.close()
-		close(c.in)
 		wg.Done()
 	}()
 
@@ -547,7 +629,21 @@ func (c *client) connReader(
 			return
 		}
 
-		c.in <- msg
+		select {
+		case c.in <- msg:
+		default:
+			c.droppedMsgCount++
+			now := time.Now()
+			// Reduce the number of logs to 1 msg/sec if client buffer is full
+			if now.Add(-1 * time.Second).After(c.lastBufferFill) {
+				c.logger.Warnf("datav2stream: writing to buffer failed, error: buffer full, dropped: %d", c.droppedMsgCount)
+				c.droppedMsgCount = 0
+				c.lastBufferFill = now
+			}
+			if c.bufferFillCallback != nil {
+				c.bufferFillCallback(msg)
+			}
+		}
 	}
 }
 

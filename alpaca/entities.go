@@ -9,10 +9,9 @@ import (
 	"time"
 
 	"cloud.google.com/go/civil"
-	"github.com/shopspring/decimal"
-
 	// Required for easyjson generation
 	_ "github.com/mailru/easyjson/gen"
+	"github.com/shopspring/decimal"
 )
 
 //go:generate go install github.com/mailru/easyjson/...@v0.7.7
@@ -73,6 +72,7 @@ type Order struct {
 	OrderClass     OrderClass       `json:"order_class"`
 	Type           OrderType        `json:"type"`
 	Side           Side             `json:"side"`
+	PositionIntent PositionIntent   `json:"position_intent"`
 	TimeInForce    TimeInForce      `json:"time_in_force"`
 	Status         string           `json:"status"`
 	Notional       *decimal.Decimal `json:"notional"`
@@ -85,6 +85,7 @@ type Order struct {
 	TrailPercent   *decimal.Decimal `json:"trail_percent"`
 	HWM            *decimal.Decimal `json:"hwm"`
 	ExtendedHours  bool             `json:"extended_hours"`
+	RatioQty       *decimal.Decimal `json:"ratio_qty"`
 	Legs           []Order          `json:"legs"`
 }
 
@@ -148,32 +149,6 @@ const (
 	Crypto   AssetClass = "crypto"
 )
 
-type Fundamental struct {
-	AssetID           string          `json:"asset_id"`
-	Symbol            string          `json:"symbol"`
-	FullName          string          `json:"full_name"`
-	IndustryName      string          `json:"industry_name"`
-	IndustryGroup     string          `json:"industry_group"`
-	Sector            string          `json:"sector"`
-	PERatio           float32         `json:"pe_ratio"`
-	PEGRatio          float32         `json:"peg_ratio"`
-	Beta              float32         `json:"beta"`
-	EPS               float32         `json:"eps"`
-	MarketCap         int64           `json:"market_cap"`
-	SharesOutstanding int64           `json:"shares_outstanding"`
-	AvgVol            int64           `json:"avg_vol"`
-	DivRate           float32         `json:"div_rate"`
-	ROE               float32         `json:"roe"`
-	ROA               float32         `json:"roa"`
-	PS                float32         `json:"ps"`
-	PC                float32         `json:"pc"`
-	GrossMargin       float32         `json:"gross_margin"`
-	FiftyTwoWeekHigh  decimal.Decimal `json:"fifty_two_week_high"`
-	FiftyTwoWeekLow   decimal.Decimal `json:"fifty_two_week_low"`
-	ShortDescription  string          `json:"short_description"`
-	LongDescription   string          `json:"long_description"`
-}
-
 type CalendarDay struct {
 	Date  string `json:"date"`
 	Open  string `json:"open"`
@@ -212,6 +187,9 @@ type AccountActivity struct {
 	NetAmount       decimal.Decimal `json:"net_amount"`
 	Description     string          `json:"description"`
 	PerShareAmount  decimal.Decimal `json:"per_share_amount"`
+	OrderID         string          `json:"order_id"`
+	OrderStatus     string          `json:"order_status"`
+	Status          string          `json:"status"`
 }
 
 //easyjson:json
@@ -233,6 +211,15 @@ const (
 	Sell Side = "sell"
 )
 
+type PositionIntent string
+
+const (
+	BuyToOpen   PositionIntent = "buy_to_open"
+	BuyToClose  PositionIntent = "buy_to_close"
+	SellToOpen  PositionIntent = "sell_to_open"
+	SellToClose PositionIntent = "sell_to_close"
+)
+
 type OrderType string
 
 const (
@@ -250,6 +237,7 @@ const (
 	OTO     OrderClass = "oto"
 	OCO     OrderClass = "oco"
 	Simple  OrderClass = "simple"
+	MLeg    OrderClass = "mleg"
 )
 
 type TimeInForce string
@@ -393,4 +381,99 @@ func (e *APIError) Error() string {
 		return fmt.Sprintf("%s (HTTP %d, Code %d)", e.Message, e.StatusCode, e.Code)
 	}
 	return fmt.Sprintf("%s (HTTP %d)", e.Message, e.StatusCode)
+}
+
+//easyjson:json
+type closeAllPositionsSlice []closeAllPositionsResponse
+
+type closeAllPositionsResponse struct {
+	Symbol string          `json:"symbol"`
+	Status int             `json:"status"`
+	Body   json.RawMessage `json:"body,omitempty"`
+}
+
+type OptionStatus string
+
+const (
+	OptionStatusActive   OptionStatus = "active"
+	OptionStatusInactive OptionStatus = "inactive"
+)
+
+type OptionType string
+
+const (
+	OptionTypeCall OptionType = "call"
+	OptionTypePut  OptionType = "put"
+)
+
+type OptionStyle string
+
+const (
+	OptionStyleAmerican OptionStyle = "american"
+	OptionStyleEuropean OptionStyle = "european"
+)
+
+type DeliverableType string
+
+const (
+	DeliverableTypeCash   DeliverableType = "cash"
+	DeliverableTypeEquity DeliverableType = "equity"
+)
+
+type DeliverableSettlementType string
+
+const (
+	DeliverableSettlementTypeT0 DeliverableSettlementType = "T+0"
+	DeliverableSettlementTypeT1 DeliverableSettlementType = "T+1"
+	DeliverableSettlementTypeT2 DeliverableSettlementType = "T+2"
+	DeliverableSettlementTypeT3 DeliverableSettlementType = "T+3"
+	DeliverableSettlementTypeT4 DeliverableSettlementType = "T+4"
+	DeliverableSettlementTypeT5 DeliverableSettlementType = "T+5"
+)
+
+type DeliverableSettlementMethod string
+
+const (
+	DeliverableSettlementMethodBTOB DeliverableSettlementMethod = "BTOB"
+	DeliverableSettlementMethodCADF DeliverableSettlementMethod = "CADF"
+	DeliverableSettlementMethodCAFX DeliverableSettlementMethod = "CAFX"
+	DeliverableSettlementMethodCCC  DeliverableSettlementMethod = "CCC"
+)
+
+type OptionDeliverable struct {
+	Type                 DeliverableType             `json:"type"`
+	Symbol               string                      `json:"symbol"`
+	AssetID              *string                     `json:"asset_id,omitempty"`
+	Amount               decimal.Decimal             `json:"amount"`
+	AllocationPercentage decimal.Decimal             `json:"allocation_percentage"`
+	SettlementType       DeliverableSettlementType   `json:"settlement_type"`
+	SettlementMethod     DeliverableSettlementMethod `json:"settlement_method"`
+	DelayedSettlement    bool                        `json:"delayed_settlement"`
+}
+
+type OptionContract struct {
+	ID                string              `json:"id"`
+	Symbol            string              `json:"symbol"`
+	Name              string              `json:"name"`
+	Status            OptionStatus        `json:"status"`
+	Tradable          bool                `json:"tradable"`
+	ExpirationDate    civil.Date          `json:"expiration_date"`
+	RootSymbol        *string             `json:"root_symbol,omitempty"`
+	UnderlyingSymbol  string              `json:"underlying_symbol"`
+	UnderlyingAssetID string              `json:"underlying_asset_id"`
+	Type              OptionType          `json:"type"`
+	Style             OptionStyle         `json:"style"`
+	StrikePrice       decimal.Decimal     `json:"strike_price"`
+	Multiplier        decimal.Decimal     `json:"multiplier"`
+	Size              decimal.Decimal     `json:"size"`
+	OpenInterest      *decimal.Decimal    `json:"open_interest"`
+	OpenInterestDate  *civil.Date         `json:"open_interest_date,omitempty"`
+	ClosePrice        *decimal.Decimal    `json:"close_price,omitempty"`
+	ClosePriceDate    *civil.Date         `json:"close_price_date,omitempty"`
+	Deliverables      []OptionDeliverable `json:"deliverables,omitempty"`
+}
+
+type optionContractsResponse struct {
+	OptionContracts []OptionContract `json:"option_contracts"`
+	NextPageToken   *string          `json:"next_page_token,omitempty"`
 }

@@ -7,7 +7,7 @@ import (
 )
 
 func TestNoSubscribeCallNecessary(t *testing.T) {
-	var tests = []struct {
+	tests := []struct {
 		sub      subscriptions
 		expected bool
 	}{
@@ -18,6 +18,7 @@ func TestNoSubscribeCallNecessary(t *testing.T) {
 		{sub: subscriptions{bars: []string{"TEST"}}, expected: false},
 		{sub: subscriptions{dailyBars: []string{"TEST"}}, expected: false},
 		{sub: subscriptions{statuses: []string{"TEST"}}, expected: false},
+		{sub: subscriptions{imbalances: []string{"TEST"}}, expected: false},
 		{sub: subscriptions{lulds: []string{"TEST"}}, expected: false},
 		{sub: subscriptions{news: []string{"TEST"}}, expected: false},
 		{sub: subscriptions{

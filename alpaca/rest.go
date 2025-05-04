@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -13,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	"cloud.google.com/go/civil"
 	"github.com/alpacahq/alpaca-trade-api-go/v3/internal/ctxtime"
 	"github.com/mailru/easyjson"
 	"github.com/shopspring/decimal"
@@ -20,12 +22,14 @@ import (
 
 // ClientOpts contains options for the alpaca client
 type ClientOpts struct {
-	APIKey     string
-	APISecret  string
-	OAuth      string
-	BaseURL    string
-	RetryLimit int
-	RetryDelay time.Duration
+	APIKey       string
+	APISecret    string
+	BrokerKey    string
+	BrokerSecret string
+	OAuth        string
+	BaseURL      string
+	RetryLimit   int
+	RetryDelay   time.Duration
 	// HTTPClient to be used for each http request.
 	HTTPClient *http.Client
 }
@@ -86,9 +90,12 @@ const (
 func defaultDo(c *Client, req *http.Request) (*http.Response, error) {
 	req.Header.Set("User-Agent", Version())
 
-	if c.opts.OAuth != "" {
+	switch {
+	case c.opts.OAuth != "":
 		req.Header.Set("Authorization", "Bearer "+c.opts.OAuth)
-	} else {
+	case c.opts.BrokerKey != "":
+		req.SetBasicAuth(c.opts.BrokerKey, c.opts.BrokerSecret)
+	default:
 		req.Header.Set("APCA-API-KEY-ID", c.opts.APIKey)
 		req.Header.Set("APCA-API-SECRET-KEY", c.opts.APISecret)
 	}
@@ -129,6 +136,7 @@ func (c *Client) GetAccount(ctx context.Context) (*Account, error) {
 	if err != nil {
 		return nil, err
 	}
+	defer closeResp(resp)
 
 	var account Account
 	if err = unmarshal(resp, &account); err != nil {
@@ -148,6 +156,7 @@ func (c *Client) GetAccountConfigurations(ctx context.Context) (*AccountConfigur
 	if err != nil {
 		return nil, err
 	}
+	defer closeResp(resp)
 
 	var configs AccountConfigurations
 	if err = unmarshal(resp, &configs); err != nil {
@@ -175,6 +184,7 @@ func (c *Client) UpdateAccountConfigurations(ctx context.Context, req UpdateAcco
 	if err != nil {
 		return nil, err
 	}
+	defer closeResp(resp)
 
 	var configs AccountConfigurations
 	if err = unmarshal(resp, &configs); err != nil {
@@ -190,6 +200,8 @@ type GetAccountActivitiesRequest struct {
 	After         time.Time `json:"after"`
 	Direction     string    `json:"direction"`
 	PageSize      int       `json:"page_size"`
+	PageToken     string    `json:"page_token"`
+	Category      string    `json:"category"`
 }
 
 // GetAccountActivities returns the account activities.
@@ -218,12 +230,19 @@ func (c *Client) GetAccountActivities(ctx context.Context, req GetAccountActivit
 	if req.PageSize != 0 {
 		q.Set("page_size", strconv.Itoa(req.PageSize))
 	}
+	if req.PageToken != "" {
+		q.Set("page_token", req.PageToken)
+	}
+	if req.Category != "" {
+		q.Set("category", req.Category)
+	}
 	u.RawQuery = q.Encode()
 
 	resp, err := c.get(ctx, u)
 	if err != nil {
 		return nil, err
 	}
+	defer closeResp(resp)
 
 	var activities accountSlice
 	if err = unmarshal(resp, &activities); err != nil {
@@ -263,6 +282,7 @@ func (c *Client) GetPortfolioHistory(ctx context.Context, req GetPortfolioHistor
 	if err != nil {
 		return nil, err
 	}
+	defer closeResp(resp)
 
 	var history PortfolioHistory
 	if err = unmarshal(resp, &history); err != nil {
@@ -282,6 +302,7 @@ func (c *Client) GetPositions(ctx context.Context) ([]Position, error) {
 	if err != nil {
 		return nil, err
 	}
+	defer closeResp(resp)
 
 	var positions positionSlice
 	if err = unmarshal(resp, &positions); err != nil {
@@ -305,6 +326,7 @@ func (c *Client) GetPosition(ctx context.Context, symbol string) (*Position, err
 	if err != nil {
 		return nil, err
 	}
+	defer closeResp(resp)
 
 	var position Position
 	if err = unmarshal(resp, &position); err != nil {
@@ -318,6 +340,8 @@ type CloseAllPositionsRequest struct {
 }
 
 // CloseAllPositions liquidates all open positions at market price.
+// It returns the list of orders that were created to close the positions.
+// If errors occur while closing some of the positions, the errors will also be returned (possibly among orders)
 func (c *Client) CloseAllPositions(ctx context.Context, req CloseAllPositionsRequest) ([]Order, error) {
 	u, err := url.Parse(fmt.Sprintf("%s/%s/positions", c.opts.BaseURL, apiVersion))
 	if err != nil {
@@ -332,12 +356,35 @@ func (c *Client) CloseAllPositions(ctx context.Context, req CloseAllPositionsReq
 	if err != nil {
 		return nil, err
 	}
+	defer closeResp(resp)
 
-	var orders orderSlice
-	if err = unmarshal(resp, &orders); err != nil {
+	var closeAllPositions closeAllPositionsSlice
+	if err = unmarshal(resp, &closeAllPositions); err != nil {
 		return nil, err
 	}
-	return orders, nil
+
+	var (
+		orders = make([]Order, 0, len(closeAllPositions))
+		errs   = make([]error, 0, len(closeAllPositions))
+	)
+	for _, capr := range closeAllPositions {
+		if capr.Status == http.StatusOK {
+			var order Order
+			if err := easyjson.Unmarshal(capr.Body, &order); err != nil {
+				return nil, err
+			}
+			orders = append(orders, order)
+			continue
+		}
+		var apiErr APIError
+		if err := easyjson.Unmarshal(capr.Body, &apiErr); err != nil {
+			return nil, err
+		}
+		apiErr.StatusCode = capr.Status
+		errs = append(errs, &apiErr)
+	}
+
+	return orders, errors.Join(errs...)
 }
 
 type ClosePositionRequest struct {
@@ -370,6 +417,7 @@ func (c *Client) ClosePosition(ctx context.Context, symbol string, req ClosePosi
 	if err != nil {
 		return nil, err
 	}
+	defer closeResp(resp)
 
 	var order Order
 	if err = unmarshal(resp, &order); err != nil {
@@ -389,6 +437,7 @@ func (c *Client) GetClock(ctx context.Context) (*Clock, error) {
 	if err != nil {
 		return nil, err
 	}
+	defer closeResp(resp)
 
 	var clock Clock
 	if err = unmarshal(resp, &clock); err != nil {
@@ -422,6 +471,7 @@ func (c *Client) GetCalendar(ctx context.Context, req GetCalendarRequest) ([]Cal
 	if err != nil {
 		return nil, err
 	}
+	defer closeResp(resp)
 
 	var calendar calendarDaySlice
 	if err = unmarshal(resp, &calendar); err != nil {
@@ -480,6 +530,7 @@ func (c *Client) GetOrders(ctx context.Context, req GetOrdersRequest) ([]Order, 
 	if err != nil {
 		return nil, err
 	}
+	defer closeResp(resp)
 
 	var orders orderSlice
 	if err = unmarshal(resp, &orders); err != nil {
@@ -488,22 +539,31 @@ func (c *Client) GetOrders(ctx context.Context, req GetOrdersRequest) ([]Order, 
 	return orders, nil
 }
 
+type Leg struct {
+	Side           Side            `json:"side"`
+	PositionIntent PositionIntent  `json:"position_intent"`
+	Symbol         string          `json:"symbol"`
+	RatioQty       decimal.Decimal `json:"ratio_qty"`
+}
+
 type PlaceOrderRequest struct {
-	Symbol        string           `json:"symbol"`
-	Qty           *decimal.Decimal `json:"qty"`
-	Notional      *decimal.Decimal `json:"notional"`
-	Side          Side             `json:"side"`
-	Type          OrderType        `json:"type"`
-	TimeInForce   TimeInForce      `json:"time_in_force"`
-	LimitPrice    *decimal.Decimal `json:"limit_price"`
-	ExtendedHours bool             `json:"extended_hours"`
-	StopPrice     *decimal.Decimal `json:"stop_price"`
-	ClientOrderID string           `json:"client_order_id"`
-	OrderClass    OrderClass       `json:"order_class"`
-	TakeProfit    *TakeProfit      `json:"take_profit"`
-	StopLoss      *StopLoss        `json:"stop_loss"`
-	TrailPrice    *decimal.Decimal `json:"trail_price"`
-	TrailPercent  *decimal.Decimal `json:"trail_percent"`
+	Symbol         string           `json:"symbol"`
+	Qty            *decimal.Decimal `json:"qty"`
+	Notional       *decimal.Decimal `json:"notional"`
+	Side           Side             `json:"side"`
+	Type           OrderType        `json:"type"`
+	TimeInForce    TimeInForce      `json:"time_in_force"`
+	LimitPrice     *decimal.Decimal `json:"limit_price"`
+	ExtendedHours  bool             `json:"extended_hours"`
+	StopPrice      *decimal.Decimal `json:"stop_price"`
+	ClientOrderID  string           `json:"client_order_id"`
+	OrderClass     OrderClass       `json:"order_class"`
+	TakeProfit     *TakeProfit      `json:"take_profit"`
+	StopLoss       *StopLoss        `json:"stop_loss"`
+	TrailPrice     *decimal.Decimal `json:"trail_price"`
+	TrailPercent   *decimal.Decimal `json:"trail_percent"`
+	PositionIntent PositionIntent   `json:"position_intent,omitempty"`
+	Legs           []Leg            `json:"legs"` // mleg order legs
 }
 
 type TakeProfit struct {
@@ -526,6 +586,7 @@ func (c *Client) PlaceOrder(ctx context.Context, req PlaceOrderRequest) (*Order,
 	if err != nil {
 		return nil, err
 	}
+	defer closeResp(resp)
 
 	var order Order
 	if err = unmarshal(resp, &order); err != nil {
@@ -545,6 +606,7 @@ func (c *Client) GetOrder(ctx context.Context, orderID string) (*Order, error) {
 	if err != nil {
 		return nil, err
 	}
+	defer closeResp(resp)
 
 	var order Order
 	if err = unmarshal(resp, &order); err != nil {
@@ -568,6 +630,7 @@ func (c *Client) GetOrderByClientOrderID(ctx context.Context, clientOrderID stri
 	if err != nil {
 		return nil, err
 	}
+	defer closeResp(resp)
 
 	var order Order
 	if err = unmarshal(resp, &order); err != nil {
@@ -596,6 +659,7 @@ func (c *Client) ReplaceOrder(ctx context.Context, orderID string, req ReplaceOr
 	if err != nil {
 		return nil, err
 	}
+	defer closeResp(resp)
 
 	var order Order
 	if err = unmarshal(resp, &order); err != nil {
@@ -662,6 +726,7 @@ func (c *Client) GetAssets(ctx context.Context, req GetAssetsRequest) ([]Asset, 
 	if err != nil {
 		return nil, err
 	}
+	defer closeResp(resp)
 
 	var assets assetSlice
 	if err = unmarshal(resp, &assets); err != nil {
@@ -681,12 +746,162 @@ func (c *Client) GetAsset(ctx context.Context, symbol string) (*Asset, error) {
 	if err != nil {
 		return nil, err
 	}
+	defer closeResp(resp)
 
 	var asset Asset
 	if err = unmarshal(resp, &asset); err != nil {
 		return nil, err
 	}
 	return &asset, nil
+}
+
+const (
+	optionContractsRequestsMaxLimit = 10000
+)
+
+func setQueryLimit(q url.Values, totalLimit, pageLimit, received, maxLimit int) {
+	limit := 0 // use server side default if unset
+	if pageLimit != 0 {
+		limit = pageLimit
+	}
+	if totalLimit != 0 {
+		remaining := totalLimit - received
+		if remaining <= 0 { // this should never happen
+			return
+		}
+		if (limit == 0 || limit > remaining) && remaining <= maxLimit {
+			limit = remaining
+		}
+	}
+
+	if limit != 0 {
+		q.Set("limit", strconv.Itoa(limit))
+	}
+}
+
+type GetOptionContractsRequest struct {
+	UnderlyingSymbols     string
+	ShowDeliverable       bool
+	Status                OptionStatus
+	ExpirationDate        civil.Date
+	ExpirationDateGTE     civil.Date
+	ExpirationDateLTE     civil.Date
+	RootSymbol            string
+	Type                  OptionType
+	Style                 OptionStyle
+	StrikePriceGTE        decimal.Decimal
+	StrikePriceLTE        decimal.Decimal
+	PennyProgramIndicator bool
+	PageLimit             int
+	TotalLimit            int
+}
+
+// GetOptionContracts returns the list of Option Contracts.
+func (c *Client) GetOptionContracts(ctx context.Context, req GetOptionContractsRequest) ([]OptionContract, error) {
+	u, err := url.Parse(fmt.Sprintf("%s/%s/options/contracts", c.opts.BaseURL, apiVersion))
+	if err != nil {
+		return nil, err
+	}
+
+	q := u.Query()
+
+	if req.UnderlyingSymbols != "" {
+		q.Set("underlying_symbols", req.UnderlyingSymbols)
+	}
+
+	q.Set("show_deliverables", strconv.FormatBool(req.ShowDeliverable))
+
+	if req.Status != "" {
+		q.Set("status", string(req.Status))
+	}
+
+	if !req.ExpirationDate.IsZero() {
+		q.Set("expiration_date", req.ExpirationDate.String())
+	}
+
+	if !req.ExpirationDateGTE.IsZero() {
+		q.Set("expiration_date_gte", req.ExpirationDateGTE.String())
+	}
+
+	if !req.ExpirationDateLTE.IsZero() {
+		q.Set("expiration_date_lte", req.ExpirationDateLTE.String())
+	}
+
+	if req.RootSymbol != "" {
+		q.Set("root_symbol", req.RootSymbol)
+	}
+
+	if req.Type != "" {
+		q.Set("type", string(req.Type))
+	}
+
+	if req.Style != "" {
+		q.Set("style", string(req.Style))
+	}
+
+	if !req.StrikePriceLTE.IsZero() {
+		q.Set("strike_price_lte", req.StrikePriceLTE.String())
+	}
+
+	if !req.StrikePriceGTE.IsZero() {
+		q.Set("strike_price_gte", req.StrikePriceGTE.String())
+	}
+
+	if req.PennyProgramIndicator {
+		q.Set("ppind", "true")
+	}
+
+	optionContracts := make([]OptionContract, 0)
+	for req.TotalLimit == 0 || len(optionContracts) < req.TotalLimit {
+		setQueryLimit(q,
+			req.TotalLimit,
+			req.PageLimit,
+			len(optionContracts),
+			optionContractsRequestsMaxLimit)
+
+		u.RawQuery = q.Encode()
+
+		resp, err := c.get(ctx, u)
+		if err != nil {
+			return nil, err
+		}
+
+		var response optionContractsResponse
+		if err = unmarshal(resp, &response); err != nil {
+			return nil, err
+		}
+
+		optionContracts = append(optionContracts, response.OptionContracts...)
+
+		if response.NextPageToken == nil {
+			break
+		}
+
+		q.Set("page_token", *response.NextPageToken)
+		closeResp(resp)
+	}
+
+	return optionContracts, nil
+}
+
+// GetOptionContract returns an option contract by symbol or contract ID.
+func (c *Client) GetOptionContract(ctx context.Context, symbolOrID string) (*OptionContract, error) {
+	u, err := url.Parse(fmt.Sprintf("%s/%s/options/contracts/%v", c.opts.BaseURL, apiVersion, symbolOrID))
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := c.get(ctx, u)
+	if err != nil {
+		return nil, err
+	}
+	defer closeResp(resp)
+
+	var optionContract OptionContract
+	if err = unmarshal(resp, &optionContract); err != nil {
+		return nil, err
+	}
+	return &optionContract, nil
 }
 
 type GetAnnouncementsRequest struct {
@@ -729,6 +944,7 @@ func (c *Client) GetAnnouncements(ctx context.Context, req GetAnnouncementsReque
 	if err != nil {
 		return nil, err
 	}
+	defer closeResp(resp)
 
 	var announcements announcementSlice
 	if err = unmarshal(resp, &announcements); err != nil {
@@ -749,6 +965,7 @@ func (c *Client) GetAnnouncement(ctx context.Context, announcementID string) (*A
 	if err != nil {
 		return nil, err
 	}
+	defer closeResp(resp)
 
 	var announcement Announcement
 	if err = unmarshal(resp, &announcement); err != nil {
@@ -768,6 +985,7 @@ func (c *Client) GetWatchlists(ctx context.Context) ([]Watchlist, error) {
 	if err != nil {
 		return nil, err
 	}
+	defer closeResp(resp)
 
 	var watchlists watchlistSlice
 	if err = unmarshal(resp, &watchlists); err != nil {
@@ -786,6 +1004,7 @@ func (c *Client) CreateWatchlist(ctx context.Context, req CreateWatchlistRequest
 	if err != nil {
 		return nil, err
 	}
+	defer closeResp(resp)
 
 	watchlist := &Watchlist{}
 	if err = unmarshal(resp, watchlist); err != nil {
@@ -804,6 +1023,7 @@ func (c *Client) GetWatchlist(ctx context.Context, watchlistID string) (*Watchli
 	if err != nil {
 		return nil, err
 	}
+	defer closeResp(resp)
 
 	watchlist := &Watchlist{}
 	if err = unmarshal(resp, watchlist); err != nil {
@@ -822,6 +1042,7 @@ func (c *Client) UpdateWatchlist(ctx context.Context, watchlistID string, req Up
 	if err != nil {
 		return nil, err
 	}
+	defer closeResp(resp)
 
 	watchlist := &Watchlist{}
 	if err = unmarshal(resp, watchlist); err != nil {
@@ -830,7 +1051,7 @@ func (c *Client) UpdateWatchlist(ctx context.Context, watchlistID string, req Up
 	return watchlist, nil
 }
 
-var ErrSymbolMissing = fmt.Errorf("symbol missing from request")
+var ErrSymbolMissing = errors.New("symbol missing from request")
 
 func (c *Client) AddSymbolToWatchlist(ctx context.Context, watchlistID string, req AddSymbolToWatchlistRequest) (*Watchlist, error) {
 	if req.Symbol == "" {
@@ -846,6 +1067,7 @@ func (c *Client) AddSymbolToWatchlist(ctx context.Context, watchlistID string, r
 	if err != nil {
 		return nil, err
 	}
+	defer closeResp(resp)
 
 	watchlist := &Watchlist{}
 	if err = unmarshal(resp, watchlist); err != nil {
@@ -864,8 +1086,12 @@ func (c *Client) RemoveSymbolFromWatchlist(ctx context.Context, watchlistID stri
 		return err
 	}
 
-	_, err = c.delete(ctx, u)
-	return err
+	resp, err := c.delete(ctx, u)
+	if err != nil {
+		return err
+	}
+	closeResp(resp)
+	return nil
 }
 
 func (c *Client) DeleteWatchlist(ctx context.Context, watchlistID string) error {
@@ -874,8 +1100,12 @@ func (c *Client) DeleteWatchlist(ctx context.Context, watchlistID string) error 
 		return err
 	}
 
-	_, err = c.delete(ctx, u)
-	return err
+	resp, err := c.delete(ctx, u)
+	if err != nil {
+		return err
+	}
+	closeResp(resp)
+	return nil
 }
 
 // GetAccount returns the user's account information
@@ -977,6 +1207,16 @@ func GetAssets(ctx context.Context, req GetAssetsRequest) ([]Asset, error) {
 // GetAsset returns an asset for the given symbol.
 func GetAsset(ctx context.Context, symbol string) (*Asset, error) {
 	return DefaultClient.GetAsset(ctx, symbol)
+}
+
+// GetOptionContracts returns the list of Option Contracts.
+func GetOptionContracts(ctx context.Context, req GetOptionContractsRequest) ([]OptionContract, error) {
+	return DefaultClient.GetOptionContracts(ctx, req)
+}
+
+// GetOptionContract returns an option contract by symbol or contract ID.
+func GetOptionContract(ctx context.Context, symbolOrID string) (*OptionContract, error) {
+	return DefaultClient.GetOptionContract(ctx, symbolOrID)
 }
 
 // GetAnnouncements returns a list of announcements
@@ -1102,10 +1342,11 @@ func verify(resp *http.Response) error {
 }
 
 func unmarshal(resp *http.Response, v easyjson.Unmarshaler) error {
-	defer func() {
-		// The underlying TCP connection can not be reused if the body is not fully read
-		_, _ = io.Copy(io.Discard, resp.Body)
-		resp.Body.Close()
-	}()
 	return easyjson.UnmarshalFromReader(resp.Body, v)
+}
+
+func closeResp(resp *http.Response) {
+	// The underlying TCP connection can not be reused if the body is not fully read
+	_, _ = io.Copy(io.Discard, resp.Body)
+	resp.Body.Close()
 }

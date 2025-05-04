@@ -31,13 +31,14 @@ func (c *Client) StreamTradeUpdates(ctx context.Context, handler func(TradeUpdat
 func (c *Client) StreamTradeUpdatesComplex(ctx context.Context, ready func(), handler func(TradeUpdate), req StreamTradeUpdatesRequest) error {
 	transport := http.Transport{
 		DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
-			return net.DialTimeout(network, addr, 5*time.Second)
+			d := net.Dialer{Timeout: 5 * time.Second}
+			return d.DialContext(ctx, network, addr)
 		},
 	}
 	client := http.Client{
 		Transport: &transport,
 	}
-	u, err := url.Parse(c.opts.BaseURL + "/v2beta1/events/trades")
+	u, err := url.Parse(c.opts.BaseURL + "/v2/events/trades")
 	if err != nil {
 		return err
 	}
@@ -57,7 +58,7 @@ func (c *Client) StreamTradeUpdatesComplex(ctx context.Context, ready func(), ha
 	}
 
 	u.RawQuery = q.Encode()
-	request, err := http.NewRequestWithContext(ctx, "GET", u.String(), nil)
+	request, err := http.NewRequestWithContext(ctx, http.MethodGet, u.String(), nil)
 	if err != nil {
 		return err
 	}

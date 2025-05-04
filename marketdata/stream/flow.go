@@ -10,9 +10,11 @@ import (
 	"github.com/vmihailenco/msgpack/v5"
 )
 
-var initializeTimeout = 3 * time.Second
-var authRetryDelayMultiplier = 1
-var authRetryCount = 15
+var (
+	initializeTimeout        = 3 * time.Second
+	authRetryDelayMultiplier = 1
+	authRetryCount           = 15
+)
 
 // initialize performs the initial flow:
 // 1. wait to be welcomed
@@ -21,10 +23,10 @@ var authRetryCount = 15
 //
 // If it runs into retriable issues during the flow it retries for a while
 func (c *client) initialize(ctx context.Context) error {
-	ctxWithTimeout, cancel := context.WithTimeout(ctx, initializeTimeout)
-	defer cancel()
+	readConnectedCtx, cancelReadConnected := context.WithTimeout(ctx, initializeTimeout)
+	defer cancelReadConnected()
 
-	if err := c.readConnected(ctxWithTimeout); err != nil {
+	if err := c.readConnected(readConnectedCtx); err != nil {
 		return fmt.Errorf("failed to read connected: %w", err)
 	}
 
@@ -43,15 +45,15 @@ func (c *client) initialize(ctx context.Context) error {
 				return fmt.Errorf("cancel retry: %w", err)
 			}
 		}
-		ctxWithTimeout, cancel := context.WithTimeout(ctx, initializeTimeout)
-		defer cancel()
-		if err := c.writeAuth(ctxWithTimeout); err != nil {
+		writeAuthCtx, cancelWriteAuth := context.WithTimeout(ctx, initializeTimeout)
+		defer cancelWriteAuth()
+		if err := c.writeAuth(writeAuthCtx); err != nil {
 			return fmt.Errorf("failed to write auth: %w", err)
 		}
 
-		ctxWithTimeoutResp, cancelResp := context.WithTimeout(ctx, initializeTimeout)
-		defer cancelResp()
-		retryErr = c.readAuthResponse(ctxWithTimeoutResp)
+		readAuthRespCtx, cancelReadAuthResp := context.WithTimeout(ctx, initializeTimeout)
+		defer cancelReadAuthResp()
+		retryErr = c.readAuthResponse(readAuthRespCtx)
 		if retryErr == nil {
 			break
 		}
@@ -69,15 +71,15 @@ func (c *client) initialize(ctx context.Context) error {
 		return nil
 	}
 
-	ctxWithTimeoutWriteSub, cancelWriteSub := context.WithTimeout(ctx, initializeTimeout)
+	writeSubCtx, cancelWriteSub := context.WithTimeout(ctx, initializeTimeout)
 	defer cancelWriteSub()
-	if err := c.writeSub(ctxWithTimeoutWriteSub); err != nil {
+	if err := c.writeSub(writeSubCtx); err != nil {
 		return fmt.Errorf("failed to write subscribe: %w", err)
 	}
 
-	ctxWithTimeoutReadSub, cancelReadSub := context.WithTimeout(ctx, initializeTimeout)
+	readRespCtx, cancelReadSub := context.WithTimeout(ctx, initializeTimeout)
 	defer cancelReadSub()
-	if err := c.readSubResponse(ctxWithTimeoutReadSub); err != nil {
+	if err := c.readSubResponse(readRespCtx); err != nil {
 		return fmt.Errorf("failed to read subscribe response: %w", err)
 	}
 
@@ -142,7 +144,7 @@ func (c *client) readAuthResponse(ctx context.Context) error {
 
 	resp := resps[0]
 
-	if resp.T == "error" {
+	if resp.T == msgTypeError {
 		return errorMessage{
 			msg:  resp.Msg,
 			code: resp.Code,
@@ -179,6 +181,7 @@ func (c *client) readSubResponse(ctx context.Context) error {
 		UpdatedBars  []string `msgpack:"updatedBars"`
 		DailyBars    []string `msgpack:"dailyBars"`
 		Statuses     []string `msgpack:"statuses"`
+		Imbalances   []string `msgpack:"imbalances"`
 		LULDs        []string `msgpack:"lulds"`
 		CancelErrors []string `msgpack:"cancelErrors"`
 		Corrections  []string `msgpack:"corrections"`
@@ -192,7 +195,7 @@ func (c *client) readSubResponse(ctx context.Context) error {
 	}
 	resp := resps[0]
 
-	if resp.T == "error" {
+	if resp.T == msgTypeError {
 		return errorMessage{
 			msg:  resp.Msg,
 			code: resp.Code,
@@ -208,6 +211,7 @@ func (c *client) readSubResponse(ctx context.Context) error {
 	c.sub.updatedBars = resp.UpdatedBars
 	c.sub.dailyBars = resp.DailyBars
 	c.sub.statuses = resp.Statuses
+	c.sub.imbalances = resp.Imbalances
 	c.sub.lulds = resp.LULDs
 	c.sub.cancelErrors = resp.CancelErrors
 	c.sub.corrections = resp.Corrections

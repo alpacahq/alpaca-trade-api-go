@@ -6,8 +6,10 @@ import (
 	"sync"
 )
 
-var errClose = errors.New("closed")
-var errPingDisabled = errors.New("ping disabled")
+var (
+	errClose        = errors.New("closed")
+	errPingDisabled = errors.New("ping disabled")
+)
 
 type mockConn struct {
 	pingCh       chan struct{}
@@ -40,7 +42,7 @@ func (c *mockConn) close() error {
 	return nil
 }
 
-func (c *mockConn) ping(ctx context.Context) error {
+func (c *mockConn) ping(_ context.Context) error {
 	if c.pingDisabled {
 		return errPingDisabled
 	}
@@ -53,7 +55,7 @@ func (c *mockConn) ping(ctx context.Context) error {
 	return nil
 }
 
-func (c *mockConn) readMessage(ctx context.Context) (data []byte, err error) {
+func (c *mockConn) readMessage(ctx context.Context) ([]byte, error) {
 	select {
 	case <-ctx.Done():
 		return nil, ctx.Err()
@@ -64,7 +66,7 @@ func (c *mockConn) readMessage(ctx context.Context) (data []byte, err error) {
 	}
 }
 
-func (c *mockConn) writeMessage(ctx context.Context, data []byte) error {
+func (c *mockConn) writeMessage(_ context.Context, data []byte) error {
 	select {
 	case <-c.closeCh:
 		return errClose

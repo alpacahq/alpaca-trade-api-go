@@ -1,4 +1,3 @@
-
 # alpaca-trade-api-go
 
 [![GitHub Status](https://github.com/alpacahq/alpaca-trade-api-go/actions/workflows/go.yml/badge.svg)](https://github.com/alpacahq/alpaca-trade-api-go/actions/workflows/go.yml)
@@ -105,6 +104,20 @@ export APCA_API_KEY_ID=xxxxx
 export APCA_API_SECRET_KEY=yyyyy
 ```
 
+### Broker auth
+
+You use your Broker API key and secret for authentication.
+However, for this to work make sure you're using the appropriate base URL
+(for more details check the next section)!
+
+```go
+client := marketdata.NewClient(marketdata.ClientOpts{
+	BrokerKey:    "CK...",                               // Sandbox broker key
+	BrokerSecret: "<your secret>",                       // Sandbox broker secret
+	BaseURL:      "https://data.sandbox.alpaca.markets", // Sandbox url
+})
+```
+
 ## Endpoint
 
 For paper trading, set the environment variable `APCA_API_BASE_URL` or set the
@@ -113,6 +126,15 @@ For paper trading, set the environment variable `APCA_API_BASE_URL` or set the
 ```sh
 export APCA_API_BASE_URL=https://paper-api.alpaca.markets
 ```
+
+### Broker API
+
+For broker partners, set the base URL to
+
+- `broker-api.alpaca.markets` for production
+- `broker-api.sandbox.alpaca.markets` for sandbox
+- `data.alpaca.markets` for production marketdata
+- `data.sandbox.alpaca.markets` for sandbox marketdata
 
 ## Documentation
 

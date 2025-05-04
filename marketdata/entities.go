@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"cloud.google.com/go/civil"
-
 	// Required for easyjson generation
 	_ "github.com/mailru/easyjson/gen"
 )
@@ -23,6 +22,10 @@ const (
 	IEX Feed = "iex"
 	// OTC includes Over-the-Counter exchanges
 	OTC Feed = "otc"
+	// DelayedSIP is 15-minute delayed SIP. It can only be used in the latest
+	// endpoints and on the stream. For historical endpoints you can simply
+	// use sip and set the end parameter to 15 minutes ago, or leave it empty.
+	DelayedSIP Feed = "delayed_sip"
 )
 
 // CryptoFeed defines the source feed of crypto data.
@@ -30,7 +33,23 @@ type CryptoFeed = string
 
 const (
 	// US is the crypto feed for the United States.
-	US CryptoFeed = "us"
+	US     CryptoFeed = "us"
+	GLOBAL CryptoFeed = "global"
+)
+
+// OptionFeed defines the source feed of option data.
+type OptionFeed = string
+
+const (
+	OPRA       Feed = "opra"
+	Indicative Feed = "indicative"
+)
+
+type OptionType = string
+
+const (
+	Call OptionType = "call"
+	Put  OptionType = "put"
 )
 
 // TakerSide is the taker's side: one of B, S or -. B is buy, S is sell and - is unknown.
@@ -194,6 +213,21 @@ type CryptoSnapshot struct {
 	PrevDailyBar *CryptoBar   `json:"prevDailyBar"`
 }
 
+type (
+	CryptoPerpTrade CryptoTrade
+	CryptoPerpQuote CryptoQuote
+	CryptoPerpBar   CryptoBar
+)
+
+type CryptoPerpPricing struct {
+	IndexPrice      float64   `json:"ip"`
+	MarkPrice       float64   `json:"mp"`
+	FundingRate     float64   `json:"fr"`
+	OpenInterest    float64   `json:"oi"`
+	Timestamp       time.Time `json:"t" `
+	NextFundingTime time.Time `json:"ft"`
+}
+
 // CryptoSnapshots is the snapshots for multiple crypto symbols
 type CryptoSnapshots struct {
 	Snapshots map[string]CryptoSnapshot `json:"snapshots"`
@@ -219,6 +253,196 @@ type News struct {
 	Symbols   []string    `json:"symbols"`
 }
 
+type ReverseSplit struct {
+	Symbol      string      `json:"symbol"`
+	NewRate     float64     `json:"new_rate"`
+	OldRate     float64     `json:"old_rate"`
+	ProcessDate civil.Date  `json:"process_date"`
+	ExDate      civil.Date  `json:"ex_date"`
+	RecordDate  *civil.Date `json:"record_date,omitempty"`
+	PayableDate *civil.Date `json:"payable_date,omitempty"`
+}
+
+type ForwardSplit struct {
+	Symbol                string      `json:"symbol"`
+	NewRate               float64     `json:"new_rate"`
+	OldRate               float64     `json:"old_rate"`
+	ProcessDate           civil.Date  `json:"process_date"`
+	ExDate                civil.Date  `json:"ex_date"`
+	RecordDate            *civil.Date `json:"record_date,omitempty"`
+	PayableDate           *civil.Date `json:"payable_date,omitempty"`
+	DueBillRedemptionDate *civil.Date `json:"due_bill_redemption_date,omitempty"`
+}
+
+type UnitSplit struct {
+	NewSymbol       string      `json:"new_symbol"`
+	NewRate         float64     `json:"new_rate"`
+	OldSymbol       string      `json:"old_symbol"`
+	OldRate         float64     `json:"old_rate"`
+	AlternateSymbol string      `json:"alternate_symbol"`
+	AlternateRate   float64     `json:"alternate_rate"`
+	ProcessDate     civil.Date  `json:"process_date"`
+	EffectiveDate   civil.Date  `json:"effective_date"`
+	PayableDate     *civil.Date `json:"payable_date,omitempty"`
+}
+
+type CashDividend struct {
+	Symbol         string      `json:"symbol"`
+	Rate           float64     `json:"rate"`
+	Foreign        bool        `json:"foreign"`
+	Special        bool        `json:"special"`
+	ProcessDate    civil.Date  `json:"process_date"`
+	ExDate         civil.Date  `json:"ex_date"`
+	RecordDate     *civil.Date `json:"record_date,omitempty"`
+	PayableDate    *civil.Date `json:"payable_date,omitempty"`
+	DueBillOffDate *civil.Date `json:"due_bill_off_date,omitempty"`
+	DueBillOnDate  *civil.Date `json:"due_bill_on_date,omitempty"`
+}
+
+type CashMerger struct {
+	AcquirerSymbol *string     `json:"acquirer_symbol,omitempty"`
+	AcquireeSymbol string      `json:"acquiree_symbol"`
+	Rate           float64     `json:"rate"`
+	ProcessDate    civil.Date  `json:"process_date"`
+	EffectiveDate  civil.Date  `json:"effective_date"`
+	PayableDate    *civil.Date `json:"payable_date,omitempty"`
+}
+
+type StockMerger struct {
+	AcquirerSymbol string      `json:"acquirer_symbol"`
+	AcquirerRate   float64     `json:"acquirer_rate"`
+	AcquireeSymbol string      `json:"acquiree_symbol"`
+	AcquireeRate   float64     `json:"acquiree_rate"`
+	ProcessDate    civil.Date  `json:"process_date"`
+	EffectiveDate  civil.Date  `json:"effective_date"`
+	PayableDate    *civil.Date `json:"payable_date,omitempty"`
+}
+
+type StockAndCashMerger struct {
+	AcquirerSymbol string      `json:"acquirer_symbol"`
+	AcquirerRate   float64     `json:"acquirer_rate"`
+	AcquireeSymbol string      `json:"acquiree_symbol"`
+	AcquireeRate   float64     `json:"acquiree_rate"`
+	CashRate       float64     `json:"cash_rate"`
+	ProcessDate    civil.Date  `json:"process_date"`
+	EffectiveDate  civil.Date  `json:"effective_date"`
+	PayableDate    *civil.Date `json:"payable_date,omitempty"`
+}
+
+type StockDividend struct {
+	Symbol      string      `json:"symbol"`
+	Rate        float64     `json:"rate"`
+	ProcessDate civil.Date  `json:"process_date"`
+	ExDate      civil.Date  `json:"ex_date"`
+	RecordDate  *civil.Date `json:"record_date,omitempty"`
+	PayableDate *civil.Date `json:"payable_date,omitempty"`
+}
+
+type Redemption struct {
+	Symbol      string      `json:"symbol"`
+	Rate        float64     `json:"rate"`
+	PayableDate *civil.Date `json:"payable_date,omitempty"`
+	ProcessDate civil.Date  `json:"process_date"`
+}
+
+type SpinOff struct {
+	SourceSymbol          string      `json:"source_symbol"`
+	SourceRate            float64     `json:"source_rate"`
+	NewSymbol             string      `json:"new_symbol"`
+	NewRate               float64     `json:"new_rate"`
+	ProcessDate           civil.Date  `json:"process_date"`
+	ExDate                civil.Date  `json:"ex_date"`
+	PayableDate           *civil.Date `json:"payable_date,omitempty"`
+	RecordDate            *civil.Date `json:"record_date,omitempty"`
+	DueBillRedemptionDate *civil.Date `json:"due_bill_redemption_date,omitempty"`
+}
+
+type NameChange struct {
+	NewSymbol   string     `json:"new_symbol"`
+	OldSymbol   string     `json:"old_symbol"`
+	ProcessDate civil.Date `json:"process_date"`
+}
+
+type WorthlessRemoval struct {
+	Symbol      string     `json:"symbol"`
+	ProcessDate civil.Date `json:"process_date"`
+}
+
+type RightsDistribution struct {
+	SourceSymbol   string      `json:"source_symbol"`
+	NewSymbol      string      `json:"new_symbol"`
+	Rate           float64     `json:"rate"`
+	ProcessDate    civil.Date  `json:"process_date"`
+	ExDate         civil.Date  `json:"ex_date"`
+	PayableDate    civil.Date  `json:"payable_date,omitempty"`
+	RecordDate     *civil.Date `json:"record_date,omitempty"`
+	ExpirationDate *civil.Date `json:"expiration_date,omitempty"`
+}
+
+// CorporateActions contains corporate actions grouped by type
+type CorporateActions struct {
+	ReverseSplits       []ReverseSplit       `json:"reverse_splits,omitempty"`
+	ForwardSplits       []ForwardSplit       `json:"forward_splits,omitempty"`
+	UnitSplits          []UnitSplit          `json:"unit_splits,omitempty"`
+	CashDividends       []CashDividend       `json:"cash_dividends,omitempty"`
+	CashMergers         []CashMerger         `json:"cash_mergers,omitempty"`
+	StockMergers        []StockMerger        `json:"stock_mergers,omitempty"`
+	StockAndCashMergers []StockAndCashMerger `json:"stock_and_cash_mergers,omitempty"`
+	StockDividends      []StockDividend      `json:"stock_dividends,omitempty"`
+	Redemptions         []Redemption         `json:"redemptions,omitempty"`
+	SpinOffs            []SpinOff            `json:"spin_offs,omitempty"`
+	NameChanges         []NameChange         `json:"name_changes,omitempty"`
+	WorthlessRemovals   []WorthlessRemoval   `json:"worthless_removals,omitempty"`
+	RightsDistributions []RightsDistribution `json:"rights_distributions,omitempty"`
+}
+
+// OptionTrade is an option trade that happened on the market
+type OptionTrade struct {
+	Timestamp time.Time `json:"t"`
+	Price     float64   `json:"p"`
+	Size      uint32    `json:"s"`
+	Exchange  string    `json:"x"`
+	Condition string    `json:"c"`
+}
+
+// OptionBar is an aggregate of option trades
+type OptionBar struct {
+	Timestamp  time.Time `json:"t"`
+	Open       float64   `json:"o"`
+	High       float64   `json:"h"`
+	Low        float64   `json:"l"`
+	Close      float64   `json:"c"`
+	Volume     uint64    `json:"v"`
+	TradeCount uint64    `json:"n"`
+	VWAP       float64   `json:"vw"`
+}
+
+// OptionQuote is an option NBBO (National Best Bid and Offer)
+type OptionQuote struct {
+	Timestamp   time.Time `json:"t"`
+	BidPrice    float64   `json:"bp"`
+	BidSize     uint32    `json:"bs"`
+	BidExchange string    `json:"bx"`
+	AskPrice    float64   `json:"ap"`
+	AskSize     uint32    `json:"as"`
+	AskExchange string    `json:"ax"`
+	Condition   string    `json:"c"`
+}
+
+type OptionGreeks struct {
+	Delta float64 `json:"delta"`
+	Gamma float64 `json:"gamma"`
+	Rho   float64 `json:"rho"`
+	Theta float64 `json:"theta"`
+	Vega  float64 `json:"vega"`
+}
+
+type OptionSnapshot struct {
+	LatestTrade       *OptionTrade  `json:"latestTrade"`
+	LatestQuote       *OptionQuote  `json:"latestQuote"`
+	ImpliedVolatility float64       `json:"impliedVolatility,omitempty"`
+	Greeks            *OptionGreeks `json:"greeks,omitempty"`
+}
 type multiTradeResponse struct {
 	NextPageToken *string            `json:"next_page_token"`
 	Trades        map[string][]Trade `json:"trades"`
@@ -274,6 +498,10 @@ type latestCryptoTradesResponse struct {
 	Trades map[string]CryptoTrade `json:"trades"`
 }
 
+type latestCryptoPerpPricingResponse struct {
+	Pricing map[string]CryptoPerpPricing `json:"pricing"`
+}
+
 type latestCryptoQuotesResponse struct {
 	Quotes map[string]CryptoQuote `json:"quotes"`
 }
@@ -281,4 +509,32 @@ type latestCryptoQuotesResponse struct {
 type newsResponse struct {
 	NextPageToken *string `json:"next_page_token"`
 	News          []News  `json:"news"`
+}
+
+type corporateActionsResponse struct {
+	NextPageToken    *string          `json:"next_page_token"`
+	CorporateActions CorporateActions `json:"corporate_actions"`
+}
+
+type multiOptionTradeResponse struct {
+	NextPageToken *string                  `json:"next_page_token"`
+	Trades        map[string][]OptionTrade `json:"trades"`
+}
+
+type multiOptionBarResponse struct {
+	NextPageToken *string                `json:"next_page_token"`
+	Bars          map[string][]OptionBar `json:"bars"`
+}
+
+type latestOptionTradesResponse struct {
+	Trades map[string]OptionTrade `json:"trades"`
+}
+
+type latestOptionQuotesResponse struct {
+	Quotes map[string]OptionQuote `json:"quotes"`
+}
+
+type optionSnapshotsResponse struct {
+	NextPageToken *string                   `json:"next_page_token"`
+	Snapshots     map[string]OptionSnapshot `json:"snapshots"`
 }

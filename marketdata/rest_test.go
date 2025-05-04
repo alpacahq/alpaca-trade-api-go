@@ -3,6 +3,7 @@ package marketdata
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -12,13 +13,14 @@ import (
 	"testing"
 	"time"
 
+	"cloud.google.com/go/civil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestDefaultDo(t *testing.T) {
 	ctx := context.Background()
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		fmt.Fprint(w, `{"bars":{"SPY":{"t":"2021-11-20T00:59:00Z","o":469.18,"h":469.18,"l":469.11,"c":469.17,"v":740,"n":11,"vw":469.1355}}}`)
 	}))
 	defer server.Close()
@@ -32,14 +34,11 @@ func TestDefaultDo(t *testing.T) {
 
 func TestDefaultDo_InternalServerError(t *testing.T) {
 	ctx := context.Background()
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		http.Error(w, "internal server error", http.StatusInternalServerError)
 	}))
 	defer server.Close()
-	// instead of using the BaseURL opts, we test setting the base URL via environment variables
-	originalDataURL := os.Getenv("APCA_API_DATA_URL")
-	defer func() { os.Setenv("APCA_API_DATA_URL", originalDataURL) }()
-	require.NoError(t, os.Setenv("APCA_API_DATA_URL", server.URL))
+	t.Setenv("APCA_API_DATA_URL", server.URL)
 	client := NewClient(ClientOpts{
 		OAuth:      "myoauthkey",
 		RetryDelay: time.Nanosecond,
@@ -52,7 +51,7 @@ func TestDefaultDo_InternalServerError(t *testing.T) {
 func TestDefaultDo_Retry(t *testing.T) {
 	ctx := context.Background()
 	tryCount := 0
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		switch tryCount {
 		case 0, 2:
 			http.Error(w, "too many requests", http.StatusTooManyRequests)
@@ -77,7 +76,7 @@ func TestDefaultDo_Retry(t *testing.T) {
 func TestDefaultDo_TooMany429s(t *testing.T) {
 	ctx := context.Background()
 	called := 0
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		called++
 		http.Error(w, "too many requests", http.StatusTooManyRequests)
 	}))
@@ -96,7 +95,7 @@ func TestDefaultDo_TooMany429s(t *testing.T) {
 
 func TestDefaultDo_Timeout(t *testing.T) {
 	ctx := context.Background()
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		time.Sleep(time.Second)
 		fmt.Fprint(w, `{"bars":{"SPY":{"t":"2021-11-20T00:59:00Z","o":469.18,"h":469.18,"l":469.11,"c":469.17,"v":740,"n":11,"vw":469.1355}}}`)
 	}))
@@ -111,29 +110,29 @@ func TestDefaultDo_Timeout(t *testing.T) {
 	assert.Contains(t, err.Error(), "Timeout")
 }
 
-func mockResp(resp string) func(c *Client, req *http.Request) (*http.Response, error) {
-	return func(c *Client, req *http.Request) (*http.Response, error) {
+func mockResp(resp string) func(_ *Client, req *http.Request) (*http.Response, error) {
+	return func(_ *Client, _ *http.Request) (*http.Response, error) {
 		return &http.Response{
 			Body: io.NopCloser(strings.NewReader(resp)),
 		}, nil
 	}
 }
 
-func mockErrResp() func(c *Client, req *http.Request) (*http.Response, error) {
-	return func(c *Client, req *http.Request) (*http.Response, error) {
-		return &http.Response{}, fmt.Errorf("fail")
+func mockErrResp() func(_ *Client, _ *http.Request) (*http.Response, error) {
+	return func(_ *Client, _ *http.Request) (*http.Response, error) {
+		return &http.Response{}, errors.New("fail")
 	}
 }
 
 func TestGetTrades_Gzip(t *testing.T) {
 	ctx := context.Background()
 	c := NewClient(ClientOpts{
-		Feed: "sip",
+		Feed: SIP,
 	})
 
 	f, err := os.Open("testdata/trades.json.gz")
 	require.NoError(t, err)
-	c.do = func(c *Client, req *http.Request) (*http.Response, error) {
+	c.do = func(_ *Client, req *http.Request) (*http.Response, error) {
 		assert.Equal(t, "gzip", req.Header.Get("Accept-Encoding"))
 		assert.Equal(t, "sip", req.URL.Query().Get("feed"))
 		return &http.Response{
@@ -160,7 +159,7 @@ func TestGetTrades_Gzip(t *testing.T) {
 func TestGetTrades(t *testing.T) {
 	ctx := context.Background()
 	c := DefaultClient
-	c.do = func(c *Client, req *http.Request) (*http.Response, error) {
+	c.do = func(_ *Client, req *http.Request) (*http.Response, error) {
 		assert.Equal(t, "gzip", req.Header.Get("Accept-Encoding"))
 		resp := `{"trades":{"AAPL":[{"t":"2021-10-13T08:00:00.08960768Z","x":"P","p":140.2,"s":595,"c":["@","T"],"i":1,"z":"C"}]},"next_page_token":"QUFQTHwyMDIxLTEwLTEzVDA4OjAwOjAwLjA4OTYwNzY4MFp8UHwwOTIyMzM3MjAzNjg1NDc3NTgwOQ=="}`
 		// Even though we request gzip encoding, the server may decide to not use it
@@ -182,11 +181,11 @@ func TestGetTrades(t *testing.T) {
 func TestGetTrades_Currency(t *testing.T) {
 	ctx := context.Background()
 	c := NewClient(ClientOpts{
-		Feed:     "sip",
+		Feed:     DelayedSIP,
 		Currency: "JPY",
 	})
-	c.do = func(c *Client, req *http.Request) (*http.Response, error) {
-		assert.Equal(t, "sip", req.URL.Query().Get("feed"))
+	c.do = func(_ *Client, req *http.Request) (*http.Response, error) {
+		assert.Equal(t, "delayed_sip", req.URL.Query().Get("feed"))
 		assert.Equal(t, "JPY", req.URL.Query().Get("currency"))
 		resp := `{"trades":{"AAPL":[{"t":"2021-10-13T08:00:00.08960768Z","x":"P","p":15922.93,"s":595,"c":["@","T"],"i":1,"z":"C"}]},"currency":"JPY","next_page_token":"QUFQTHwyMDIxLTEwLTEzVDA4OjAwOjAwLjA4OTYwNzY4MFp8UHwwOTIyMzM3MjAzNjg1NDc3NTgwOQ=="}`
 		return &http.Response{
@@ -203,9 +202,8 @@ func TestGetTrades_Currency(t *testing.T) {
 	trade := got[0]
 	assert.Equal(t, 15922.93, trade.Price)
 
-	c.do = func(c *Client, req *http.Request) (*http.Response, error) {
+	c.do = func(_ *Client, req *http.Request) (*http.Response, error) {
 		resp := `{"trades":{},"currency":"MXN","next_page_token":null}`
-		assert.Equal(t, "sip", req.URL.Query().Get("feed"))
 		assert.Equal(t, "MXN", req.URL.Query().Get("currency"))
 		return &http.Response{
 			Body: io.NopCloser(strings.NewReader(resp)),
@@ -219,7 +217,7 @@ func TestGetTrades_Currency(t *testing.T) {
 		Currency:   "MXN",
 	})
 	require.NoError(t, err)
-	assert.Len(t, got, 0)
+	assert.Empty(t, got, 0)
 }
 
 func TestGetTrades_InvalidURL(t *testing.T) {
@@ -227,7 +225,7 @@ func TestGetTrades_InvalidURL(t *testing.T) {
 	c := NewClient(ClientOpts{
 		BaseURL: string([]byte{0, 1, 2, 3}),
 	})
-	c.do = func(c *Client, req *http.Request) (*http.Response, error) {
+	c.do = func(_ *Client, _ *http.Request) (*http.Response, error) {
 		require.Fail(t, "the server should not have been called")
 		return nil, nil
 	}
@@ -269,7 +267,7 @@ func TestGetMultiTrades(t *testing.T) {
 	ctx := context.Background()
 	c := DefaultClient
 
-	c.do = func(c *Client, req *http.Request) (*http.Response, error) {
+	c.do = func(_ *Client, req *http.Request) (*http.Response, error) {
 		assert.Equal(t, "/v2/stocks/trades", req.URL.Path)
 		assert.Equal(t, "2018-06-04T19:18:17Z", req.URL.Query().Get("start"))
 		assert.Equal(t, "2018-06-04T19:18:19Z", req.URL.Query().Get("end"))
@@ -303,7 +301,7 @@ func TestGetMultiTrades(t *testing.T) {
 func TestGetQuotes(t *testing.T) {
 	ctx := context.Background()
 	c := DefaultClient
-	c.do = func(c *Client, req *http.Request) (*http.Response, error) {
+	c.do = func(_ *Client, req *http.Request) (*http.Response, error) {
 		assert.Equal(t, "/v2/stocks/quotes", req.URL.Path)
 		assert.Equal(t, "IBM", req.URL.Query().Get("symbols"))
 		assert.Equal(t, "2021-10-04T18:00:14Z", req.URL.Query().Get("start"))
@@ -343,7 +341,7 @@ func TestGetQuotes(t *testing.T) {
 func TestGetQuotes_SortDesc(t *testing.T) {
 	ctx := context.Background()
 	c := DefaultClient
-	c.do = func(c *Client, req *http.Request) (*http.Response, error) {
+	c.do = func(_ *Client, req *http.Request) (*http.Response, error) {
 		assert.Equal(t, "desc", req.URL.Query().Get("sort"))
 		resp := `{"next_page_token":"VFNMQXw3NTMxMTU5NjM2OTY0OTE0ODc5fFV8MjI4LjMzfDF8UHwyMjguMzV8NXxS","quotes":{"TSLA":[{"ap":228.35,"as":5,"ax":"P","bp":228.34,"bs":2,"bx":"Q","c":["R"],"t":"2023-08-16T18:59:59.185551091Z","z":"C"},{"ap":228.35,"as":5,"ax":"P","bp":228.33,"bs":1,"bx":"U","c":["R"],"t":"2023-08-16T18:59:59.035085121Z","z":"C"}]}}`
 		return &http.Response{
@@ -366,7 +364,7 @@ func TestGetQuotes_SortDesc(t *testing.T) {
 func TestGetMultiQuotes(t *testing.T) {
 	ctx := context.Background()
 	c := DefaultClient
-	c.do = func(c *Client, req *http.Request) (*http.Response, error) {
+	c.do = func(_ *Client, req *http.Request) (*http.Response, error) {
 		assert.Equal(t, "/v2/stocks/quotes", req.URL.Path)
 		assert.Equal(t, "6", req.URL.Query().Get("limit"))
 		assert.Equal(t, "BA,DIS", req.URL.Query().Get("symbols"))
@@ -396,7 +394,7 @@ func TestGetAuctions(t *testing.T) {
 	firstResp := `{"auctions":{"AAPL":[{"d":"2022-10-17","o":[{"t":"2022-10-17T13:30:00.189598208Z","x":"P","p":141.13,"s":10,"c":"Q"},{"t":"2022-10-17T13:30:01.329947459Z","x":"Q","p":141.07,"s":1103165,"c":"O"},{"t":"2022-10-17T13:30:01.334218355Z","x":"Q","p":141.07,"s":1103165,"c":"Q"}],"c":[{"t":"2022-10-17T20:00:00.155310848Z","x":"P","p":142.4,"s":100,"c":"M"},{"t":"2022-10-17T20:00:01.135646791Z","x":"Q","p":142.41,"s":7927137,"c":"6"},{"t":"2022-10-17T20:00:01.742162179Z","x":"Q","p":142.41,"s":7927137,"c":"M"}]},{"d":"2022-10-18","o":[{"t":"2022-10-18T13:30:00.193677568Z","x":"P","p":145.42,"s":1,"c":"Q"},{"t":"2022-10-18T13:30:01.662931714Z","x":"Q","p":145.49,"s":793345,"c":"O"},{"t":"2022-10-18T13:30:01.67388499Z","x":"Q","p":145.49,"s":793345,"c":"Q"}],"c":[{"t":"2022-10-18T20:00:00.15542272Z","x":"P","p":143.79,"s":100,"c":"M"},{"t":"2022-10-18T20:00:00.63129591Z","x":"Q","p":143.75,"s":3979281,"c":"6"},{"t":"2022-10-18T20:00:00.631313365Z","x":"Q","p":143.75,"s":3979281,"c":"M"}]}]},"next_page_token":"QUFQTHwyMDIyLTEwLTE4VDIwOjAwOjAwLjYzMTMxMzM2NVp8UXxATXwxNDMuNzU="}`
 	secondResp := `{"auctions":{"AAPL":[{"d":"2022-10-19","o":[{"t":"2022-10-19T13:30:00.206482688Z","x":"P","p":141.69,"s":4,"c":"Q"},{"t":"2022-10-19T13:30:01.350685708Z","x":"Q","p":141.5,"s":517006,"c":"O"},{"t":"2022-10-19T13:30:01.351159286Z","x":"Q","p":141.5,"s":517006,"c":"Q"}],"c":[{"t":"2022-10-19T20:00:00.143265536Z","x":"P","p":143.9,"s":400,"c":"M"},{"t":"2022-10-19T20:00:01.384247418Z","x":"Q","p":143.86,"s":4006543,"c":"6"},{"t":"2022-10-19T20:00:01.384266818Z","x":"Q","p":143.86,"s":4006543,"c":"M"}]},{"d":"2022-10-20","o":[{"t":"2022-10-20T13:30:00.172134656Z","x":"P","p":143.03,"s":6,"c":"Q"},{"t":"2022-10-20T13:30:01.664127742Z","x":"Q","p":142.98,"s":663728,"c":"O"},{"t":"2022-10-20T13:30:01.664575417Z","x":"Q","p":142.98,"s":663728,"c":"Q"}],"c":[{"t":"2022-10-20T20:00:00.137319424Z","x":"P","p":143.33,"s":362,"c":"M"},{"t":"2022-10-20T20:00:00.212258037Z","x":"Q","p":143.39,"s":5250532,"c":"6"},{"t":"2022-10-20T20:00:00.212282215Z","x":"Q","p":143.39,"s":5250532,"c":"M"}]}]},"next_page_token":"QUFQTHwyMDIyLTEwLTIwVDIwOjAwOjAwLjIxMjI4MjIxNVp8UXxATXwxNDMuMzk="}`
 	thirdResp := `{"auctions":{"AAPL":[{"d":"2022-10-21","o":[{"t":"2022-10-21T13:30:00.18449664Z","x":"P","p":142.96,"s":59,"c":"Q"},{"t":"2022-10-21T13:30:01.013655041Z","x":"Q","p":142.81,"s":4643721,"c":"O"},{"t":"2022-10-21T13:30:01.025412599Z","x":"Q","p":142.81,"s":4643721,"c":"Q"}],"c":[{"t":"2022-10-21T20:00:00.151828992Z","x":"P","p":147.27,"s":8147,"c":"M"},{"t":"2022-10-21T20:00:00.551850227Z","x":"Q","p":147.27,"s":6395818,"c":"6"},{"t":"2022-10-21T20:00:00.551870027Z","x":"Q","p":147.27,"s":6395818,"c":"M"}]}]},"next_page_token":"QUFQTHwyMDIyLTEwLTIxVDIwOjAwOjAwLjU1MTg3MDAyN1p8UXxATXwxNDcuMjc="}`
-	c.do = func(c *Client, req *http.Request) (*http.Response, error) {
+	c.do = func(_ *Client, req *http.Request) (*http.Response, error) {
 		assert.Equal(t, "/v2/stocks/auctions", req.URL.Path)
 		assert.Equal(t, "AAPL", req.URL.Query().Get("symbols"))
 		assert.Equal(t, "2022-10-17T00:00:00Z", req.URL.Query().Get("start"))
@@ -447,7 +445,7 @@ func TestGetMultiAuctions(t *testing.T) {
 	ctx := context.Background()
 	c := DefaultClient
 	resp := `{"auctions":{"AAPL":[{"d":"2022-10-17","o":[{"t":"2022-10-17T13:30:00.189598208Z","x":"P","p":141.13,"s":10,"c":"Q"},{"t":"2022-10-17T13:30:01.329947459Z","x":"Q","p":141.07,"s":1103165,"c":"O"},{"t":"2022-10-17T13:30:01.334218355Z","x":"Q","p":141.07,"s":1103165,"c":"Q"}],"c":[{"t":"2022-10-17T20:00:00.155310848Z","x":"P","p":142.4,"s":100,"c":"M"},{"t":"2022-10-17T20:00:01.135646791Z","x":"Q","p":142.41,"s":7927137,"c":"6"},{"t":"2022-10-17T20:00:01.742162179Z","x":"Q","p":142.41,"s":7927137,"c":"M"}]}],"IBM":[{"d":"2022-10-17","o":[{"t":"2022-10-17T13:30:00.75936768Z","x":"P","p":121.8,"s":100,"c":"Q"},{"t":"2022-10-17T13:30:00.916387328Z","x":"N","p":121.82,"s":62168,"c":"O"},{"t":"2022-10-17T13:30:00.916387328Z","x":"N","p":121.82,"s":62168,"c":"Q"},{"t":"2022-10-17T13:30:01.093145723Z","x":"T","p":121.66,"s":100,"c":"Q"}],"c":[{"t":"2022-10-17T20:00:00.190113536Z","x":"P","p":121.595,"s":100,"c":"M"},{"t":"2022-10-17T20:00:01.746899562Z","x":"T","p":121.57,"s":4,"c":"M"},{"t":"2022-10-17T20:00:02.02300032Z","x":"N","p":121.52,"s":959421,"c":"6"},{"t":"2022-10-17T20:00:02.136344832Z","x":"N","p":121.52,"s":959421,"c":"M"}]}]},"next_page_token":"SUJNfDIwMjItMTAtMTdUMjM6MDA6MDAuMDAyMjYzODA4WnxOfCBNfDEyMS41Mg=="}`
-	c.do = func(c *Client, req *http.Request) (*http.Response, error) {
+	c.do = func(_ *Client, req *http.Request) (*http.Response, error) {
 		assert.Equal(t, "/v2/stocks/auctions", req.URL.Path)
 		assert.Equal(t, "2", req.URL.Query().Get("limit"))
 		assert.Equal(t, "AAPL,IBM,TSLA", req.URL.Query().Get("symbols"))
@@ -476,7 +474,7 @@ func TestGetBars(t *testing.T) {
 		Adjustment: Split,
 		Start:      time.Date(2021, 10, 15, 16, 0, 0, 0, time.UTC),
 		End:        time.Date(2021, 10, 15, 17, 0, 0, 0, time.UTC),
-		Feed:       "sip",
+		Feed:       SIP,
 	})
 	require.NoError(t, err)
 	require.Len(t, got, 5)
@@ -497,7 +495,7 @@ func TestGetBars(t *testing.T) {
 func TestGetBars_Asof(t *testing.T) {
 	ctx := context.Background()
 	c := DefaultClient
-	c.do = func(c *Client, req *http.Request) (*http.Response, error) {
+	c.do = func(_ *Client, req *http.Request) (*http.Response, error) {
 		assert.Equal(t, "/v2/stocks/bars", req.URL.Path)
 		assert.Equal(t, "2022-06-09", req.URL.Query().Get("asof"))
 		resp := `{"bars":{"META":[{"t":"2022-06-08T04:00:00Z","o":194.67,"h":202.03,"l":194.41,"c":196.64,"v":22211813,"n":246906,"vw":198.364578},{"t":"2022-06-09T04:00:00Z","o":194.28,"h":199.45,"l":183.68,"c":184,"v":23458984,"n":281546,"vw":190.750577}]},"next_page_token":"TUVUQXxEfDIwMjItMDYtMDlUMDQ6MDA6MDAuMDAwMDAwMDAwWg=="}`
@@ -569,7 +567,7 @@ func TestLatestBar(t *testing.T) {
 	// api failure
 	c.do = mockErrResp()
 	got, err = c.GetLatestBar(ctx, "AAPL", GetLatestBarRequest{})
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Nil(t, got)
 }
 
@@ -577,7 +575,7 @@ func TestLatestBar_Feed(t *testing.T) {
 	ctx := context.Background()
 	c := NewClient(ClientOpts{Feed: "iex"})
 
-	c.do = func(c *Client, req *http.Request) (*http.Response, error) {
+	c.do = func(_ *Client, req *http.Request) (*http.Response, error) {
 		assert.Equal(t, "iex", req.URL.Query().Get("feed"))
 		return &http.Response{
 			Body: io.NopCloser(strings.NewReader(
@@ -588,7 +586,7 @@ func TestLatestBar_Feed(t *testing.T) {
 	_, err := c.GetLatestBar(ctx, "AAPL", GetLatestBarRequest{})
 	require.NoError(t, err)
 
-	c.do = func(c *Client, req *http.Request) (*http.Response, error) {
+	c.do = func(_ *Client, req *http.Request) (*http.Response, error) {
 		assert.Equal(t, "sip", req.URL.Query().Get("feed"))
 		return &http.Response{
 			Body: io.NopCloser(strings.NewReader(
@@ -596,9 +594,7 @@ func TestLatestBar_Feed(t *testing.T) {
 			)),
 		}, nil
 	}
-	_, err = c.GetLatestBar(ctx, "AAPL", GetLatestBarRequest{
-		Feed: "sip",
-	})
+	_, err = c.GetLatestBar(ctx, "AAPL", GetLatestBarRequest{Feed: SIP})
 	require.NoError(t, err)
 }
 
@@ -606,7 +602,7 @@ func TestLatestBar_Currency(t *testing.T) {
 	ctx := context.Background()
 	c := NewClient(ClientOpts{Currency: "MXN"})
 
-	c.do = func(c *Client, req *http.Request) (*http.Response, error) {
+	c.do = func(_ *Client, req *http.Request) (*http.Response, error) {
 		assert.Equal(t, "MXN", req.URL.Query().Get("currency"))
 		return &http.Response{
 			Body: io.NopCloser(strings.NewReader(
@@ -620,7 +616,7 @@ func TestLatestBar_Currency(t *testing.T) {
 	assert.Equal(t, 2536.46, bar.High)
 	assert.Equal(t, 2536.19, bar.VWAP)
 
-	c.do = func(c *Client, req *http.Request) (*http.Response, error) {
+	c.do = func(_ *Client, req *http.Request) (*http.Response, error) {
 		assert.Equal(t, "JPY", req.URL.Query().Get("currency"))
 		return &http.Response{
 			Body: io.NopCloser(strings.NewReader(
@@ -662,7 +658,7 @@ func TestLatestBars(t *testing.T) {
 	// api failure
 	c.do = mockErrResp()
 	got, err = c.GetLatestBars(ctx, []string{"IBM", "MSFT"}, GetLatestBarRequest{})
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Nil(t, got)
 }
 
@@ -688,7 +684,7 @@ func TestLatestTrade(t *testing.T) {
 	// api failure
 	c.do = mockErrResp()
 	got, err = c.GetLatestTrade(ctx, "AAPL", GetLatestTradeRequest{})
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Nil(t, got)
 }
 
@@ -716,7 +712,7 @@ func TestLatestTrades(t *testing.T) {
 	// api failure
 	c.do = mockErrResp()
 	got, err = c.GetLatestTrades(ctx, []string{"IBM", "MSFT"}, GetLatestTradeRequest{})
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Nil(t, got)
 }
 
@@ -743,7 +739,7 @@ func TestLatestQuote(t *testing.T) {
 	// api failure
 	c.do = mockErrResp()
 	got, err = c.GetLatestQuote(ctx, "AAPL", GetLatestQuoteRequest{})
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Nil(t, got)
 }
 
@@ -774,7 +770,7 @@ func TestLatestQuotes(t *testing.T) {
 	// api failure
 	c.do = mockErrResp()
 	got, err = c.GetLatestQuotes(ctx, []string{"F", "GE", "TSLA"}, GetLatestQuoteRequest{})
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Nil(t, got)
 }
 
@@ -836,7 +832,7 @@ func TestSnapshot(t *testing.T) {
 	// api failure
 	c.do = mockErrResp()
 	got, err = c.GetSnapshot(ctx, "AAPL", GetSnapshotRequest{})
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Nil(t, got)
 }
 
@@ -862,14 +858,14 @@ func TestSnapshots(t *testing.T) {
 	// api failure
 	c.do = mockErrResp()
 	got, err = c.GetSnapshots(ctx, []string{"AAPL", "CLDR"}, GetSnapshotRequest{})
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Nil(t, got)
 }
 
 func TestGetCryptoTrades(t *testing.T) {
 	ctx := context.Background()
 	c := DefaultClient
-	c.do = func(c *Client, req *http.Request) (*http.Response, error) {
+	c.do = func(_ *Client, req *http.Request) (*http.Response, error) {
 		assert.Equal(t, "/v1beta3/crypto/us/trades", req.URL.Path)
 		assert.Equal(t, "BTC/USD", req.URL.Query().Get("symbols"))
 		assert.Equal(t, "2021-09-08T05:04:03Z", req.URL.Query().Get("start"))
@@ -896,7 +892,7 @@ func TestGetCryptoTrades(t *testing.T) {
 func TestGetCryptoMultiTrades(t *testing.T) {
 	ctx := context.Background()
 	c := DefaultClient
-	c.do = func(c *Client, req *http.Request) (*http.Response, error) {
+	c.do = func(_ *Client, req *http.Request) (*http.Response, error) {
 		assert.Equal(t, "/v1beta3/crypto/us/trades", req.URL.Path)
 		assert.Equal(t, "SUSHI/USD,BAT/USD", req.URL.Query().Get("symbols"))
 		assert.Equal(t, "2023-01-01T20:00:00Z", req.URL.Query().Get("start"))
@@ -933,7 +929,7 @@ func TestGetCryptoMultiTrades(t *testing.T) {
 func TestCryptoQuotes(t *testing.T) {
 	ctx := context.Background()
 	c := DefaultClient
-	c.do = func(c *Client, req *http.Request) (*http.Response, error) {
+	c.do = func(_ *Client, req *http.Request) (*http.Response, error) {
 		assert.Equal(t, "/v1beta3/crypto/us/quotes", req.URL.Path)
 		assert.Equal(t, "ETH/USD", req.URL.Query().Get("symbols"))
 		assert.Equal(t, "2023-08-16T00:00:00Z", req.URL.Query().Get("start"))
@@ -1006,7 +1002,7 @@ func TestGetCryptoMultiBars(t *testing.T) {
 func TestLatestCryptoBar(t *testing.T) {
 	ctx := context.Background()
 	c := DefaultClient
-	c.do = func(c *Client, req *http.Request) (*http.Response, error) {
+	c.do = func(_ *Client, req *http.Request) (*http.Response, error) {
 		assert.Equal(t, "/v1beta3/crypto/us/latest/bars", req.URL.Path)
 		resp := `{"bars":{"BTC/USD":{"t":"2022-02-25T12:50:00Z","o":38899.6,"h":39300,"l":38892.2,"c":39278.88,"v":74.02830613,"n":1086,"vw":39140.0960796263}}}`
 		return &http.Response{
@@ -1173,7 +1169,7 @@ func TestCryptoSnapshot(t *testing.T) {
 	// api failure
 	c.do = mockErrResp()
 	got, err = c.GetCryptoSnapshot(ctx, "ETH/USD", GetCryptoSnapshotRequest{})
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Nil(t, got)
 }
 
@@ -1193,7 +1189,7 @@ func TestGetNews(t *testing.T) {
 	c := DefaultClient
 	firstResp := `{"news":[{"id":20472678,"headline":"CEO John Krafcik Leaves Waymo","author":"Bibhu Pattnaik","created_at":"2021-04-03T15:35:21Z","updated_at":"2021-04-03T15:35:21Z","summary":"Waymo\u0026#39;s chief technology officer and its chief operating officer will serve as co-CEOs.","url":"https://www.benzinga.com/news/21/04/20472678/ceo-john-krafcik-leaves-waymo","images":[{"size":"large","url":"https://cdn.benzinga.com/files/imagecache/2048x1536xUP/images/story/2012/waymo_2.jpeg"},{"size":"small","url":"https://cdn.benzinga.com/files/imagecache/1024x768xUP/images/story/2012/waymo_2.jpeg"},{"size":"thumb","url":"https://cdn.benzinga.com/files/imagecache/250x187xUP/images/story/2012/waymo_2.jpeg"}],"symbols":["GOOG","GOOGL","TSLA"]},{"id":20472512,"headline":"Benzinga's Bulls And Bears Of The Week: Apple, GM, JetBlue, Lululemon, Tesla And More","author":"Nelson Hem","created_at":"2021-04-03T15:20:12Z","updated_at":"2021-04-03T15:20:12Z","summary":"\n\tBenzinga has examined the prospects for many investor favorite stocks over the past week. \n\tThe past week\u0026#39;s bullish calls included airlines, Chinese EV makers and a consumer electronics giant.\n","url":"https://www.benzinga.com/trading-ideas/long-ideas/21/04/20472512/benzingas-bulls-and-bears-of-the-week-apple-gm-jetblue-lululemon-tesla-and-more","images":[{"size":"large","url":"https://cdn.benzinga.com/files/imagecache/2048x1536xUP/images/story/2012/pexels-burst-373912_0.jpg"},{"size":"small","url":"https://cdn.benzinga.com/files/imagecache/1024x768xUP/images/story/2012/pexels-burst-373912_0.jpg"},{"size":"thumb","url":"https://cdn.benzinga.com/files/imagecache/250x187xUP/images/story/2012/pexels-burst-373912_0.jpg"}],"symbols":["AAPL","ARKX","BMY","CS","GM","JBLU","JCI","LULU","NIO","TSLA","XPEV"]}],"next_page_token":"MTYxNzQ2MzIxMjAwMDAwMDAwMHwyMDQ3MjUxMg=="}`
 	secondResp := `{"news":[{"id":20471562,"headline":"Is Now The Time To Buy Stock In Tesla, Netflix, Alibaba, Ford Or Facebook?","author":"Henry Khederian","created_at":"2021-04-03T12:31:15Z","updated_at":"2021-04-03T12:31:16Z","summary":"One of the most common questions traders have about stocks is “Why Is It Moving?”\n\nThat’s why Benzinga created the Why Is It Moving, or WIIM, feature in Benzinga Pro. WIIMs are a one-sentence description as to why that stock is moving.","url":"https://www.benzinga.com/analyst-ratings/analyst-color/21/04/20471562/is-now-the-time-to-buy-stock-in-tesla-netflix-alibaba-ford-or-facebook","images":[{"size":"large","url":"https://cdn.benzinga.com/files/imagecache/2048x1536xUP/images/story/2012/freestocks-11sgh7u6tmi-unsplash_3_0_0.jpg"},{"size":"small","url":"https://cdn.benzinga.com/files/imagecache/1024x768xUP/images/story/2012/freestocks-11sgh7u6tmi-unsplash_3_0_0.jpg"},{"size":"thumb","url":"https://cdn.benzinga.com/files/imagecache/250x187xUP/images/story/2012/freestocks-11sgh7u6tmi-unsplash_3_0_0.jpg"}],"symbols":["BABA","NFLX","TSLA"]}],"next_page_token":null}`
-	c.do = func(c *Client, req *http.Request) (*http.Response, error) {
+	c.do = func(_ *Client, req *http.Request) (*http.Response, error) {
 		assert.Equal(t, "/v1beta1/news", req.URL.Path)
 		assert.Equal(t, "2021-04-03T00:00:00Z", req.URL.Query().Get("start"))
 		assert.Equal(t, "2021-04-04T05:00:00Z", req.URL.Query().Get("end"))
@@ -1244,7 +1240,7 @@ func TestGetNews(t *testing.T) {
 
 func TestGetNews_ClientSideValidationErrors(t *testing.T) {
 	c := DefaultClient
-	c.do = func(c *Client, req *http.Request) (*http.Response, error) {
+	c.do = func(_ *Client, _ *http.Request) (*http.Response, error) {
 		assert.Fail(t, "the server should not have been called")
 		return nil, nil
 	}
@@ -1270,10 +1266,264 @@ func TestGetNews_ClientSideValidationErrors(t *testing.T) {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			ctx := context.Background()
-			_, err := c.GetNews(ctx, tc.params)
-			assert.Error(t, err)
+			_, err := c.GetNews(context.Background(), tc.params)
+			require.Error(t, err)
 			assert.Contains(t, err.Error(), tc.expectedError)
 		})
 	}
+}
+
+func TestGetCorporateActions(t *testing.T) {
+	resp := `{
+		"corporate_actions": {
+			"forward_splits": [
+				{
+					"due_bill_redemption_date": "2024-03-14",
+					"ex_date": "2024-03-13",
+					"new_rate": 5,
+					"old_rate": 1,
+					"payable_date": "2024-03-12",
+					"process_date": "2024-03-13",
+					"record_date": "2024-03-11",
+					"symbol": "FBL"
+				},
+				{
+					"due_bill_redemption_date": "2024-03-14",
+					"ex_date": "2024-03-13",
+					"new_rate": 6,
+					"old_rate": 1,
+					"payable_date": "2024-03-12",
+					"process_date": "2024-03-13",
+					"record_date": "2024-03-11",
+					"symbol": "NVDL"
+				}
+			],
+			"name_changes": [
+				{
+					"new_symbol": "ZEO",
+					"old_symbol": "ESAC",
+					"process_date": "2024-03-14"
+				},
+				{
+					"new_symbol": "ZEOWW",
+					"old_symbol": "ESACW",
+					"process_date": "2024-03-14"
+				},
+				{
+					"new_symbol": "XTIA",
+					"old_symbol": "INPX",
+					"process_date": "2024-03-13"
+				},
+				{
+					"new_symbol": "IRRXW",
+					"old_symbol": "IRRX.WS",
+					"process_date": "2024-03-12"
+				},
+				{
+					"new_symbol": "NMHI",
+					"old_symbol": "LBBB",
+					"process_date": "2024-03-12"
+				},
+				{
+					"new_symbol": "NMHIW",
+					"old_symbol": "LBBBW",
+					"process_date": "2024-03-12"
+				},
+				{
+					"new_symbol": "POLCQ",
+					"old_symbol": "POLC",
+					"process_date": "2024-03-11"
+				},
+				{
+					"new_symbol": "NRDE",
+					"old_symbol": "RIDEQ",
+					"process_date": "2024-03-14"
+				},
+				{
+					"new_symbol": "NTRP",
+					"old_symbol": "SASI",
+					"process_date": "2024-03-13"
+				}
+			],
+			"stock_mergers": [
+				{
+					"acquiree_rate": 1,
+					"acquiree_symbol": "FAZE",
+					"acquirer_rate": 0.13091,
+					"acquirer_symbol": "GAME",
+					"effective_date": "2024-03-11",
+					"payable_date": "2024-03-11",
+					"process_date": "2024-03-11"
+				},
+				{
+					"acquiree_rate": 1,
+					"acquiree_symbol": "LBBBR",
+					"acquirer_rate": 0.1,
+					"acquirer_symbol": "NMHI",
+					"effective_date": "2024-03-12",
+					"payable_date": "2024-03-12",
+					"process_date": "2024-03-12"
+				}
+			],
+			"worthless_removals": [
+				{
+					"process_date": "2024-03-12",
+					"symbol": "EACPW"
+				},
+				{
+					"process_date": "2024-03-12",
+					"symbol": "ZSANQ"
+				}
+			]
+		},
+		"next_page_token": null
+	}`
+	c := DefaultClient
+	c.do = func(_ *Client, req *http.Request) (*http.Response, error) {
+		assert.Equal(t, "/v1/corporate-actions", req.URL.Path)
+		assert.Equal(t, "forward_split,name_change,worthless_removal,stock_merger",
+			req.URL.Query().Get("types"))
+		assert.Equal(t, "2024-03-10", req.URL.Query().Get("start"))
+		assert.Equal(t, "2024-03-14", req.URL.Query().Get("end"))
+		return &http.Response{
+			Body: io.NopCloser(strings.NewReader(resp)),
+		}, nil
+	}
+	got, err := c.GetCorporateActions(context.Background(), GetCorporateActionsRequest{
+		Types:      []string{"forward_split", "name_change", "worthless_removal", "stock_merger"},
+		Start:      civil.Date{Year: 2024, Month: 3, Day: 10},
+		End:        civil.Date{Year: 2024, Month: 3, Day: 14},
+		TotalLimit: 5,
+		PageLimit:  2,
+	})
+	require.NoError(t, err)
+	if assert.Len(t, got.ForwardSplits, 2) {
+		assert.Equal(t, ForwardSplit{
+			Symbol:                "FBL",
+			NewRate:               5,
+			OldRate:               1,
+			ProcessDate:           civil.Date{Year: 2024, Month: 3, Day: 13},
+			ExDate:                civil.Date{Year: 2024, Month: 3, Day: 13},
+			RecordDate:            &civil.Date{Year: 2024, Month: 3, Day: 11},
+			PayableDate:           &civil.Date{Year: 2024, Month: 3, Day: 12},
+			DueBillRedemptionDate: &civil.Date{Year: 2024, Month: 3, Day: 14},
+		}, got.ForwardSplits[0])
+	}
+	if assert.Len(t, got.NameChanges, 9) {
+		assert.Equal(t, NameChange{
+			NewSymbol:   "NTRP",
+			OldSymbol:   "SASI",
+			ProcessDate: civil.Date{Year: 2024, Month: 3, Day: 13},
+		}, got.NameChanges[8])
+	}
+	if assert.Len(t, got.StockMergers, 2) {
+		assert.Equal(t, StockMerger{
+			AcquirerSymbol: "GAME",
+			AcquirerRate:   0.13091,
+			AcquireeSymbol: "FAZE",
+			AcquireeRate:   1,
+			ProcessDate:    civil.Date{Year: 2024, Month: 3, Day: 11},
+			EffectiveDate:  civil.Date{Year: 2024, Month: 3, Day: 11},
+			PayableDate:    &civil.Date{Year: 2024, Month: 3, Day: 11},
+		}, got.StockMergers[0])
+	}
+	if assert.Len(t, got.WorthlessRemovals, 2) {
+		assert.Equal(t, "EACPW", got.WorthlessRemovals[0].Symbol)
+	}
+}
+
+func TestLatestCryptoPerpBar(t *testing.T) {
+	c := DefaultClient
+	c.do = mockResp(`{"bars": {"BTC-PERP": {"c": 101785.3,"h": 101807.9,"l": 101762.8,"n": 314,"o": 101789.1,"t": "2024-12-19T09:52:00Z","v": 25.9751,"vw": 101783.9767854599}}}`)
+	got, err := c.GetLatestCryptoPerpBar(context.Background(), "BTC-PERP", GetLatestCryptoBarRequest{})
+	require.NoError(t, err)
+	require.NotNil(t, got)
+	assert.Equal(t, CryptoPerpBar{
+		Timestamp:  time.Date(2024, 12, 19, 9, 52, 0, 0, time.UTC),
+		Open:       101789.1,
+		High:       101807.9,
+		Low:        101762.8,
+		Close:      101785.3,
+		Volume:     25.9751,
+		TradeCount: 314,
+		VWAP:       101783.9767854599,
+	}, *got)
+}
+
+func TestLatestCryptoPerpTrade(t *testing.T) {
+	c := DefaultClient
+	c.do = mockResp(`{"trades": {"BTC-PERP": {"i": 1805227019,"p": 101761.4,"s": 0.0011,"t": "2024-12-19T09:33:36.311Z","tks": "B"}}}`)
+	got, err := c.GetLatestCryptoPerpTrade(context.Background(), "BTC-PERP", GetLatestCryptoTradeRequest{})
+	require.NoError(t, err)
+	require.NotNil(t, got)
+	assert.Equal(t, CryptoPerpTrade{
+		ID:        1805227019,
+		Price:     101761.4,
+		Size:      0.0011,
+		Timestamp: time.Date(2024, 12, 19, 9, 33, 36, 311000000, time.UTC),
+		TakerSide: "B",
+	}, *got)
+}
+
+func TestLatestCryptoPerpTrades(t *testing.T) {
+	c := DefaultClient
+	c.do = mockResp(`{"trades": {"ETH-PERP": {"i": 1028100310,"p": 3678.81,"s": 0.01,"t": "2024-12-19T10:16:20.124Z","tks": "B"},"BTC-PERP": {"i": 1805344202,"p": 101868,"s": 0.0009,"t": "2024-12-19T10:16:19.31Z","tks": "S"}}}`)
+	got, err := c.GetLatestCryptoPerpTrades(context.Background(), []string{"BTC-PERP", "ETH-PERP"}, GetLatestCryptoTradeRequest{})
+	require.NoError(t, err)
+	require.Len(t, got, 2)
+	assert.Equal(t, CryptoPerpTrade{
+		Price:     101868,
+		Size:      0.0009,
+		Timestamp: time.Date(2024, 12, 19, 10, 16, 19, 310000000, time.UTC),
+		TakerSide: "S",
+		ID:        1805344202,
+	}, got["BTC-PERP"])
+	assert.Equal(t, 3678.81, got["ETH-PERP"].Price)
+}
+
+func TestLatestCryptoPerpQuote(t *testing.T) {
+	c := DefaultClient
+	c.do = mockResp(`{"quotes": {"BTC-PERP": {"ap": 101675.1,"as": 3.087,"bp": 101674.7,"bs": 1.4496,"t": "2024-12-19T09:43:04.092Z"}}}`)
+	got, err := c.GetLatestCryptoPerpQuote(context.Background(), "BTC-PERP", GetLatestCryptoQuoteRequest{})
+	require.NoError(t, err)
+	require.NotNil(t, got)
+	assert.Equal(t, CryptoPerpQuote{
+		Timestamp: time.Date(2024, 12, 19, 9, 43, 0o4, 92000000, time.UTC),
+		BidPrice:  101674.7,
+		BidSize:   1.4496,
+		AskPrice:  101675.1,
+		AskSize:   3.087,
+	}, *got)
+}
+
+func TestLatestCryptoPerpQuotes(t *testing.T) {
+	c := DefaultClient
+	c.do = mockResp(`{"quotes": {"ETH-PERP": {"ap": 3676.89,"as": 38.655,"bp": 3676.82,"bs": 36.765,"t": "2024-12-19T10:15:50.436Z"},"BTC-PERP": {"ap": 101851.3,"as": 1.2372,"bp": 101850.9,"bs": 1.9428,"t": "2024-12-19T10:15:50.438Z"}}}`)
+	got, err := c.GetLatestCryptoPerpQuotes(context.Background(), []string{"BTC-PERP", "ETH-PERP"}, GetLatestCryptoQuoteRequest{})
+	require.NoError(t, err)
+	require.Len(t, got, 2)
+	assert.Equal(t, CryptoPerpQuote{
+		Timestamp: time.Date(2024, 12, 19, 10, 15, 50, 436000000, time.UTC),
+		BidPrice:  3676.82,
+		BidSize:   36.765,
+		AskPrice:  3676.89,
+		AskSize:   38.655,
+	}, got["ETH-PERP"])
+	assert.Equal(t, 1.9428, got["BTC-PERP"].BidSize)
+}
+
+func TestGetLatestCryptoPerpPricing(t *testing.T) {
+	c := DefaultClient
+	c.do = mockResp(`{"pricing": {"BTC-PERP": {"t": "2024-12-19T09:33:36.311Z", "ft": "2024-12-19T10:33:36.311Z", "oi": 90.7367, "ip": 50702.8, "mp": 50652.3553, "fr": 0.000565699}}}`)
+	got, err := c.GetLatestCryptoPerpPricing(context.Background(), "BTC-PERP", GetLatestCryptoPerpPricingRequest{})
+	require.NoError(t, err)
+	require.NotNil(t, got)
+	assert.Equal(t, CryptoPerpPricing{
+		IndexPrice:      50702.8,
+		MarkPrice:       50652.3553,
+		OpenInterest:    90.7367,
+		FundingRate:     0.000565699,
+		Timestamp:       time.Date(2024, 12, 19, 9, 33, 36, 311000000, time.UTC),
+		NextFundingTime: time.Date(2024, 12, 19, 10, 33, 36, 311000000, time.UTC),
+	}, *got)
 }

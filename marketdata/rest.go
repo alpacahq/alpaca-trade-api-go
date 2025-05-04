@@ -3,6 +3,7 @@ package marketdata
 import (
 	"compress/gzip"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -12,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"cloud.google.com/go/civil"
 	"github.com/mailru/easyjson"
 
 	"github.com/alpacahq/alpaca-trade-api-go/v3/alpaca"
@@ -23,12 +25,14 @@ import (
 // Currently it contains the exact same options as the trading alpaca client,
 // but there is no guarantee that this will remain the case.
 type ClientOpts struct {
-	APIKey     string
-	APISecret  string
-	OAuth      string
-	BaseURL    string
-	RetryLimit int
-	RetryDelay time.Duration
+	APIKey       string
+	APISecret    string
+	BrokerKey    string
+	BrokerSecret string
+	OAuth        string
+	BaseURL      string
+	RetryLimit   int
+	RetryDelay   time.Duration
 	// Feed is the default feed to be used by all requests. Can be overridden per request.
 	Feed Feed
 	// CryptoFeed is the default crypto feed to be used by all requests. Can be overridden per request.
@@ -97,9 +101,12 @@ func defaultDo(c *Client, req *http.Request) (*http.Response, error) {
 		req.Host = c.opts.RequestHost
 	}
 
-	if c.opts.OAuth != "" {
+	switch {
+	case c.opts.OAuth != "":
 		req.Header.Set("Authorization", "Bearer "+c.opts.OAuth)
-	} else {
+	case c.opts.BrokerKey != "":
+		req.SetBasicAuth(c.opts.BrokerKey, c.opts.BrokerSecret)
+	default:
 		req.Header.Set("APCA-API-KEY-ID", c.opts.APIKey)
 		req.Header.Set("APCA-API-SECRET-KEY", c.opts.APISecret)
 	}
@@ -145,7 +152,9 @@ type baseRequest struct {
 }
 
 func (c *Client) setBaseQuery(q url.Values, req baseRequest) {
-	q.Set("symbols", strings.Join(req.Symbols, ","))
+	if len(req.Symbols) > 0 {
+		q.Set("symbols", strings.Join(req.Symbols, ","))
+	}
 	if !req.Start.IsZero() {
 		q.Set("start", req.Start.Format(time.RFC3339Nano))
 	}
@@ -192,7 +201,7 @@ func setQueryLimit(q url.Values, totalLimit, pageLimit, received, maxLimit int) 
 	}
 
 	if limit != 0 {
-		q.Set("limit", fmt.Sprintf("%d", limit))
+		q.Set("limit", strconv.Itoa(limit))
 	}
 }
 
@@ -580,6 +589,7 @@ func (c *Client) GetLatestBars(ctx context.Context, symbols []string, req GetLat
 	if err != nil {
 		return nil, err
 	}
+	defer closeResp(resp)
 
 	var latestBarsResp latestBarsResponse
 	if err = unmarshal(resp, &latestBarsResp); err != nil {
@@ -622,6 +632,7 @@ func (c *Client) GetLatestTrades(ctx context.Context, symbols []string, req GetL
 	if err != nil {
 		return nil, err
 	}
+	defer closeResp(resp)
 
 	var latestTradesResp latestTradesResponse
 	if err = unmarshal(resp, &latestTradesResp); err != nil {
@@ -664,6 +675,7 @@ func (c *Client) GetLatestQuotes(ctx context.Context, symbols []string, req GetL
 	if err != nil {
 		return nil, err
 	}
+	defer closeResp(resp)
 
 	var latestQuotesResp latestQuotesResponse
 	if err = unmarshal(resp, &latestQuotesResp); err != nil {
@@ -702,6 +714,7 @@ func (c *Client) GetSnapshots(ctx context.Context, symbols []string, req GetSnap
 	if err != nil {
 		return nil, err
 	}
+	defer closeResp(resp)
 
 	var snapshots snapshotsResponse
 	if err = unmarshal(resp, &snapshots); err != nil {
@@ -710,7 +723,10 @@ func (c *Client) GetSnapshots(ctx context.Context, symbols []string, req GetSnap
 	return snapshots, nil
 }
 
-const cryptoPrefix = "v1beta3/crypto"
+const (
+	cryptoPrefix     = "v1beta3/crypto"
+	cryptoPerpPrefix = "v1beta1/crypto-perps"
+)
 
 type cryptoBaseRequest struct {
 	Symbols []string
@@ -747,7 +763,12 @@ type GetCryptoTradesRequest struct {
 	CryptoFeed CryptoFeed
 	// Sort is the sort direction of the data
 	Sort Sort
+	// This flag is used internally to access perpetual futures endpoints
+	perpetualFutures bool
 }
+
+func (r GetCryptoTradesRequest) cryptoFeed() CryptoFeed { return r.CryptoFeed }
+func (r GetCryptoTradesRequest) isPerp() bool           { return r.perpetualFutures }
 
 // GetCryptoTrades returns the trades for the given crypto symbol.
 func (c *Client) GetCryptoTrades(ctx context.Context, symbol string, req GetCryptoTradesRequest) ([]CryptoTrade, error) {
@@ -758,9 +779,9 @@ func (c *Client) GetCryptoTrades(ctx context.Context, symbol string, req GetCryp
 	return resp[symbol], nil
 }
 
-// GetMultiTrades returns trades for the given crypto symbols.
+// GetCryptoMultiTrades returns trades for the given crypto symbols.
 func (c *Client) GetCryptoMultiTrades(ctx context.Context, symbols []string, req GetCryptoTradesRequest) (map[string][]CryptoTrade, error) {
-	u, err := url.Parse(fmt.Sprintf("%s/%s/%s/trades", c.opts.BaseURL, cryptoPrefix, c.cryptoFeed(req.CryptoFeed)))
+	u, err := url.Parse(fmt.Sprintf("%s/trades", c.cryptoURL(req)))
 	if err != nil {
 		return nil, err
 	}
@@ -816,7 +837,12 @@ type GetCryptoQuotesRequest struct {
 	CryptoFeed CryptoFeed
 	// Sort is the sort direction of the data
 	Sort Sort
+	// This flag is used internally to access perpetual futures endpoints
+	perpetualFutures bool
 }
+
+func (r GetCryptoQuotesRequest) cryptoFeed() CryptoFeed { return r.CryptoFeed }
+func (r GetCryptoQuotesRequest) isPerp() bool           { return r.perpetualFutures }
 
 // GetCryptoQuotes returns the trades for the given crypto symbol.
 func (c *Client) GetCryptoQuotes(ctx context.Context, symbol string, req GetCryptoQuotesRequest) ([]CryptoQuote, error) {
@@ -827,9 +853,9 @@ func (c *Client) GetCryptoQuotes(ctx context.Context, symbol string, req GetCryp
 	return resp[symbol], nil
 }
 
-// GetMultiQuotes returns quotes for the given crypto symbols.
+// GetCryptoMultiQuotes returns quotes for the given crypto symbols.
 func (c *Client) GetCryptoMultiQuotes(ctx context.Context, symbols []string, req GetCryptoQuotesRequest) (map[string][]CryptoQuote, error) {
-	u, err := url.Parse(fmt.Sprintf("%s/%s/%s/quotes", c.opts.BaseURL, cryptoPrefix, c.cryptoFeed(req.CryptoFeed)))
+	u, err := url.Parse(fmt.Sprintf("%s/quotes", c.cryptoURL(req)))
 	if err != nil {
 		return nil, err
 	}
@@ -887,7 +913,12 @@ type GetCryptoBarsRequest struct {
 	CryptoFeed CryptoFeed
 	// Sort is the sort direction of the data
 	Sort Sort
+	// This flag is used internally to access perpetual futures endpoints
+	perpetualFutures bool
 }
+
+func (r GetCryptoBarsRequest) cryptoFeed() CryptoFeed { return r.CryptoFeed }
+func (r GetCryptoBarsRequest) isPerp() bool           { return r.perpetualFutures }
 
 func setQueryCryptoBarRequest(q url.Values, symbols []string, req GetCryptoBarsRequest) {
 	setCryptoBaseQuery(q, cryptoBaseRequest{
@@ -963,7 +994,12 @@ func (c *Client) setLatestCryptoQueryRequest(u *url.URL, req cryptoBaseLatestReq
 
 type GetLatestCryptoBarRequest struct {
 	CryptoFeed CryptoFeed
+	// This flag is used internally to access perpetual futures endpoints
+	perpetualFutures bool
 }
+
+func (r GetLatestCryptoBarRequest) cryptoFeed() CryptoFeed { return r.CryptoFeed }
+func (r GetLatestCryptoBarRequest) isPerp() bool           { return r.perpetualFutures }
 
 func (c *Client) cryptoFeed(fromReq string) string {
 	if fromReq != "" {
@@ -973,6 +1009,27 @@ func (c *Client) cryptoFeed(fromReq string) string {
 		return c.opts.CryptoFeed
 	}
 	return "us"
+}
+
+type cryptoRequest interface {
+	cryptoFeed() CryptoFeed
+	isPerp() bool
+}
+
+func (c *Client) cryptoURL(fromReq cryptoRequest) string {
+	prefix := cryptoPrefix
+	if fromReq.isPerp() {
+		prefix = cryptoPerpPrefix
+	}
+	feed := fromReq.cryptoFeed()
+	if feed == "" {
+		if fromReq.isPerp() {
+			feed = GLOBAL
+		} else {
+			feed = US
+		}
+	}
+	return fmt.Sprintf("%s/%s/%s", c.opts.BaseURL, prefix, feed)
 }
 
 // GetLatestCryptoBar returns the latest bar for a given crypto symbol
@@ -988,10 +1045,43 @@ func (c *Client) GetLatestCryptoBar(ctx context.Context, symbol string, req GetL
 	return &bar, nil
 }
 
+// GetLatestCryptoPerpBar returns the latest bar for a given crypto perpetual future
+func (c *Client) GetLatestCryptoPerpBar(ctx context.Context, symbol string, req GetLatestCryptoBarRequest) (*CryptoPerpBar, error) {
+	req.perpetualFutures = true
+
+	latestBar, err := c.GetLatestCryptoBars(ctx, []string{symbol}, req)
+	if err != nil {
+		return nil, err
+	}
+	bar, ok := latestBar[symbol]
+	if !ok {
+		return nil, nil
+	}
+	perpsBar := CryptoPerpBar(bar)
+	return &perpsBar, nil
+}
+
+// GetLatestCryptoPerpBars returns the latest bars for the given crypto perpetual futures
+func (c *Client) GetLatestCryptoPerpBars(
+	ctx context.Context, symbols []string, req GetLatestCryptoBarRequest,
+) (map[string]CryptoPerpBar, error) {
+	req.perpetualFutures = true
+
+	bars, err := c.GetLatestCryptoBars(ctx, symbols, req)
+	if err != nil {
+		return nil, err
+	}
+	perpsBars := make(map[string]CryptoPerpBar, len(bars))
+	for symbol, bar := range bars {
+		perpsBars[symbol] = CryptoPerpBar(bar)
+	}
+
+	return perpsBars, nil
+}
+
 // GetLatestCryptoBars returns the latest bars for the given crypto symbols
 func (c *Client) GetLatestCryptoBars(ctx context.Context, symbols []string, req GetLatestCryptoBarRequest) (map[string]CryptoBar, error) {
-	u, err := url.Parse(fmt.Sprintf("%s/%s/%s/latest/bars",
-		c.opts.BaseURL, cryptoPrefix, c.cryptoFeed(req.CryptoFeed)))
+	u, err := url.Parse(fmt.Sprintf("%s/latest/bars", c.cryptoURL(req)))
 	if err != nil {
 		return nil, err
 	}
@@ -1003,6 +1093,7 @@ func (c *Client) GetLatestCryptoBars(ctx context.Context, symbols []string, req 
 	if err != nil {
 		return nil, err
 	}
+	defer closeResp(resp)
 
 	var latestBarsResp latestCryptoBarsResponse
 	if err = unmarshal(resp, &latestBarsResp); err != nil {
@@ -1013,7 +1104,12 @@ func (c *Client) GetLatestCryptoBars(ctx context.Context, symbols []string, req 
 
 type GetLatestCryptoTradeRequest struct {
 	CryptoFeed CryptoFeed
+	// This flag is used internally to access perpetual futures endpoints
+	perpetualFutures bool
 }
+
+func (r GetLatestCryptoTradeRequest) cryptoFeed() CryptoFeed { return r.CryptoFeed }
+func (r GetLatestCryptoTradeRequest) isPerp() bool           { return r.perpetualFutures }
 
 // GetLatestCryptoTrade returns the latest trade for a given crypto symbol
 func (c *Client) GetLatestCryptoTrade(ctx context.Context, symbol string, req GetLatestCryptoTradeRequest) (*CryptoTrade, error) {
@@ -1028,10 +1124,43 @@ func (c *Client) GetLatestCryptoTrade(ctx context.Context, symbol string, req Ge
 	return &trade, nil
 }
 
+// GetLatestCryptoPerpTrade returns the latest trade for a given crypto perp symbol
+func (c *Client) GetLatestCryptoPerpTrade(ctx context.Context, symbol string, req GetLatestCryptoTradeRequest) (*CryptoPerpTrade, error) {
+	req.perpetualFutures = true
+
+	latestTrade, err := c.GetLatestCryptoTrade(ctx, symbol, req)
+	if err != nil {
+		return nil, err
+	}
+
+	perpsTrade := CryptoPerpTrade(*latestTrade)
+	return &perpsTrade, nil
+}
+
+// GetLatestCryptoPerpTrades returns the latest trades for the given crypto perpetual futures
+func (c *Client) GetLatestCryptoPerpTrades(
+	ctx context.Context, symbols []string, req GetLatestCryptoTradeRequest,
+) (map[string]CryptoPerpTrade, error) {
+	req.perpetualFutures = true
+
+	trades, err := c.GetLatestCryptoTrades(ctx, symbols, req)
+	if err != nil {
+		return nil, err
+	}
+
+	perpsTrades := make(map[string]CryptoPerpTrade, len(trades))
+	for symbol, trade := range trades {
+		perpsTrades[symbol] = CryptoPerpTrade(trade)
+	}
+
+	return perpsTrades, nil
+}
+
 // GetLatestCryptoTrades returns the latest trades for the given crypto symbols
-func (c *Client) GetLatestCryptoTrades(ctx context.Context, symbols []string, req GetLatestCryptoTradeRequest) (map[string]CryptoTrade, error) {
-	u, err := url.Parse(fmt.Sprintf("%s/%s/%s/latest/trades",
-		c.opts.BaseURL, cryptoPrefix, c.cryptoFeed(req.CryptoFeed)))
+func (c *Client) GetLatestCryptoTrades(
+	ctx context.Context, symbols []string, req GetLatestCryptoTradeRequest,
+) (map[string]CryptoTrade, error) {
+	u, err := url.Parse(fmt.Sprintf("%s/latest/trades", c.cryptoURL(req)))
 	if err != nil {
 		return nil, err
 	}
@@ -1043,6 +1172,7 @@ func (c *Client) GetLatestCryptoTrades(ctx context.Context, symbols []string, re
 	if err != nil {
 		return nil, err
 	}
+	defer closeResp(resp)
 
 	var latestTradesResp latestCryptoTradesResponse
 	if err = unmarshal(resp, &latestTradesResp); err != nil {
@@ -1053,7 +1183,12 @@ func (c *Client) GetLatestCryptoTrades(ctx context.Context, symbols []string, re
 
 type GetLatestCryptoQuoteRequest struct {
 	CryptoFeed CryptoFeed
+	// This flag is used internally to access perpetual futures endpoints
+	perpetualFutures bool
 }
+
+func (r GetLatestCryptoQuoteRequest) cryptoFeed() CryptoFeed { return r.CryptoFeed }
+func (r GetLatestCryptoQuoteRequest) isPerp() bool           { return r.perpetualFutures }
 
 // GetLatestCryptoQuote returns the latest quote for a given crypto symbol
 func (c *Client) GetLatestCryptoQuote(ctx context.Context, symbol string, req GetLatestCryptoQuoteRequest) (*CryptoQuote, error) {
@@ -1068,10 +1203,43 @@ func (c *Client) GetLatestCryptoQuote(ctx context.Context, symbol string, req Ge
 	return &quote, nil
 }
 
+// GetLatestCryptoPerpQuote returns the latest quote for a given crypto perp symbol
+func (c *Client) GetLatestCryptoPerpQuote(ctx context.Context, symbol string, req GetLatestCryptoQuoteRequest) (*CryptoPerpQuote, error) {
+	req.perpetualFutures = true
+
+	latestQuote, err := c.GetLatestCryptoQuote(ctx, symbol, req)
+	if err != nil {
+		return nil, err
+	}
+
+	perpsQuote := CryptoPerpQuote(*latestQuote)
+	return &perpsQuote, nil
+}
+
+// GetLatestCryptoPerpQuotes returns the latest quotes for the given crypto perpetual futures
+func (c *Client) GetLatestCryptoPerpQuotes(
+	ctx context.Context, symbols []string, req GetLatestCryptoQuoteRequest,
+) (map[string]CryptoPerpQuote, error) {
+	req.perpetualFutures = true
+
+	quotes, err := c.GetLatestCryptoQuotes(ctx, symbols, req)
+	if err != nil {
+		return nil, err
+	}
+
+	perpsQuotes := make(map[string]CryptoPerpQuote, len(quotes))
+	for symbol, quote := range quotes {
+		perpsQuotes[symbol] = CryptoPerpQuote(quote)
+	}
+
+	return perpsQuotes, nil
+}
+
 // GetLatestCryptoQuotes returns the latest quotes for the given crypto symbols
-func (c *Client) GetLatestCryptoQuotes(ctx context.Context, symbols []string, req GetLatestCryptoQuoteRequest) (map[string]CryptoQuote, error) {
-	u, err := url.Parse(fmt.Sprintf("%s/%s/%s/latest/quotes",
-		c.opts.BaseURL, cryptoPrefix, c.cryptoFeed(req.CryptoFeed)))
+func (c *Client) GetLatestCryptoQuotes(
+	ctx context.Context, symbols []string, req GetLatestCryptoQuoteRequest,
+) (map[string]CryptoQuote, error) {
+	u, err := url.Parse(fmt.Sprintf("%s/latest/quotes", c.cryptoURL(req)))
 	if err != nil {
 		return nil, err
 	}
@@ -1083,6 +1251,7 @@ func (c *Client) GetLatestCryptoQuotes(ctx context.Context, symbols []string, re
 	if err != nil {
 		return nil, err
 	}
+	defer closeResp(resp)
 
 	var latestQuotesResp latestCryptoQuotesResponse
 	if err = unmarshal(resp, &latestQuotesResp); err != nil {
@@ -1091,9 +1260,64 @@ func (c *Client) GetLatestCryptoQuotes(ctx context.Context, symbols []string, re
 	return latestQuotesResp.Quotes, nil
 }
 
+type GetLatestCryptoPerpPricingRequest struct {
+	CryptoFeed CryptoFeed
+	// This flag is used internally to access perpetual futures endpoints
+	perpetualFutures bool
+}
+
+func (r GetLatestCryptoPerpPricingRequest) cryptoFeed() CryptoFeed { return r.CryptoFeed }
+func (r GetLatestCryptoPerpPricingRequest) isPerp() bool           { return r.perpetualFutures }
+
+func (c *Client) GetLatestCryptoPerpPricing(
+	ctx context.Context, symbol string, req GetLatestCryptoPerpPricingRequest,
+) (*CryptoPerpPricing, error) {
+	req.perpetualFutures = true
+
+	resp, err := c.GetLatestCryptoPerpPricingData(ctx, []string{symbol}, req)
+	if err != nil {
+		return nil, err
+	}
+	pricing, ok := resp[symbol]
+	if !ok {
+		return nil, nil
+	}
+	return &pricing, nil
+}
+
+// GetLatestCryptoPerpPricingData returns the latest pricing data for the given perp symbols
+func (c *Client) GetLatestCryptoPerpPricingData(
+	ctx context.Context, symbols []string, req GetLatestCryptoPerpPricingRequest,
+) (map[string]CryptoPerpPricing, error) {
+	u, err := url.Parse(fmt.Sprintf("%s/latest/pricing", c.cryptoURL(req)))
+	if err != nil {
+		return nil, err
+	}
+	c.setLatestCryptoQueryRequest(u, cryptoBaseLatestRequest{
+		Symbols: symbols,
+	})
+
+	resp, err := c.get(ctx, u)
+	if err != nil {
+		return nil, err
+	}
+	defer closeResp(resp)
+
+	var latestPricingResp latestCryptoPerpPricingResponse
+	if err = unmarshal(resp, &latestPricingResp); err != nil {
+		return nil, err
+	}
+	return latestPricingResp.Pricing, nil
+}
+
 type GetCryptoSnapshotRequest struct {
 	CryptoFeed CryptoFeed
+	// This flag is used internally to access perpetual futures endpoints
+	perpetualFutures bool
 }
+
+func (r GetCryptoSnapshotRequest) cryptoFeed() CryptoFeed { return r.CryptoFeed }
+func (r GetCryptoSnapshotRequest) isPerp() bool           { return r.perpetualFutures }
 
 // GetCryptoSnapshot returns the snapshot for a given crypto symbol
 func (c *Client) GetCryptoSnapshot(ctx context.Context, symbol string, req GetCryptoSnapshotRequest) (*CryptoSnapshot, error) {
@@ -1110,8 +1334,7 @@ func (c *Client) GetCryptoSnapshot(ctx context.Context, symbol string, req GetCr
 
 // GetCryptoSnapshots returns the snapshots for the given crypto symbols
 func (c *Client) GetCryptoSnapshots(ctx context.Context, symbols []string, req GetCryptoSnapshotRequest) (map[string]CryptoSnapshot, error) {
-	u, err := url.Parse(fmt.Sprintf("%s/%s/%s/snapshots",
-		c.opts.BaseURL, cryptoPrefix, c.cryptoFeed(req.CryptoFeed)))
+	u, err := url.Parse(fmt.Sprintf("%s/snapshots", c.cryptoURL(req)))
 	if err != nil {
 		return nil, err
 	}
@@ -1123,6 +1346,7 @@ func (c *Client) GetCryptoSnapshots(ctx context.Context, symbols []string, req G
 	if err != nil {
 		return nil, err
 	}
+	defer closeResp(resp)
 
 	var snapshots CryptoSnapshots
 	if err = unmarshal(resp, &snapshots); err != nil {
@@ -1199,13 +1423,13 @@ func (c *Client) setNewsQuery(q url.Values, p GetNewsRequest) {
 // GetNews returns the news articles based on the given req.
 func (c *Client) GetNews(ctx context.Context, req GetNewsRequest) ([]News, error) {
 	if req.TotalLimit < 0 {
-		return nil, fmt.Errorf("negative total limit")
+		return nil, errors.New("negative total limit")
 	}
 	if req.PageLimit < 0 {
-		return nil, fmt.Errorf("negative page limit")
+		return nil, errors.New("negative page limit")
 	}
 	if req.NoTotalLimit && req.TotalLimit != 0 {
-		return nil, fmt.Errorf("both NoTotalLimit and non-zero TotalLimit specified")
+		return nil, errors.New("both NoTotalLimit and non-zero TotalLimit specified")
 	}
 	u, err := url.Parse(fmt.Sprintf("%s/v1beta1/news", c.opts.BaseURL))
 	if err != nil {
@@ -1243,6 +1467,106 @@ func (c *Client) GetNews(ctx context.Context, req GetNewsRequest) ([]News, error
 		received += len(newsResp.News)
 	}
 	return news, nil
+}
+
+// GetCorporateActionsRequest contains optional parameters for getting corporate actions.
+type GetCorporateActionsRequest struct {
+	// Symbols is the list of company symbols
+	Symbols []string
+	// Types is the list of corporate actions types. Available types:
+	//
+	// The following types are supported:
+	//  - reverse_split
+	//  - forward_split
+	//  - unit_split
+	//  - cash_dividend
+	//  - stock_dividend
+	//  - spin_off
+	//  - cash_merger
+	//  - stock_merger
+	//  - stock_and_cash_merger
+	//  - redemption
+	//  - name_change
+	//  - worthless_removal
+	//  - rights_distribution
+	Types []string
+	// Start is the inclusive beginning of the interval
+	Start civil.Date
+	// End is the inclusive end of the interval
+	End civil.Date
+	// TotalLimit is the limit of the total number of the returned trades.
+	// If missing, all trades between start end end will be returned.
+	TotalLimit int
+	// PageLimit is the pagination size. If empty, the default page size will be used.
+	PageLimit int
+	// Sort is the sort direction of the data
+	Sort Sort
+}
+
+// GetCorporateActions returns the corporate actions based on the given req.
+func (c *Client) GetCorporateActions(ctx context.Context, req GetCorporateActionsRequest) (CorporateActions, error) {
+	u, err := url.Parse(fmt.Sprintf("%s/v1/corporate-actions", c.opts.BaseURL))
+	if err != nil {
+		return CorporateActions{}, err
+	}
+
+	q := u.Query()
+	if len(req.Symbols) > 0 {
+		q.Set("symbols", strings.Join(req.Symbols, ","))
+	}
+	if !req.Start.IsZero() {
+		q.Set("start", req.Start.String())
+	}
+	if !req.End.IsZero() {
+		q.Set("end", req.End.String())
+	}
+	if req.Sort != "" {
+		q.Set("sort", string(req.Sort))
+	}
+	if len(req.Types) > 0 {
+		q.Set("types", strings.Join(req.Types, ","))
+	}
+
+	cas := CorporateActions{}
+	received := 0
+	for req.TotalLimit == 0 || received < req.TotalLimit {
+		setQueryLimit(q, req.TotalLimit, req.PageLimit, received, v2MaxLimit)
+		u.RawQuery = q.Encode()
+
+		resp, err := c.get(ctx, u)
+		if err != nil {
+			return cas, err
+		}
+
+		var casResp corporateActionsResponse
+		if err = unmarshal(resp, &casResp); err != nil {
+			return cas, err
+		}
+		c := casResp.CorporateActions
+		cas.ReverseSplits = append(cas.ReverseSplits, c.ReverseSplits...)
+		cas.ForwardSplits = append(cas.ForwardSplits, c.ForwardSplits...)
+		cas.UnitSplits = append(cas.UnitSplits, c.UnitSplits...)
+		cas.CashDividends = append(cas.CashDividends, c.CashDividends...)
+		cas.CashMergers = append(cas.CashMergers, c.CashMergers...)
+		cas.StockMergers = append(cas.StockMergers, c.StockMergers...)
+		cas.StockAndCashMergers = append(cas.StockAndCashMergers, c.StockAndCashMergers...)
+		cas.StockDividends = append(cas.StockDividends, c.StockDividends...)
+		cas.Redemptions = append(cas.Redemptions, c.Redemptions...)
+		cas.SpinOffs = append(cas.SpinOffs, c.SpinOffs...)
+		cas.NameChanges = append(cas.NameChanges, c.NameChanges...)
+		cas.WorthlessRemovals = append(cas.WorthlessRemovals, c.WorthlessRemovals...)
+		cas.RightsDistributions = append(cas.RightsDistributions, c.RightsDistributions...)
+		received += (len(c.ReverseSplits) + len(c.ForwardSplits) + len(c.UnitSplits) +
+			len(c.CashDividends) + len(c.StockDividends) +
+			len(c.CashMergers) + len(c.StockMergers) + len(c.StockAndCashMergers) +
+			len(c.Redemptions) + len(c.SpinOffs) + len(c.NameChanges) +
+			len(c.WorthlessRemovals) + len(c.RightsDistributions))
+		if casResp.NextPageToken == nil {
+			break
+		}
+		q.Set("page_token", *casResp.NextPageToken)
+	}
+	return cas, nil
 }
 
 // GetTrades returns the trades for the given symbol.
@@ -1395,9 +1719,49 @@ func GetCryptoSnapshots(ctx context.Context, symbols []string, req GetCryptoSnap
 	return DefaultClient.GetCryptoSnapshots(ctx, symbols, req)
 }
 
+// GetLatestCryptoPerpTrade returns the latest trade for a given crypto perp symbol
+func GetLatestCryptoPerpTrade(ctx context.Context, symbol string, req GetLatestCryptoTradeRequest) (*CryptoPerpTrade, error) {
+	return DefaultClient.GetLatestCryptoPerpTrade(ctx, symbol, req)
+}
+
+// GetLatestCryptoPerpPricing returns the latest perp pricing for a given crypto perp symbol
+func GetLatestCryptoPerpPricing(ctx context.Context, symbol string, req GetLatestCryptoPerpPricingRequest) (*CryptoPerpPricing, error) {
+	return DefaultClient.GetLatestCryptoPerpPricing(ctx, symbol, req)
+}
+
+// GetLatestCryptoPerpTrades returns the latest trades for the given crypto perpetual futures
+func GetLatestCryptoPerpTrades(ctx context.Context, symbols []string, req GetLatestCryptoTradeRequest) (map[string]CryptoPerpTrade, error) {
+	return DefaultClient.GetLatestCryptoPerpTrades(ctx, symbols, req)
+}
+
+// GetLatestCryptoPerpQuote returns the latest quote for a given crypto perpetual future
+func GetLatestCryptoPerpQuote(ctx context.Context, symbol string, req GetLatestCryptoQuoteRequest) (*CryptoPerpQuote, error) {
+	return DefaultClient.GetLatestCryptoPerpQuote(ctx, symbol, req)
+}
+
+// GetLatestCryptoPerpQuotes returns the latest quotes for the given crypto perpetual futures
+func GetLatestCryptoPerpQuotes(ctx context.Context, symbols []string, req GetLatestCryptoQuoteRequest) (map[string]CryptoPerpQuote, error) {
+	return DefaultClient.GetLatestCryptoPerpQuotes(ctx, symbols, req)
+}
+
+// GetLatestCryptoPerpBar returns the latest bar for a given crypto perpetual future
+func GetLatestCryptoPerpBar(ctx context.Context, symbol string, req GetLatestCryptoBarRequest) (*CryptoPerpBar, error) {
+	return DefaultClient.GetLatestCryptoPerpBar(ctx, symbol, req)
+}
+
+// GetLatestCryptoPerpBar returns the latest bar for a given crypto perpetual future
+func GetLatestCryptoPerpBars(ctx context.Context, symbols []string, req GetLatestCryptoBarRequest) (map[string]CryptoPerpBar, error) {
+	return DefaultClient.GetLatestCryptoPerpBars(ctx, symbols, req)
+}
+
 // GetNews returns the news articles based on the given req.
 func GetNews(ctx context.Context, req GetNewsRequest) ([]News, error) {
 	return DefaultClient.GetNews(ctx, req)
+}
+
+// GetCorporateActions returns the corporate actions based on the given req.
+func GetCorporateActions(ctx context.Context, req GetCorporateActionsRequest) (CorporateActions, error) {
+	return DefaultClient.GetCorporateActions(ctx, req)
 }
 
 func (c *Client) get(ctx context.Context, u *url.URL) (*http.Response, error) {
@@ -1410,11 +1774,6 @@ func (c *Client) get(ctx context.Context, u *url.URL) (*http.Response, error) {
 }
 
 func unmarshal(resp *http.Response, v easyjson.Unmarshaler) error {
-	defer func() {
-		// The underlying TCP connection can not be reused if the body is not fully read
-		_, _ = io.Copy(io.Discard, resp.Body)
-		resp.Body.Close()
-	}()
 	var (
 		reader io.ReadCloser
 		err    error
@@ -1430,4 +1789,10 @@ func unmarshal(resp *http.Response, v easyjson.Unmarshaler) error {
 		reader = resp.Body
 	}
 	return easyjson.UnmarshalFromReader(reader, v)
+}
+
+func closeResp(resp *http.Response) {
+	// The underlying TCP connection can not be reused if the body is not fully read
+	_, _ = io.Copy(io.Discard, resp.Body)
+	resp.Body.Close()
 }

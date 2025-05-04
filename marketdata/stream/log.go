@@ -35,8 +35,8 @@ type errorOnlyLogger struct{}
 
 var _ Logger = (*errorOnlyLogger)(nil)
 
-func (*errorOnlyLogger) Infof(format string, v ...interface{}) {}
-func (*errorOnlyLogger) Warnf(format string, v ...interface{}) {}
+func (*errorOnlyLogger) Infof(_ string, _ ...interface{}) {}
+func (*errorOnlyLogger) Warnf(_ string, _ ...interface{}) {}
 func (*errorOnlyLogger) Errorf(format string, v ...interface{}) {
 	log.Printf(format, v...)
 }

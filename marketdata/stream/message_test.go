@@ -73,6 +73,17 @@ type tradingStatusWithT struct {
 	NewField uint64 `msgpack:"n"`
 }
 
+// tradingStatusWithT is the incoming trading status message that also contains the T type key
+type imbalanceWithT struct {
+	Type      string    `msgpack:"T"`
+	Symbol    string    `msgpack:"S"`
+	Price     float64   `msgpack:"p"`
+	Timestamp time.Time `msgpack:"t"`
+	Tape      string    `msgpack:"z"`
+	// NewField is for testing correct handling of added fields in the future
+	NewField uint64 `msgpack:"n"`
+}
+
 // luldWithT is the incoming LULD message that also contains the T type key
 type luldWithT struct {
 	Type           string    `json:"T" msgpack:"T"`
@@ -128,7 +139,7 @@ type cryptoTradeWithT struct {
 	Price     float64   `msgpack:"p"`
 	Size      float64   `msgpack:"s"`
 	Timestamp time.Time `msgpack:"t"`
-	Id        int64     `msgpack:"i"`
+	ID        int64     `msgpack:"i"`
 	TakerSide string    `msgpack:"tks"`
 	// NewField is for testing correct handling of added fields in the future
 	NewField uint64 `msgpack:"n"`
@@ -183,6 +194,31 @@ type cryptoOrderbookEntry struct {
 	Size  float64 `msgpack:"s"`
 }
 
+// optionTradeWithT is the incoming option trade message that also contains the T type key
+type optionTradeWithT struct {
+	Type      string    `msgpack:"T"`
+	Symbol    string    `msgpack:"S"`
+	Exchange  string    `msgpack:"x"`
+	Price     float64   `msgpack:"p"`
+	Size      uint32    `msgpack:"s"`
+	Timestamp time.Time `msgpack:"t"`
+	Condition string    `msgpack:"c"`
+}
+
+// optionQuoteWithT is the incoming option quote message that also contains the T type key
+type optionQuoteWithT struct {
+	Type        string    `msgpack:"T"`
+	Symbol      string    `msgpack:"S"`
+	BidExchange string    `msgpack:"bx"`
+	BidPrice    float64   `msgpack:"bp"`
+	BidSize     uint32    `msgpack:"bs"`
+	AskExchange string    `msgpack:"ax"`
+	AskPrice    float64   `msgpack:"ap"`
+	AskSize     uint32    `msgpack:"as"`
+	Timestamp   time.Time `msgpack:"t"`
+	Condition   string    `msgpack:"c"`
+}
+
 type newsWithT struct {
 	Type      string    `msgpack:"T"`
 	ID        int       `msgpack:"id"`
@@ -228,6 +264,7 @@ type subWithT struct {
 	UpdatedBars  []string `msgpack:"updatedBars"`
 	DailyBars    []string `msgpack:"dailyBars"`
 	Statuses     []string `msgpack:"statuses"`
+	Imbalances   []string `msgpack:"imbalances"`
 	LULDs        []string `msgpack:"lulds"`
 	Corrections  []string `msgpack:"corrections"`
 	CancelErrors []string `msgpack:"cancelErrors"`
@@ -307,6 +344,14 @@ var testTradingStatus = tradingStatusWithT{
 	Tape:       "C",
 }
 
+var testImbalance = imbalanceWithT{
+	Type:      "i",
+	Symbol:    "BIIB",
+	Price:     100.2,
+	Timestamp: time.Date(2021, 3, 5, 16, 0, 0, 0, time.UTC),
+	Tape:      "C",
+}
+
 var testLULD = luldWithT{
 	Type:           "l",
 	Symbol:         "TEST",
@@ -352,7 +397,7 @@ var testCryptoTrade = cryptoTradeWithT{
 	Price:     100,
 	Size:      10.1,
 	Timestamp: testTime,
-	Id:        32,
+	ID:        32,
 	TakerSide: "B",
 }
 
@@ -410,13 +455,25 @@ var testCryptoOrderbook = cryptoOrderbookWithT{
 	},
 }
 
+type cryptoPerpPricingWithT struct {
+	Type            string    `msgpack:"T"`
+	Symbol          string    `msgpack:"S"`
+	Timestamp       time.Time `msgpack:"t"`
+	Exchange        string    `msgpack:"x"`
+	IndexPrice      float64   `msgpack:"ip"`
+	MarkPrice       float64   `msgpack:"mp"`
+	FundingRate     float64   `msgpack:"fr"`
+	OpenInterest    float64   `msgpack:"oi"`
+	NextFundingTime time.Time `msgpack:"ft"`
+}
+
 var testOther = other{
 	Type:     "other",
 	Whatever: "whatever",
 }
 
 var testError = errorWithT{
-	Type: "error",
+	Type: msgTypeError,
 	Msg:  "test",
 	Code: 322,
 }
@@ -426,6 +483,8 @@ var testSubMessage1 = subWithT{
 	Trades:       []string{"ALPACA"},
 	Quotes:       []string{},
 	Bars:         []string{},
+	Statuses:     []string{"ALPACA"},
+	Imbalances:   []string{"ALPACA"},
 	CancelErrors: []string{"ALPACA"},
 	Corrections:  []string{"ALPACA"},
 }
@@ -436,6 +495,8 @@ var testSubMessage2 = subWithT{
 	Quotes:       []string{"AL", "PACA"},
 	Bars:         []string{"ALP", "ACA"},
 	DailyBars:    []string{"LPACA"},
+	Statuses:     []string{"AL", "PACA"},
+	Imbalances:   []string{"AL", "PACA"},
 	CancelErrors: []string{"ALPACA"},
 	Corrections:  []string{"ALPACA"},
 }
@@ -445,6 +506,7 @@ func TestHandleMessagesStocks(t *testing.T) {
 		testOther,
 		testTrade,
 		testTradingStatus,
+		testImbalance,
 		testQuote,
 		testBar,
 		testUpdatedBar,
@@ -467,11 +529,11 @@ func TestHandleMessagesStocks(t *testing.T) {
 	subscriptionMessages := make([]subscriptions, 0)
 
 	var em errorMessage
-	errMessageHandler = func(c *client, e errorMessage) error {
+	errMessageHandler = func(_ *client, e errorMessage) error {
 		em = e
 		return nil
 	}
-	subMessageHandler = func(c *client, s subscriptions) error {
+	subMessageHandler = func(_ *client, s subscriptions) error {
 		subscriptionMessages = append(subscriptionMessages, s)
 		return nil
 	}
@@ -499,6 +561,10 @@ func TestHandleMessagesStocks(t *testing.T) {
 	var tradingStatus TradingStatus
 	h.tradingStatusHandler = func(ts TradingStatus) {
 		tradingStatus = ts
+	}
+	var imbalance Imbalance
+	h.imbalanceHandler = func(oi Imbalance) {
+		imbalance = oi
 	}
 	var luld LULD
 	h.luldHandler = func(l LULD) {
@@ -534,7 +600,14 @@ func TestHandleMessagesStocks(t *testing.T) {
 	assert.Equal(t, testTradingStatus.ReasonCode, tradingStatus.ReasonCode)
 	assert.Equal(t, testTradingStatus.ReasonMsg, tradingStatus.ReasonMsg)
 	assert.True(t, testTradingStatus.Timestamp.Equal(tradingStatus.Timestamp))
+	assert.True(t, quote.Internal().ReceivedAt.Equal(testTime2))
 	assert.Equal(t, testTradingStatus.Tape, tradingStatus.Tape)
+
+	// Verify stock imbalance.
+	assert.Equal(t, testImbalance.Symbol, imbalance.Symbol)
+	assert.Equal(t, testImbalance.Price, imbalance.Price)
+	assert.True(t, testImbalance.Timestamp.Equal(imbalance.Timestamp))
+	assert.Equal(t, testImbalance.Tape, imbalance.Tape)
 
 	// Verify stock luld.
 	assert.Equal(t, testLULD.Symbol, luld.Symbol)
@@ -577,7 +650,6 @@ func TestHandleMessagesStocks(t *testing.T) {
 	assert.EqualValues(t, testQuote.AskPrice, quote.AskPrice)
 	assert.EqualValues(t, testQuote.AskSize, quote.AskSize)
 	assert.True(t, quote.Timestamp.Equal(testTime))
-	assert.True(t, quote.Internal().ReceivedAt.Equal(testTime2))
 	assert.EqualValues(t, testQuote.Conditions, quote.Conditions)
 	assert.EqualValues(t, testQuote.Tape, quote.Tape)
 
@@ -612,12 +684,14 @@ func TestHandleMessagesStocks(t *testing.T) {
 	assert.EqualValues(t, testSubMessage1.Bars, subscriptionMessages[0].bars)
 	assert.EqualValues(t, testSubMessage1.CancelErrors, subscriptionMessages[0].cancelErrors)
 	assert.EqualValues(t, testSubMessage1.Corrections, subscriptionMessages[0].corrections)
+	assert.EqualValues(t, testSubMessage1.Imbalances, subscriptionMessages[0].imbalances)
 	assert.EqualValues(t, testSubMessage2.Trades, subscriptionMessages[1].trades)
 	assert.EqualValues(t, testSubMessage2.Quotes, subscriptionMessages[1].quotes)
 	assert.EqualValues(t, testSubMessage2.Bars, subscriptionMessages[1].bars)
 	assert.EqualValues(t, testSubMessage2.DailyBars, subscriptionMessages[1].dailyBars)
 	assert.EqualValues(t, testSubMessage2.CancelErrors, subscriptionMessages[1].cancelErrors)
 	assert.EqualValues(t, testSubMessage2.Corrections, subscriptionMessages[1].corrections)
+	assert.EqualValues(t, testSubMessage2.Imbalances, subscriptionMessages[1].imbalances)
 }
 
 func TestHandleMessagesCrypto(t *testing.T) {
@@ -646,11 +720,11 @@ func TestHandleMessagesCrypto(t *testing.T) {
 	subscriptionMessages := make([]subscriptions, 0)
 
 	var em errorMessage
-	errMessageHandler = func(c *client, e errorMessage) error {
+	errMessageHandler = func(_ *client, e errorMessage) error {
 		em = e
 		return nil
 	}
-	subMessageHandler = func(c *client, s subscriptions) error {
+	subMessageHandler = func(_ *client, s subscriptions) error {
 		subscriptionMessages = append(subscriptionMessages, s)
 		return nil
 	}
@@ -688,7 +762,7 @@ func TestHandleMessagesCrypto(t *testing.T) {
 	assert.EqualValues(t, testCryptoTrade.Exchange, trade.Exchange)
 	assert.EqualValues(t, testCryptoTrade.Price, trade.Price)
 	assert.EqualValues(t, testCryptoTrade.Size, trade.Size)
-	assert.EqualValues(t, testCryptoTrade.Id, trade.ID)
+	assert.EqualValues(t, testCryptoTrade.ID, trade.ID)
 	assert.EqualValues(t, testCryptoTrade.TakerSide, trade.TakerSide)
 	assert.True(t, trade.Timestamp.Equal(testTime))
 
@@ -754,9 +828,9 @@ func BenchmarkHandleMessages(b *testing.B) {
 	msgs, _ := msgpack.Marshal([]interface{}{testTrade, testQuote, testBar})
 	c := &client{
 		handler: &stocksMsgHandler{
-			tradeHandler: func(trade Trade) {},
-			quoteHandler: func(quote Quote) {},
-			barHandler:   func(bar Bar) {},
+			tradeHandler: func(_ Trade) {},
+			quoteHandler: func(_ Quote) {},
+			barHandler:   func(_ Bar) {},
 		},
 	}
 

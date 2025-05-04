@@ -53,6 +53,13 @@ func (sc *StocksClient) SubscribeToStatuses(ctx context.Context, handler func(Tr
 	return sc.client.handleSubChange(ctx, true, subscriptions{statuses: symbols})
 }
 
+func (sc *StocksClient) SubscribeToImbalances(ctx context.Context, handler func(Imbalance), symbols ...string) error {
+	sc.handler.mu.Lock()
+	sc.handler.imbalanceHandler = handler
+	sc.handler.mu.Unlock()
+	return sc.client.handleSubChange(ctx, true, subscriptions{imbalances: symbols})
+}
+
 func (sc *StocksClient) SubscribeToLULDs(ctx context.Context, handler func(LULD), symbols ...string) error {
 	sc.handler.mu.Lock()
 	sc.handler.luldHandler = handler
@@ -60,13 +67,13 @@ func (sc *StocksClient) SubscribeToLULDs(ctx context.Context, handler func(LULD)
 	return sc.client.handleSubChange(ctx, true, subscriptions{lulds: symbols})
 }
 
-func (sc *StocksClient) RegisterCancelErrors(ctx context.Context, handler func(TradeCancelError)) {
+func (sc *StocksClient) RegisterCancelErrors(handler func(TradeCancelError)) {
 	sc.handler.mu.Lock()
 	sc.handler.cancelErrorHandler = handler
 	sc.handler.mu.Unlock()
 }
 
-func (sc *StocksClient) RegisterCorrections(ctx context.Context, handler func(TradeCorrection)) {
+func (sc *StocksClient) RegisterCorrections(handler func(TradeCorrection)) {
 	sc.handler.mu.Lock()
 	sc.handler.correctionHandler = handler
 	sc.handler.mu.Unlock()
@@ -96,17 +103,21 @@ func (sc *StocksClient) UnsubscribeFromStatuses(ctx context.Context, symbols ...
 	return sc.handleSubChange(ctx, false, subscriptions{statuses: symbols})
 }
 
+func (sc *StocksClient) UnsubscribeFromImbalances(ctx context.Context, symbols ...string) error {
+	return sc.handleSubChange(ctx, false, subscriptions{imbalances: symbols})
+}
+
 func (sc *StocksClient) UnsubscribeFromLULDs(ctx context.Context, symbols ...string) error {
 	return sc.handleSubChange(ctx, false, subscriptions{lulds: symbols})
 }
 
-func (sc *StocksClient) UnregisterCancelErrors(ctx context.Context) {
+func (sc *StocksClient) UnregisterCancelErrors() {
 	sc.handler.mu.Lock()
 	sc.handler.cancelErrorHandler = func(TradeCancelError) {}
 	sc.handler.mu.Unlock()
 }
 
-func (sc *StocksClient) UnregisterCorrections(ctx context.Context) {
+func (sc *StocksClient) UnregisterCorrections() {
 	sc.handler.mu.Lock()
 	sc.handler.correctionHandler = func(TradeCorrection) {}
 	sc.handler.mu.Unlock()
@@ -154,6 +165,13 @@ func (cc *CryptoClient) SubscribeToOrderbooks(ctx context.Context, handler func(
 	return cc.client.handleSubChange(ctx, true, subscriptions{orderbooks: symbols})
 }
 
+func (cc *CryptoClient) SubscribeToPerpPricing(ctx context.Context, handler func(pricing CryptoPerpPricing), symbols ...string) error {
+	cc.handler.mu.Lock()
+	cc.handler.futuresPricingHandler = handler
+	cc.handler.mu.Unlock()
+	return cc.client.handleSubChange(ctx, true, subscriptions{pricing: symbols})
+}
+
 func (cc *CryptoClient) UnsubscribeFromTrades(ctx context.Context, symbols ...string) error {
 	return cc.handleSubChange(ctx, false, subscriptions{trades: symbols})
 }
@@ -178,6 +196,32 @@ func (cc *CryptoClient) UnsubscribeFromOrderbooks(ctx context.Context, symbols .
 	return cc.handleSubChange(ctx, false, subscriptions{orderbooks: symbols})
 }
 
+func (cc *CryptoClient) UnsubscribeFromPerpPricing(ctx context.Context, symbols ...string) error {
+	return cc.handleSubChange(ctx, false, subscriptions{pricing: symbols})
+}
+
+func (cc *OptionClient) SubscribeToTrades(ctx context.Context, handler func(OptionTrade), symbols ...string) error {
+	cc.handler.mu.Lock()
+	cc.handler.tradeHandler = handler
+	cc.handler.mu.Unlock()
+	return cc.client.handleSubChange(ctx, true, subscriptions{trades: symbols})
+}
+
+func (cc *OptionClient) SubscribeToQuotes(ctx context.Context, handler func(OptionQuote), symbols ...string) error {
+	cc.handler.mu.Lock()
+	cc.handler.quoteHandler = handler
+	cc.handler.mu.Unlock()
+	return cc.client.handleSubChange(ctx, true, subscriptions{quotes: symbols})
+}
+
+func (cc *OptionClient) UnsubscribeFromTrades(ctx context.Context, symbols ...string) error {
+	return cc.handleSubChange(ctx, false, subscriptions{trades: symbols})
+}
+
+func (cc *OptionClient) UnsubscribeFromQuotes(ctx context.Context, symbols ...string) error {
+	return cc.handleSubChange(ctx, false, subscriptions{quotes: symbols})
+}
+
 func (nc *NewsClient) SubscribeToNews(ctx context.Context, handler func(News), symbols ...string) error {
 	nc.handler.mu.Lock()
 	nc.handler.newsHandler = handler
@@ -196,17 +240,19 @@ type subscriptions struct {
 	updatedBars  []string
 	dailyBars    []string
 	statuses     []string
+	imbalances   []string
 	lulds        []string
-	cancelErrors []string // Subscribed automatically.
-	corrections  []string // Subscribed automatically.
+	cancelErrors []string // Subscribed automatically with trades.
+	corrections  []string // Subscribed automatically with trades.
 	orderbooks   []string
 	news         []string
+	pricing      []string
 }
 
 func (s subscriptions) noSubscribeCallNecessary() bool {
 	return len(s.trades) == 0 && len(s.quotes) == 0 && len(s.bars) == 0 && len(s.updatedBars) == 0 &&
-		len(s.dailyBars) == 0 && len(s.statuses) == 0 && len(s.lulds) == 0 &&
-		len(s.orderbooks) == 0 && len(s.news) == 0
+		len(s.dailyBars) == 0 && len(s.statuses) == 0 && len(s.imbalances) == 0 && len(s.lulds) == 0 &&
+		len(s.orderbooks) == 0 && len(s.news) == 0 && len(s.pricing) == 0
 }
 
 func (c *client) handleSubChange(ctx context.Context, subscribe bool, changes subscriptions) error {
@@ -238,6 +284,13 @@ func (c *client) handleSubChange(ctx context.Context, subscribe bool, changes su
 		c.pendingSubChangeMutex.Lock()
 		defer c.pendingSubChangeMutex.Unlock()
 		c.pendingSubChange = nil
+		// Drain the c.subChanges channel to avoid waiting size 1 channel when connection is lost.
+		// Please consider using connect/disconnect callbacks to avoid requesting sub change during disconnection.
+		select {
+		case <-c.subChanges:
+			c.logger.Warnf("datav2stream: removed sub changes request due to timeout")
+		default:
+		}
 		return ctx.Err()
 	}
 }
@@ -269,9 +322,11 @@ func getSubChangeMessage(subscribe bool, changes subscriptions) ([]byte, error) 
 		"updatedBars": changes.updatedBars,
 		"dailyBars":   changes.dailyBars,
 		"statuses":    changes.statuses,
+		"imbalances":  changes.imbalances,
 		"lulds":       changes.lulds,
 		"orderbooks":  changes.orderbooks,
 		"news":        changes.news,
+		"pricing":     changes.pricing,
 		// No need to subscribe to cancel errors or corrections explicitly.
 	})
 }
