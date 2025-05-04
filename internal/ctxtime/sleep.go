@@ -6,7 +6,10 @@ import (
 )
 
 func Sleep(ctx context.Context, d time.Duration) error {
-	if ctx == nil || d <= 0 {
+	if d <= 0 {
+		return nil
+	}
+	if ctx == nil {
 		time.Sleep(d)
 		return nil
 	}
