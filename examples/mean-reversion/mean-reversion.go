@@ -64,8 +64,10 @@ func main() {
 		stock:         symbol,
 	}
 
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	func() {
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 		defer cancel()
 
 		fmt.Println("Cancelling all open orders so they don't impact our buying power...")
@@ -88,13 +90,17 @@ func main() {
 		fmt.Printf("%d order(s) cancelled\n", len(orders))
 	}()
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	initialCtx, initialCancel := context.WithCancel(ctx)
+	defer initialCancel()
 
-	if err := a.streamClient.Connect(ctx); err != nil {
+	if err := a.streamClient.Connect(initialCtx); err != nil {
 		log.Fatalf("Failed to connect to the marketdata stream: %v", err)
 	}
-	if err := a.streamClient.SubscribeToBars(ctx, a.onBar, a.stock); err != nil {
+	defer a.streamClient.Terminate()
+
+	if err := a.streamClient.SubscribeToBars(initialCtx, func(bar stream.Bar) {
+		a.onBar(ctx, bar)
+	}, a.stock); err != nil {
 		log.Fatalf("Failed to subscribe to the bars stream: %v", err)
 	}
 
@@ -105,63 +111,65 @@ func main() {
 	}()
 
 	for {
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-		defer cancel()
-		isOpen, err := a.awaitMarketOpen(ctx)
-		if err != nil {
-			log.Fatalf("Failed to wait for market open: %v", err)
-		}
-		if !isOpen {
-			time.Sleep(1 * time.Minute)
-			continue
-		}
-		fmt.Printf("The market is open! Waiting for %s minute bars...\n", a.stock)
+		func() {
+			ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+			defer cancel()
+			isOpen, err := a.awaitMarketOpen(ctx)
+			if err != nil {
+				log.Fatalf("Failed to wait for market open: %v", err)
+			}
+			if !isOpen {
+				time.Sleep(1 * time.Minute)
+				return
+			}
+			fmt.Printf("The market is open! Waiting for %s minute bars...\n", a.stock)
 
-		// Reset the moving average for the day
-		a.movingAverage = movingaverage.New(windowSize)
+			// Reset the moving average for the day
+			a.movingAverage = movingaverage.New(windowSize)
 
-		ctx, cancel = context.WithTimeout(context.Background(), 60*time.Second)
-		defer cancel()
-		bars, err := a.dataClient.GetBars(ctx, a.stock, marketdata.GetBarsRequest{
-			TimeFrame: marketdata.OneMin,
-			Start:     time.Now().Add(-1 * (windowSize + 1) * time.Minute),
-			End:       time.Now(),
-			Feed:      a.feed,
-		})
-		if err != nil {
-			log.Fatalf("Failed to get historical bar: %v", err)
-		}
-		for _, bar := range bars {
-			a.movingAverage.Add(bar.Close)
-		}
-		a.shouldTrade.Store(true)
+			ctx, cancel = context.WithTimeout(ctx, 60*time.Second)
+			defer cancel()
+			bars, err := a.dataClient.GetBars(ctx, a.stock, marketdata.GetBarsRequest{
+				TimeFrame: marketdata.OneMin,
+				Start:     time.Now().Add(-1 * (windowSize + 1) * time.Minute),
+				End:       time.Now(),
+				Feed:      a.feed,
+			})
+			if err != nil {
+				log.Fatalf("Failed to get historical bar: %v", err)
+			}
+			for _, bar := range bars {
+				a.movingAverage.Add(bar.Close)
+			}
+			a.shouldTrade.Store(true)
 
-		// During market open we react on the minute bars (onBar)
-		clock, err := a.tradeClient.GetClock(ctx)
-		if err != nil {
-			log.Fatalf("Failed to get clock: %v", err)
-		}
-		untilClose := clock.NextClose.Sub(clock.Timestamp.Add(-15 * time.Minute))
-		time.Sleep(untilClose)
+			// During market open we react on the minute bars (onBar)
+			clock, err := a.tradeClient.GetClock(ctx)
+			if err != nil {
+				log.Fatalf("Failed to get clock: %v", err)
+			}
+			untilClose := clock.NextClose.Sub(clock.Timestamp.Add(-15 * time.Minute))
+			time.Sleep(untilClose)
 
-		fmt.Println("Market closing soon. Closing position.")
-		a.shouldTrade.Store(false)
+			fmt.Println("Market closing soon. Closing position.")
+			a.shouldTrade.Store(false)
 
-		ctx, cancel = context.WithTimeout(context.Background(), 30*time.Second)
-		defer cancel()
-		if _, err := a.tradeClient.ClosePosition(ctx, a.stock, alpaca.ClosePositionRequest{}); err != nil {
-			log.Fatalf("Failed to close position: %v", a.stock)
-		}
-		fmt.Println("Position closed.")
+			ctx, cancel = context.WithTimeout(ctx, 30*time.Second)
+			defer cancel()
+			if _, err := a.tradeClient.ClosePosition(ctx, a.stock, alpaca.ClosePositionRequest{}); err != nil {
+				log.Fatalf("Failed to close position: %v", a.stock)
+			}
+			fmt.Println("Position closed.")
+		}()
 	}
 }
 
-func (a *algo) onBar(bar stream.Bar) {
+func (a *algo) onBar(ctx context.Context, bar stream.Bar) {
 	if !a.shouldTrade.Load() {
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 120*time.Second)
 	defer cancel()
 
 	if a.lastOrder != "" {
