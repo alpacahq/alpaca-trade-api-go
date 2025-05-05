@@ -158,14 +158,18 @@ func (cc *CryptoClient) SubscribeToDailyBars(ctx context.Context, handler func(C
 	return cc.client.handleSubChange(ctx, true, subscriptions{dailyBars: symbols})
 }
 
-func (cc *CryptoClient) SubscribeToOrderbooks(ctx context.Context, handler func(CryptoOrderbook), symbols ...string) error {
+func (cc *CryptoClient) SubscribeToOrderbooks(
+	ctx context.Context, handler func(CryptoOrderbook), symbols ...string,
+) error {
 	cc.handler.mu.Lock()
 	cc.handler.orderbookHandler = handler
 	cc.handler.mu.Unlock()
 	return cc.client.handleSubChange(ctx, true, subscriptions{orderbooks: symbols})
 }
 
-func (cc *CryptoClient) SubscribeToPerpPricing(ctx context.Context, handler func(pricing CryptoPerpPricing), symbols ...string) error {
+func (cc *CryptoClient) SubscribeToPerpPricing(
+	ctx context.Context, handler func(pricing CryptoPerpPricing), symbols ...string,
+) error {
 	cc.handler.mu.Lock()
 	cc.handler.futuresPricingHandler = handler
 	cc.handler.mu.Unlock()

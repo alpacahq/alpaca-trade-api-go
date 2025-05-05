@@ -479,9 +479,9 @@ func TestSubscriptionTimeout(t *testing.T) {
 		subErrCh <- c.SubscribeToTrades(ctx, func(_ Trade) {}, "ALPACA")
 	}
 
-	{
-		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Microsecond)
-		defer cancel()
+	func() {
+		ctx, tcancel := context.WithTimeout(context.Background(), 1*time.Microsecond)
+		defer tcancel()
 		time.Sleep(10 * time.Microsecond)
 		go subFunc(ctx)
 		subMsg := expectWrite(t, connection)
@@ -491,12 +491,12 @@ func TestSubscriptionTimeout(t *testing.T) {
 		err = <-subErrCh
 		require.Error(t, err)
 		require.ErrorIs(t, err, context.DeadlineExceeded, "actual: %s", err)
-	}
+	}()
 
 	// wait longer
-	{
-		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-		defer cancel()
+	func() {
+		ctx, tcancel := context.WithTimeout(context.Background(), 3*time.Second)
+		defer tcancel()
 		go subFunc(ctx)
 		subMsg := expectWrite(t, connection)
 		require.Equal(t, "subscribe", subMsg["action"])
@@ -509,7 +509,7 @@ func TestSubscriptionTimeout(t *testing.T) {
 			},
 		})
 		require.NoError(t, <-subErrCh)
-	}
+	}()
 }
 
 func TestSubscriptionChangeInvalid(t *testing.T) {

@@ -175,7 +175,9 @@ type UpdateAccountConfigurationsRequest struct {
 }
 
 // UpdateAccountConfigurations updates the account configs.
-func (c *Client) UpdateAccountConfigurations(ctx context.Context, req UpdateAccountConfigurationsRequest) (*AccountConfigurations, error) {
+func (c *Client) UpdateAccountConfigurations(
+	ctx context.Context, req UpdateAccountConfigurationsRequest,
+) (*AccountConfigurations, error) {
 	u, err := url.Parse(fmt.Sprintf("%s/%s/account/configurations", c.opts.BaseURL, apiVersion))
 	if err != nil {
 		return nil, err
@@ -1033,7 +1035,9 @@ func (c *Client) GetWatchlist(ctx context.Context, watchlistID string) (*Watchli
 	return watchlist, nil
 }
 
-func (c *Client) UpdateWatchlist(ctx context.Context, watchlistID string, req UpdateWatchlistRequest) (*Watchlist, error) {
+func (c *Client) UpdateWatchlist(
+	ctx context.Context, watchlistID string, req UpdateWatchlistRequest,
+) (*Watchlist, error) {
 	u, err := url.Parse(fmt.Sprintf("%s/%s/watchlists/%s", c.opts.BaseURL, apiVersion, watchlistID))
 	if err != nil {
 		return nil, err
@@ -1054,7 +1058,9 @@ func (c *Client) UpdateWatchlist(ctx context.Context, watchlistID string, req Up
 
 var ErrSymbolMissing = errors.New("symbol missing from request")
 
-func (c *Client) AddSymbolToWatchlist(ctx context.Context, watchlistID string, req AddSymbolToWatchlistRequest) (*Watchlist, error) {
+func (c *Client) AddSymbolToWatchlist(
+	ctx context.Context, watchlistID string, req AddSymbolToWatchlistRequest,
+) (*Watchlist, error) {
 	if req.Symbol == "" {
 		return nil, ErrSymbolMissing
 	}
@@ -1077,7 +1083,9 @@ func (c *Client) AddSymbolToWatchlist(ctx context.Context, watchlistID string, r
 	return watchlist, nil
 }
 
-func (c *Client) RemoveSymbolFromWatchlist(ctx context.Context, watchlistID string, req RemoveSymbolFromWatchlistRequest) error {
+func (c *Client) RemoveSymbolFromWatchlist(
+	ctx context.Context, watchlistID string, req RemoveSymbolFromWatchlistRequest,
+) error {
 	if req.Symbol == "" {
 		return ErrSymbolMissing
 	}
@@ -1121,7 +1129,9 @@ func GetAccountConfigurations(ctx context.Context) (*AccountConfigurations, erro
 }
 
 // UpdateAccountConfigurations updates the account configs.
-func UpdateAccountConfigurations(ctx context.Context, req UpdateAccountConfigurationsRequest) (*AccountConfigurations, error) {
+func UpdateAccountConfigurations(
+	ctx context.Context, req UpdateAccountConfigurationsRequest,
+) (*AccountConfigurations, error) {
 	return DefaultClient.UpdateAccountConfigurations(ctx, req)
 }
 
@@ -1264,7 +1274,9 @@ func DeleteWatchlist(ctx context.Context, watchlistID string) error {
 
 // AddSymbolToWatchlist adds an asset to a watchlist by getting the watchlist id
 // with the default Alpaca client.
-func AddSymbolToWatchlist(ctx context.Context, watchlistID string, req AddSymbolToWatchlistRequest) (*Watchlist, error) {
+func AddSymbolToWatchlist(
+	ctx context.Context, watchlistID string, req AddSymbolToWatchlistRequest,
+) (*Watchlist, error) {
 	return DefaultClient.AddSymbolToWatchlist(ctx, watchlistID, req)
 }
 

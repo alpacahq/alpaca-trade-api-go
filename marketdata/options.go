@@ -28,7 +28,9 @@ type GetOptionTradesRequest struct {
 }
 
 // GetOptionTrades returns the option trades for the given symbol.
-func (c *Client) GetOptionTrades(ctx context.Context, symbol string, req GetOptionTradesRequest) ([]OptionTrade, error) {
+func (c *Client) GetOptionTrades(
+	ctx context.Context, symbol string, req GetOptionTradesRequest,
+) ([]OptionTrade, error) {
 	resp, err := c.GetOptionMultiTrades(ctx, []string{symbol}, req)
 	if err != nil {
 		return nil, err
@@ -37,7 +39,9 @@ func (c *Client) GetOptionTrades(ctx context.Context, symbol string, req GetOpti
 }
 
 // GetOptionMultiTrades returns option trades for the given symbols.
-func (c *Client) GetOptionMultiTrades(ctx context.Context, symbols []string, req GetOptionTradesRequest) (map[string][]OptionTrade, error) {
+func (c *Client) GetOptionMultiTrades(
+	ctx context.Context, symbols []string, req GetOptionTradesRequest,
+) (map[string][]OptionTrade, error) {
 	u, err := url.Parse(fmt.Sprintf("%s/%s/trades", c.opts.BaseURL, optionPrefix))
 	if err != nil {
 		return nil, err
@@ -97,7 +101,9 @@ type GetOptionBarsRequest struct {
 }
 
 // GetOptionBars returns a slice of bars for the given symbol.
-func (c *Client) GetOptionBars(ctx context.Context, symbol string, req GetOptionBarsRequest) ([]OptionBar, error) {
+func (c *Client) GetOptionBars(
+	ctx context.Context, symbol string, req GetOptionBarsRequest,
+) ([]OptionBar, error) {
 	resp, err := c.GetMultiOptionBars(ctx, []string{symbol}, req)
 	if err != nil {
 		return nil, err
@@ -106,7 +112,9 @@ func (c *Client) GetOptionBars(ctx context.Context, symbol string, req GetOption
 }
 
 // GetMultiOptionBars returns bars for the given symbols.
-func (c *Client) GetMultiOptionBars(ctx context.Context, symbols []string, req GetOptionBarsRequest) (map[string][]OptionBar, error) {
+func (c *Client) GetMultiOptionBars(
+	ctx context.Context, symbols []string, req GetOptionBarsRequest,
+) (map[string][]OptionBar, error) {
 	bars := make(map[string][]OptionBar, len(symbols))
 
 	u, err := url.Parse(fmt.Sprintf("%s/%s/bars", c.opts.BaseURL, optionPrefix))
@@ -159,7 +167,9 @@ type GetLatestOptionTradeRequest struct {
 }
 
 // GetLatestOptionTrade returns the latest option trade for a given symbol
-func (c *Client) GetLatestOptionTrade(ctx context.Context, symbol string, req GetLatestOptionTradeRequest) (*OptionTrade, error) {
+func (c *Client) GetLatestOptionTrade(
+	ctx context.Context, symbol string, req GetLatestOptionTradeRequest,
+) (*OptionTrade, error) {
 	resp, err := c.GetLatestOptionTrades(ctx, []string{symbol}, req)
 	if err != nil {
 		return nil, err
@@ -202,7 +212,9 @@ type GetLatestOptionQuoteRequest struct {
 }
 
 // GetLatestOptionQuote returns the latest option quote for a given symbol
-func (c *Client) GetLatestOptionQuote(ctx context.Context, symbol string, req GetLatestOptionQuoteRequest) (*OptionQuote, error) {
+func (c *Client) GetLatestOptionQuote(
+	ctx context.Context, symbol string, req GetLatestOptionQuoteRequest,
+) (*OptionQuote, error) {
 	resp, err := c.GetLatestOptionQuotes(ctx, []string{symbol}, req)
 	if err != nil {
 		return nil, err
@@ -251,7 +263,9 @@ type GetOptionSnapshotRequest struct {
 }
 
 // GetOptionSnapshot returns the snapshot for a given symbol
-func (c *Client) GetOptionSnapshot(ctx context.Context, symbol string, req GetOptionSnapshotRequest) (*OptionSnapshot, error) {
+func (c *Client) GetOptionSnapshot(
+	ctx context.Context, symbol string, req GetOptionSnapshotRequest,
+) (*OptionSnapshot, error) {
 	resp, err := c.GetOptionSnapshots(ctx, []string{symbol}, req)
 	if err != nil {
 		return nil, err
@@ -264,7 +278,9 @@ func (c *Client) GetOptionSnapshot(ctx context.Context, symbol string, req GetOp
 }
 
 // GetOptionSnapshots returns the snapshots for multiple symbols
-func (c *Client) GetOptionSnapshots(ctx context.Context, symbols []string, req GetOptionSnapshotRequest) (map[string]OptionSnapshot, error) {
+func (c *Client) GetOptionSnapshots(
+	ctx context.Context, symbols []string, req GetOptionSnapshotRequest,
+) (map[string]OptionSnapshot, error) {
 	u, err := url.Parse(fmt.Sprintf("%s/%s/snapshots", c.opts.BaseURL, optionPrefix))
 	if err != nil {
 		return nil, err
@@ -329,7 +345,9 @@ type GetOptionChainRequest struct {
 }
 
 // GetOptionChain returns the snapshot chain for an underlying symbol (e.g. AAPL)
-func (c *Client) GetOptionChain(ctx context.Context, underlyingSymbol string, req GetOptionChainRequest) (map[string]OptionSnapshot, error) {
+func (c *Client) GetOptionChain(
+	ctx context.Context, underlyingSymbol string, req GetOptionChainRequest,
+) (map[string]OptionSnapshot, error) {
 	u, err := url.Parse(fmt.Sprintf("%s/%s/snapshots/%s", c.opts.BaseURL, optionPrefix, underlyingSymbol))
 	if err != nil {
 		return nil, err
@@ -389,56 +407,78 @@ func (c *Client) GetOptionChain(ctx context.Context, underlyingSymbol string, re
 }
 
 // GetOptionTrades returns the option trades for the given symbol.
-func GetOptionTrades(ctx context.Context, symbol string, req GetOptionTradesRequest) ([]OptionTrade, error) {
+func GetOptionTrades(
+	ctx context.Context, symbol string, req GetOptionTradesRequest,
+) ([]OptionTrade, error) {
 	return DefaultClient.GetOptionTrades(ctx, symbol, req)
 }
 
 // GetOptionMultiTrades returns option trades for the given symbols.
-func GetOptionMultiTrades(ctx context.Context, symbols []string, req GetOptionTradesRequest) (map[string][]OptionTrade, error) {
+func GetOptionMultiTrades(
+	ctx context.Context, symbols []string, req GetOptionTradesRequest,
+) (map[string][]OptionTrade, error) {
 	return DefaultClient.GetOptionMultiTrades(ctx, symbols, req)
 }
 
 // GetOptionBars returns a slice of bars for the given symbol.
-func GetOptionBars(ctx context.Context, symbol string, req GetOptionBarsRequest) ([]OptionBar, error) {
+func GetOptionBars(
+	ctx context.Context, symbol string, req GetOptionBarsRequest,
+) ([]OptionBar, error) {
 	return DefaultClient.GetOptionBars(ctx, symbol, req)
 }
 
 // GetMultiOptionBars returns bars for the given symbols.
-func GetMultiOptionBars(ctx context.Context, symbols []string, req GetOptionBarsRequest) (map[string][]OptionBar, error) {
+func GetMultiOptionBars(
+	ctx context.Context, symbols []string, req GetOptionBarsRequest,
+) (map[string][]OptionBar, error) {
 	return DefaultClient.GetMultiOptionBars(ctx, symbols, req)
 }
 
 // GetLatestOptionTrade returns the latest option trade for a given symbol
-func GetLatestOptionTrade(ctx context.Context, symbol string, req GetLatestOptionTradeRequest) (*OptionTrade, error) {
+func GetLatestOptionTrade(
+	ctx context.Context, symbol string, req GetLatestOptionTradeRequest,
+) (*OptionTrade, error) {
 	return DefaultClient.GetLatestOptionTrade(ctx, symbol, req)
 }
 
 // GetLatestOptionTrades returns the latest option trades for the given symbols
-func GetLatestOptionTrades(ctx context.Context, symbols []string, req GetLatestOptionTradeRequest) (map[string]OptionTrade, error) {
+func GetLatestOptionTrades(
+	ctx context.Context, symbols []string, req GetLatestOptionTradeRequest,
+) (map[string]OptionTrade, error) {
 	return DefaultClient.GetLatestOptionTrades(ctx, symbols, req)
 }
 
 // GetLatestOptionQuote returns the latest option quote for a given symbol
-func GetLatestOptionQuote(ctx context.Context, symbol string, req GetLatestOptionQuoteRequest) (*OptionQuote, error) {
+func GetLatestOptionQuote(
+	ctx context.Context, symbol string, req GetLatestOptionQuoteRequest,
+) (*OptionQuote, error) {
 	return DefaultClient.GetLatestOptionQuote(ctx, symbol, req)
 }
 
 // GetLatestOptionQuotes returns the latest option quotes for the given symbols
-func GetLatestOptionQuotes(ctx context.Context, symbols []string, req GetLatestOptionQuoteRequest) (map[string]OptionQuote, error) {
+func GetLatestOptionQuotes(
+	ctx context.Context, symbols []string, req GetLatestOptionQuoteRequest,
+) (map[string]OptionQuote, error) {
 	return DefaultClient.GetLatestOptionQuotes(ctx, symbols, req)
 }
 
 // GetOptionSnapshot returns the snapshot for a given symbol
-func GetOptionSnapshot(ctx context.Context, symbol string, req GetOptionSnapshotRequest) (*OptionSnapshot, error) {
+func GetOptionSnapshot(
+	ctx context.Context, symbol string, req GetOptionSnapshotRequest,
+) (*OptionSnapshot, error) {
 	return DefaultClient.GetOptionSnapshot(ctx, symbol, req)
 }
 
 // GetOptionSnapshots returns the snapshots for multiple symbols
-func GetOptionSnapshots(ctx context.Context, symbols []string, req GetOptionSnapshotRequest) (map[string]OptionSnapshot, error) {
+func GetOptionSnapshots(
+	ctx context.Context, symbols []string, req GetOptionSnapshotRequest,
+) (map[string]OptionSnapshot, error) {
 	return DefaultClient.GetOptionSnapshots(ctx, symbols, req)
 }
 
 // GetOptionChain returns the snapshot chain for an underlying symbol (e.g. AAPL)
-func GetOptionChain(ctx context.Context, underlyingSymbol string, req GetOptionChainRequest) (map[string]OptionSnapshot, error) {
+func GetOptionChain(
+	ctx context.Context, underlyingSymbol string, req GetOptionChainRequest,
+) (map[string]OptionSnapshot, error) {
 	return DefaultClient.GetOptionChain(ctx, underlyingSymbol, req)
 }
