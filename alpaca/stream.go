@@ -12,6 +12,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"sync"
 	"time"
 )
 
@@ -115,26 +116,60 @@ func (c *Client) processTradeUpdates(body io.Reader, handler func(TradeUpdate)) 
 }
 
 // StreamTradeUpdatesInBackground streams the trade updates of the account.
-// It runs in the background and keeps calling the handler function for each trade update
-// until the context is cancelled. If an error happens it logs it and retries immediately.
-func (c *Client) StreamTradeUpdatesInBackground(ctx context.Context, handler func(TradeUpdate)) {
+// It runs in the background and keeps calling the handler function for each trade update.
+// The provided ctx is only used to control the initial connection of the stream.
+// Once the stream is successfully started, it will continue running independently of the ctx.
+// If an error happens it logs it and retries immediately.
+// Returns a terminate function that can be called to stop streaming.
+func (c *Client) StreamTradeUpdatesInBackground(
+	ctx context.Context, handler func(TradeUpdate),
+) (func(), error) {
+	if ctx.Err() != nil {
+		return nil, ctx.Err()
+	}
+	streamCtx, streamCtxCancel := context.WithCancel(context.Background())
+	var readyOnce sync.Once
+	readyC := make(chan struct{})
+	doneC := make(chan struct{})
 	go func() {
+		defer close(doneC)
+
 		var lastMessage time.Time
 		for {
 			req := StreamTradeUpdatesRequest{}
 			if !lastMessage.IsZero() {
 				req.Since = lastMessage.Add(time.Nanosecond)
 			}
-			err := c.StreamTradeUpdates(ctx, func(tu TradeUpdate) {
-				lastMessage = tu.At
-				handler(tu)
-			}, req)
+			err := c.StreamTradeUpdatesComplex(
+				streamCtx,
+				func() {
+					readyOnce.Do(func() {
+						close(readyC)
+					})
+				},
+				func(tu TradeUpdate) {
+					lastMessage = tu.At
+					handler(tu)
+				},
+				req)
 			if err == nil || errors.Is(err, context.Canceled) {
 				return
 			}
 			log.Printf("alpaca stream trade updates error: %v", err)
 		}
 	}()
+
+	terminate := func() {
+		streamCtxCancel()
+		<-doneC
+	}
+	select {
+	case <-ctx.Done():
+		terminate()
+		return nil, ctx.Err()
+	case <-readyC:
+		return terminate, nil
+	}
 }
 
 // StreamTradeUpdates streams the trade updates of the account. It blocks and keeps calling the handler
@@ -144,8 +179,13 @@ func StreamTradeUpdates(ctx context.Context, handler func(TradeUpdate), req Stre
 }
 
 // StreamTradeUpdatesInBackground streams the trade updates of the account.
-// It runs in the background and keeps calling the handler function for each trade update
-// until the context is cancelled. If an error happens it logs it and retries immediately.
-func StreamTradeUpdatesInBackground(ctx context.Context, handler func(TradeUpdate)) {
-	DefaultClient.StreamTradeUpdatesInBackground(ctx, handler)
+// It runs in the background and keeps calling the handler function for each trade update.
+// The provided ctx is only used to control the initial connection of the stream.
+// Once the stream is successfully started, it will continue running independently of the ctx.
+// If an error happens it logs it and retries immediately.
+// Returns a terminate function that can be called to stop streaming.
+func StreamTradeUpdatesInBackground(
+	ctx context.Context, handler func(TradeUpdate),
+) (func(), error) {
+	return DefaultClient.StreamTradeUpdatesInBackground(ctx, handler)
 }

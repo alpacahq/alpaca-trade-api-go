@@ -118,12 +118,18 @@ func main() {
 
 	feed := "iex" // Use sip if you have proper subscription
 	c := stream.NewStocksClient(feed)
-	if err := c.Connect(ctx); err != nil {
+	terminate, err := c.Connect(ctx)
+	if err != nil {
 		panic(err)
 	}
+	defer terminate()
 	c.SubscribeToTrades(ctx, handleTrades, alpacaClient.stock)
 
-	alpacaClient.client.StreamTradeUpdatesInBackground(ctx, handleTradeUpdates)
+	terminateTradeStream, err := alpacaClient.client.StreamTradeUpdatesInBackground(ctx, handleTradeUpdates)
+	if err != nil {
+		panic(err)
+	}
+	defer terminateTradeStream()
 
 	if err := <-c.Terminated(); err != nil {
 		panic(err)

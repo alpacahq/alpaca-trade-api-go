@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+
 	"github.com/alpacahq/alpaca-trade-api-go/v3/marketdata"
 	"github.com/alpacahq/alpaca-trade-api-go/v3/marketdata/stream"
 )
@@ -17,7 +18,7 @@ func main() {
 		marketdata.GLOBAL,
 		stream.WithLogger(stream.DefaultLogger()),
 		stream.WithBaseURL(baseURL), // Set the base URL
-		//configuring initial subscriptions and handlers
+		// configuring initial subscriptions and handlers
 		stream.WithCryptoTrades(func(ct stream.CryptoTrade) {
 			fmt.Printf("TRADE: %+v\n", ct)
 		}, "BTC-PERP"),
@@ -41,9 +42,11 @@ func main() {
 		}, "BTC-PERP"),
 	)
 
-	if err := c.Connect(ctx); err != nil {
+	terminate, err := c.Connect(ctx)
+	if err != nil {
 		panic(err)
 	}
+	defer terminate()
 	if err := <-c.Terminated(); err != nil {
 		panic(err)
 	}

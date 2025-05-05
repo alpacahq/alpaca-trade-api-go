@@ -31,7 +31,7 @@ var tests = []struct {
 }
 
 type streamClient interface {
-	Connect(ctx context.Context) error
+	Connect(ctx context.Context) (terminate func(), err error)
 	Terminate()
 	Terminated() <-chan error
 }
@@ -72,7 +72,7 @@ func TestConnectFails(t *testing.T) {
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
 
-			err := c.Connect(ctx)
+			_, err := c.Connect(ctx)
 
 			require.Error(t, err)
 			require.ErrorIs(t, err, ErrNoConnected)
@@ -105,7 +105,7 @@ func TestConnectWithInvalidURL(t *testing.T) {
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
 
-			err := c.Connect(ctx)
+			_, err := c.Connect(ctx)
 
 			require.Error(t, err)
 		})
@@ -164,7 +164,7 @@ func TestConnectImmediatelyFailsAfterIrrecoverableErrors(t *testing.T) {
 				ctx, cancel := context.WithCancel(context.Background())
 				defer cancel()
 
-				err := c.Connect(ctx)
+				_, err := c.Connect(ctx)
 
 				require.Error(t, err)
 				require.ErrorIs(t, err, ie.err)
@@ -202,7 +202,7 @@ func TestContextCancelledBeforeConnect(t *testing.T) {
 			ctx, cancel := context.WithCancel(context.Background())
 			cancel()
 
-			err := c.Connect(ctx)
+			_, err := c.Connect(ctx)
 			require.Error(t, err)
 			assert.Error(t, <-c.Terminated())
 		})
@@ -233,11 +233,11 @@ func TestConnectSucceeds(t *testing.T) {
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
 
-			err := c.Connect(ctx)
+			_, err := c.Connect(ctx)
 			require.NoError(t, err)
 
 			// Connect can't be called multiple times
-			err = c.Connect(ctx)
+			_, err = c.Connect(ctx)
 			assert.Equal(t, ErrConnectCalledMultipleTimes, err)
 		})
 	}
@@ -290,7 +290,7 @@ func TestCallbacksCalledOnConnectAndDisconnect(t *testing.T) {
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
 
-			err := c.Connect(ctx)
+			_, err := c.Connect(ctx)
 			require.NoError(t, err)
 
 			select {
@@ -396,7 +396,7 @@ func TestSubscribeMultipleCallsStocks(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	err := c.Connect(ctx)
+	_, err := c.Connect(ctx)
 	require.NoError(t, err)
 
 	subErrCh := make(chan error, 2)
@@ -430,8 +430,9 @@ func TestSubscribeCalledButClientTerminatesCrypto(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	err := c.Connect(ctx)
+	terminate, err := c.Connect(ctx)
 	require.NoError(t, err)
+	defer terminate()
 
 	checkInitialMessagesSentByClient(t, connection, "my_key", "my_secret", c.sub)
 	subErrCh := make(chan error, 1)
@@ -445,7 +446,7 @@ func TestSubscribeCalledButClientTerminatesCrypto(t *testing.T) {
 	require.Equal(t, "subscribe", subMsg["action"])
 	require.ElementsMatch(t, []string{"PACOIN"}, subMsg["trades"])
 	// terminating the client
-	c.Terminate()
+	terminate()
 
 	err = <-subErrCh
 	require.Error(t, err)
@@ -471,7 +472,7 @@ func TestSubscriptionTimeout(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	err := c.Connect(ctx)
+	_, err := c.Connect(ctx)
 	require.NoError(t, err)
 	checkInitialMessagesSentByClient(t, connection, "a", "b", subscriptions{})
 
@@ -526,7 +527,7 @@ func TestSubscriptionChangeInvalid(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	err := c.Connect(ctx)
+	_, err := c.Connect(ctx)
 	require.NoError(t, err)
 	checkInitialMessagesSentByClient(t, connection, "a", "b", subscriptions{})
 
@@ -566,7 +567,7 @@ func TestSubscriptionAcrossConnectionIssues(t *testing.T) {
 	defer cancel()
 
 	// connect
-	err := c.Connect(ctx)
+	_, err := c.Connect(ctx)
 	require.NoError(t, err)
 	checkInitialMessagesSentByClient(t, conn1, key, secret, subscriptions{})
 
@@ -672,7 +673,7 @@ func TestSubscriptionTwiceAcrossConnectionIssues(t *testing.T) {
 	defer cancel()
 
 	// connect
-	err := c.Connect(ctx)
+	_, err := c.Connect(ctx)
 	require.NoError(t, err)
 	// wait connect callback
 	<-connected
@@ -682,9 +683,9 @@ func TestSubscriptionTwiceAcrossConnectionIssues(t *testing.T) {
 	trades1 := []string{"AL", "PACA"}
 	subRes := make(chan error)
 	subFunc := func(ctx context.Context) {
-		ctx, cancel := context.WithTimeout(ctx, time.Second)
-		defer cancel()
-		subRes <- c.SubscribeToTrades(ctx, func(_ Trade) {}, "AL", "PACA")
+		tctx, tcancel := context.WithTimeout(ctx, time.Second)
+		defer tcancel()
+		subRes <- c.SubscribeToTrades(tctx, func(_ Trade) {}, "AL", "PACA")
 	}
 	go subFunc(ctx)
 	sub := expectWrite(t, conn1)
@@ -801,7 +802,7 @@ func TestSubscribeFailsDueToError(t *testing.T) {
 	defer cancel()
 
 	// connect
-	err := c.Connect(ctx)
+	_, err := c.Connect(ctx)
 	require.NoError(t, err)
 	checkInitialMessagesSentByClient(t, connection, "my_key", "my_secret", subscriptions{})
 
@@ -934,7 +935,8 @@ func TestCallbacksCalledOnBufferFill(t *testing.T) {
 		withConnCreator(func(_ context.Context, _ url.URL) (conn, error) { return connection, nil }),
 		WithTrades(func(t Trade) { trades <- t }, "ALPACA"),
 	)
-	require.NoError(t, c.Connect(ctx))
+	_, err := c.Connect(ctx)
+	require.NoError(t, err)
 
 	// The buffer size is 2 but we send at least 4 (2 buffer size, 1
 	// messageProcessor goroutine, 1 extra) trades to have a buffer fill. The
@@ -982,7 +984,7 @@ func TestPingFails(t *testing.T) {
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
 
-			err := c.Connect(ctx)
+			_, err := c.Connect(ctx)
 			require.NoError(t, err)
 
 			// replacing connCreator with a new one that returns an error
@@ -1057,7 +1059,7 @@ func TestCoreFunctionalityStocks(t *testing.T) {
 	defer cancel()
 
 	// connecting with the client
-	err := c.Connect(ctx)
+	_, err := c.Connect(ctx)
 	require.NoError(t, err)
 
 	// sending two bars and a quote
@@ -1278,7 +1280,7 @@ func TestCoreFunctionalityCrypto(t *testing.T) {
 	defer cancel()
 
 	// connecting with the client
-	err := c.Connect(ctx)
+	_, err := c.Connect(ctx)
 	require.NoError(t, err)
 
 	// sending three bars and a quote
@@ -1427,7 +1429,7 @@ func TestCoreFunctionalityOption(t *testing.T) {
 	defer cancel()
 
 	// connecting with the client
-	err := c.Connect(ctx)
+	_, err := c.Connect(ctx)
 	require.NoError(t, err)
 
 	connection.readCh <- serializeToMsgpack(t, []interface{}{
@@ -1495,7 +1497,7 @@ func TestCoreFunctionalityNews(t *testing.T) {
 	defer cancel()
 
 	// connecting with the client
-	err := c.Connect(ctx)
+	_, err := c.Connect(ctx)
 	require.NoError(t, err)
 
 	ts := time.Date(2021, 6, 2, 15, 12, 4, 3534, time.UTC)
@@ -1687,8 +1689,9 @@ func TestSubscribeCalledButClientTerminatesCryptoPerp(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	err := c.Connect(ctx)
+	terminate, err := c.Connect(ctx)
 	require.NoError(t, err)
+	defer terminate()
 
 	checkInitialMessagesSentByClient(t, connection, "my_key", "my_secret", c.sub)
 	subErrCh := make(chan error, 1)
@@ -1703,7 +1706,7 @@ func TestSubscribeCalledButClientTerminatesCryptoPerp(t *testing.T) {
 	require.Equal(t, "subscribe", subMsg["action"])
 	require.ElementsMatch(t, []string{"BTC-PERP"}, subMsg["trades"])
 	// terminating the client
-	c.Terminate()
+	terminate()
 
 	err = <-subErrCh
 	require.Error(t, err)
@@ -1731,7 +1734,7 @@ func TestSubscribeFailsDueToErrorCryptoPerp(t *testing.T) {
 	defer cancel()
 
 	// connect
-	err := c.Connect(ctx)
+	_, err := c.Connect(ctx)
 	require.NoError(t, err)
 	checkInitialMessagesSentByClient(t, connection, "my_key", "my_secret", c.sub)
 
@@ -1839,7 +1842,7 @@ func TestCoreFunctionalityCryptoPerp(t *testing.T) {
 	defer cancel()
 
 	// connecting with the client
-	err := c.Connect(ctx)
+	_, err := c.Connect(ctx)
 	require.NoError(t, err)
 
 	// sending three bars and a quote

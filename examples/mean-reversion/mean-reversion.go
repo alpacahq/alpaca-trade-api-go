@@ -93,10 +93,11 @@ func main() {
 	initialCtx, initialCancel := context.WithCancel(ctx)
 	defer initialCancel()
 
-	if err := a.streamClient.Connect(initialCtx); err != nil {
+	terminate, err := a.streamClient.Connect(initialCtx)
+	if err != nil {
 		log.Fatalf("Failed to connect to the marketdata stream: %v", err)
 	}
-	defer a.streamClient.Terminate()
+	defer terminate()
 
 	if err := a.streamClient.SubscribeToBars(initialCtx, func(bar stream.Bar) {
 		a.onBar(ctx, bar)

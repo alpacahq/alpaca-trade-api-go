@@ -61,9 +61,11 @@ func main() {
 		}
 	}()
 
-	if err := c.Connect(ctx); err != nil {
+	terminate, err := c.Connect(ctx)
+	if err != nil {
 		log.Fatalf("could not establish connection, error: %s", err)
 	}
+	defer terminate()
 	fmt.Println("established connection")
 
 	// starting a goroutine that checks whether the client has terminated

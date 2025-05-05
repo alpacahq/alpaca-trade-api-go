@@ -26,9 +26,11 @@ func main() {
 			fmt.Printf("ORDERBOOK: %+v\n", cob)
 		}, "BTC/USD"),
 	)
-	if err := c.Connect(ctx); err != nil {
+	terminate, err := c.Connect(ctx)
+	if err != nil {
 		panic(err)
 	}
+	defer terminate()
 	if err := <-c.Terminated(); err != nil {
 		panic(err)
 	}
