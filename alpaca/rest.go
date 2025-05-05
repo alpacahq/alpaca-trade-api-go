@@ -15,9 +15,10 @@ import (
 	"time"
 
 	"cloud.google.com/go/civil"
-	"github.com/alpacahq/alpaca-trade-api-go/v3/internal/ctxtime"
 	"github.com/mailru/easyjson"
 	"github.com/shopspring/decimal"
+
+	"github.com/alpacahq/alpaca-trade-api-go/v3/internal/ctxtime"
 )
 
 // ClientOpts contains options for the alpaca client

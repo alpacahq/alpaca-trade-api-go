@@ -6,8 +6,9 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/alpacahq/alpaca-trade-api-go/v3/internal/ctxtime"
 	"github.com/vmihailenco/msgpack/v5"
+
+	"github.com/alpacahq/alpaca-trade-api-go/v3/internal/ctxtime"
 )
 
 var (

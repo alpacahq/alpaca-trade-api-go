@@ -447,7 +447,7 @@ func (c *client) maintainConnection(initialCtx context.Context, u url.URL, initi
 			}
 			if err := ctxtime.Sleep(ctx, time.Duration(failedAttemptsInARow)*c.reconnectDelay); err != nil {
 				c.logger.Errorf("datav2stream: cancel reconnect: %v", err)
-				e := fmt.Errorf("cancel reconnect: %v", err)
+				e := fmt.Errorf("cancel reconnect: %w", err)
 				sendError(e)
 				return
 			}
