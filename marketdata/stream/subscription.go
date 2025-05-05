@@ -277,7 +277,7 @@ func (c *client) handleSubChange(ctx context.Context, subscribe bool, changes su
 		msg:    msg,
 	}
 
-	if err := c.setSubChangeRequest(&request); err != nil {
+	if err := c.setSubChangeRequest(ctx, &request); err != nil {
 		return err
 	}
 
@@ -299,7 +299,7 @@ func (c *client) handleSubChange(ctx context.Context, subscribe bool, changes su
 	}
 }
 
-func (c *client) setSubChangeRequest(request *subChangeRequest) error {
+func (c *client) setSubChangeRequest(ctx context.Context, request *subChangeRequest) error {
 	c.pendingSubChangeMutex.Lock()
 	defer c.pendingSubChangeMutex.Unlock()
 	if c.hasTerminated {
@@ -308,8 +308,12 @@ func (c *client) setSubChangeRequest(request *subChangeRequest) error {
 	if c.pendingSubChange != nil {
 		return ErrSubscriptionChangeAlreadyInProgress
 	}
-	c.pendingSubChange = request
-	c.subChanges <- request.msg
+	select {
+	case c.subChanges <- request.msg:
+		c.pendingSubChange = request
+	case <-ctx.Done():
+		return ctx.Err()
+	}
 	return nil
 }
 

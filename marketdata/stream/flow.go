@@ -43,7 +43,7 @@ func (c *client) initialize(ctx context.Context) error {
 			sleepDuration := 500 * time.Millisecond * time.Duration(authRetryDelayMultiplier*n)
 			c.logger.Infof("datav2stream: retrying auth in %s, attempt %d/%d", sleepDuration, i+1, authRetryCount+1)
 			if err := ctxtime.Sleep(ctx, sleepDuration); err != nil {
-				return fmt.Errorf("cancel retry: %w", err)
+				return fmt.Errorf("cancel retrying auth: %w", err)
 			}
 		}
 		writeAuthCtx, cancelWriteAuth := context.WithTimeout(ctx, initializeTimeout)

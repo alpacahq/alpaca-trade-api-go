@@ -113,7 +113,7 @@ func main() {
 		}
 		if !isOpen {
 			time.Sleep(1 * time.Minute)
-			return
+			continue
 		}
 		fmt.Printf("The market is open! Waiting for %s minute bars...\n", a.stock)
 
