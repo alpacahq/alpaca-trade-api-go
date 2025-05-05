@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -18,9 +19,9 @@ import (
 )
 
 // Get AAPL and MSFT trades from the tenth of a second of the 2021-08-09 market open
-func trades() {
-	marketdata.GetTrades("AAPL", marketdata.GetTradesRequest{})
-	multiTrades, err := marketdata.GetMultiTrades([]string{"AAPL", "MSFT"}, marketdata.GetTradesRequest{
+func trades(ctx context.Context) {
+	marketdata.GetTrades(ctx, "AAPL", marketdata.GetTradesRequest{})
+	multiTrades, err := marketdata.GetMultiTrades(ctx, []string{"AAPL", "MSFT"}, marketdata.GetTradesRequest{
 		Start: time.Date(2021, 8, 9, 13, 30, 0, 0, time.UTC),
 		End:   time.Date(2021, 8, 9, 13, 30, 0, 10000000, time.UTC),
 	})
@@ -34,8 +35,8 @@ func trades() {
 }
 
 // Get first 30 TSLA quotes from 2021-08-09 market open
-func quotes() {
-	quotes, err := marketdata.GetQuotes("TSLA", marketdata.GetQuotesRequest{
+func quotes(ctx context.Context) {
+	quotes, err := marketdata.GetQuotes(ctx, "TSLA", marketdata.GetQuotesRequest{
 		Start:      time.Date(2021, 8, 9, 13, 30, 0, 0, time.UTC),
 		TotalLimit: 30,
 	})
@@ -47,8 +48,8 @@ func quotes() {
 }
 
 // Get Facebook bars
-func bars() {
-	bars, err := marketdata.GetBars("META", marketdata.GetBarsRequest{
+func bars(ctx context.Context) {
+	bars, err := marketdata.GetBars(ctx, "META", marketdata.GetBarsRequest{
 		TimeFrame: marketdata.OneDay,
 		Start:     time.Date(2022, 6, 1, 0, 0, 0, 0, time.UTC),
 		End:       time.Date(2022, 6, 22, 0, 0, 0, 0, time.UTC),
@@ -62,16 +63,16 @@ func bars() {
 }
 
 // Get Average Daily Trading Volume
-func adtv() {
+func adtv(ctx context.Context) {
 	start := time.Date(2021, 8, 1, 0, 0, 0, 0, time.UTC)
 	end := time.Date(2021, 9, 1, 0, 0, 0, 0, time.UTC)
-	averageVolume, count, err := getADTV("AAPL", start, end)
+	averageVolume, count, err := getADTV(ctx, "AAPL", start, end)
 	must(err)
 	fmt.Printf("AAPL ADTV: %.2f (%d marketdays)\n", averageVolume, count)
 }
 
-func news() {
-	news, err := marketdata.GetNews(marketdata.GetNewsRequest{
+func news(ctx context.Context) {
+	news, err := marketdata.GetNews(ctx, marketdata.GetNewsRequest{
 		Symbols:    []string{"AAPL", "TSLA"},
 		Start:      time.Date(2021, 5, 6, 0, 0, 0, 0, time.UTC),
 		End:        time.Date(2021, 5, 7, 0, 0, 0, 0, time.UTC),
@@ -84,8 +85,8 @@ func news() {
 	}
 }
 
-func auctions() {
-	auctions, err := marketdata.GetAuctions("IBM", marketdata.GetAuctionsRequest{
+func auctions(ctx context.Context) {
+	auctions, err := marketdata.GetAuctions(ctx, "IBM", marketdata.GetAuctionsRequest{
 		Start: time.Date(2022, 10, 17, 0, 0, 0, 0, time.UTC),
 		End:   time.Date(2022, 10, 20, 0, 0, 0, 0, time.UTC),
 	})
@@ -107,38 +108,38 @@ func auctions() {
 	}
 }
 
-func cryptoSpot() {
+func cryptoSpot(ctx context.Context) {
 	fmt.Println("Latest BTC/USD marketdata:")
-	quote, err := marketdata.GetLatestCryptoQuote("BTC/USD", marketdata.GetLatestCryptoQuoteRequest{})
+	quote, err := marketdata.GetLatestCryptoQuote(ctx, "BTC/USD", marketdata.GetLatestCryptoQuoteRequest{})
 	must(err)
 	fmt.Printf(" Latest quote: %+v\n", quote)
-	trade, err := marketdata.GetLatestCryptoTrade("BTC/USD", marketdata.GetLatestCryptoTradeRequest{})
+	trade, err := marketdata.GetLatestCryptoTrade(ctx, "BTC/USD", marketdata.GetLatestCryptoTradeRequest{})
 	must(err)
 	fmt.Printf(" Latest trade: %+v\n", trade)
-	bar, err := marketdata.GetLatestCryptoBar("BTC/USD", marketdata.GetLatestCryptoBarRequest{})
+	bar, err := marketdata.GetLatestCryptoBar(ctx, "BTC/USD", marketdata.GetLatestCryptoBarRequest{})
 	must(err)
 	fmt.Printf(" Latest bar:   %+v\n", bar)
 }
 
-func cryptoPerp() {
+func cryptoPerp(ctx context.Context) {
 	fmt.Println("Latest BTC-PERP (crypto perpetual future) marketdata:")
-	quote, err := marketdata.GetLatestCryptoPerpQuote("BTC-PERP", marketdata.GetLatestCryptoQuoteRequest{})
+	quote, err := marketdata.GetLatestCryptoPerpQuote(ctx, "BTC-PERP", marketdata.GetLatestCryptoQuoteRequest{})
 	must(err)
 	fmt.Printf(" Latest quote:   %+v\n", quote)
-	trade, err := marketdata.GetLatestCryptoPerpTrade("BTC-PERP", marketdata.GetLatestCryptoTradeRequest{})
+	trade, err := marketdata.GetLatestCryptoPerpTrade(ctx, "BTC-PERP", marketdata.GetLatestCryptoTradeRequest{})
 	must(err)
 	fmt.Printf(" Latest trade:   %+v\n", trade)
-	bar, err := marketdata.GetLatestCryptoPerpBar("BTC-PERP", marketdata.GetLatestCryptoBarRequest{})
+	bar, err := marketdata.GetLatestCryptoPerpBar(ctx, "BTC-PERP", marketdata.GetLatestCryptoBarRequest{})
 	must(err)
 	fmt.Printf(" Latest bar:     %+v\n", bar)
-	pricing, err := marketdata.GetLatestCryptoPerpPricing("BTC-PERP", marketdata.GetLatestCryptoPerpPricingRequest{})
+	pricing, err := marketdata.GetLatestCryptoPerpPricing(ctx, "BTC-PERP", marketdata.GetLatestCryptoPerpPricingRequest{})
 	must(err)
 	fmt.Printf(" Latest pricing: %+v\n", pricing)
 }
 
-func optionChain() {
+func optionChain(ctx context.Context) {
 	fmt.Println("AAPL calls within 5 days")
-	chain, err := marketdata.GetOptionChain("AAPL", marketdata.GetOptionChainRequest{
+	chain, err := marketdata.GetOptionChain(ctx, "AAPL", marketdata.GetOptionChainRequest{
 		Type:              marketdata.Call,
 		ExpirationDateLte: civil.DateOf(time.Now()).AddDays(5),
 	})
@@ -191,8 +192,8 @@ func optionChain() {
 	tw.Flush()
 }
 
-func corporateActions() {
-	cas, err := marketdata.GetCorporateActions(marketdata.GetCorporateActionsRequest{
+func corporateActions(ctx context.Context) {
+	cas, err := marketdata.GetCorporateActions(ctx, marketdata.GetCorporateActionsRequest{
 		Symbols: []string{"TSLA"},
 		Types:   []string{"forward_split"},
 		Start:   civil.Date{Year: 2018, Month: 1, Day: 1},
@@ -206,7 +207,7 @@ func corporateActions() {
 
 type example struct {
 	Name string
-	Func func()
+	Func func(ctx context.Context)
 }
 
 func main() {
@@ -222,6 +223,7 @@ func main() {
 		{Name: "option_chain", Func: optionChain},
 		{Name: "corporate_actions", Func: corporateActions},
 	}
+	ctx := context.Background()
 	for {
 		fmt.Println("Examples: ")
 		for i, e := range examples {
@@ -247,14 +249,14 @@ func main() {
 			continue
 		}
 		fmt.Printf("Running example: %s\n", examples[idx].Name)
-		examples[idx].Func()
+		examples[idx].Func(ctx)
 		fmt.Println()
 	}
 }
 
-func getADTV(symbol string, start, end time.Time) (av float64, n int, err error) {
+func getADTV(ctx context.Context, symbol string, start, end time.Time) (av float64, n int, err error) {
 	var totalVolume uint64
-	bars, err := marketdata.GetBars(symbol, marketdata.GetBarsRequest{
+	bars, err := marketdata.GetBars(ctx, symbol, marketdata.GetBarsRequest{
 		Start: start,
 		End:   end,
 	})

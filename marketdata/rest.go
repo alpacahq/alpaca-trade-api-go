@@ -2,6 +2,7 @@ package marketdata
 
 import (
 	"compress/gzip"
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -16,6 +17,7 @@ import (
 	"github.com/mailru/easyjson"
 
 	"github.com/alpacahq/alpaca-trade-api-go/v3/alpaca"
+	"github.com/alpacahq/alpaca-trade-api-go/v3/internal/ctxtime"
 )
 
 // ClientOpts contains options for the alpaca marketdata client.
@@ -126,7 +128,9 @@ RetryLoop:
 		if i >= c.opts.RetryLimit {
 			break
 		}
-		time.Sleep(c.opts.RetryDelay)
+		if err := ctxtime.Sleep(req.Context(), c.opts.RetryDelay); err != nil {
+			return nil, err
+		}
 	}
 
 	if resp.StatusCode >= http.StatusMultipleChoices {
@@ -223,8 +227,10 @@ type GetTradesRequest struct {
 }
 
 // GetTrades returns the trades for the given symbol.
-func (c *Client) GetTrades(symbol string, req GetTradesRequest) ([]Trade, error) {
-	resp, err := c.GetMultiTrades([]string{symbol}, req)
+func (c *Client) GetTrades(
+	ctx context.Context, symbol string, req GetTradesRequest,
+) ([]Trade, error) {
+	resp, err := c.GetMultiTrades(ctx, []string{symbol}, req)
 	if err != nil {
 		return nil, err
 	}
@@ -232,7 +238,9 @@ func (c *Client) GetTrades(symbol string, req GetTradesRequest) ([]Trade, error)
 }
 
 // GetMultiTrades returns trades for the given symbols.
-func (c *Client) GetMultiTrades(symbols []string, req GetTradesRequest) (map[string][]Trade, error) {
+func (c *Client) GetMultiTrades(
+	ctx context.Context, symbols []string, req GetTradesRequest,
+) (map[string][]Trade, error) {
 	u, err := url.Parse(fmt.Sprintf("%s/%s/trades", c.opts.BaseURL, stockPrefix))
 	if err != nil {
 		return nil, err
@@ -255,7 +263,7 @@ func (c *Client) GetMultiTrades(symbols []string, req GetTradesRequest) (map[str
 		setQueryLimit(q, req.TotalLimit, req.PageLimit, received, v2MaxLimit)
 		u.RawQuery = q.Encode()
 
-		resp, err := c.get(u)
+		resp, err := c.get(ctx, u)
 		if err != nil {
 			return nil, err
 		}
@@ -299,8 +307,10 @@ type GetQuotesRequest struct {
 }
 
 // GetQuotes returns the quotes for the given symbol.
-func (c *Client) GetQuotes(symbol string, req GetQuotesRequest) ([]Quote, error) {
-	resp, err := c.GetMultiQuotes([]string{symbol}, req)
+func (c *Client) GetQuotes(
+	ctx context.Context, symbol string, req GetQuotesRequest,
+) ([]Quote, error) {
+	resp, err := c.GetMultiQuotes(ctx, []string{symbol}, req)
 	if err != nil {
 		return nil, err
 	}
@@ -308,7 +318,9 @@ func (c *Client) GetQuotes(symbol string, req GetQuotesRequest) ([]Quote, error)
 }
 
 // GetMultiQuotes returns quotes for the given symbols.
-func (c *Client) GetMultiQuotes(symbols []string, req GetQuotesRequest) (map[string][]Quote, error) {
+func (c *Client) GetMultiQuotes(
+	ctx context.Context, symbols []string, req GetQuotesRequest,
+) (map[string][]Quote, error) {
 	u, err := url.Parse(fmt.Sprintf("%s/%s/quotes", c.opts.BaseURL, stockPrefix))
 	if err != nil {
 		return nil, err
@@ -331,7 +343,7 @@ func (c *Client) GetMultiQuotes(symbols []string, req GetQuotesRequest) (map[str
 		setQueryLimit(q, req.TotalLimit, req.PageLimit, received, v2MaxLimit)
 		u.RawQuery = q.Encode()
 
-		resp, err := c.get(u)
+		resp, err := c.get(ctx, u)
 		if err != nil {
 			return nil, err
 		}
@@ -402,8 +414,10 @@ func (c *Client) setQueryBarRequest(q url.Values, symbols []string, req GetBarsR
 }
 
 // GetBars returns a slice of bars for the given symbol.
-func (c *Client) GetBars(symbol string, req GetBarsRequest) ([]Bar, error) {
-	resp, err := c.GetMultiBars([]string{symbol}, req)
+func (c *Client) GetBars(
+	ctx context.Context, symbol string, req GetBarsRequest,
+) ([]Bar, error) {
+	resp, err := c.GetMultiBars(ctx, []string{symbol}, req)
 	if err != nil {
 		return nil, err
 	}
@@ -411,7 +425,9 @@ func (c *Client) GetBars(symbol string, req GetBarsRequest) ([]Bar, error) {
 }
 
 // GetMultiBars returns bars for the given symbols.
-func (c *Client) GetMultiBars(symbols []string, req GetBarsRequest) (map[string][]Bar, error) {
+func (c *Client) GetMultiBars(
+	ctx context.Context, symbols []string, req GetBarsRequest,
+) (map[string][]Bar, error) {
 	bars := make(map[string][]Bar, len(symbols))
 
 	u, err := url.Parse(fmt.Sprintf("%s/%s/bars", c.opts.BaseURL, stockPrefix))
@@ -427,7 +443,7 @@ func (c *Client) GetMultiBars(symbols []string, req GetBarsRequest) (map[string]
 		setQueryLimit(q, req.TotalLimit, req.PageLimit, received, v2MaxLimit)
 		u.RawQuery = q.Encode()
 
-		resp, err := c.get(u)
+		resp, err := c.get(ctx, u)
 		if err != nil {
 			return nil, err
 		}
@@ -469,8 +485,10 @@ type GetAuctionsRequest struct {
 }
 
 // GetAuctions returns the auctions for the given symbol.
-func (c *Client) GetAuctions(symbol string, req GetAuctionsRequest) ([]DailyAuctions, error) {
-	resp, err := c.GetMultiAuctions([]string{symbol}, req)
+func (c *Client) GetAuctions(
+	ctx context.Context, symbol string, req GetAuctionsRequest,
+) ([]DailyAuctions, error) {
+	resp, err := c.GetMultiAuctions(ctx, []string{symbol}, req)
 	if err != nil {
 		return nil, err
 	}
@@ -479,6 +497,7 @@ func (c *Client) GetAuctions(symbol string, req GetAuctionsRequest) ([]DailyAuct
 
 // GetMultiAuctions returns auctions for the given symbols.
 func (c *Client) GetMultiAuctions(
+	ctx context.Context,
 	symbols []string, req GetAuctionsRequest,
 ) (map[string][]DailyAuctions, error) {
 	u, err := url.Parse(fmt.Sprintf("%s/%s/auctions", c.opts.BaseURL, stockPrefix))
@@ -503,7 +522,7 @@ func (c *Client) GetMultiAuctions(
 		setQueryLimit(q, req.TotalLimit, req.PageLimit, received, v2MaxLimit)
 		u.RawQuery = q.Encode()
 
-		resp, err := c.get(u)
+		resp, err := c.get(ctx, u)
 		if err != nil {
 			return nil, err
 		}
@@ -556,8 +575,10 @@ type GetLatestBarRequest struct {
 }
 
 // GetLatestBar returns the latest minute bar for a given symbol
-func (c *Client) GetLatestBar(symbol string, req GetLatestBarRequest) (*Bar, error) {
-	resp, err := c.GetLatestBars([]string{symbol}, req)
+func (c *Client) GetLatestBar(
+	ctx context.Context, symbol string, req GetLatestBarRequest,
+) (*Bar, error) {
+	resp, err := c.GetLatestBars(ctx, []string{symbol}, req)
 	if err != nil {
 		return nil, err
 	}
@@ -569,7 +590,9 @@ func (c *Client) GetLatestBar(symbol string, req GetLatestBarRequest) (*Bar, err
 }
 
 // GetLatestBars returns the latest minute bars for the given symbols
-func (c *Client) GetLatestBars(symbols []string, req GetLatestBarRequest) (map[string]Bar, error) {
+func (c *Client) GetLatestBars(
+	ctx context.Context, symbols []string, req GetLatestBarRequest,
+) (map[string]Bar, error) {
 	u, err := url.Parse(fmt.Sprintf("%s/%s/bars/latest", c.opts.BaseURL, stockPrefix))
 	if err != nil {
 		return nil, err
@@ -580,7 +603,7 @@ func (c *Client) GetLatestBars(symbols []string, req GetLatestBarRequest) (map[s
 		Currency: req.Currency,
 	})
 
-	resp, err := c.get(u)
+	resp, err := c.get(ctx, u)
 	if err != nil {
 		return nil, err
 	}
@@ -599,8 +622,10 @@ type GetLatestTradeRequest struct {
 }
 
 // GetLatestTrade returns the latest trade for a given symbol
-func (c *Client) GetLatestTrade(symbol string, req GetLatestTradeRequest) (*Trade, error) {
-	resp, err := c.GetLatestTrades([]string{symbol}, req)
+func (c *Client) GetLatestTrade(
+	ctx context.Context, symbol string, req GetLatestTradeRequest,
+) (*Trade, error) {
+	resp, err := c.GetLatestTrades(ctx, []string{symbol}, req)
 	if err != nil {
 		return nil, err
 	}
@@ -612,7 +637,9 @@ func (c *Client) GetLatestTrade(symbol string, req GetLatestTradeRequest) (*Trad
 }
 
 // GetLatestTrades returns the latest trades for the given symbols
-func (c *Client) GetLatestTrades(symbols []string, req GetLatestTradeRequest) (map[string]Trade, error) {
+func (c *Client) GetLatestTrades(
+	ctx context.Context, symbols []string, req GetLatestTradeRequest,
+) (map[string]Trade, error) {
 	u, err := url.Parse(fmt.Sprintf("%s/%s/trades/latest", c.opts.BaseURL, stockPrefix))
 	if err != nil {
 		return nil, err
@@ -623,7 +650,7 @@ func (c *Client) GetLatestTrades(symbols []string, req GetLatestTradeRequest) (m
 		Currency: req.Currency,
 	})
 
-	resp, err := c.get(u)
+	resp, err := c.get(ctx, u)
 	if err != nil {
 		return nil, err
 	}
@@ -642,8 +669,10 @@ type GetLatestQuoteRequest struct {
 }
 
 // GetLatestQuote returns the latest quote for a given symbol
-func (c *Client) GetLatestQuote(symbol string, req GetLatestQuoteRequest) (*Quote, error) {
-	resp, err := c.GetLatestQuotes([]string{symbol}, req)
+func (c *Client) GetLatestQuote(
+	ctx context.Context, symbol string, req GetLatestQuoteRequest,
+) (*Quote, error) {
+	resp, err := c.GetLatestQuotes(ctx, []string{symbol}, req)
 	if err != nil {
 		return nil, err
 	}
@@ -655,7 +684,9 @@ func (c *Client) GetLatestQuote(symbol string, req GetLatestQuoteRequest) (*Quot
 }
 
 // GetLatestQuotes returns the latest quotes for the given symbols
-func (c *Client) GetLatestQuotes(symbols []string, req GetLatestQuoteRequest) (map[string]Quote, error) {
+func (c *Client) GetLatestQuotes(
+	ctx context.Context, symbols []string, req GetLatestQuoteRequest,
+) (map[string]Quote, error) {
 	u, err := url.Parse(fmt.Sprintf("%s/%s/quotes/latest", c.opts.BaseURL, stockPrefix))
 	if err != nil {
 		return nil, err
@@ -666,7 +697,7 @@ func (c *Client) GetLatestQuotes(symbols []string, req GetLatestQuoteRequest) (m
 		Currency: req.Currency,
 	})
 
-	resp, err := c.get(u)
+	resp, err := c.get(ctx, u)
 	if err != nil {
 		return nil, err
 	}
@@ -685,8 +716,10 @@ type GetSnapshotRequest struct {
 }
 
 // GetSnapshot returns the snapshot for a given symbol
-func (c *Client) GetSnapshot(symbol string, req GetSnapshotRequest) (*Snapshot, error) {
-	resp, err := c.GetSnapshots([]string{symbol}, req)
+func (c *Client) GetSnapshot(
+	ctx context.Context, symbol string, req GetSnapshotRequest,
+) (*Snapshot, error) {
+	resp, err := c.GetSnapshots(ctx, []string{symbol}, req)
 	if err != nil {
 		return nil, err
 	}
@@ -694,7 +727,9 @@ func (c *Client) GetSnapshot(symbol string, req GetSnapshotRequest) (*Snapshot, 
 }
 
 // GetSnapshots returns the snapshots for multiple symbol
-func (c *Client) GetSnapshots(symbols []string, req GetSnapshotRequest) (map[string]*Snapshot, error) {
+func (c *Client) GetSnapshots(
+	ctx context.Context, symbols []string, req GetSnapshotRequest,
+) (map[string]*Snapshot, error) {
 	u, err := url.Parse(fmt.Sprintf("%s/%s/snapshots", c.opts.BaseURL, stockPrefix))
 	if err != nil {
 		return nil, err
@@ -705,7 +740,7 @@ func (c *Client) GetSnapshots(symbols []string, req GetSnapshotRequest) (map[str
 		Currency: req.Currency,
 	})
 
-	resp, err := c.get(u)
+	resp, err := c.get(ctx, u)
 	if err != nil {
 		return nil, err
 	}
@@ -766,8 +801,10 @@ func (r GetCryptoTradesRequest) cryptoFeed() CryptoFeed { return r.CryptoFeed }
 func (r GetCryptoTradesRequest) isPerp() bool           { return r.perpetualFutures }
 
 // GetCryptoTrades returns the trades for the given crypto symbol.
-func (c *Client) GetCryptoTrades(symbol string, req GetCryptoTradesRequest) ([]CryptoTrade, error) {
-	resp, err := c.GetCryptoMultiTrades([]string{symbol}, req)
+func (c *Client) GetCryptoTrades(
+	ctx context.Context, symbol string, req GetCryptoTradesRequest,
+) ([]CryptoTrade, error) {
+	resp, err := c.GetCryptoMultiTrades(ctx, []string{symbol}, req)
 	if err != nil {
 		return nil, err
 	}
@@ -775,7 +812,9 @@ func (c *Client) GetCryptoTrades(symbol string, req GetCryptoTradesRequest) ([]C
 }
 
 // GetCryptoMultiTrades returns trades for the given crypto symbols.
-func (c *Client) GetCryptoMultiTrades(symbols []string, req GetCryptoTradesRequest) (map[string][]CryptoTrade, error) {
+func (c *Client) GetCryptoMultiTrades(
+	ctx context.Context, symbols []string, req GetCryptoTradesRequest,
+) (map[string][]CryptoTrade, error) {
 	u, err := url.Parse(fmt.Sprintf("%s/trades", c.cryptoURL(req)))
 	if err != nil {
 		return nil, err
@@ -795,7 +834,7 @@ func (c *Client) GetCryptoMultiTrades(symbols []string, req GetCryptoTradesReque
 		setQueryLimit(q, req.TotalLimit, req.PageLimit, received, v2MaxLimit)
 		u.RawQuery = q.Encode()
 
-		resp, err := c.get(u)
+		resp, err := c.get(ctx, u)
 		if err != nil {
 			return nil, err
 		}
@@ -840,8 +879,10 @@ func (r GetCryptoQuotesRequest) cryptoFeed() CryptoFeed { return r.CryptoFeed }
 func (r GetCryptoQuotesRequest) isPerp() bool           { return r.perpetualFutures }
 
 // GetCryptoQuotes returns the trades for the given crypto symbol.
-func (c *Client) GetCryptoQuotes(symbol string, req GetCryptoQuotesRequest) ([]CryptoQuote, error) {
-	resp, err := c.GetCryptoMultiQuotes([]string{symbol}, req)
+func (c *Client) GetCryptoQuotes(
+	ctx context.Context, symbol string, req GetCryptoQuotesRequest,
+) ([]CryptoQuote, error) {
+	resp, err := c.GetCryptoMultiQuotes(ctx, []string{symbol}, req)
 	if err != nil {
 		return nil, err
 	}
@@ -849,7 +890,9 @@ func (c *Client) GetCryptoQuotes(symbol string, req GetCryptoQuotesRequest) ([]C
 }
 
 // GetCryptoMultiQuotes returns quotes for the given crypto symbols.
-func (c *Client) GetCryptoMultiQuotes(symbols []string, req GetCryptoQuotesRequest) (map[string][]CryptoQuote, error) {
+func (c *Client) GetCryptoMultiQuotes(
+	ctx context.Context, symbols []string, req GetCryptoQuotesRequest,
+) (map[string][]CryptoQuote, error) {
 	u, err := url.Parse(fmt.Sprintf("%s/quotes", c.cryptoURL(req)))
 	if err != nil {
 		return nil, err
@@ -869,7 +912,7 @@ func (c *Client) GetCryptoMultiQuotes(symbols []string, req GetCryptoQuotesReque
 		setQueryLimit(q, req.TotalLimit, req.PageLimit, received, v2MaxLimit)
 		u.RawQuery = q.Encode()
 
-		resp, err := c.get(u)
+		resp, err := c.get(ctx, u)
 		if err != nil {
 			return nil, err
 		}
@@ -930,8 +973,10 @@ func setQueryCryptoBarRequest(q url.Values, symbols []string, req GetCryptoBarsR
 }
 
 // GetCryptoBars returns a slice of bars for the given crypto symbol.
-func (c *Client) GetCryptoBars(symbol string, req GetCryptoBarsRequest) ([]CryptoBar, error) {
-	resp, err := c.GetCryptoMultiBars([]string{symbol}, req)
+func (c *Client) GetCryptoBars(
+	ctx context.Context, symbol string, req GetCryptoBarsRequest,
+) ([]CryptoBar, error) {
+	resp, err := c.GetCryptoMultiBars(ctx, []string{symbol}, req)
 	if err != nil {
 		return nil, err
 	}
@@ -939,7 +984,9 @@ func (c *Client) GetCryptoBars(symbol string, req GetCryptoBarsRequest) ([]Crypt
 }
 
 // GetCryptoMultiBars returns bars for the given crypto symbols.
-func (c *Client) GetCryptoMultiBars(symbols []string, req GetCryptoBarsRequest) (map[string][]CryptoBar, error) {
+func (c *Client) GetCryptoMultiBars(
+	ctx context.Context, symbols []string, req GetCryptoBarsRequest,
+) (map[string][]CryptoBar, error) {
 	u, err := url.Parse(fmt.Sprintf("%s/%s/%s/bars",
 		c.opts.BaseURL, cryptoPrefix, c.cryptoFeed(req.CryptoFeed)))
 	if err != nil {
@@ -955,7 +1002,7 @@ func (c *Client) GetCryptoMultiBars(symbols []string, req GetCryptoBarsRequest) 
 		setQueryLimit(q, req.TotalLimit, req.PageLimit, received, v2MaxLimit)
 		u.RawQuery = q.Encode()
 
-		resp, err := c.get(u)
+		resp, err := c.get(ctx, u)
 		if err != nil {
 			return nil, err
 		}
@@ -1028,8 +1075,10 @@ func (c *Client) cryptoURL(fromReq cryptoRequest) string {
 }
 
 // GetLatestCryptoBar returns the latest bar for a given crypto symbol
-func (c *Client) GetLatestCryptoBar(symbol string, req GetLatestCryptoBarRequest) (*CryptoBar, error) {
-	resp, err := c.GetLatestCryptoBars([]string{symbol}, req)
+func (c *Client) GetLatestCryptoBar(
+	ctx context.Context, symbol string, req GetLatestCryptoBarRequest,
+) (*CryptoBar, error) {
+	resp, err := c.GetLatestCryptoBars(ctx, []string{symbol}, req)
 	if err != nil {
 		return nil, err
 	}
@@ -1041,10 +1090,12 @@ func (c *Client) GetLatestCryptoBar(symbol string, req GetLatestCryptoBarRequest
 }
 
 // GetLatestCryptoPerpBar returns the latest bar for a given crypto perpetual future
-func (c *Client) GetLatestCryptoPerpBar(symbol string, req GetLatestCryptoBarRequest) (*CryptoPerpBar, error) {
+func (c *Client) GetLatestCryptoPerpBar(
+	ctx context.Context, symbol string, req GetLatestCryptoBarRequest,
+) (*CryptoPerpBar, error) {
 	req.perpetualFutures = true
 
-	latestBar, err := c.GetLatestCryptoBars([]string{symbol}, req)
+	latestBar, err := c.GetLatestCryptoBars(ctx, []string{symbol}, req)
 	if err != nil {
 		return nil, err
 	}
@@ -1058,11 +1109,11 @@ func (c *Client) GetLatestCryptoPerpBar(symbol string, req GetLatestCryptoBarReq
 
 // GetLatestCryptoPerpBars returns the latest bars for the given crypto perpetual futures
 func (c *Client) GetLatestCryptoPerpBars(
-	symbols []string, req GetLatestCryptoBarRequest,
+	ctx context.Context, symbols []string, req GetLatestCryptoBarRequest,
 ) (map[string]CryptoPerpBar, error) {
 	req.perpetualFutures = true
 
-	bars, err := c.GetLatestCryptoBars(symbols, req)
+	bars, err := c.GetLatestCryptoBars(ctx, symbols, req)
 	if err != nil {
 		return nil, err
 	}
@@ -1075,7 +1126,9 @@ func (c *Client) GetLatestCryptoPerpBars(
 }
 
 // GetLatestCryptoBars returns the latest bars for the given crypto symbols
-func (c *Client) GetLatestCryptoBars(symbols []string, req GetLatestCryptoBarRequest) (map[string]CryptoBar, error) {
+func (c *Client) GetLatestCryptoBars(
+	ctx context.Context, symbols []string, req GetLatestCryptoBarRequest,
+) (map[string]CryptoBar, error) {
 	u, err := url.Parse(fmt.Sprintf("%s/latest/bars", c.cryptoURL(req)))
 	if err != nil {
 		return nil, err
@@ -1084,7 +1137,7 @@ func (c *Client) GetLatestCryptoBars(symbols []string, req GetLatestCryptoBarReq
 		Symbols: symbols,
 	})
 
-	resp, err := c.get(u)
+	resp, err := c.get(ctx, u)
 	if err != nil {
 		return nil, err
 	}
@@ -1107,8 +1160,10 @@ func (r GetLatestCryptoTradeRequest) cryptoFeed() CryptoFeed { return r.CryptoFe
 func (r GetLatestCryptoTradeRequest) isPerp() bool           { return r.perpetualFutures }
 
 // GetLatestCryptoTrade returns the latest trade for a given crypto symbol
-func (c *Client) GetLatestCryptoTrade(symbol string, req GetLatestCryptoTradeRequest) (*CryptoTrade, error) {
-	resp, err := c.GetLatestCryptoTrades([]string{symbol}, req)
+func (c *Client) GetLatestCryptoTrade(
+	ctx context.Context, symbol string, req GetLatestCryptoTradeRequest,
+) (*CryptoTrade, error) {
+	resp, err := c.GetLatestCryptoTrades(ctx, []string{symbol}, req)
 	if err != nil {
 		return nil, err
 	}
@@ -1120,10 +1175,12 @@ func (c *Client) GetLatestCryptoTrade(symbol string, req GetLatestCryptoTradeReq
 }
 
 // GetLatestCryptoPerpTrade returns the latest trade for a given crypto perp symbol
-func (c *Client) GetLatestCryptoPerpTrade(symbol string, req GetLatestCryptoTradeRequest) (*CryptoPerpTrade, error) {
+func (c *Client) GetLatestCryptoPerpTrade(
+	ctx context.Context, symbol string, req GetLatestCryptoTradeRequest,
+) (*CryptoPerpTrade, error) {
 	req.perpetualFutures = true
 
-	latestTrade, err := c.GetLatestCryptoTrade(symbol, req)
+	latestTrade, err := c.GetLatestCryptoTrade(ctx, symbol, req)
 	if err != nil {
 		return nil, err
 	}
@@ -1134,11 +1191,11 @@ func (c *Client) GetLatestCryptoPerpTrade(symbol string, req GetLatestCryptoTrad
 
 // GetLatestCryptoPerpTrades returns the latest trades for the given crypto perpetual futures
 func (c *Client) GetLatestCryptoPerpTrades(
-	symbols []string, req GetLatestCryptoTradeRequest,
+	ctx context.Context, symbols []string, req GetLatestCryptoTradeRequest,
 ) (map[string]CryptoPerpTrade, error) {
 	req.perpetualFutures = true
 
-	trades, err := c.GetLatestCryptoTrades(symbols, req)
+	trades, err := c.GetLatestCryptoTrades(ctx, symbols, req)
 	if err != nil {
 		return nil, err
 	}
@@ -1153,7 +1210,7 @@ func (c *Client) GetLatestCryptoPerpTrades(
 
 // GetLatestCryptoTrades returns the latest trades for the given crypto symbols
 func (c *Client) GetLatestCryptoTrades(
-	symbols []string, req GetLatestCryptoTradeRequest,
+	ctx context.Context, symbols []string, req GetLatestCryptoTradeRequest,
 ) (map[string]CryptoTrade, error) {
 	u, err := url.Parse(fmt.Sprintf("%s/latest/trades", c.cryptoURL(req)))
 	if err != nil {
@@ -1163,7 +1220,7 @@ func (c *Client) GetLatestCryptoTrades(
 		Symbols: symbols,
 	})
 
-	resp, err := c.get(u)
+	resp, err := c.get(ctx, u)
 	if err != nil {
 		return nil, err
 	}
@@ -1186,8 +1243,10 @@ func (r GetLatestCryptoQuoteRequest) cryptoFeed() CryptoFeed { return r.CryptoFe
 func (r GetLatestCryptoQuoteRequest) isPerp() bool           { return r.perpetualFutures }
 
 // GetLatestCryptoQuote returns the latest quote for a given crypto symbol
-func (c *Client) GetLatestCryptoQuote(symbol string, req GetLatestCryptoQuoteRequest) (*CryptoQuote, error) {
-	resp, err := c.GetLatestCryptoQuotes([]string{symbol}, req)
+func (c *Client) GetLatestCryptoQuote(
+	ctx context.Context, symbol string, req GetLatestCryptoQuoteRequest,
+) (*CryptoQuote, error) {
+	resp, err := c.GetLatestCryptoQuotes(ctx, []string{symbol}, req)
 	if err != nil {
 		return nil, err
 	}
@@ -1199,10 +1258,12 @@ func (c *Client) GetLatestCryptoQuote(symbol string, req GetLatestCryptoQuoteReq
 }
 
 // GetLatestCryptoPerpQuote returns the latest quote for a given crypto perp symbol
-func (c *Client) GetLatestCryptoPerpQuote(symbol string, req GetLatestCryptoQuoteRequest) (*CryptoPerpQuote, error) {
+func (c *Client) GetLatestCryptoPerpQuote(
+	ctx context.Context, symbol string, req GetLatestCryptoQuoteRequest,
+) (*CryptoPerpQuote, error) {
 	req.perpetualFutures = true
 
-	latestQuote, err := c.GetLatestCryptoQuote(symbol, req)
+	latestQuote, err := c.GetLatestCryptoQuote(ctx, symbol, req)
 	if err != nil {
 		return nil, err
 	}
@@ -1213,11 +1274,11 @@ func (c *Client) GetLatestCryptoPerpQuote(symbol string, req GetLatestCryptoQuot
 
 // GetLatestCryptoPerpQuotes returns the latest quotes for the given crypto perpetual futures
 func (c *Client) GetLatestCryptoPerpQuotes(
-	symbols []string, req GetLatestCryptoQuoteRequest,
+	ctx context.Context, symbols []string, req GetLatestCryptoQuoteRequest,
 ) (map[string]CryptoPerpQuote, error) {
 	req.perpetualFutures = true
 
-	quotes, err := c.GetLatestCryptoQuotes(symbols, req)
+	quotes, err := c.GetLatestCryptoQuotes(ctx, symbols, req)
 	if err != nil {
 		return nil, err
 	}
@@ -1232,7 +1293,7 @@ func (c *Client) GetLatestCryptoPerpQuotes(
 
 // GetLatestCryptoQuotes returns the latest quotes for the given crypto symbols
 func (c *Client) GetLatestCryptoQuotes(
-	symbols []string, req GetLatestCryptoQuoteRequest,
+	ctx context.Context, symbols []string, req GetLatestCryptoQuoteRequest,
 ) (map[string]CryptoQuote, error) {
 	u, err := url.Parse(fmt.Sprintf("%s/latest/quotes", c.cryptoURL(req)))
 	if err != nil {
@@ -1242,7 +1303,7 @@ func (c *Client) GetLatestCryptoQuotes(
 		Symbols: symbols,
 	})
 
-	resp, err := c.get(u)
+	resp, err := c.get(ctx, u)
 	if err != nil {
 		return nil, err
 	}
@@ -1265,11 +1326,11 @@ func (r GetLatestCryptoPerpPricingRequest) cryptoFeed() CryptoFeed { return r.Cr
 func (r GetLatestCryptoPerpPricingRequest) isPerp() bool           { return r.perpetualFutures }
 
 func (c *Client) GetLatestCryptoPerpPricing(
-	symbol string, req GetLatestCryptoPerpPricingRequest,
+	ctx context.Context, symbol string, req GetLatestCryptoPerpPricingRequest,
 ) (*CryptoPerpPricing, error) {
 	req.perpetualFutures = true
 
-	resp, err := c.GetLatestCryptoPerpPricingData([]string{symbol}, req)
+	resp, err := c.GetLatestCryptoPerpPricingData(ctx, []string{symbol}, req)
 	if err != nil {
 		return nil, err
 	}
@@ -1282,7 +1343,7 @@ func (c *Client) GetLatestCryptoPerpPricing(
 
 // GetLatestCryptoPerpPricingData returns the latest pricing data for the given perp symbols
 func (c *Client) GetLatestCryptoPerpPricingData(
-	symbols []string, req GetLatestCryptoPerpPricingRequest,
+	ctx context.Context, symbols []string, req GetLatestCryptoPerpPricingRequest,
 ) (map[string]CryptoPerpPricing, error) {
 	u, err := url.Parse(fmt.Sprintf("%s/latest/pricing", c.cryptoURL(req)))
 	if err != nil {
@@ -1292,7 +1353,7 @@ func (c *Client) GetLatestCryptoPerpPricingData(
 		Symbols: symbols,
 	})
 
-	resp, err := c.get(u)
+	resp, err := c.get(ctx, u)
 	if err != nil {
 		return nil, err
 	}
@@ -1315,8 +1376,10 @@ func (r GetCryptoSnapshotRequest) cryptoFeed() CryptoFeed { return r.CryptoFeed 
 func (r GetCryptoSnapshotRequest) isPerp() bool           { return r.perpetualFutures }
 
 // GetCryptoSnapshot returns the snapshot for a given crypto symbol
-func (c *Client) GetCryptoSnapshot(symbol string, req GetCryptoSnapshotRequest) (*CryptoSnapshot, error) {
-	resp, err := c.GetCryptoSnapshots([]string{symbol}, req)
+func (c *Client) GetCryptoSnapshot(
+	ctx context.Context, symbol string, req GetCryptoSnapshotRequest,
+) (*CryptoSnapshot, error) {
+	resp, err := c.GetCryptoSnapshots(ctx, []string{symbol}, req)
 	if err != nil {
 		return nil, err
 	}
@@ -1328,7 +1391,9 @@ func (c *Client) GetCryptoSnapshot(symbol string, req GetCryptoSnapshotRequest) 
 }
 
 // GetCryptoSnapshots returns the snapshots for the given crypto symbols
-func (c *Client) GetCryptoSnapshots(symbols []string, req GetCryptoSnapshotRequest) (map[string]CryptoSnapshot, error) {
+func (c *Client) GetCryptoSnapshots(
+	ctx context.Context, symbols []string, req GetCryptoSnapshotRequest,
+) (map[string]CryptoSnapshot, error) {
 	u, err := url.Parse(fmt.Sprintf("%s/snapshots", c.cryptoURL(req)))
 	if err != nil {
 		return nil, err
@@ -1337,7 +1402,7 @@ func (c *Client) GetCryptoSnapshots(symbols []string, req GetCryptoSnapshotReque
 		Symbols: symbols,
 	})
 
-	resp, err := c.get(u)
+	resp, err := c.get(ctx, u)
 	if err != nil {
 		return nil, err
 	}
@@ -1416,7 +1481,9 @@ func (c *Client) setNewsQuery(q url.Values, p GetNewsRequest) {
 }
 
 // GetNews returns the news articles based on the given req.
-func (c *Client) GetNews(req GetNewsRequest) ([]News, error) {
+func (c *Client) GetNews(
+	ctx context.Context, req GetNewsRequest,
+) ([]News, error) {
 	if req.TotalLimit < 0 {
 		return nil, errors.New("negative total limit")
 	}
@@ -1444,7 +1511,7 @@ func (c *Client) GetNews(req GetNewsRequest) ([]News, error) {
 		setQueryLimit(q, totalLimit, req.PageLimit, received, newsMaxLimit)
 		u.RawQuery = q.Encode()
 
-		resp, err := c.get(u)
+		resp, err := c.get(ctx, u)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get news: %w", err)
 		}
@@ -1499,7 +1566,9 @@ type GetCorporateActionsRequest struct {
 }
 
 // GetCorporateActions returns the corporate actions based on the given req.
-func (c *Client) GetCorporateActions(req GetCorporateActionsRequest) (CorporateActions, error) {
+func (c *Client) GetCorporateActions(
+	ctx context.Context, req GetCorporateActionsRequest,
+) (CorporateActions, error) {
 	u, err := url.Parse(fmt.Sprintf("%s/v1/corporate-actions", c.opts.BaseURL))
 	if err != nil {
 		return CorporateActions{}, err
@@ -1528,7 +1597,7 @@ func (c *Client) GetCorporateActions(req GetCorporateActionsRequest) (CorporateA
 		setQueryLimit(q, req.TotalLimit, req.PageLimit, received, v2MaxLimit)
 		u.RawQuery = q.Encode()
 
-		resp, err := c.get(u)
+		resp, err := c.get(ctx, u)
 		if err != nil {
 			return cas, err
 		}
@@ -1565,202 +1634,282 @@ func (c *Client) GetCorporateActions(req GetCorporateActionsRequest) (CorporateA
 }
 
 // GetTrades returns the trades for the given symbol.
-func GetTrades(symbol string, req GetTradesRequest) ([]Trade, error) {
-	return DefaultClient.GetTrades(symbol, req)
+func GetTrades(
+	ctx context.Context, symbol string, req GetTradesRequest,
+) ([]Trade, error) {
+	return DefaultClient.GetTrades(ctx, symbol, req)
 }
 
 // GetMultiTrades returns the trades for the given symbols.
-func GetMultiTrades(symbols []string, req GetTradesRequest) (map[string][]Trade, error) {
-	return DefaultClient.GetMultiTrades(symbols, req)
+func GetMultiTrades(
+	ctx context.Context, symbols []string, req GetTradesRequest,
+) (map[string][]Trade, error) {
+	return DefaultClient.GetMultiTrades(ctx, symbols, req)
 }
 
 // GetQuotes returns the quotes for the given symbol.
-func GetQuotes(symbol string, req GetQuotesRequest) ([]Quote, error) {
-	return DefaultClient.GetQuotes(symbol, req)
+func GetQuotes(
+	ctx context.Context, symbol string, req GetQuotesRequest,
+) ([]Quote, error) {
+	return DefaultClient.GetQuotes(ctx, symbol, req)
 }
 
 // GetMultiQuotes returns the quotes for the given symbols.
-func GetMultiQuotes(symbols []string, req GetQuotesRequest) (map[string][]Quote, error) {
-	return DefaultClient.GetMultiQuotes(symbols, req)
+func GetMultiQuotes(
+	ctx context.Context, symbols []string, req GetQuotesRequest,
+) (map[string][]Quote, error) {
+	return DefaultClient.GetMultiQuotes(ctx, symbols, req)
 }
 
 // GetBars returns the bars for the given symbol.
-func GetBars(symbol string, req GetBarsRequest) ([]Bar, error) {
-	return DefaultClient.GetBars(symbol, req)
+func GetBars(
+	ctx context.Context, symbol string, req GetBarsRequest,
+) ([]Bar, error) {
+	return DefaultClient.GetBars(ctx, symbol, req)
 }
 
 // GetMultiBars returns the bars for the given symbols.
-func GetMultiBars(symbols []string, req GetBarsRequest) (map[string][]Bar, error) {
-	return DefaultClient.GetMultiBars(symbols, req)
+func GetMultiBars(
+	ctx context.Context, symbols []string, req GetBarsRequest,
+) (map[string][]Bar, error) {
+	return DefaultClient.GetMultiBars(ctx, symbols, req)
 }
 
 // GetAuctions returns the auctions for the given symbol.
-func GetAuctions(symbol string, req GetAuctionsRequest) ([]DailyAuctions, error) {
-	return DefaultClient.GetAuctions(symbol, req)
+func GetAuctions(
+	ctx context.Context, symbol string, req GetAuctionsRequest,
+) ([]DailyAuctions, error) {
+	return DefaultClient.GetAuctions(ctx, symbol, req)
 }
 
 // GetMultiAuctions returns the auctions for the given symbols.
-func GetMultiAuctions(symbols []string, req GetAuctionsRequest) (map[string][]DailyAuctions, error) {
-	return DefaultClient.GetMultiAuctions(symbols, req)
+func GetMultiAuctions(
+	ctx context.Context, symbols []string, req GetAuctionsRequest,
+) (map[string][]DailyAuctions, error) {
+	return DefaultClient.GetMultiAuctions(ctx, symbols, req)
 }
 
 // GetLatestBar returns the latest minute bar for a given symbol.
-func GetLatestBar(symbol string, req GetLatestBarRequest) (*Bar, error) {
-	return DefaultClient.GetLatestBar(symbol, req)
+func GetLatestBar(
+	ctx context.Context, symbol string, req GetLatestBarRequest,
+) (*Bar, error) {
+	return DefaultClient.GetLatestBar(ctx, symbol, req)
 }
 
 // GetLatestBars returns the latest minute bars for the given symbols.
-func GetLatestBars(symbols []string, req GetLatestBarRequest) (map[string]Bar, error) {
-	return DefaultClient.GetLatestBars(symbols, req)
+func GetLatestBars(
+	ctx context.Context, symbols []string, req GetLatestBarRequest,
+) (map[string]Bar, error) {
+	return DefaultClient.GetLatestBars(ctx, symbols, req)
 }
 
 // GetLatestTrade returns the latest trade for a given symbol.
-func GetLatestTrade(symbol string, req GetLatestTradeRequest) (*Trade, error) {
-	return DefaultClient.GetLatestTrade(symbol, req)
+func GetLatestTrade(
+	ctx context.Context, symbol string, req GetLatestTradeRequest,
+) (*Trade, error) {
+	return DefaultClient.GetLatestTrade(ctx, symbol, req)
 }
 
 // GetLatestTrades returns the latest trades for the given symbols.
-func GetLatestTrades(symbols []string, req GetLatestTradeRequest) (map[string]Trade, error) {
-	return DefaultClient.GetLatestTrades(symbols, req)
+func GetLatestTrades(
+	ctx context.Context, symbols []string, req GetLatestTradeRequest,
+) (map[string]Trade, error) {
+	return DefaultClient.GetLatestTrades(ctx, symbols, req)
 }
 
 // GetLatestQuote returns the latest quote for a given symbol.
-func GetLatestQuote(symbol string, req GetLatestQuoteRequest) (*Quote, error) {
-	return DefaultClient.GetLatestQuote(symbol, req)
+func GetLatestQuote(
+	ctx context.Context, symbol string, req GetLatestQuoteRequest,
+) (*Quote, error) {
+	return DefaultClient.GetLatestQuote(ctx, symbol, req)
 }
 
 // GetLatestQuotes returns the latest quotes for the given symbols.
-func GetLatestQuotes(symbols []string, req GetLatestQuoteRequest) (map[string]Quote, error) {
-	return DefaultClient.GetLatestQuotes(symbols, req)
+func GetLatestQuotes(
+	ctx context.Context, symbols []string, req GetLatestQuoteRequest,
+) (map[string]Quote, error) {
+	return DefaultClient.GetLatestQuotes(ctx, symbols, req)
 }
 
 // GetSnapshot returns the snapshot for a given symbol
-func GetSnapshot(symbol string, req GetSnapshotRequest) (*Snapshot, error) {
-	return DefaultClient.GetSnapshot(symbol, req)
+func GetSnapshot(
+	ctx context.Context, symbol string, req GetSnapshotRequest,
+) (*Snapshot, error) {
+	return DefaultClient.GetSnapshot(ctx, symbol, req)
 }
 
 // GetSnapshots returns the snapshots for a multiple symbols
-func GetSnapshots(symbols []string, req GetSnapshotRequest) (map[string]*Snapshot, error) {
-	return DefaultClient.GetSnapshots(symbols, req)
+func GetSnapshots(
+	ctx context.Context, symbols []string, req GetSnapshotRequest,
+) (map[string]*Snapshot, error) {
+	return DefaultClient.GetSnapshots(ctx, symbols, req)
 }
 
 // GetCryptoTrades returns the trades for the given crypto symbol.
-func GetCryptoTrades(symbol string, req GetCryptoTradesRequest) ([]CryptoTrade, error) {
-	return DefaultClient.GetCryptoTrades(symbol, req)
+func GetCryptoTrades(
+	ctx context.Context, symbol string, req GetCryptoTradesRequest,
+) ([]CryptoTrade, error) {
+	return DefaultClient.GetCryptoTrades(ctx, symbol, req)
 }
 
 // GetCryptoMultiTrades returns trades for the given crypto symbols.
-func GetCryptoMultiTrades(symbols []string, req GetCryptoTradesRequest) (map[string][]CryptoTrade, error) {
-	return DefaultClient.GetCryptoMultiTrades(symbols, req)
+func GetCryptoMultiTrades(
+	ctx context.Context, symbols []string, req GetCryptoTradesRequest,
+) (map[string][]CryptoTrade, error) {
+	return DefaultClient.GetCryptoMultiTrades(ctx, symbols, req)
 }
 
 // GetCryptoQuotes returns the quotes for the given crypto symbol.
-func GetCryptoQuotes(symbol string, req GetCryptoQuotesRequest) ([]CryptoQuote, error) {
-	return DefaultClient.GetCryptoQuotes(symbol, req)
+func GetCryptoQuotes(
+	ctx context.Context, symbol string, req GetCryptoQuotesRequest,
+) ([]CryptoQuote, error) {
+	return DefaultClient.GetCryptoQuotes(ctx, symbol, req)
 }
 
 // GetCryptoMultiQuotes returns quotes for the given crypto symbols.
-func GetCryptoMultiQuotes(symbols []string, req GetCryptoQuotesRequest) (map[string][]CryptoQuote, error) {
-	return DefaultClient.GetCryptoMultiQuotes(symbols, req)
+func GetCryptoMultiQuotes(
+	ctx context.Context, symbols []string, req GetCryptoQuotesRequest,
+) (map[string][]CryptoQuote, error) {
+	return DefaultClient.GetCryptoMultiQuotes(ctx, symbols, req)
 }
 
 // GetCryptoBars returns the bars for the given crypto symbol.
-func GetCryptoBars(symbol string, req GetCryptoBarsRequest) ([]CryptoBar, error) {
-	return DefaultClient.GetCryptoBars(symbol, req)
+func GetCryptoBars(
+	ctx context.Context, symbol string, req GetCryptoBarsRequest,
+) ([]CryptoBar, error) {
+	return DefaultClient.GetCryptoBars(ctx, symbol, req)
 }
 
 // GetCryptoMultiBars returns the bars for the given crypto symbols.
-func GetCryptoMultiBars(symbols []string, req GetCryptoBarsRequest) (map[string][]CryptoBar, error) {
-	return DefaultClient.GetCryptoMultiBars(symbols, req)
+func GetCryptoMultiBars(
+	ctx context.Context, symbols []string, req GetCryptoBarsRequest,
+) (map[string][]CryptoBar, error) {
+	return DefaultClient.GetCryptoMultiBars(ctx, symbols, req)
 }
 
 // GetLatestCryptoBar returns the latest bar for a given crypto symbol
-func GetLatestCryptoBar(symbol string, req GetLatestCryptoBarRequest) (*CryptoBar, error) {
-	return DefaultClient.GetLatestCryptoBar(symbol, req)
+func GetLatestCryptoBar(
+	ctx context.Context, symbol string, req GetLatestCryptoBarRequest,
+) (*CryptoBar, error) {
+	return DefaultClient.GetLatestCryptoBar(ctx, symbol, req)
 }
 
 // GetLatestCryptoBars returns the latest bars for the given crypto symbols
-func GetLatestCryptoBars(symbols []string, req GetLatestCryptoBarRequest) (map[string]CryptoBar, error) {
-	return DefaultClient.GetLatestCryptoBars(symbols, req)
+func GetLatestCryptoBars(
+	ctx context.Context, symbols []string, req GetLatestCryptoBarRequest,
+) (map[string]CryptoBar, error) {
+	return DefaultClient.GetLatestCryptoBars(ctx, symbols, req)
 }
 
 // GetLatestCryptoTrade returns the latest trade for a given crypto symbol
-func GetLatestCryptoTrade(symbol string, req GetLatestCryptoTradeRequest) (*CryptoTrade, error) {
-	return DefaultClient.GetLatestCryptoTrade(symbol, req)
+func GetLatestCryptoTrade(
+	ctx context.Context, symbol string, req GetLatestCryptoTradeRequest,
+) (*CryptoTrade, error) {
+	return DefaultClient.GetLatestCryptoTrade(ctx, symbol, req)
 }
 
 // GetLatestCryptoTrades returns the latest trades for the given crypto symbols
-func GetLatestCryptoTrades(symbols []string, req GetLatestCryptoTradeRequest) (map[string]CryptoTrade, error) {
-	return DefaultClient.GetLatestCryptoTrades(symbols, req)
+func GetLatestCryptoTrades(
+	ctx context.Context, symbols []string, req GetLatestCryptoTradeRequest,
+) (map[string]CryptoTrade, error) {
+	return DefaultClient.GetLatestCryptoTrades(ctx, symbols, req)
 }
 
 // GetLatestCryptoQuote returns the latest quote for a given crypto symbol
-func GetLatestCryptoQuote(symbol string, req GetLatestCryptoQuoteRequest) (*CryptoQuote, error) {
-	return DefaultClient.GetLatestCryptoQuote(symbol, req)
+func GetLatestCryptoQuote(
+	ctx context.Context, symbol string, req GetLatestCryptoQuoteRequest,
+) (*CryptoQuote, error) {
+	return DefaultClient.GetLatestCryptoQuote(ctx, symbol, req)
 }
 
 // GetLatestCryptoQuotes returns the latest quotes for the given crypto symbols
-func GetLatestCryptoQuotes(symbols []string, req GetLatestCryptoQuoteRequest) (map[string]CryptoQuote, error) {
-	return DefaultClient.GetLatestCryptoQuotes(symbols, req)
+func GetLatestCryptoQuotes(
+	ctx context.Context, symbols []string, req GetLatestCryptoQuoteRequest,
+) (map[string]CryptoQuote, error) {
+	return DefaultClient.GetLatestCryptoQuotes(ctx, symbols, req)
 }
 
 // GetCryptoSnapshot returns the snapshot for a given crypto symbol
-func GetCryptoSnapshot(symbol string, req GetCryptoSnapshotRequest) (*CryptoSnapshot, error) {
-	return DefaultClient.GetCryptoSnapshot(symbol, req)
+func GetCryptoSnapshot(
+	ctx context.Context, symbol string, req GetCryptoSnapshotRequest,
+) (*CryptoSnapshot, error) {
+	return DefaultClient.GetCryptoSnapshot(ctx, symbol, req)
 }
 
 // GetCryptoSnapshots returns the snapshots for the given crypto symbols
-func GetCryptoSnapshots(symbols []string, req GetCryptoSnapshotRequest) (map[string]CryptoSnapshot, error) {
-	return DefaultClient.GetCryptoSnapshots(symbols, req)
+func GetCryptoSnapshots(
+	ctx context.Context, symbols []string, req GetCryptoSnapshotRequest,
+) (map[string]CryptoSnapshot, error) {
+	return DefaultClient.GetCryptoSnapshots(ctx, symbols, req)
 }
 
 // GetLatestCryptoPerpTrade returns the latest trade for a given crypto perp symbol
-func GetLatestCryptoPerpTrade(symbol string, req GetLatestCryptoTradeRequest) (*CryptoPerpTrade, error) {
-	return DefaultClient.GetLatestCryptoPerpTrade(symbol, req)
+func GetLatestCryptoPerpTrade(
+	ctx context.Context, symbol string, req GetLatestCryptoTradeRequest,
+) (*CryptoPerpTrade, error) {
+	return DefaultClient.GetLatestCryptoPerpTrade(ctx, symbol, req)
 }
 
 // GetLatestCryptoPerpPricing returns the latest perp pricing for a given crypto perp symbol
-func GetLatestCryptoPerpPricing(symbol string, req GetLatestCryptoPerpPricingRequest) (*CryptoPerpPricing, error) {
-	return DefaultClient.GetLatestCryptoPerpPricing(symbol, req)
+func GetLatestCryptoPerpPricing(
+	ctx context.Context, symbol string, req GetLatestCryptoPerpPricingRequest,
+) (*CryptoPerpPricing, error) {
+	return DefaultClient.GetLatestCryptoPerpPricing(ctx, symbol, req)
 }
 
 // GetLatestCryptoPerpTrades returns the latest trades for the given crypto perpetual futures
-func GetLatestCryptoPerpTrades(symbols []string, req GetLatestCryptoTradeRequest) (map[string]CryptoPerpTrade, error) {
-	return DefaultClient.GetLatestCryptoPerpTrades(symbols, req)
+func GetLatestCryptoPerpTrades(
+	ctx context.Context, symbols []string, req GetLatestCryptoTradeRequest,
+) (map[string]CryptoPerpTrade, error) {
+	return DefaultClient.GetLatestCryptoPerpTrades(ctx, symbols, req)
 }
 
 // GetLatestCryptoPerpQuote returns the latest quote for a given crypto perpetual future
-func GetLatestCryptoPerpQuote(symbol string, req GetLatestCryptoQuoteRequest) (*CryptoPerpQuote, error) {
-	return DefaultClient.GetLatestCryptoPerpQuote(symbol, req)
+func GetLatestCryptoPerpQuote(
+	ctx context.Context, symbol string, req GetLatestCryptoQuoteRequest,
+) (*CryptoPerpQuote, error) {
+	return DefaultClient.GetLatestCryptoPerpQuote(ctx, symbol, req)
 }
 
 // GetLatestCryptoPerpQuotes returns the latest quotes for the given crypto perpetual futures
-func GetLatestCryptoPerpQuotes(symbols []string, req GetLatestCryptoQuoteRequest) (map[string]CryptoPerpQuote, error) {
-	return DefaultClient.GetLatestCryptoPerpQuotes(symbols, req)
+func GetLatestCryptoPerpQuotes(
+	ctx context.Context, symbols []string, req GetLatestCryptoQuoteRequest,
+) (map[string]CryptoPerpQuote, error) {
+	return DefaultClient.GetLatestCryptoPerpQuotes(ctx, symbols, req)
 }
 
 // GetLatestCryptoPerpBar returns the latest bar for a given crypto perpetual future
-func GetLatestCryptoPerpBar(symbol string, req GetLatestCryptoBarRequest) (*CryptoPerpBar, error) {
-	return DefaultClient.GetLatestCryptoPerpBar(symbol, req)
+func GetLatestCryptoPerpBar(
+	ctx context.Context, symbol string, req GetLatestCryptoBarRequest,
+) (*CryptoPerpBar, error) {
+	return DefaultClient.GetLatestCryptoPerpBar(ctx, symbol, req)
 }
 
 // GetLatestCryptoPerpBar returns the latest bar for a given crypto perpetual future
-func GetLatestCryptoPerpBars(symbols []string, req GetLatestCryptoBarRequest) (map[string]CryptoPerpBar, error) {
-	return DefaultClient.GetLatestCryptoPerpBars(symbols, req)
+func GetLatestCryptoPerpBars(
+	ctx context.Context, symbols []string, req GetLatestCryptoBarRequest,
+) (map[string]CryptoPerpBar, error) {
+	return DefaultClient.GetLatestCryptoPerpBars(ctx, symbols, req)
 }
 
 // GetNews returns the news articles based on the given req.
-func GetNews(req GetNewsRequest) ([]News, error) {
-	return DefaultClient.GetNews(req)
+func GetNews(
+	ctx context.Context, req GetNewsRequest,
+) ([]News, error) {
+	return DefaultClient.GetNews(ctx, req)
 }
 
 // GetCorporateActions returns the corporate actions based on the given req.
-func GetCorporateActions(req GetCorporateActionsRequest) (CorporateActions, error) {
-	return DefaultClient.GetCorporateActions(req)
+func GetCorporateActions(
+	ctx context.Context, req GetCorporateActionsRequest,
+) (CorporateActions, error) {
+	return DefaultClient.GetCorporateActions(ctx, req)
 }
 
-func (c *Client) get(u *url.URL) (*http.Response, error) {
-	req, err := http.NewRequest(http.MethodGet, u.String(), nil)
+func (c *Client) get(
+	ctx context.Context, u *url.URL,
+) (*http.Response, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u.String(), nil)
 	if err != nil {
 		return nil, err
 	}
