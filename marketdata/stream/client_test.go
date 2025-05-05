@@ -3,6 +3,7 @@ package stream
 import (
 	"context"
 	"errors"
+	"log"
 	"net/url"
 	"testing"
 	"time"
@@ -479,10 +480,10 @@ func TestSubscriptionTimeout(t *testing.T) {
 		subErrCh <- c.SubscribeToTrades(ctx, func(_ Trade) {}, "ALPACA")
 	}
 
+	// timeout before providing a response
 	func() {
-		ctx, tcancel := context.WithTimeout(context.Background(), 1*time.Microsecond)
+		ctx, tcancel := context.WithTimeout(context.Background(), 1*time.Second)
 		defer tcancel()
-		time.Sleep(10 * time.Microsecond)
 		go subFunc(ctx)
 		subMsg := expectWrite(t, connection)
 		require.Equal(t, "subscribe", subMsg["action"])
@@ -493,7 +494,7 @@ func TestSubscriptionTimeout(t *testing.T) {
 		require.ErrorIs(t, err, context.DeadlineExceeded, "actual: %s", err)
 	}()
 
-	// wait longer
+	// provide a response
 	func() {
 		ctx, tcancel := context.WithTimeout(context.Background(), 3*time.Second)
 		defer tcancel()
@@ -646,13 +647,13 @@ func TestSubscriptionTwiceAcrossConnectionIssues(t *testing.T) {
 
 	connected := make(chan struct{})
 	connectCallback := func() {
-		t.Log("connected")
+		log.Println("connected")
 		connected <- struct{}{}
 	}
 
 	disconnected := make(chan struct{})
 	disconnectCallback := func() {
-		t.Log("disconnected")
+		log.Println("disconnected")
 		disconnected <- struct{}{}
 	}
 
@@ -681,6 +682,8 @@ func TestSubscriptionTwiceAcrossConnectionIssues(t *testing.T) {
 	trades1 := []string{"AL", "PACA"}
 	subRes := make(chan error)
 	subFunc := func(ctx context.Context) {
+		ctx, cancel := context.WithTimeout(ctx, time.Second)
+		defer cancel()
 		subRes <- c.SubscribeToTrades(ctx, func(_ Trade) {}, "AL", "PACA")
 	}
 	go subFunc(ctx)
@@ -708,7 +711,6 @@ func TestSubscriptionTwiceAcrossConnectionIssues(t *testing.T) {
 	// request subscribe will be timed out during disconnection
 	go subFunc(ctx)
 
-	// mockTimeAfterCh <- time.Now() // TODO: Remove this
 	err = <-subRes
 	require.Error(t, err)
 	require.ErrorIs(t, err, context.DeadlineExceeded, "actual: %s", err)
@@ -716,7 +718,6 @@ func TestSubscriptionTwiceAcrossConnectionIssues(t *testing.T) {
 	// after a timeout we should be able to get timed out again
 	go subFunc(ctx)
 
-	// mockTimeAfterCh <- time.Now()  // TODO: Remove this
 	err = <-subRes
 	require.Error(t, err)
 	require.ErrorIs(t, err, context.DeadlineExceeded, "actual: %s", err)
@@ -1684,6 +1685,7 @@ func TestSubscribeCalledButClientTerminatesCryptoPerp(t *testing.T) {
 		withConnCreator(func(_ context.Context, _ url.URL) (conn, error) { return connection, nil }))
 
 	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
 	err := c.Connect(ctx)
 	require.NoError(t, err)
@@ -1701,7 +1703,7 @@ func TestSubscribeCalledButClientTerminatesCryptoPerp(t *testing.T) {
 	require.Equal(t, "subscribe", subMsg["action"])
 	require.ElementsMatch(t, []string{"BTC-PERP"}, subMsg["trades"])
 	// terminating the client
-	cancel()
+	c.Terminate()
 
 	err = <-subErrCh
 	require.Error(t, err)
