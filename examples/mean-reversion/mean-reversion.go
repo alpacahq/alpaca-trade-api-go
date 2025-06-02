@@ -133,7 +133,7 @@ func main() {
 		if err != nil {
 			log.Fatalf("Failed to get clock: %v", err)
 		}
-		untilClose := clock.NextClose.Sub(clock.Timestamp.Add(-15 * time.Minute))
+		untilClose := clock.NextClose.Sub(clock.Timestamp) - 15*time.Minute
 		time.Sleep(untilClose)
 
 		fmt.Println("Market closing soon. Closing position.")
