@@ -26,6 +26,12 @@ const (
 	// endpoints and on the stream. For historical endpoints you can simply
 	// use sip and set the end parameter to 15 minutes ago, or leave it empty.
 	DelayedSIP Feed = "delayed_sip"
+	// BOATS includes the Blue Ocean ATS, which supports overnight trading in the US.
+	BOATS Feed = "boats"
+	// Overnight is the derived overnight US trading feed. It can only be used
+	// in the latest endpoints and on the stream. For historical endpoints you can
+	// use BOATS and set the end parameter to 15 minutes ago, or leave it empty.
+	Overnight Feed = "overnight"
 )
 
 // CryptoFeed defines the source feed of crypto data.
@@ -41,8 +47,8 @@ const (
 type OptionFeed = string
 
 const (
-	OPRA       Feed = "opra"
-	Indicative Feed = "indicative"
+	OPRA       OptionFeed = "opra"
+	Indicative OptionFeed = "indicative"
 )
 
 type OptionType = string
