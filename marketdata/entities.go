@@ -41,6 +41,7 @@ const (
 	// US is the crypto feed for the United States.
 	US     CryptoFeed = "us"
 	GLOBAL CryptoFeed = "global"
+	KRAKEN CryptoFeed = "krakrn"
 )
 
 // OptionFeed defines the source feed of option data.
