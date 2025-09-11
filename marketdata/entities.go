@@ -40,8 +40,8 @@ type CryptoFeed = string
 const (
 	// US is the crypto feed for the United States.
 	US     CryptoFeed = "us"
+	US1    CryptoFeed = "us-1"
 	GLOBAL CryptoFeed = "global"
-	KRAKEN CryptoFeed = "kraken"
 )
 
 // OptionFeed defines the source feed of option data.
