@@ -16,16 +16,22 @@ import (
 	"cloud.google.com/go/civil"
 	"github.com/mailru/easyjson"
 	"github.com/shopspring/decimal"
+
+	"github.com/alpacahq/alpaca-trade-api-go/v3/authn"
 )
 
 // ClientOpts contains options for the alpaca client
 type ClientOpts struct {
-	APIKey       string
-	APISecret    string
-	BrokerKey    string
-	BrokerSecret string
+	APIKey       string // deprecated. use ClientID instead
+	APISecret    string // deprecated. use ClientSecret instead
+	BrokerKey    string // deprecated. use ClientID instead
+	BrokerSecret string // deprecated. use ClientSecret instead
 	OAuth        string
+	ClientID     string
+	ClientSecret string
+	ClientType   authn.ClientType
 	BaseURL      string
+	TokenURL     string
 	RetryLimit   int
 	RetryDelay   time.Duration
 	// HTTPClient to be used for each http request.
@@ -34,23 +40,15 @@ type ClientOpts struct {
 
 // Client is the alpaca trading client
 type Client struct {
-	opts       ClientOpts
-	httpClient *http.Client
+	opts          ClientOpts
+	httpClient    *http.Client
+	authnProvider *authn.Provider
 
 	do func(c *Client, req *http.Request) (*http.Response, error)
 }
 
 // NewClient creates a new Alpaca trading client using the given opts.
 func NewClient(opts ClientOpts) *Client {
-	if opts.APIKey == "" {
-		opts.APIKey = os.Getenv("APCA_API_KEY_ID")
-	}
-	if opts.APISecret == "" {
-		opts.APISecret = os.Getenv("APCA_API_SECRET_KEY")
-	}
-	if opts.OAuth == "" {
-		opts.OAuth = os.Getenv("APCA_API_OAUTH")
-	}
 	if opts.BaseURL == "" {
 		if s := os.Getenv("APCA_API_BASE_URL"); s != "" {
 			opts.BaseURL = s
@@ -73,7 +71,16 @@ func NewClient(opts ClientOpts) *Client {
 	return &Client{
 		opts:       opts,
 		httpClient: httpClient,
-
+		authnProvider: authn.NewProvider(httpClient, opts.TokenURL, authn.CredentialsParams{
+			APIKey:       opts.APIKey,
+			APISecret:    opts.APISecret,
+			BrokerKey:    opts.BrokerKey,
+			BrokerSecret: opts.BrokerSecret,
+			ClientID:     opts.ClientID,
+			ClientSecret: opts.ClientSecret,
+			ClientType:   opts.ClientType,
+			OAuthToken:   opts.OAuth,
+		}),
 		do: defaultDo,
 	}
 }
@@ -87,15 +94,8 @@ const (
 
 func defaultDo(c *Client, req *http.Request) (*http.Response, error) {
 	req.Header.Set("User-Agent", Version())
-
-	switch {
-	case c.opts.OAuth != "":
-		req.Header.Set("Authorization", "Bearer "+c.opts.OAuth)
-	case c.opts.BrokerKey != "":
-		req.SetBasicAuth(c.opts.BrokerKey, c.opts.BrokerSecret)
-	default:
-		req.Header.Set("APCA-API-KEY-ID", c.opts.APIKey)
-		req.Header.Set("APCA-API-SECRET-KEY", c.opts.APISecret)
+	if err := c.authnProvider.SetAuthHeader(req, true); err != nil {
+		return nil, fmt.Errorf("set auth header: %w", err)
 	}
 
 	var resp *http.Response

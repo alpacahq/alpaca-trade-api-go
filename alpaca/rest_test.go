@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"cloud.google.com/go/civil"
+	"github.com/alpacahq/alpaca-trade-api-go/v3/authn"
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -71,6 +72,110 @@ func TestDefaultDo_BrokerAuth(t *testing.T) {
 	b, err := io.ReadAll(resp.Body)
 	require.NoError(t, err)
 	assert.Equal(t, "test body", string(b))
+}
+
+func TestDefaultDo_ClientCredentials(t *testing.T) {
+	var (
+		testToken        = "test-token"
+		testAKClientID   = "AKTESTKEY"
+		testCKClientID   = "CKTESTKEY"
+		testClientSecret = "SECRET"
+	)
+	for _, tt := range []struct {
+		name            string
+		clientID        string
+		clientSecret    string
+		clientType      authn.ClientType
+		expectedHeaders map[string]string
+		expectedError   string
+	}{
+		{
+			name:         "Legacy AK",
+			clientID:     testAKClientID,
+			clientSecret: testClientSecret,
+			clientType:   authn.ClientTypeLegacy,
+			expectedHeaders: map[string]string{
+				"APCA-API-KEY-ID":     testAKClientID,
+				"APCA-API-SECRET-KEY": testClientSecret,
+			},
+		},
+		{
+			name:         "Legacy CK",
+			clientID:     testCKClientID,
+			clientSecret: testClientSecret,
+			clientType:   authn.ClientTypeLegacy,
+			expectedHeaders: map[string]string{
+				"Authorization": "Basic " + base64.StdEncoding.EncodeToString([]byte(testCKClientID+":"+testClientSecret)),
+			},
+		},
+		{
+			name:         "ClientSecret AK",
+			clientID:     testAKClientID,
+			clientSecret: testClientSecret,
+			clientType:   authn.ClientTypeClientSecret,
+			expectedHeaders: map[string]string{
+				"Authorization": "Bearer " + testToken,
+			},
+		},
+		{
+			name:         "ClientSecret CK",
+			clientID:     testCKClientID,
+			clientSecret: testClientSecret,
+			clientType:   authn.ClientTypeClientSecret,
+			expectedHeaders: map[string]string{
+				"Authorization": "Bearer " + testToken,
+			},
+		},
+		{
+			name:          "Unsupported ClientType",
+			clientID:      testCKClientID,
+			clientSecret:  testClientSecret,
+			clientType:    authn.ClientTypePrivateKeyJWT,
+			expectedError: "unsupported client type: private_key_jwt",
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				switch r.URL.Path {
+				case "/custompath":
+					for k, v := range tt.expectedHeaders {
+						assert.Equal(t, v, r.Header.Get(k))
+					}
+					fmt.Fprint(w, "test body")
+					return
+				case "/oauth2/token":
+					fmt.Fprint(w, `{"access_token":"`+testToken+`","expires_in":3600}`)
+					return
+				default:
+					http.Error(w, "not found", http.StatusNotFound)
+					return
+				}
+			}))
+
+			c := NewClient(ClientOpts{
+				ClientID:     tt.clientID,
+				ClientSecret: tt.clientSecret,
+				ClientType:   tt.clientType,
+				RetryDelay:   time.Nanosecond,
+				RetryLimit:   2,
+				BaseURL:      ts.URL,
+				TokenURL:     ts.URL + "/oauth2/token",
+			})
+
+			req, err := http.NewRequest(http.MethodGet, ts.URL+"/custompath", nil)
+			require.NoError(t, err)
+			resp, err := defaultDo(c, req)
+			if tt.expectedError != "" {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), tt.expectedError)
+				return
+			}
+			require.NoError(t, err)
+			b, err := io.ReadAll(resp.Body)
+			require.NoError(t, err)
+			assert.Equal(t, "test body", string(b))
+		})
+	}
 }
 
 func TestDefaultDo_SuccessfulRetries(t *testing.T) {
