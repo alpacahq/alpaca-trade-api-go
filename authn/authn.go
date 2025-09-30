@@ -3,6 +3,7 @@ package authn
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -24,7 +25,7 @@ type Provider struct {
 
 func NewProvider(httpClient *http.Client, tokenURL string, credentials CredentialsParams) *Provider {
 	if tokenURL == "" {
-		tokenURL = "https://authx.alpaca.markets/oauth2/token"
+		tokenURL = "https://authx.alpaca.markets/oauth2/token" //nolint:gosec
 		if tokenURLFromEnv := os.Getenv("APCA_API_TOKEN_URL"); tokenURLFromEnv != "" {
 			tokenURL = tokenURLFromEnv
 		}
@@ -45,13 +46,13 @@ func (p *Provider) SetAuthHeader(req *http.Request, allowCorrespondentCreds bool
 	case p.credentials.clientID != "":
 		return p.setClientIDAuthHeader(req, allowCorrespondentCreds)
 	default:
-		return fmt.Errorf("invalid credentials")
+		return errors.New("invalid credentials")
 	}
 }
 
 func (p *Provider) setClientIDAuthHeader(req *http.Request, allowCorrespondentCreds bool) error {
 	if p.credentials.isCorrespondentClientID && !allowCorrespondentCreds {
-		return fmt.Errorf("correspondent client credentials are not allowed")
+		return errors.New("correspondent client credentials are not allowed")
 	}
 
 	switch p.credentials.clientType {

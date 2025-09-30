@@ -15,10 +15,11 @@ import (
 	"time"
 
 	"cloud.google.com/go/civil"
-	"github.com/alpacahq/alpaca-trade-api-go/v3/authn"
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/alpacahq/alpaca-trade-api-go/v3/authn"
 )
 
 func TestDefaultDo(t *testing.T) {
@@ -130,7 +131,7 @@ func TestDefaultDo_ClientCredentials(t *testing.T) {
 			name:          "Unsupported ClientType",
 			clientID:      testCKClientID,
 			clientSecret:  testClientSecret,
-			clientType:    authn.ClientTypePrivateKeyJWT,
+			clientType:    "private_key_jwt",
 			expectedError: "unsupported client type: private_key_jwt",
 		},
 	} {

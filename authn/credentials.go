@@ -9,9 +9,8 @@ import (
 type ClientType string
 
 const (
-	ClientTypeLegacy        ClientType = "legacy"
-	ClientTypeClientSecret  ClientType = "client_secret"
-	ClientTypePrivateKeyJWT ClientType = "private_key_jwt"
+	ClientTypeLegacy       ClientType = "legacy"
+	ClientTypeClientSecret ClientType = "client_secret"
 
 	correspondentClientIDPrefix = "CK"
 )
