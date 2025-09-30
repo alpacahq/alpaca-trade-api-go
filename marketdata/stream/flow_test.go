@@ -67,7 +67,14 @@ func TestInitializeAuthError(t *testing.T) {
 func TestInitializeAuthRetryFails(t *testing.T) {
 	conn := newMockConn()
 	defer conn.close()
-	c := client{conn: conn, authProvider: newStreamAuthProvider(streamAuthProviderOptions{key: "key", secret: "secret"}), logger: DefaultLogger()}
+	c := client{
+		conn: conn,
+		authProvider: newStreamAuthProvider(streamAuthProviderOptions{
+			key:    "key",
+			secret: "secret",
+		}),
+		logger: DefaultLogger(),
+	}
 	ordm := authRetryDelayMultiplier
 	arc := authRetryCount
 	defer func() {
@@ -401,7 +408,10 @@ func TestWriteAuthCancelled(t *testing.T) {
 func TestWriteAuthContents(t *testing.T) {
 	conn := newMockConn()
 	defer conn.close()
-	c := client{conn: conn, authProvider: newStreamAuthProvider(streamAuthProviderOptions{key: "mykey", secret: "mysecret"})}
+	c := client{
+		conn:         conn,
+		authProvider: newStreamAuthProvider(streamAuthProviderOptions{key: "mykey", secret: "mysecret"}),
+	}
 
 	err := c.writeAuth(context.Background())
 

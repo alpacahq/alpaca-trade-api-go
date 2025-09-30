@@ -97,9 +97,6 @@ func TestConfigureStocks(t *testing.T) {
 }
 
 func TestConfigureStocksClientCredentials(t *testing.T) {
-	// NOTE: we are also testing the various options and their apply
-	// even though the test is testing multiple things they're closely related
-
 	logger := ErrorOnlyLogger()
 	c := NewStocksClient(marketdata.IEX,
 		WithLogger(logger),

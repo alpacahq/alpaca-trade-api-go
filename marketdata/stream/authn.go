@@ -63,8 +63,8 @@ func (c *streamAuthProvider) authMessage(ctx context.Context) (map[string]string
 			return nil, err
 		}
 		return map[string]string{
-			"action": "access_token",
-			"key":    c.key,
+			"action": "auth",
+			"key":    "access_token",
 			"secret": accessToken,
 		}, nil
 	}

@@ -57,7 +57,7 @@ func (p *AccessTokenProvider) Token(ctx context.Context) (string, error) {
 		return t, nil
 	}
 
-	tokenResp, err := p.fetch()
+	tokenResp, err := p.fetch(ctx)
 	if err != nil {
 		return "", err
 	}
@@ -69,13 +69,13 @@ func (p *AccessTokenProvider) Token(ctx context.Context) (string, error) {
 	return p.accessToken, nil
 }
 
-func (p *AccessTokenProvider) fetch() (tokenResponse, error) {
+func (p *AccessTokenProvider) fetch(ctx context.Context) (tokenResponse, error) {
 	form := url.Values{}
 	form.Set("grant_type", "client_credentials")
 	form.Set("client_id", p.clientID)
 	form.Set("client_secret", p.clientSecret)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, p.tokenURL, strings.NewReader(form.Encode()))
