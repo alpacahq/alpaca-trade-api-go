@@ -31,10 +31,11 @@ import (
 func main() {
 	client := alpaca.NewClient(alpaca.ClientOpts{
 		// Alternatively you can set your key and secret using the
-		// APCA_API_KEY_ID and APCA_API_SECRET_KEY environment variables
-		APIKey:    "YOUR_API_KEY",
-		APISecret: "YOUR_API_SECRET",
-		BaseURL:   "https://paper-api.alpaca.markets",
+		// APCA_API_CLIENT_ID, APCA_API_CLIENT_SECRET, and APCA_API_CLIENT_TYPE environment variables
+		ClientID:     "YOUR_CLIENT_ID",
+		ClientSecret: "YOUR_CLIENT_SECRET",
+		ClientType:   authn.ClientTypeClientSecret,
+		BaseURL:      "https://paper-api.alpaca.markets",
 	})
 	acct, err := client.GetAccount()
 	if err != nil {
@@ -94,28 +95,17 @@ The HTTP API document is located [here](https://alpaca.markets/docs/api-document
 
 ## Authentication
 
-The Alpaca API requires API key ID and secret key, which you can obtain from
-the web console after you sign in. This key pair can then be applied to the SDK
-either by setting environment variables (`APCA_API_KEY_ID=<key_id>` and `APCA_API_SECRET_KEY=<secret_key>`),
+The Alpaca API requires client id client secret, which you can obtain from
+the web console after you sign in. The client credentials can then be applied to the SDK
+either by setting environment variables (`APCA_API_CLIENT_ID=<client_id>`, `APCA_API_CLIENT_SECRET=<client_secret>`, and `APCA_API_CLIENT_TYPE=<client_type>`),
 or hardcoding them into the Go code directly as shown in the examples above.
 
+Client type has to match with the type that was used during the credentials creation (`legacy` or `client_secret`)
+
 ```sh
-export APCA_API_KEY_ID=xxxxx
-export APCA_API_SECRET_KEY=yyyyy
-```
-
-### Broker auth
-
-You use your Broker API key and secret for authentication.
-However, for this to work make sure you're using the appropriate base URL
-(for more details check the next section)!
-
-```go
-client := marketdata.NewClient(marketdata.ClientOpts{
-	BrokerKey:    "CK...",                               // Sandbox broker key
-	BrokerSecret: "<your secret>",                       // Sandbox broker secret
-	BaseURL:      "https://data.sandbox.alpaca.markets", // Sandbox url
-})
+export APCA_API_CLIENT_ID=xxxxx
+export APCA_API_CLIENT_SECRET=yyyyy
+export APCA_API_CLIENT_TYPE=client_secret
 ```
 
 ## Endpoint
