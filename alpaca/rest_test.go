@@ -190,7 +190,9 @@ func TestDefaultDo_SuccessfulRetries(t *testing.T) {
 		fmt.Fprint(w, "success")
 	}))
 	c := NewClient(ClientOpts{
-		RetryDelay: time.Nanosecond,
+		RetryDelay:   time.Nanosecond,
+		ClientID:     "AKTEST",
+		ClientSecret: "secret",
 	})
 	req, err := http.NewRequest(http.MethodGet, ts.URL, nil)
 	require.NoError(t, err)
@@ -212,7 +214,9 @@ func TestDefaultDo_TooManyRetries(t *testing.T) {
 		fmt.Fprint(w, "success")
 	}))
 	c := NewClient(ClientOpts{
-		RetryDelay: time.Nanosecond,
+		RetryDelay:   time.Nanosecond,
+		ClientID:     "AKTEST",
+		ClientSecret: "secret",
 	})
 	req, err := http.NewRequest(http.MethodGet, ts.URL, nil)
 	require.NoError(t, err)
@@ -225,7 +229,7 @@ func TestDefaultDo_Error(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		http.Error(w, resp, http.StatusBadRequest)
 	}))
-	c := DefaultClient
+	c := NewClient(ClientOpts{ClientID: "AKTEST", ClientSecret: "secret"})
 	req, err := http.NewRequest(http.MethodGet, ts.URL, nil)
 	require.NoError(t, err)
 	_, err = defaultDo(c, req)

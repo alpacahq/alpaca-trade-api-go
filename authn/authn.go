@@ -25,7 +25,7 @@ type Provider struct {
 
 func NewProvider(httpClient *http.Client, tokenURL string, credentials CredentialsParams) *Provider {
 	if tokenURL == "" {
-		tokenURL = "https://authx.alpaca.markets/oauth2/token" //nolint:gosec
+		tokenURL = "https://authx.alpaca.markets/oauth2/token" //nolint:gosec // default token url
 		if tokenURLFromEnv := os.Getenv("APCA_API_TOKEN_URL"); tokenURLFromEnv != "" {
 			tokenURL = tokenURLFromEnv
 		}
