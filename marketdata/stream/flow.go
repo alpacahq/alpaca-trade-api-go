@@ -105,11 +105,12 @@ func (c *client) readConnected(ctx context.Context) error {
 }
 
 func (c *client) writeAuth(ctx context.Context) error {
-	msg, err := msgpack.Marshal(map[string]string{
-		"action": "auth",
-		"key":    c.key,
-		"secret": c.secret,
-	})
+	authMsg, err := c.authProvider.authMessage(ctx)
+	if err != nil {
+		return err
+	}
+
+	msg, err := msgpack.Marshal(authMsg)
 	if err != nil {
 		return err
 	}

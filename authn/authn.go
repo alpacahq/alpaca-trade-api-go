@@ -3,7 +3,6 @@ package authn
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -13,72 +12,42 @@ import (
 	"time"
 )
 
-type Provider struct {
-	credentials credentials
-	tokenURL    string
-	httpClient  *http.Client
+type AccessTokenProviderOptions struct {
+	ClientID     string
+	ClientSecret string
+	TokenURL     string
+	HTTPClient   *http.Client
+}
+
+type AccessTokenProvider struct {
+	clientID     string
+	clientSecret string
+	tokenURL     string
+	httpClient   *http.Client
 
 	mu          sync.Mutex
 	accessToken string
 	expiresAt   time.Time
 }
 
-func NewProvider(httpClient *http.Client, tokenURL string, credentials CredentialsParams) *Provider {
-	if tokenURL == "" {
-		tokenURL = "https://authx.alpaca.markets/oauth2/token" //nolint:gosec // default token url
-		if tokenURLFromEnv := os.Getenv("APCA_API_TOKEN_URL"); tokenURLFromEnv != "" {
-			tokenURL = tokenURLFromEnv
-		}
+func NewAccessTokenProvider(opts AccessTokenProviderOptions) *AccessTokenProvider {
+	if opts.TokenURL == "" {
+		opts.TokenURL = TokenURL()
 	}
 
-	return &Provider{
-		credentials: newCredentials(credentials),
-		tokenURL:    tokenURL,
-		httpClient:  httpClient,
+	if opts.HTTPClient == nil {
+		opts.HTTPClient = &http.Client{Timeout: 5 * time.Second}
 	}
-}
 
-func (p *Provider) SetAuthHeader(req *http.Request, allowCorrespondentCreds bool) error {
-	switch {
-	case p.credentials.oAuthToken != "":
-		setBearerTokenAuthHeader(req, p.credentials.oAuthToken)
-		return nil
-	case p.credentials.clientID != "":
-		return p.setClientIDAuthHeader(req, allowCorrespondentCreds)
-	default:
-		return errors.New("invalid credentials")
+	return &AccessTokenProvider{
+		clientID:     opts.ClientID,
+		clientSecret: opts.ClientSecret,
+		tokenURL:     opts.TokenURL,
+		httpClient:   opts.HTTPClient,
 	}
 }
 
-func (p *Provider) setClientIDAuthHeader(req *http.Request, allowCorrespondentCreds bool) error {
-	if p.credentials.isCorrespondentClientID && !allowCorrespondentCreds {
-		return errors.New("correspondent client credentials are not allowed")
-	}
-
-	switch p.credentials.clientType {
-	case ClientTypeLegacy:
-		if p.credentials.isCorrespondentClientID {
-			req.SetBasicAuth(p.credentials.clientID, p.credentials.clientSecret)
-			return nil
-		}
-
-		req.Header.Set("APCA-API-KEY-ID", p.credentials.clientID)
-		req.Header.Set("APCA-API-SECRET-KEY", p.credentials.clientSecret)
-		return nil
-	case ClientTypeClientSecret:
-		accessToken, err := p.token()
-		if err != nil {
-			return fmt.Errorf("token: %w", err)
-		}
-
-		setBearerTokenAuthHeader(req, accessToken)
-		return nil
-	default:
-		return fmt.Errorf("unsupported client type: %s", p.credentials.clientType)
-	}
-}
-
-func (p *Provider) token() (string, error) {
+func (p *AccessTokenProvider) Token(ctx context.Context) (string, error) {
 	now := time.Now()
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -100,11 +69,11 @@ func (p *Provider) token() (string, error) {
 	return p.accessToken, nil
 }
 
-func (p *Provider) fetch() (tokenResponse, error) {
+func (p *AccessTokenProvider) fetch() (tokenResponse, error) {
 	form := url.Values{}
 	form.Set("grant_type", "client_credentials")
-	form.Set("client_id", p.credentials.clientID)
-	form.Set("client_secret", p.credentials.clientSecret)
+	form.Set("client_id", p.clientID)
+	form.Set("client_secret", p.clientSecret)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
@@ -140,6 +109,10 @@ type tokenResponse struct {
 	ExpiresIn   int    `json:"expires_in"`
 }
 
-func setBearerTokenAuthHeader(req *http.Request, token string) {
-	req.Header.Set("Authorization", "Bearer "+token)
+func TokenURL() string {
+	if tokenURLFromEnv := os.Getenv("APCA_API_TOKEN_URL"); tokenURLFromEnv != "" {
+		return tokenURLFromEnv
+	}
+
+	return "https://authx.alpaca.markets/oauth2/token"
 }

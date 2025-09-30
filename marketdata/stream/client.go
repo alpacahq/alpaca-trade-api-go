@@ -15,9 +15,8 @@ import (
 type client struct {
 	logger Logger
 
-	baseURL string
-	key     string
-	secret  string
+	baseURL      string
+	authProvider *streamAuthProvider
 
 	reconnectLimit     int
 	reconnectDelay     time.Duration
@@ -57,8 +56,12 @@ func newClient() *client {
 func (c *client) configure(o options) {
 	c.logger = o.logger
 	c.baseURL = o.baseURL
-	c.key = o.key
-	c.secret = o.secret
+	c.authProvider = newStreamAuthProvider(streamAuthProviderOptions{
+		tokenURL:   o.tokenURL,
+		key:        o.key,
+		secret:     o.secret,
+		clientType: o.clientType,
+	})
 	c.reconnectLimit = o.reconnectLimit
 	c.reconnectDelay = o.reconnectDelay
 	c.connectCallback = o.connectCallback

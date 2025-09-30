@@ -53,7 +53,7 @@ type ClientOpts struct {
 type Client struct {
 	opts          ClientOpts
 	httpClient    *http.Client
-	authnProvider *authn.Provider
+	authnProvider *authn.RestAuthProvider
 
 	do func(c *Client, req *http.Request) (*http.Response, error)
 }
@@ -82,15 +82,19 @@ func NewClient(opts ClientOpts) *Client {
 	return &Client{
 		opts:       opts,
 		httpClient: httpClient,
-		authnProvider: authn.NewProvider(httpClient, opts.TokenURL, authn.CredentialsParams{
-			APIKey:       opts.APIKey,
-			APISecret:    opts.APISecret,
-			BrokerKey:    opts.BrokerKey,
-			BrokerSecret: opts.BrokerSecret,
-			ClientID:     opts.ClientID,
-			ClientSecret: opts.ClientSecret,
-			ClientType:   opts.ClientType,
-			OAuthToken:   opts.OAuth,
+		authnProvider: authn.NewRestAuthProvider(authn.RestAuthProviderOptions{
+			HTTPClient: httpClient,
+			TokenURL:   opts.TokenURL,
+			Credentials: authn.CredentialsParams{
+				APIKey:       opts.APIKey,
+				APISecret:    opts.APISecret,
+				BrokerKey:    opts.BrokerKey,
+				BrokerSecret: opts.BrokerSecret,
+				ClientID:     opts.ClientID,
+				ClientSecret: opts.ClientSecret,
+				ClientType:   opts.ClientType,
+				OAuthToken:   opts.OAuth,
+			},
 		}),
 		do: defaultDo,
 	}
