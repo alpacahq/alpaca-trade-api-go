@@ -16,7 +16,7 @@ import (
 	"github.com/mailru/easyjson"
 
 	"github.com/alpacahq/alpaca-trade-api-go/v3/alpaca"
-	"github.com/alpacahq/alpaca-trade-api-go/v3/authn"
+	"github.com/alpacahq/alpaca-trade-api-go/v3/internal/authn"
 )
 
 // ClientOpts contains options for the alpaca marketdata client.
@@ -24,18 +24,41 @@ import (
 // Currently it contains the exact same options as the trading alpaca client,
 // but there is no guarantee that this will remain the case.
 type ClientOpts struct {
-	APIKey       string // deprecated. use ClientID instead
-	APISecret    string // deprecated. use ClientSecret instead
-	BrokerKey    string // deprecated. use ClientID instead
-	BrokerSecret string // deprecated. use ClientSecret instead
-	OAuth        string
-	ClientID     string
+	// APIKey is the Alpaca API key to use. Use the web dashboard to create one.
+	//
+	// Deprecated: use ClientID instead
+	APIKey string
+	// APISecret is the Alpaca API secret to use.
+	//
+	// Deprecated: use ClientSecret instead
+	APISecret string
+	// BrokerKey is the Alpaca Broker API key to use. Use the web broker dashboard to create one.
+	//
+	// Deprecated: use ClientID instead
+	BrokerKey string
+	// BrokerSecret is the Alpaca Broker API secret to use.
+	//
+	// Deprecated: use ClientSecret instead
+	BrokerSecret string
+	// OAuth is the Alpaca OAuth token to use. Use the web dashboard to create one.
+	OAuth string
+	// ClientID is the Alpaca Client ID to use. Use the web dashboard to create one.
+	// Can be used with legacy APIKey and BrokerKey.
+	ClientID string
+	// ClientSecret is the Alpaca Client secret to use. Use the web dashboard to create one.
 	ClientSecret string
-	ClientType   authn.ClientType
-	BaseURL      string
-	TokenURL     string
-	RetryLimit   int
-	RetryDelay   time.Duration
+	// BaseURL is the Alpaca API Base URL to use.
+	// Default: https://data.alpaca.markets.
+	BaseURL string
+	// TokenURL is the Alpaca API Token URL to use.
+	// Default: https://authx.alpaca.markets/v1/oauth2/token.
+	TokenURL string
+	// RetryLimit is the number of times to retry a request.
+	// Default: 3.
+	RetryLimit int
+	// RetryDelay is the delay between retries.
+	// Default: 1 second.
+	RetryDelay time.Duration
 	// Feed is the default feed to be used by all requests. Can be overridden per request.
 	Feed Feed
 	// CryptoFeed is the default crypto feed to be used by all requests. Can be overridden per request.
@@ -85,14 +108,13 @@ func NewClient(opts ClientOpts) *Client {
 		authnProvider: authn.NewRestAuthProvider(authn.RestAuthProviderOptions{
 			HTTPClient: httpClient,
 			TokenURL:   opts.TokenURL,
-			Credentials: authn.CredentialsParams{
+			Credentials: authn.Credentials{
 				APIKey:       opts.APIKey,
 				APISecret:    opts.APISecret,
 				BrokerKey:    opts.BrokerKey,
 				BrokerSecret: opts.BrokerSecret,
 				ClientID:     opts.ClientID,
 				ClientSecret: opts.ClientSecret,
-				ClientType:   opts.ClientType,
 				OAuthToken:   opts.OAuth,
 			},
 		}),
@@ -110,7 +132,7 @@ func defaultDo(c *Client, req *http.Request) (*http.Response, error) {
 	}
 
 	if err := c.authnProvider.SetAuthHeader(req, true); err != nil {
-		return nil, fmt.Errorf("set auth header: %w", err)
+		return nil, err
 	}
 
 	var resp *http.Response

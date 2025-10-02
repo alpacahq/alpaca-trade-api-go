@@ -57,10 +57,9 @@ func (c *client) configure(o options) {
 	c.logger = o.logger
 	c.baseURL = o.baseURL
 	c.authProvider = newStreamAuthProvider(streamAuthProviderOptions{
-		tokenURL:   o.tokenURL,
-		key:        o.key,
-		secret:     o.secret,
-		clientType: o.clientType,
+		tokenURL: o.tokenURL,
+		key:      o.key,
+		secret:   o.secret,
 	})
 	c.reconnectLimit = o.reconnectLimit
 	c.reconnectDelay = o.reconnectDelay

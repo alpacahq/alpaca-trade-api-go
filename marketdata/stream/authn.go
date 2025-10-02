@@ -3,20 +3,18 @@ package stream
 import (
 	"context"
 
-	"github.com/alpacahq/alpaca-trade-api-go/v3/authn"
+	"github.com/alpacahq/alpaca-trade-api-go/v3/internal/authn"
 )
 
 type streamAuthProviderOptions struct {
-	tokenURL   string
-	key        string
-	secret     string
-	clientType authn.ClientType
+	tokenURL string
+	key      string
+	secret   string
 }
 
 type streamAuthProvider struct {
 	key           string
 	secret        string
-	clientType    authn.ClientType
 	tokenProvider *authn.AccessTokenProvider
 }
 
@@ -25,8 +23,7 @@ func newStreamAuthProvider(opts streamAuthProviderOptions) *streamAuthProvider {
 		opts.tokenURL = authn.TokenURL()
 	}
 
-	credsFromEnv := authn.NewCredentials(authn.CredentialsParams{})
-
+	credsFromEnv := authn.CredentialsFromEnv()
 	if opts.key == "" {
 		opts.key = credsFromEnv.ClientID
 	}
@@ -35,17 +32,12 @@ func newStreamAuthProvider(opts streamAuthProviderOptions) *streamAuthProvider {
 		opts.secret = credsFromEnv.ClientSecret
 	}
 
-	if opts.clientType == "" {
-		opts.clientType = credsFromEnv.ClientType
-	}
-
 	provider := &streamAuthProvider{
-		key:        opts.key,
-		secret:     opts.secret,
-		clientType: opts.clientType,
+		key:    opts.key,
+		secret: opts.secret,
 	}
 
-	if opts.clientType == authn.ClientTypeClientSecret {
+	if authn.IsClientID(opts.key) {
 		provider.tokenProvider = authn.NewAccessTokenProvider(authn.AccessTokenProviderOptions{
 			TokenURL:     opts.tokenURL,
 			ClientID:     opts.key,
@@ -57,7 +49,7 @@ func newStreamAuthProvider(opts streamAuthProviderOptions) *streamAuthProvider {
 }
 
 func (c *streamAuthProvider) authMessage(ctx context.Context) (map[string]string, error) {
-	if c.clientType == authn.ClientTypeClientSecret {
+	if c.tokenProvider != nil {
 		accessToken, err := c.tokenProvider.Token(ctx)
 		if err != nil {
 			return nil, err

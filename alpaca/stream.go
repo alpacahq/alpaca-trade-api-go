@@ -61,7 +61,7 @@ func (c *Client) StreamTradeUpdates(
 	}
 
 	if err := c.authnProvider.SetAuthHeader(request, false); err != nil {
-		return fmt.Errorf("set auth header: %w", err)
+		return err
 	}
 
 	resp, err := client.Do(request)

@@ -11,7 +11,6 @@ import (
 	"github.com/shopspring/decimal"
 
 	"github.com/alpacahq/alpaca-trade-api-go/v3/alpaca"
-	"github.com/alpacahq/alpaca-trade-api-go/v3/authn"
 	"github.com/alpacahq/alpaca-trade-api-go/v3/marketdata"
 )
 
@@ -25,21 +24,18 @@ func newMlegClientWrapper() (*mlegClientWrapper, error) {
 	// You can set your client id/secret/type here or you can use environment variables
 	clientID := os.Getenv("APCA_API_CLIENT_ID")
 	clientSecret := os.Getenv("APCA_API_CLIENT_SECRET")
-	clientType := os.Getenv("APCA_API_CLIENT_TYPE")
 	// NOTE: mleg complex option strategies are still in beta only available in Paper
 	baseURL := "https://paper-api.alpaca.markets"
 
 	tdClient := alpaca.NewClient(alpaca.ClientOpts{
 		ClientID:     clientID,
 		ClientSecret: clientSecret,
-		ClientType:   authn.ClientType(clientType),
 		BaseURL:      baseURL,
 	})
 
 	mdClient := marketdata.NewClient(marketdata.ClientOpts{
 		ClientID:     clientID,
 		ClientSecret: clientSecret,
-		ClientType:   authn.ClientType(clientType),
 	})
 
 	// Cancel any open orders so they don't interfere with this algo

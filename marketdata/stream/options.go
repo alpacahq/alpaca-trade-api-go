@@ -5,8 +5,6 @@ import (
 	"net/url"
 	"os"
 	"time"
-
-	"github.com/alpacahq/alpaca-trade-api-go/v3/authn"
 )
 
 // StockOption is a configuration option for the StockClient
@@ -41,7 +39,6 @@ type options struct {
 	tokenURL           string
 	key                string
 	secret             string
-	clientType         authn.ClientType
 	reconnectLimit     int
 	reconnectDelay     time.Duration
 	connectCallback    func()
@@ -110,21 +107,6 @@ func WithCredentials(key, secret string) Option {
 		}
 		if secret != "" {
 			o.secret = secret
-		}
-	})
-}
-
-// WithClientCredentials configures the client ID, client secret, and client type to use
-func WithClientCredentials(clientID, clientSecret string, clientType authn.ClientType) Option {
-	return newFuncOption(func(o *options) {
-		if clientID != "" {
-			o.key = clientID
-		}
-		if clientSecret != "" {
-			o.secret = clientSecret
-		}
-		if clientType != "" {
-			o.clientType = clientType
 		}
 	})
 }

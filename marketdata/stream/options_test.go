@@ -6,7 +6,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/alpacahq/alpaca-trade-api-go/v3/authn"
 	"github.com/alpacahq/alpaca-trade-api-go/v3/marketdata"
 )
 
@@ -78,7 +77,6 @@ func TestConfigureStocks(t *testing.T) {
 	assert.EqualValues(t, "testhost", c.baseURL)
 	assert.EqualValues(t, "testkey", c.authProvider.key)
 	assert.EqualValues(t, "testsecret", c.authProvider.secret)
-	assert.EqualValues(t, authn.ClientTypeLegacy, c.authProvider.clientType)
 	assert.EqualValues(t, 42, c.reconnectLimit)
 	assert.EqualValues(t, 322*time.Nanosecond, c.reconnectDelay)
 	assert.EqualValues(t, 322, c.processorCount)
@@ -101,7 +99,7 @@ func TestConfigureStocksClientCredentials(t *testing.T) {
 	c := NewStocksClient(marketdata.IEX,
 		WithLogger(logger),
 		WithBaseURL("testhost"),
-		WithClientCredentials("testkey", "testsecret", authn.ClientTypeClientSecret),
+		WithCredentials("testkey", "testsecret"),
 		WithReconnectSettings(42, 322*time.Nanosecond),
 		WithProcessors(322),
 		WithBufferSize(1000000),
@@ -121,7 +119,6 @@ func TestConfigureStocksClientCredentials(t *testing.T) {
 	assert.EqualValues(t, "testhost", c.baseURL)
 	assert.EqualValues(t, "testkey", c.authProvider.key)
 	assert.EqualValues(t, "testsecret", c.authProvider.secret)
-	assert.EqualValues(t, authn.ClientTypeClientSecret, c.authProvider.clientType)
 	assert.EqualValues(t, 42, c.reconnectLimit)
 	assert.EqualValues(t, 322*time.Nanosecond, c.reconnectDelay)
 	assert.EqualValues(t, 322, c.processorCount)

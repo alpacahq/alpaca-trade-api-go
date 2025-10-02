@@ -19,7 +19,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/alpacahq/alpaca-trade-api-go/v3/authn"
+	"github.com/alpacahq/alpaca-trade-api-go/v3/internal/authn"
 )
 
 func TestDefaultDo(t *testing.T) {
@@ -75,7 +75,7 @@ func TestDefaultDo_BrokerAuth(t *testing.T) {
 	assert.Equal(t, "test body", string(b))
 }
 
-func TestDefaultDo_ClientCredentials(t *testing.T) {
+func TestDefaultDo_Credentials(t *testing.T) {
 	var (
 		testToken        = "test-token"
 		testAKClientID   = "AKTESTKEY"
@@ -84,55 +84,50 @@ func TestDefaultDo_ClientCredentials(t *testing.T) {
 	)
 	for _, tt := range []struct {
 		name            string
-		clientID        string
-		clientSecret    string
-		clientType      authn.ClientType
+		credentials     authn.Credentials
 		expectedHeaders map[string]string
 		expectedError   string
 	}{
 		{
-			name:         "Legacy AK",
-			clientID:     testAKClientID,
-			clientSecret: testClientSecret,
-			clientType:   authn.ClientTypeLegacy,
+			name: "API Key",
+			credentials: authn.Credentials{
+				APIKey:    testAKClientID,
+				APISecret: testClientSecret,
+			},
 			expectedHeaders: map[string]string{
 				"APCA-API-KEY-ID":     testAKClientID,
 				"APCA-API-SECRET-KEY": testClientSecret,
 			},
 		},
 		{
-			name:         "Legacy CK",
-			clientID:     testCKClientID,
-			clientSecret: testClientSecret,
-			clientType:   authn.ClientTypeLegacy,
+			name: "Broker Key",
+			credentials: authn.Credentials{
+				BrokerKey:    testCKClientID,
+				BrokerSecret: testClientSecret,
+			},
 			expectedHeaders: map[string]string{
 				"Authorization": "Basic " + base64.StdEncoding.EncodeToString([]byte(testCKClientID+":"+testClientSecret)),
 			},
 		},
 		{
-			name:         "ClientSecret AK",
-			clientID:     testAKClientID,
-			clientSecret: testClientSecret,
-			clientType:   authn.ClientTypeClientSecret,
+			name: "API Client Credentials",
+			credentials: authn.Credentials{
+				ClientID:     testAKClientID,
+				ClientSecret: testClientSecret,
+			},
 			expectedHeaders: map[string]string{
 				"Authorization": "Bearer " + testToken,
 			},
 		},
 		{
-			name:         "ClientSecret CK",
-			clientID:     testCKClientID,
-			clientSecret: testClientSecret,
-			clientType:   authn.ClientTypeClientSecret,
+			name: "Broker API Client Credentials",
+			credentials: authn.Credentials{
+				ClientID:     testCKClientID,
+				ClientSecret: testClientSecret,
+			},
 			expectedHeaders: map[string]string{
 				"Authorization": "Bearer " + testToken,
 			},
-		},
-		{
-			name:          "Unsupported ClientType",
-			clientID:      testCKClientID,
-			clientSecret:  testClientSecret,
-			clientType:    "private_key_jwt",
-			expectedError: "unsupported client type: private_key_jwt",
 		},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
@@ -154,9 +149,13 @@ func TestDefaultDo_ClientCredentials(t *testing.T) {
 			}))
 
 			c := NewClient(ClientOpts{
-				ClientID:     tt.clientID,
-				ClientSecret: tt.clientSecret,
-				ClientType:   tt.clientType,
+				APIKey:       tt.credentials.APIKey,
+				APISecret:    tt.credentials.APISecret,
+				BrokerKey:    tt.credentials.BrokerKey,
+				BrokerSecret: tt.credentials.BrokerSecret,
+				ClientID:     tt.credentials.ClientID,
+				ClientSecret: tt.credentials.ClientSecret,
+				OAuth:        tt.credentials.OAuthToken,
 				RetryDelay:   time.Nanosecond,
 				RetryLimit:   2,
 				BaseURL:      ts.URL,

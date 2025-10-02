@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"os"
@@ -17,6 +18,8 @@ type AccessTokenProviderOptions struct {
 	ClientSecret string
 	TokenURL     string
 	HTTPClient   *http.Client
+	RetryLimit   int
+	RetryDelay   time.Duration
 }
 
 type AccessTokenProvider struct {
@@ -24,10 +27,20 @@ type AccessTokenProvider struct {
 	clientSecret string
 	tokenURL     string
 	httpClient   *http.Client
+	retryLimit   int
+	retryDelay   time.Duration
 
-	mu          sync.Mutex
+	mu          sync.Mutex // guards concurrent access to accessToken and expiresAt
 	accessToken string
 	expiresAt   time.Time
+}
+
+func TokenURL() string {
+	if tokenURLFromEnv := os.Getenv("APCA_API_TOKEN_URL"); tokenURLFromEnv != "" {
+		return tokenURLFromEnv
+	}
+
+	return "https://authx.alpaca.markets/v1/oauth2/token"
 }
 
 func NewAccessTokenProvider(opts AccessTokenProviderOptions) *AccessTokenProvider {
@@ -44,6 +57,8 @@ func NewAccessTokenProvider(opts AccessTokenProviderOptions) *AccessTokenProvide
 		clientSecret: opts.ClientSecret,
 		tokenURL:     opts.TokenURL,
 		httpClient:   opts.HTTPClient,
+		retryLimit:   opts.RetryLimit,
+		retryDelay:   opts.RetryDelay,
 	}
 }
 
@@ -75,9 +90,6 @@ func (p *AccessTokenProvider) fetch(ctx context.Context) (tokenResponse, error) 
 	form.Set("client_id", p.clientID)
 	form.Set("client_secret", p.clientSecret)
 
-	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
-	defer cancel()
-
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, p.tokenURL, strings.NewReader(form.Encode()))
 	if err != nil {
 		return tokenResponse{}, fmt.Errorf("new request: %w", err)
@@ -85,15 +97,28 @@ func (p *AccessTokenProvider) fetch(ctx context.Context) (tokenResponse, error) 
 
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 
-	resp, err := p.httpClient.Do(req)
-	if err != nil {
-		return tokenResponse{}, err
+	var resp *http.Response
+	for i := 0; ; i++ {
+		resp, err = p.httpClient.Do(req)
+		if err != nil {
+			return tokenResponse{}, err
+		}
+
+		if resp.StatusCode != http.StatusTooManyRequests {
+			break
+		}
+
+		if i >= p.retryLimit {
+			break
+		}
+
+		time.Sleep(p.retryDelay)
 	}
 
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return tokenResponse{}, fmt.Errorf("token request: %s", resp.Status)
+		return tokenResponse{}, authErrorFromResponse(resp)
 	}
 
 	var tokenResp tokenResponse
@@ -109,10 +134,37 @@ type tokenResponse struct {
 	ExpiresIn   int    `json:"expires_in"`
 }
 
-func TokenURL() string {
-	if tokenURLFromEnv := os.Getenv("APCA_API_TOKEN_URL"); tokenURLFromEnv != "" {
-		return tokenURLFromEnv
+type authnError struct {
+	StatusCode int      `json:"-"`
+	ErrorCode  string   `json:"error"`
+	Fields     []string `json:"fields"`
+	Body       string   `json:"-"`
+}
+
+func authErrorFromResponse(resp *http.Response) error {
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+	var authErr authnError
+	if err := json.Unmarshal(body, &authErr); err != nil {
+		return fmt.Errorf("%s (HTTP %d)", body, resp.StatusCode)
+	}
+	authErr.StatusCode = resp.StatusCode
+	authErr.Body = strings.TrimSpace(string(body))
+	return &authErr
+}
+
+func (e *authnError) Error() string {
+	msg := e.ErrorCode
+	if msg == "" {
+		msg = e.Body
 	}
 
-	return "https://authx.alpaca.markets/oauth2/token"
+	info := []string{fmt.Sprintf("HTTP %d", e.StatusCode)}
+	if len(e.Fields) > 0 {
+		info = append(info, fmt.Sprintf("Fields %s", strings.Join(e.Fields, ", ")))
+	}
+
+	return fmt.Sprintf("%s (%s)", msg, strings.Join(info, ", "))
 }

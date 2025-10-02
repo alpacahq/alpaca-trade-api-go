@@ -31,10 +31,9 @@ import (
 func main() {
 	client := alpaca.NewClient(alpaca.ClientOpts{
 		// Alternatively you can set your key and secret using the
-		// APCA_API_CLIENT_ID, APCA_API_CLIENT_SECRET, and APCA_API_CLIENT_TYPE environment variables
+		// APCA_API_CLIENT_ID and APCA_API_CLIENT_SECRET environment variables
 		ClientID:     "YOUR_CLIENT_ID",
 		ClientSecret: "YOUR_CLIENT_SECRET",
-		ClientType:   authn.ClientTypeClientSecret,
 		BaseURL:      "https://paper-api.alpaca.markets",
 	})
 	acct, err := client.GetAccount()
@@ -97,7 +96,7 @@ The HTTP API document is located [here](https://alpaca.markets/docs/api-document
 
 The Alpaca API requires client id client secret, which you can obtain from
 the web console after you sign in. The client credentials can then be applied to the SDK
-either by setting environment variables (`APCA_API_CLIENT_ID=<client_id>`, `APCA_API_CLIENT_SECRET=<client_secret>`, and `APCA_API_CLIENT_TYPE=<client_type>`),
+either by setting environment variables (`APCA_API_CLIENT_ID=<client_id>` and `APCA_API_CLIENT_SECRET=<client_secret>`),
 or hardcoding them into the Go code directly as shown in the examples above.
 
 Client type has to match with the type that was used during the credentials creation (`legacy` or `client_secret`)
@@ -105,7 +104,6 @@ Client type has to match with the type that was used during the credentials crea
 ```sh
 export APCA_API_CLIENT_ID=xxxxx
 export APCA_API_CLIENT_SECRET=yyyyy
-export APCA_API_CLIENT_TYPE=client_secret
 ```
 
 ## Endpoint
