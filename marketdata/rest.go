@@ -389,7 +389,7 @@ func (c *Client) setQueryBarRequest(q url.Values, symbols []string, req GetBarsR
 		Currency: req.Currency,
 		Sort:     req.Sort,
 	})
-	adjustment := Raw
+	adjustment := AdjustmentRaw
 	if req.Adjustment != "" {
 		adjustment = req.Adjustment
 	}

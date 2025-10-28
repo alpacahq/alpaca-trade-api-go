@@ -2,6 +2,7 @@ package marketdata
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"cloud.google.com/go/civil"
@@ -135,11 +136,44 @@ type Adjustment string
 
 // List of adjustments
 const (
-	Raw      Adjustment = "raw"
-	Split    Adjustment = "split"
+	// Raw applies no adjustments.
+	//
+	// Deprecated: Use AdjustmentRaw instead.
+	Raw Adjustment = "raw"
+	// Split adjusts the price and volume for forward and reverse stock splits.
+	//
+	// Deprecated: Use AdjustmentSplit instead.
+	Split Adjustment = "split"
+	// Dividend adjusts the price for cash dividends.
+	//
+	// Deprecated: Use AdjustmentDividend instead.
 	Dividend Adjustment = "dividend"
-	All      Adjustment = "all"
+	// All applies all above adjustments.
+	//
+	// Deprecated: Use AdjustmentAll instead.
+	All Adjustment = "all"
+
+	// AdjustmentRaw applies no adjustments.
+	AdjustmentRaw Adjustment = "raw"
+	// AdjustmentSplit adjusts the price and volume for forward and reverse stock splits.
+	AdjustmentSplit Adjustment = "split"
+	// AdjustmentDividend adjusts the price for cash dividends.
+	AdjustmentDividend Adjustment = "dividend"
+	// AdjustmentSpinOff adjusts the price for spin-offs.
+	AdjustmentSpinOff Adjustment = "spin-off"
+	// AdjustmentAll applies all above adjustments.
+	AdjustmentAll Adjustment = "all"
 )
+
+// CombineAdjustments can be used to combine multiple adjustments into one,
+// e.g. to adjust both for splits and spin-offs.
+func CombineAdjustments(adjustments ...Adjustment) Adjustment {
+	arr := make([]string, len(adjustments))
+	for i, adj := range adjustments {
+		arr[i] = string(adj)
+	}
+	return Adjustment(strings.Join(arr, ","))
+}
 
 // Bar is an aggregate of trades
 type Bar struct {

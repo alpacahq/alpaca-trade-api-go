@@ -451,7 +451,7 @@ func TestGetBars(t *testing.T) {
 	c.do = mockResp(`{"bars":{"AMZN":[{"t":"2021-10-15T16:00:00Z","o":3378.14,"h":3380.815,"l":3376.3001,"c":3379.72,"v":211689,"n":5435,"vw":3379.041755},{"t":"2021-10-15T16:15:00Z","o":3379.5241,"h":3383.24,"l":3376.49,"c":3377.82,"v":115850,"n":5544,"vw":3379.638266},{"t":"2021-10-15T16:30:00Z","o":3377.982,"h":3380.86,"l":3377,"c":3380,"v":58531,"n":3679,"vw":3379.100605},{"t":"2021-10-15T16:45:00Z","o":3379.73,"h":3387.17,"l":3378.7701,"c":3386.7615,"v":83180,"n":4736,"vw":3381.838113},{"t":"2021-10-15T17:00:00Z","o":3387.56,"h":3390.74,"l":3382.87,"c":3382.87,"v":134339,"n":5832,"vw":3387.086825}]},"next_page_token":null}`)
 	got, err := c.GetBars("AMZN", GetBarsRequest{
 		TimeFrame:  NewTimeFrame(15, Min),
-		Adjustment: Split,
+		Adjustment: AdjustmentSplit,
 		Start:      time.Date(2021, 10, 15, 16, 0, 0, 0, time.UTC),
 		End:        time.Date(2021, 10, 15, 17, 0, 0, 0, time.UTC),
 		Feed:       SIP,
@@ -499,6 +499,52 @@ func TestGetBars_Asof(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, got, 4)
 	assert.Equal(t, 172.575, got[3].High)
+}
+
+func TestGetBars_Adjustment(t *testing.T) {
+	c := DefaultClient
+	c.do = func(_ *Client, req *http.Request) (*http.Response, error) {
+		assert.Equal(t, "dividend,spin-off", req.URL.Query().Get("adjustment"))
+		return &http.Response{
+			Body: io.NopCloser(strings.NewReader(`{
+  "bars": {
+    "GE": [
+      {
+        "c": 138.29,
+        "h": 138.82,
+        "l": 136.48,
+        "n": 80136,
+        "o": 138.48,
+        "t": "2024-04-01T04:00:00Z",
+        "v": 5905509,
+        "vw": 137.8
+      },
+      {
+        "c": 134.94,
+        "h": 142.9,
+        "l": 132.49,
+        "n": 209105,
+        "o": 138.96,
+        "t": "2024-04-02T04:00:00Z",
+        "v": 20490401,
+        "vw": 137.45
+      }
+    ]
+  },
+  "next_page_token": "R0V8RHwxNzEyMTE2ODAwMDAwMDAwMDAw"
+}`)),
+		}, nil
+	}
+	got, err := c.GetBars("GE", GetBarsRequest{
+		TimeFrame:  OneDay,
+		Start:      time.Date(2024, 4, 1, 0, 0, 0, 0, time.UTC),
+		TotalLimit: 2,
+		Adjustment: CombineAdjustments(AdjustmentDividend, AdjustmentSpinOff),
+	})
+	require.NoError(t, err)
+	require.Len(t, got, 2)
+	assert.Equal(t, 138.29, got[0].Close)
+	assert.Equal(t, 134.94, got[1].Close)
 }
 
 func TestGetMultiBars(t *testing.T) {
