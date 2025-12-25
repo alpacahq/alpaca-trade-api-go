@@ -190,6 +190,7 @@ func (c *Client) UpdateAccountConfigurations(req UpdateAccountConfigurationsRequ
 }
 
 type GetAccountActivitiesRequest struct {
+	AccountID     string    `json:"account_id"`
 	ActivityTypes []string  `json:"activity_types"`
 	Date          time.Time `json:"date"`
 	Until         time.Time `json:"until"`
@@ -208,6 +209,9 @@ func (c *Client) GetAccountActivities(req GetAccountActivitiesRequest) ([]Accoun
 	}
 
 	q := u.Query()
+	if req.AccountID != "" {
+		q.Set("account_id", req.AccountID)
+	}
 	if len(req.ActivityTypes) > 0 {
 		q.Set("activity_types", strings.Join(req.ActivityTypes, ","))
 	}
