@@ -42,6 +42,7 @@ const (
 	// US is the crypto feed for the United States.
 	US     CryptoFeed = "us"
 	US1    CryptoFeed = "us-1"
+	US2    CryptoFeed = "us-2"
 	GLOBAL CryptoFeed = "global"
 )
 
