@@ -1157,7 +1157,7 @@ func TestTestVerify(t *testing.T) {
 		StatusCode: http.StatusOK,
 	}
 
-	require.NoError(t, verify(resp))
+	require.NoError(t, Verify(resp))
 
 	// 500
 	resp = &http.Response{
@@ -1165,7 +1165,7 @@ func TestTestVerify(t *testing.T) {
 		Body:       genBody(APIError{Code: 1010101, Message: "server is dead"}),
 	}
 
-	assert.Error(t, verify(resp))
+	assert.Error(t, Verify(resp))
 }
 
 func TestOTOCOOrders(t *testing.T) {
