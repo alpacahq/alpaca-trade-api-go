@@ -2,6 +2,7 @@ package marketdata
 
 import (
 	"compress/gzip"
+	json "encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -1564,6 +1565,37 @@ func (c *Client) GetCorporateActions(req GetCorporateActionsRequest) (CorporateA
 	return cas, nil
 }
 
+// GetExchangeCodes returns the mapping between the stock exchange codes
+// and the corresponding exchanges names, see:
+// https://docs.alpaca.markets/reference/stockmetaexchanges-1
+func (c *Client) GetExchangeCodes() (map[string]string, error) {
+	u, err := url.Parse(fmt.Sprintf("%s/v2/stocks/meta/exchanges", c.opts.BaseURL))
+	if err != nil {
+		return nil, fmt.Errorf("invalid exchange codes url: %w", err)
+	}
+
+	resp, err := c.get(u)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get exchange codes: %w", err)
+	}
+
+	defer resp.Body.Close()
+
+	reader, err := getResponseReader(resp)
+	if err != nil {
+		return nil, err
+	}
+	body, err := io.ReadAll(reader)
+	if err != nil {
+		return nil, err
+	}
+	var exchangeCodes map[string]string
+	if err = json.Unmarshal(body, &exchangeCodes); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal exchange codes: %w", err)
+	}
+	return exchangeCodes, nil
+}
+
 // GetTrades returns the trades for the given symbol.
 func GetTrades(symbol string, req GetTradesRequest) ([]Trade, error) {
 	return DefaultClient.GetTrades(symbol, req)
@@ -1759,6 +1791,13 @@ func GetCorporateActions(req GetCorporateActionsRequest) (CorporateActions, erro
 	return DefaultClient.GetCorporateActions(req)
 }
 
+// GetExchangeCodes returns the mapping between the stock exchange codes
+// and the corresponding exchanges names, see:
+// https://docs.alpaca.markets/reference/stockmetaexchanges-1
+func GetExchangeCodes() (map[string]string, error) {
+	return DefaultClient.GetExchangeCodes()
+}
+
 func (c *Client) get(u *url.URL) (*http.Response, error) {
 	req, err := http.NewRequest(http.MethodGet, u.String(), nil)
 	if err != nil {
@@ -1768,7 +1807,7 @@ func (c *Client) get(u *url.URL) (*http.Response, error) {
 	return c.do(c, req)
 }
 
-func unmarshal(resp *http.Response, v easyjson.Unmarshaler) error {
+func getResponseReader(resp *http.Response) (io.ReadCloser, error) {
 	var (
 		reader io.ReadCloser
 		err    error
@@ -1777,11 +1816,19 @@ func unmarshal(resp *http.Response, v easyjson.Unmarshaler) error {
 	case "gzip":
 		reader, err = gzip.NewReader(resp.Body)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		defer reader.Close()
 	default:
 		reader = resp.Body
+	}
+	return reader, nil
+}
+
+func unmarshal(resp *http.Response, v easyjson.Unmarshaler) error {
+	reader, err := getResponseReader(resp)
+	if err != nil {
+		return err
 	}
 	return easyjson.UnmarshalFromReader(reader, v)
 }
