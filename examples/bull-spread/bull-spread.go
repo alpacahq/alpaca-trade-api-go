@@ -21,21 +21,21 @@ type mlegClientWrapper struct {
 }
 
 func newMlegClientWrapper() (*mlegClientWrapper, error) {
-	// You can set your API key/secret here or you can use environment variables
-	apiKey := os.Getenv("APCA_API_KEY_ID")
-	apiSecret := os.Getenv("APCA_API_SECRET_KEY")
+	// You can set your client id/secret/type here or you can use environment variables
+	clientID := os.Getenv("APCA_API_CLIENT_ID")
+	clientSecret := os.Getenv("APCA_API_CLIENT_SECRET")
 	// NOTE: mleg complex option strategies are still in beta only available in Paper
 	baseURL := "https://paper-api.alpaca.markets"
 
 	tdClient := alpaca.NewClient(alpaca.ClientOpts{
-		APIKey:    apiKey,
-		APISecret: apiSecret,
-		BaseURL:   baseURL,
+		ClientID:     clientID,
+		ClientSecret: clientSecret,
+		BaseURL:      baseURL,
 	})
 
 	mdClient := marketdata.NewClient(marketdata.ClientOpts{
-		APIKey:    apiKey,
-		APISecret: apiSecret,
+		ClientID:     clientID,
+		ClientSecret: clientSecret,
 	})
 
 	// Cancel any open orders so they don't interfere with this algo

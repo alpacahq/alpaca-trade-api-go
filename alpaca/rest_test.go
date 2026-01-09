@@ -18,6 +18,8 @@ import (
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/alpacahq/alpaca-trade-api-go/v3/internal/authn"
 )
 
 func TestDefaultDo(t *testing.T) {
@@ -73,6 +75,109 @@ func TestDefaultDo_BrokerAuth(t *testing.T) {
 	assert.Equal(t, "test body", string(b))
 }
 
+func TestDefaultDo_Credentials(t *testing.T) {
+	var (
+		testToken        = "test-token"
+		testAKClientID   = "AKTESTKEY"
+		testCKClientID   = "CKTESTKEY"
+		testClientSecret = "SECRET"
+	)
+	for _, tt := range []struct {
+		name            string
+		credentials     authn.Credentials
+		expectedHeaders map[string]string
+		expectedError   string
+	}{
+		{
+			name: "API Key",
+			credentials: authn.Credentials{
+				APIKey:    testAKClientID,
+				APISecret: testClientSecret,
+			},
+			expectedHeaders: map[string]string{
+				"APCA-API-KEY-ID":     testAKClientID,
+				"APCA-API-SECRET-KEY": testClientSecret,
+			},
+		},
+		{
+			name: "Broker Key",
+			credentials: authn.Credentials{
+				BrokerKey:    testCKClientID,
+				BrokerSecret: testClientSecret,
+			},
+			expectedHeaders: map[string]string{
+				"Authorization": "Basic " + base64.StdEncoding.EncodeToString([]byte(testCKClientID+":"+testClientSecret)),
+			},
+		},
+		{
+			name: "API Client Credentials",
+			credentials: authn.Credentials{
+				ClientID:     testAKClientID,
+				ClientSecret: testClientSecret,
+			},
+			expectedHeaders: map[string]string{
+				"Authorization": "Bearer " + testToken,
+			},
+		},
+		{
+			name: "Broker API Client Credentials",
+			credentials: authn.Credentials{
+				ClientID:     testCKClientID,
+				ClientSecret: testClientSecret,
+			},
+			expectedHeaders: map[string]string{
+				"Authorization": "Bearer " + testToken,
+			},
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				switch r.URL.Path {
+				case "/custompath":
+					for k, v := range tt.expectedHeaders {
+						assert.Equal(t, v, r.Header.Get(k))
+					}
+					fmt.Fprint(w, "test body")
+					return
+				case "/oauth2/token":
+					fmt.Fprint(w, `{"access_token":"`+testToken+`","expires_in":3600}`)
+					return
+				default:
+					http.Error(w, "not found", http.StatusNotFound)
+					return
+				}
+			}))
+
+			c := NewClient(ClientOpts{
+				APIKey:       tt.credentials.APIKey,
+				APISecret:    tt.credentials.APISecret,
+				BrokerKey:    tt.credentials.BrokerKey,
+				BrokerSecret: tt.credentials.BrokerSecret,
+				ClientID:     tt.credentials.ClientID,
+				ClientSecret: tt.credentials.ClientSecret,
+				OAuth:        tt.credentials.OAuthToken,
+				RetryDelay:   time.Nanosecond,
+				RetryLimit:   2,
+				BaseURL:      ts.URL,
+				TokenURL:     ts.URL + "/oauth2/token",
+			})
+
+			req, err := http.NewRequest(http.MethodGet, ts.URL+"/custompath", nil)
+			require.NoError(t, err)
+			resp, err := defaultDo(c, req)
+			if tt.expectedError != "" {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), tt.expectedError)
+				return
+			}
+			require.NoError(t, err)
+			b, err := io.ReadAll(resp.Body)
+			require.NoError(t, err)
+			assert.Equal(t, "test body", string(b))
+		})
+	}
+}
+
 func TestDefaultDo_SuccessfulRetries(t *testing.T) {
 	i := 0
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
@@ -84,7 +189,9 @@ func TestDefaultDo_SuccessfulRetries(t *testing.T) {
 		fmt.Fprint(w, "success")
 	}))
 	c := NewClient(ClientOpts{
-		RetryDelay: time.Nanosecond,
+		RetryDelay:   time.Nanosecond,
+		ClientID:     "AKTEST",
+		ClientSecret: "secret",
 	})
 	req, err := http.NewRequest(http.MethodGet, ts.URL, nil)
 	require.NoError(t, err)
@@ -106,7 +213,9 @@ func TestDefaultDo_TooManyRetries(t *testing.T) {
 		fmt.Fprint(w, "success")
 	}))
 	c := NewClient(ClientOpts{
-		RetryDelay: time.Nanosecond,
+		RetryDelay:   time.Nanosecond,
+		ClientID:     "AKTEST",
+		ClientSecret: "secret",
 	})
 	req, err := http.NewRequest(http.MethodGet, ts.URL, nil)
 	require.NoError(t, err)
@@ -119,7 +228,7 @@ func TestDefaultDo_Error(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		http.Error(w, resp, http.StatusBadRequest)
 	}))
-	c := DefaultClient
+	c := NewClient(ClientOpts{ClientID: "AKTEST", ClientSecret: "secret"})
 	req, err := http.NewRequest(http.MethodGet, ts.URL, nil)
 	require.NoError(t, err)
 	_, err = defaultDo(c, req)

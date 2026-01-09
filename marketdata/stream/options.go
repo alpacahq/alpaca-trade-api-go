@@ -36,6 +36,7 @@ type Option interface {
 type options struct {
 	logger             Logger
 	baseURL            string
+	tokenURL           string
 	key                string
 	secret             string
 	reconnectLimit     int
@@ -88,6 +89,13 @@ func WithLogger(logger Logger) Option {
 func WithBaseURL(url string) Option {
 	return newFuncOption(func(o *options) {
 		o.baseURL = url
+	})
+}
+
+// WithTokenURL configures the token URL
+func WithTokenURL(url string) Option {
+	return newFuncOption(func(o *options) {
+		o.tokenURL = url
 	})
 }
 
@@ -194,8 +202,6 @@ func defaultStockOptions() *stockOptions {
 		options: options{
 			logger:         DefaultLogger(),
 			baseURL:        baseURL,
-			key:            os.Getenv("APCA_API_KEY_ID"),
-			secret:         os.Getenv("APCA_API_SECRET_KEY"),
 			reconnectLimit: 20,
 			reconnectDelay: 150 * time.Millisecond,
 			processorCount: 1,
@@ -353,8 +359,6 @@ func defaultCryptoOptions() *cryptoOptions {
 		options: options{
 			logger:         DefaultLogger(),
 			baseURL:        baseURL,
-			key:            os.Getenv("APCA_API_KEY_ID"),
-			secret:         os.Getenv("APCA_API_SECRET_KEY"),
 			reconnectLimit: 20,
 			reconnectDelay: 150 * time.Millisecond,
 			processorCount: 1,
@@ -474,8 +478,6 @@ func defaultOptionOptions() *optionOptions {
 		options: options{
 			logger:         DefaultLogger(),
 			baseURL:        baseURL,
-			key:            os.Getenv("APCA_API_KEY_ID"),
-			secret:         os.Getenv("APCA_API_SECRET_KEY"),
 			reconnectLimit: 20,
 			reconnectDelay: 150 * time.Millisecond,
 			processorCount: 1,
@@ -542,8 +544,6 @@ func defaultNewsOptions() *newsOptions {
 		options: options{
 			logger:         DefaultLogger(),
 			baseURL:        "https://stream.data.alpaca.markets/v1beta1/news",
-			key:            os.Getenv("APCA_API_KEY_ID"),
-			secret:         os.Getenv("APCA_API_SECRET_KEY"),
 			reconnectLimit: 20,
 			reconnectDelay: 150 * time.Millisecond,
 			processorCount: 1,
