@@ -279,6 +279,8 @@ const (
 // AdvancedInstructions contains advanced routing instructions for Elite Smart Router orders.
 // These instructions enable DMA (Direct Market Access), TWAP (Time-Weighted Average Price),
 // and VWAP (Volume-Weighted Average Price) order execution strategies.
+//
+//easyjson:json
 type AdvancedInstructions struct {
 	// Algorithm specifies the advanced routing algorithm to use (DMA, TWAP, or VWAP).
 	Algorithm Algorithm `json:"algorithm,omitempty"`

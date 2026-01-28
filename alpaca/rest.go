@@ -559,8 +559,8 @@ type PlaceOrderRequest struct {
 	TrailPrice           *decimal.Decimal      `json:"trail_price"`
 	TrailPercent         *decimal.Decimal      `json:"trail_percent"`
 	PositionIntent       PositionIntent        `json:"position_intent,omitempty"`
-	Legs                 []Leg                 `json:"legs"`                          // mleg order legs
-	AdvancedInstructions *AdvancedInstructions `json:"advanced_instructions,omitempty"` // Elite Smart Router instructions (DMA, TWAP, VWAP)
+	Legs                 []Leg                 `json:"legs"`                            // mleg order legs
+	AdvancedInstructions *AdvancedInstructions `json:"advanced_instructions,omitempty"` // DMA, TWAP, VWAP
 }
 
 type TakeProfit struct {
