@@ -80,6 +80,10 @@ The SDK supports Alpaca's Elite Smart Router with advanced order instructions fo
 Direct Market Access (DMA), Time-Weighted Average Price (TWAP), and Volume-Weighted
 Average Price (VWAP) order execution strategies.
 
+> **Note:** These features are only available to users who have enabled the [Elite Smart Router](https://alpaca.markets/elite).
+> For more information on Alpaca Elite, see the [terms and conditions](https://files.alpaca.markets/disclosures/library/Alpaca+Elite+Agreement.pdf)
+> and the [Elite Smart Router documentation](https://docs.alpaca.markets/docs/alpaca-elite-smart-router).
+
 ```go
 // DMA order - route directly to NYSE with iceberg display quantity
 displayQty := decimal.NewFromInt(100)
