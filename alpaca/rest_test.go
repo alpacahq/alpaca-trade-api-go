@@ -83,16 +83,34 @@ func TestDefaultDo_SuccessfulRetries(t *testing.T) {
 		}
 		fmt.Fprint(w, "success")
 	}))
+	defer ts.Close()
+
+	tracker := &trackingTransport{wrapped: http.DefaultTransport}
+
 	c := NewClient(ClientOpts{
 		RetryDelay: time.Nanosecond,
+		HTTPClient: &http.Client{Transport: tracker},
 	})
+
 	req, err := http.NewRequest(http.MethodGet, ts.URL, nil)
 	require.NoError(t, err)
+
 	resp, err := defaultDo(c, req)
 	require.NoError(t, err)
+
 	b, err := io.ReadAll(resp.Body)
 	require.NoError(t, err)
+
 	assert.Equal(t, "success", string(b))
+
+	// Should have 4 bodies: 3 retries + 1 success
+	require.Len(t, tracker.bodies, 4)
+
+	// The first 3 (429 responses) should have been closed and drained
+	for i := 0; i < 3; i++ {
+		assert.True(t, tracker.bodies[i].closed, "body %d should be closed", i)
+		assert.True(t, tracker.bodies[i].drained, "body %d should be drained", i)
+	}
 }
 
 func TestDefaultDo_TooManyRetries(t *testing.T) {
@@ -1347,4 +1365,39 @@ func (nopCloser) Close() error { return nil }
 func genBody(data interface{}) io.ReadCloser {
 	buf, _ := json.Marshal(data)
 	return nopCloser{bytes.NewBuffer(buf)}
+}
+
+type trackingBody struct {
+    io.ReadCloser
+    closed bool
+    drained bool
+}
+
+func (tb *trackingBody) Read(p []byte) (int, error) {
+    n, err := tb.ReadCloser.Read(p)
+    if err == io.EOF {
+        tb.drained = true
+    }
+    return n, err
+}
+
+func (tb *trackingBody) Close() error {
+    tb.closed = true
+    return tb.ReadCloser.Close()
+}
+
+type trackingTransport struct {
+    bodies  []*trackingBody
+    wrapped http.RoundTripper
+}
+
+func (t *trackingTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+    resp, err := t.wrapped.RoundTrip(req)
+    if err != nil {
+        return nil, err
+    }
+    tb := &trackingBody{ReadCloser: resp.Body}
+    t.bodies = append(t.bodies, tb)
+    resp.Body = tb
+    return resp, nil
 }

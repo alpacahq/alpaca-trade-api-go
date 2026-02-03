@@ -59,14 +59,23 @@ func TestDefaultDo_Retry(t *testing.T) {
 		tryCount++
 	}))
 	defer server.Close()
+
+	tracker := &trackingTransport{wrapped: http.DefaultTransport}
+
 	client := NewClient(ClientOpts{
 		BaseURL:    server.URL,
 		RetryDelay: time.Nanosecond,
 		RetryLimit: 5,
+		HTTPClient: &http.Client{Transport: tracker},
 	})
 	bar, err := client.GetLatestBar("SPY", GetLatestBarRequest{})
 	require.NoError(t, err)
 	assert.Equal(t, 469.18, bar.High)
+
+	for i := 0; i < 3; i++ {
+		assert.True(t, tracker.bodies[i].closed, "body %d should be closed", i)
+		assert.True(t, tracker.bodies[i].drained, "body %d should be drained", i)
+	}
 }
 
 func TestDefaultDo_TooMany429s(t *testing.T) {
@@ -1526,4 +1535,39 @@ func TestGetLatestCryptoPerpPricing(t *testing.T) {
 		Timestamp:       time.Date(2024, 12, 19, 9, 33, 36, 311000000, time.UTC),
 		NextFundingTime: time.Date(2024, 12, 19, 10, 33, 36, 311000000, time.UTC),
 	}, *got)
+}
+
+type trackingBody struct {
+    io.ReadCloser
+    closed bool
+    drained bool
+}
+
+func (tb *trackingBody) Read(p []byte) (int, error) {
+    n, err := tb.ReadCloser.Read(p)
+    if err == io.EOF {
+        tb.drained = true
+    }
+    return n, err
+}
+
+func (tb *trackingBody) Close() error {
+    tb.closed = true
+    return tb.ReadCloser.Close()
+}
+
+type trackingTransport struct {
+    bodies  []*trackingBody
+    wrapped http.RoundTripper
+}
+
+func (t *trackingTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+    resp, err := t.wrapped.RoundTrip(req)
+    if err != nil {
+        return nil, err
+    }
+    tb := &trackingBody{ReadCloser: resp.Body}
+    t.bodies = append(t.bodies, tb)
+    resp.Body = tb
+    return resp, nil
 }
