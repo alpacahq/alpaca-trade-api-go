@@ -43,6 +43,7 @@ const (
 	US     CryptoFeed = "us"
 	US1    CryptoFeed = "us-1"
 	US2    CryptoFeed = "us-2"
+	BS1    CryptoFeed = "bs-1"
 	GLOBAL CryptoFeed = "global"
 )
 
