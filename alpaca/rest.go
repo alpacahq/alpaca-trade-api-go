@@ -111,6 +111,7 @@ func defaultDo(c *Client, req *http.Request) (*http.Response, error) {
 		if i >= c.opts.RetryLimit {
 			break
 		}
+		closeResp(resp)
 		time.Sleep(c.opts.RetryDelay)
 	}
 
