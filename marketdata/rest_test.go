@@ -1538,36 +1538,36 @@ func TestGetLatestCryptoPerpPricing(t *testing.T) {
 }
 
 type trackingBody struct {
-    io.ReadCloser
-    closed bool
-    drained bool
+	io.ReadCloser
+	closed  bool
+	drained bool
 }
 
 func (tb *trackingBody) Read(p []byte) (int, error) {
-    n, err := tb.ReadCloser.Read(p)
-    if err == io.EOF {
-        tb.drained = true
-    }
-    return n, err
+	n, err := tb.ReadCloser.Read(p)
+	if err == io.EOF {
+		tb.drained = true
+	}
+	return n, err
 }
 
 func (tb *trackingBody) Close() error {
-    tb.closed = true
-    return tb.ReadCloser.Close()
+	tb.closed = true
+	return tb.ReadCloser.Close()
 }
 
 type trackingTransport struct {
-    bodies  []*trackingBody
-    wrapped http.RoundTripper
+	bodies  []*trackingBody
+	wrapped http.RoundTripper
 }
 
 func (t *trackingTransport) RoundTrip(req *http.Request) (*http.Response, error) {
-    resp, err := t.wrapped.RoundTrip(req)
-    if err != nil {
-        return nil, err
-    }
-    tb := &trackingBody{ReadCloser: resp.Body}
-    t.bodies = append(t.bodies, tb)
-    resp.Body = tb
-    return resp, nil
+	resp, err := t.wrapped.RoundTrip(req)
+	if err != nil {
+		return nil, err
+	}
+	tb := &trackingBody{ReadCloser: resp.Body}
+	t.bodies = append(t.bodies, tb)
+	resp.Body = tb
+	return resp, nil
 }

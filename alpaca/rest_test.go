@@ -107,9 +107,9 @@ func TestDefaultDo_SuccessfulRetries(t *testing.T) {
 	require.Len(t, tracker.bodies, 4)
 
 	// The first 3 (429 responses) should have been closed and drained
-	for i := 0; i < 3; i++ {
-		assert.True(t, tracker.bodies[i].closed, "body %d should be closed", i)
-		assert.True(t, tracker.bodies[i].drained, "body %d should be drained", i)
+	for j := 0; j < 3; j++ {
+		assert.True(t, tracker.bodies[j].closed, "body %d should be closed", j)
+		assert.True(t, tracker.bodies[j].drained, "body %d should be drained", j)
 	}
 }
 
@@ -1368,36 +1368,36 @@ func genBody(data interface{}) io.ReadCloser {
 }
 
 type trackingBody struct {
-    io.ReadCloser
-    closed bool
-    drained bool
+	io.ReadCloser
+	closed  bool
+	drained bool
 }
 
 func (tb *trackingBody) Read(p []byte) (int, error) {
-    n, err := tb.ReadCloser.Read(p)
-    if err == io.EOF {
-        tb.drained = true
-    }
-    return n, err
+	n, err := tb.ReadCloser.Read(p)
+	if err == io.EOF {
+		tb.drained = true
+	}
+	return n, err
 }
 
 func (tb *trackingBody) Close() error {
-    tb.closed = true
-    return tb.ReadCloser.Close()
+	tb.closed = true
+	return tb.ReadCloser.Close()
 }
 
 type trackingTransport struct {
-    bodies  []*trackingBody
-    wrapped http.RoundTripper
+	bodies  []*trackingBody
+	wrapped http.RoundTripper
 }
 
 func (t *trackingTransport) RoundTrip(req *http.Request) (*http.Response, error) {
-    resp, err := t.wrapped.RoundTrip(req)
-    if err != nil {
-        return nil, err
-    }
-    tb := &trackingBody{ReadCloser: resp.Body}
-    t.bodies = append(t.bodies, tb)
-    resp.Body = tb
-    return resp, nil
+	resp, err := t.wrapped.RoundTrip(req)
+	if err != nil {
+		return nil, err
+	}
+	tb := &trackingBody{ReadCloser: resp.Body}
+	t.bodies = append(t.bodies, tb)
+	resp.Body = tb
+	return resp, nil
 }
