@@ -1527,3 +1527,55 @@ func TestGetLatestCryptoPerpPricing(t *testing.T) {
 		NextFundingTime: time.Date(2024, 12, 19, 10, 33, 36, 311000000, time.UTC),
 	}, *got)
 }
+
+func TestGetFixedIncomeLatestPrice(t *testing.T) {
+	c := DefaultClient
+
+	// successful
+	c.do = mockResp(`{"prices":{"US912797KJ59":{"t":"2026-04-29T20:58:00.648Z","p":99.6459,"ytm":4.249,"ytw":4.249}}}`)
+	got, err := c.GetFixedIncomeLatestPrice("US912797KJ59")
+	require.NoError(t, err)
+	require.NotNil(t, got)
+	assert.Equal(t, FixedIncomePrice{
+		Timestamp:       time.Date(2026, 4, 29, 20, 58, 0, 648000000, time.UTC),
+		Price:           99.6459,
+		YieldToMaturity: 4.249,
+		YieldToWorst:    4.249,
+	}, *got)
+
+	// not found
+	c.do = mockResp(`{"prices":{}}`)
+	got, err = c.GetFixedIncomeLatestPrice("US912797KJ59")
+	require.NoError(t, err)
+	assert.Nil(t, got)
+
+	// api failure
+	c.do = mockErrResp()
+	got, err = c.GetFixedIncomeLatestPrice("US912797KJ59")
+	require.Error(t, err)
+	assert.Nil(t, got)
+}
+
+func TestGetFixedIncomeLatestPrices(t *testing.T) {
+	c := DefaultClient
+
+	// successful
+	c.do = mockResp(`{"prices":{"US912797KJ59":{"t":"2026-04-29T20:58:00.648Z","p":99.6459,"ytm":4.249,"ytw":4.249},"US91282CJL54":{"t":"2026-04-29T20:58:00.648Z","p":98.5,"ytm":3.875,"ytw":3.875}}}`)
+	got, err := c.GetFixedIncomeLatestPrices([]string{"US912797KJ59", "US91282CJL54"})
+	require.NoError(t, err)
+	require.Len(t, got, 2)
+	assert.Equal(t, FixedIncomePrice{
+		Timestamp:       time.Date(2026, 4, 29, 20, 58, 0, 648000000, time.UTC),
+		Price:           99.6459,
+		YieldToMaturity: 4.249,
+		YieldToWorst:    4.249,
+	}, got["US912797KJ59"])
+	assert.Equal(t, 98.5, got["US91282CJL54"].Price)
+	assert.Equal(t, 3.875, got["US91282CJL54"].YieldToMaturity)
+
+	// api failure
+	c.do = mockErrResp()
+	got, err = c.GetFixedIncomeLatestPrices([]string{"US912797KJ59", "US91282CJL54"})
+	require.Error(t, err)
+	assert.Nil(t, got)
+}

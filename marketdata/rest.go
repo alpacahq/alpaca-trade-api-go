@@ -1564,6 +1564,46 @@ func (c *Client) GetCorporateActions(req GetCorporateActionsRequest) (CorporateA
 	return cas, nil
 }
 
+const fixedIncomePrefix = "v1beta1/fixed_income"
+
+// GetFixedIncomeLatestPrice returns the latest price for a given fixed income security identified by ISIN
+func (c *Client) GetFixedIncomeLatestPrice(isin string) (*FixedIncomePrice, error) {
+	resp, err := c.GetFixedIncomeLatestPrices([]string{isin})
+	if err != nil {
+		return nil, err
+	}
+	price, ok := resp[isin]
+	if !ok {
+		return nil, nil
+	}
+	return &price, nil
+}
+
+// GetFixedIncomeLatestPrices returns the latest prices for the given fixed income securities identified by ISINs
+func (c *Client) GetFixedIncomeLatestPrices(isins []string) (map[string]FixedIncomePrice, error) {
+	u, err := url.Parse(fmt.Sprintf("%s/%s/latest/prices", c.opts.BaseURL, fixedIncomePrefix))
+	if err != nil {
+		return nil, err
+	}
+	q := u.Query()
+	if len(isins) > 0 {
+		q.Set("isins", strings.Join(isins, ","))
+	}
+	u.RawQuery = q.Encode()
+
+	resp, err := c.get(u)
+	if err != nil {
+		return nil, err
+	}
+	defer closeResp(resp)
+
+	var latestPricesResp latestFixedIncomePricesResponse
+	if err = unmarshal(resp, &latestPricesResp); err != nil {
+		return nil, err
+	}
+	return latestPricesResp.Prices, nil
+}
+
 // GetTrades returns the trades for the given symbol.
 func GetTrades(symbol string, req GetTradesRequest) ([]Trade, error) {
 	return DefaultClient.GetTrades(symbol, req)
@@ -1757,6 +1797,16 @@ func GetNews(req GetNewsRequest) ([]News, error) {
 // GetCorporateActions returns the corporate actions based on the given req.
 func GetCorporateActions(req GetCorporateActionsRequest) (CorporateActions, error) {
 	return DefaultClient.GetCorporateActions(req)
+}
+
+// GetFixedIncomeLatestPrice returns the latest price for a given fixed income security identified by ISIN
+func GetFixedIncomeLatestPrice(isin string) (*FixedIncomePrice, error) {
+	return DefaultClient.GetFixedIncomeLatestPrice(isin)
+}
+
+// GetFixedIncomeLatestPrices returns the latest prices for the given fixed income securities identified by ISINs
+func GetFixedIncomeLatestPrices(isins []string) (map[string]FixedIncomePrice, error) {
+	return DefaultClient.GetFixedIncomeLatestPrices(isins)
 }
 
 func (c *Client) get(u *url.URL) (*http.Response, error) {
