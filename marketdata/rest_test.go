@@ -1532,7 +1532,14 @@ func TestGetFixedIncomeLatestPrice(t *testing.T) {
 	c := DefaultClient
 
 	// successful
-	c.do = mockResp(`{"prices":{"US912797KJ59":{"t":"2026-04-29T20:58:00.648Z","p":99.6459,"ytm":4.249,"ytw":4.249}}}`)
+	c.do = func(_ *Client, req *http.Request) (*http.Response, error) {
+		assert.Equal(t, "/v1beta1/fixed_income/latest/prices", req.URL.Path)
+		assert.Equal(t, "US912797KJ59", req.URL.Query().Get("isins"))
+		resp := `{"prices":{"US912797KJ59":{"t":"2026-04-29T20:58:00.648Z","p":99.6459,"ytm":4.249,"ytw":4.249}}}`
+		return &http.Response{
+			Body: io.NopCloser(strings.NewReader(resp)),
+		}, nil
+	}
 	got, err := c.GetFixedIncomeLatestPrice("US912797KJ59")
 	require.NoError(t, err)
 	require.NotNil(t, got)
@@ -1544,7 +1551,13 @@ func TestGetFixedIncomeLatestPrice(t *testing.T) {
 	}, *got)
 
 	// not found
-	c.do = mockResp(`{"prices":{}}`)
+	c.do = func(_ *Client, req *http.Request) (*http.Response, error) {
+		assert.Equal(t, "/v1beta1/fixed_income/latest/prices", req.URL.Path)
+		assert.Equal(t, "US912797KJ59", req.URL.Query().Get("isins"))
+		return &http.Response{
+			Body: io.NopCloser(strings.NewReader(`{"prices":{}}`)),
+		}, nil
+	}
 	got, err = c.GetFixedIncomeLatestPrice("US912797KJ59")
 	require.NoError(t, err)
 	assert.Nil(t, got)
@@ -1560,7 +1573,14 @@ func TestGetFixedIncomeLatestPrices(t *testing.T) {
 	c := DefaultClient
 
 	// successful
-	c.do = mockResp(`{"prices":{"US912797KJ59":{"t":"2026-04-29T20:58:00.648Z","p":99.6459,"ytm":4.249,"ytw":4.249},"US91282CJL54":{"t":"2026-04-29T20:58:00.648Z","p":98.5,"ytm":3.875,"ytw":3.875}}}`)
+	c.do = func(_ *Client, req *http.Request) (*http.Response, error) {
+		assert.Equal(t, "/v1beta1/fixed_income/latest/prices", req.URL.Path)
+		assert.Equal(t, "US912797KJ59,US91282CJL54", req.URL.Query().Get("isins"))
+		resp := `{"prices":{"US912797KJ59":{"t":"2026-04-29T20:58:00.648Z","p":99.6459,"ytm":4.249,"ytw":4.249},"US91282CJL54":{"t":"2026-04-29T20:58:00.648Z","p":98.5,"ytm":3.875,"ytw":3.875}}}`
+		return &http.Response{
+			Body: io.NopCloser(strings.NewReader(resp)),
+		}, nil
+	}
 	got, err := c.GetFixedIncomeLatestPrices([]string{"US912797KJ59", "US91282CJL54"})
 	require.NoError(t, err)
 	require.Len(t, got, 2)
