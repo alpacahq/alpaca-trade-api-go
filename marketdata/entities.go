@@ -581,3 +581,15 @@ type optionSnapshotsResponse struct {
 	NextPageToken *string                   `json:"next_page_token"`
 	Snapshots     map[string]OptionSnapshot `json:"snapshots"`
 }
+
+// FixedIncomePrice is the latest price for a fixed income security
+type FixedIncomePrice struct {
+	Timestamp       time.Time `json:"t"`
+	Price           float64   `json:"p"`
+	YieldToMaturity float64   `json:"ytm"`
+	YieldToWorst    float64   `json:"ytw"`
+}
+
+type latestFixedIncomePricesResponse struct {
+	Prices map[string]FixedIncomePrice `json:"prices"`
+}
