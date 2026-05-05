@@ -577,6 +577,166 @@ func TestPlaceMLegOrder(t *testing.T) {
 	}
 }
 
+func TestPlaceAdvancedInstructionsOrder(t *testing.T) {
+	c := DefaultClient
+
+	t.Run("DMA order", func(t *testing.T) {
+		c.do = func(_ *Client, req *http.Request) (*http.Response, error) {
+			por := PlaceOrderRequest{}
+			if err := json.NewDecoder(req.Body).Decode(&por); err != nil {
+				return nil, err
+			}
+			assert.NotNil(t, por.AdvancedInstructions)
+			assert.Equal(t, AlgorithmDMA, por.AdvancedInstructions.Algorithm)
+			assert.Equal(t, DestinationNYSE, por.AdvancedInstructions.Destination)
+			assert.Equal(t, "100", por.AdvancedInstructions.DisplayQty.String())
+
+			return &http.Response{
+				Body: genBody(Order{
+					Qty:         por.Qty,
+					Side:        por.Side,
+					TimeInForce: por.TimeInForce,
+					Type:        por.Type,
+					AdvancedInstructions: &AdvancedInstructions{
+						Algorithm:   AlgorithmDMA,
+						Destination: DestinationNYSE,
+						DisplayQty:  por.AdvancedInstructions.DisplayQty,
+					},
+				}),
+			}, nil
+		}
+
+		qty := decimal.NewFromInt(500)
+		displayQty := decimal.NewFromInt(100)
+		limitPrice := decimal.NewFromFloat(150.50)
+		req := PlaceOrderRequest{
+			Symbol:      "AAPL",
+			Qty:         &qty,
+			Side:        Buy,
+			TimeInForce: Day,
+			Type:        Limit,
+			LimitPrice:  &limitPrice,
+			AdvancedInstructions: &AdvancedInstructions{
+				Algorithm:   AlgorithmDMA,
+				Destination: DestinationNYSE,
+				DisplayQty:  &displayQty,
+			},
+		}
+
+		order, err := c.PlaceOrder(req)
+		require.NoError(t, err)
+		assert.NotNil(t, order)
+		assert.NotNil(t, order.AdvancedInstructions)
+		assert.Equal(t, AlgorithmDMA, order.AdvancedInstructions.Algorithm)
+		assert.Equal(t, DestinationNYSE, order.AdvancedInstructions.Destination)
+	})
+
+	t.Run("TWAP order", func(t *testing.T) {
+		startTime := time.Date(2025, 7, 21, 9, 30, 0, 0, time.UTC)
+		endTime := time.Date(2025, 7, 21, 15, 30, 0, 0, time.UTC)
+
+		c.do = func(_ *Client, req *http.Request) (*http.Response, error) {
+			por := PlaceOrderRequest{}
+			if err := json.NewDecoder(req.Body).Decode(&por); err != nil {
+				return nil, err
+			}
+			assert.NotNil(t, por.AdvancedInstructions)
+			assert.Equal(t, AlgorithmTWAP, por.AdvancedInstructions.Algorithm)
+			assert.NotNil(t, por.AdvancedInstructions.StartTime)
+			assert.NotNil(t, por.AdvancedInstructions.EndTime)
+			assert.Equal(t, "0.25", por.AdvancedInstructions.MaxPercentage.String())
+
+			return &http.Response{
+				Body: genBody(Order{
+					Qty:         por.Qty,
+					Side:        por.Side,
+					TimeInForce: por.TimeInForce,
+					Type:        por.Type,
+					AdvancedInstructions: &AdvancedInstructions{
+						Algorithm:     AlgorithmTWAP,
+						StartTime:     por.AdvancedInstructions.StartTime,
+						EndTime:       por.AdvancedInstructions.EndTime,
+						MaxPercentage: por.AdvancedInstructions.MaxPercentage,
+					},
+				}),
+			}, nil
+		}
+
+		qty := decimal.NewFromInt(10000)
+		maxPct := decimal.NewFromFloat(0.25)
+		req := PlaceOrderRequest{
+			Symbol:      "AAPL",
+			Qty:         &qty,
+			Side:        Buy,
+			TimeInForce: Day,
+			Type:        Market,
+			AdvancedInstructions: &AdvancedInstructions{
+				Algorithm:     AlgorithmTWAP,
+				StartTime:     &startTime,
+				EndTime:       &endTime,
+				MaxPercentage: &maxPct,
+			},
+		}
+
+		order, err := c.PlaceOrder(req)
+		require.NoError(t, err)
+		assert.NotNil(t, order)
+		assert.NotNil(t, order.AdvancedInstructions)
+		assert.Equal(t, AlgorithmTWAP, order.AdvancedInstructions.Algorithm)
+	})
+
+	t.Run("VWAP order", func(t *testing.T) {
+		startTime := time.Date(2025, 7, 21, 9, 30, 0, 0, time.UTC)
+		endTime := time.Date(2025, 7, 21, 15, 30, 0, 0, time.UTC)
+
+		c.do = func(_ *Client, req *http.Request) (*http.Response, error) {
+			por := PlaceOrderRequest{}
+			if err := json.NewDecoder(req.Body).Decode(&por); err != nil {
+				return nil, err
+			}
+			assert.NotNil(t, por.AdvancedInstructions)
+			assert.Equal(t, AlgorithmVWAP, por.AdvancedInstructions.Algorithm)
+
+			return &http.Response{
+				Body: genBody(Order{
+					Qty:         por.Qty,
+					Side:        por.Side,
+					TimeInForce: por.TimeInForce,
+					Type:        por.Type,
+					AdvancedInstructions: &AdvancedInstructions{
+						Algorithm:     AlgorithmVWAP,
+						StartTime:     por.AdvancedInstructions.StartTime,
+						EndTime:       por.AdvancedInstructions.EndTime,
+						MaxPercentage: por.AdvancedInstructions.MaxPercentage,
+					},
+				}),
+			}, nil
+		}
+
+		qty := decimal.NewFromInt(5000)
+		maxPct := decimal.NewFromFloat(0.314)
+		req := PlaceOrderRequest{
+			Symbol:      "SPY",
+			Qty:         &qty,
+			Side:        Sell,
+			TimeInForce: Day,
+			Type:        Market,
+			AdvancedInstructions: &AdvancedInstructions{
+				Algorithm:     AlgorithmVWAP,
+				StartTime:     &startTime,
+				EndTime:       &endTime,
+				MaxPercentage: &maxPct,
+			},
+		}
+
+		order, err := c.PlaceOrder(req)
+		require.NoError(t, err)
+		assert.NotNil(t, order)
+		assert.NotNil(t, order.AdvancedInstructions)
+		assert.Equal(t, AlgorithmVWAP, order.AdvancedInstructions.Algorithm)
+	})
+}
+
 func TestGetOrder(t *testing.T) {
 	c := DefaultClient
 	// successful

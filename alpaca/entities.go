@@ -54,39 +54,40 @@ type Account struct {
 }
 
 type Order struct {
-	ID             string           `json:"id"`
-	ClientOrderID  string           `json:"client_order_id"`
-	CreatedAt      time.Time        `json:"created_at"`
-	UpdatedAt      time.Time        `json:"updated_at"`
-	SubmittedAt    time.Time        `json:"submitted_at"`
-	FilledAt       *time.Time       `json:"filled_at"`
-	ExpiredAt      *time.Time       `json:"expired_at"`
-	CanceledAt     *time.Time       `json:"canceled_at"`
-	FailedAt       *time.Time       `json:"failed_at"`
-	ReplacedAt     *time.Time       `json:"replaced_at"`
-	ReplacedBy     *string          `json:"replaced_by"`
-	Replaces       *string          `json:"replaces"`
-	AssetID        string           `json:"asset_id"`
-	Symbol         string           `json:"symbol"`
-	AssetClass     AssetClass       `json:"asset_class"`
-	OrderClass     OrderClass       `json:"order_class"`
-	Type           OrderType        `json:"type"`
-	Side           Side             `json:"side"`
-	PositionIntent PositionIntent   `json:"position_intent"`
-	TimeInForce    TimeInForce      `json:"time_in_force"`
-	Status         string           `json:"status"`
-	Notional       *decimal.Decimal `json:"notional"`
-	Qty            *decimal.Decimal `json:"qty"`
-	FilledQty      decimal.Decimal  `json:"filled_qty"`
-	FilledAvgPrice *decimal.Decimal `json:"filled_avg_price"`
-	LimitPrice     *decimal.Decimal `json:"limit_price"`
-	StopPrice      *decimal.Decimal `json:"stop_price"`
-	TrailPrice     *decimal.Decimal `json:"trail_price"`
-	TrailPercent   *decimal.Decimal `json:"trail_percent"`
-	HWM            *decimal.Decimal `json:"hwm"`
-	ExtendedHours  bool             `json:"extended_hours"`
-	RatioQty       *decimal.Decimal `json:"ratio_qty"`
-	Legs           []Order          `json:"legs"`
+	ID                   string                `json:"id"`
+	ClientOrderID        string                `json:"client_order_id"`
+	CreatedAt            time.Time             `json:"created_at"`
+	UpdatedAt            time.Time             `json:"updated_at"`
+	SubmittedAt          time.Time             `json:"submitted_at"`
+	FilledAt             *time.Time            `json:"filled_at"`
+	ExpiredAt            *time.Time            `json:"expired_at"`
+	CanceledAt           *time.Time            `json:"canceled_at"`
+	FailedAt             *time.Time            `json:"failed_at"`
+	ReplacedAt           *time.Time            `json:"replaced_at"`
+	ReplacedBy           *string               `json:"replaced_by"`
+	Replaces             *string               `json:"replaces"`
+	AssetID              string                `json:"asset_id"`
+	Symbol               string                `json:"symbol"`
+	AssetClass           AssetClass            `json:"asset_class"`
+	OrderClass           OrderClass            `json:"order_class"`
+	Type                 OrderType             `json:"type"`
+	Side                 Side                  `json:"side"`
+	PositionIntent       PositionIntent        `json:"position_intent"`
+	TimeInForce          TimeInForce           `json:"time_in_force"`
+	Status               string                `json:"status"`
+	Notional             *decimal.Decimal      `json:"notional"`
+	Qty                  *decimal.Decimal      `json:"qty"`
+	FilledQty            decimal.Decimal       `json:"filled_qty"`
+	FilledAvgPrice       *decimal.Decimal      `json:"filled_avg_price"`
+	LimitPrice           *decimal.Decimal      `json:"limit_price"`
+	StopPrice            *decimal.Decimal      `json:"stop_price"`
+	TrailPrice           *decimal.Decimal      `json:"trail_price"`
+	TrailPercent         *decimal.Decimal      `json:"trail_percent"`
+	HWM                  *decimal.Decimal      `json:"hwm"`
+	ExtendedHours        bool                  `json:"extended_hours"`
+	RatioQty             *decimal.Decimal      `json:"ratio_qty"`
+	Legs                 []Order               `json:"legs"`
+	AdvancedInstructions *AdvancedInstructions `json:"advanced_instructions,omitempty"`
 }
 
 //easyjson:json
@@ -252,6 +253,53 @@ const (
 	GTD TimeInForce = "gtd"
 	CLS TimeInForce = "cls"
 )
+
+// Algorithm represents the advanced routing algorithm for Elite Smart Router orders.
+// See: https://docs.alpaca.markets/docs/alpaca-elite-smart-router
+type Algorithm string
+
+const (
+	// AlgorithmDMA is Direct Market Access - orders are routed directly to the specified exchange.
+	AlgorithmDMA Algorithm = "DMA"
+	// AlgorithmTWAP is Time-Weighted Average Price - executes orders evenly over a specified time period.
+	AlgorithmTWAP Algorithm = "TWAP"
+	// AlgorithmVWAP is Volume-Weighted Average Price - executes orders in proportion to market volume.
+	AlgorithmVWAP Algorithm = "VWAP"
+)
+
+// Destination represents the target exchange for DMA order execution.
+type Destination string
+
+const (
+	DestinationNYSE   Destination = "NYSE"
+	DestinationNASDAQ Destination = "NASDAQ"
+	DestinationARCA   Destination = "ARCA"
+)
+
+// AdvancedInstructions contains advanced routing instructions for Elite Smart Router orders.
+// These instructions enable DMA (Direct Market Access), TWAP (Time-Weighted Average Price),
+// and VWAP (Volume-Weighted Average Price) order execution strategies.
+//
+//easyjson:json
+type AdvancedInstructions struct {
+	// Algorithm specifies the advanced routing algorithm to use (DMA, TWAP, or VWAP).
+	Algorithm Algorithm `json:"algorithm,omitempty"`
+	// Destination is the target exchange for DMA orders (NYSE, NASDAQ, or ARCA).
+	Destination Destination `json:"destination,omitempty"`
+	// DisplayQty is the maximum shares/contracts displayed on the exchange at any time.
+	// Must be in round lot increments. Used for iceberg/reserve orders.
+	DisplayQty *decimal.Decimal `json:"display_qty,omitempty"`
+	// StartTime is when the algorithm should start executing.
+	// Must be within current market trading hours. Used for TWAP/VWAP orders.
+	StartTime *time.Time `json:"start_time,omitempty"`
+	// EndTime is when the algorithm should finish executing.
+	// Must be within current market trading hours. Used for TWAP/VWAP orders.
+	EndTime *time.Time `json:"end_time,omitempty"`
+	// MaxPercentage is the maximum percentage of the ticker's period volume this order
+	// may participate in. Must be 0 < max_percentage < 1, with up to 3 decimal points precision.
+	// Used for TWAP/VWAP orders.
+	MaxPercentage *decimal.Decimal `json:"max_percentage,omitempty"`
+}
 
 type DTBPCheck string
 

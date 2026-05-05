@@ -74,6 +74,73 @@ log.Println("order sent")
 select {}
 ```
 
+### Advanced Order Instructions (DMA, TWAP, VWAP)
+
+The SDK supports Alpaca's Elite Smart Router with advanced order instructions for
+Direct Market Access (DMA), Time-Weighted Average Price (TWAP), and Volume-Weighted
+Average Price (VWAP) order execution strategies.
+
+> [!NOTE]
+> These features are only available to users who have enabled the [Elite Smart Router](https://alpaca.markets/elite).
+> For more information on Alpaca Elite, see the [terms and conditions](https://files.alpaca.markets/disclosures/library/Alpaca+Elite+Agreement.pdf)
+> and the [Elite Smart Router documentation](https://docs.alpaca.markets/docs/alpaca-elite-smart-router).
+
+```go
+// DMA order - route directly to NYSE with iceberg display quantity
+displayQty := decimal.NewFromInt(100)
+qty := decimal.NewFromInt(500)
+limitPrice := decimal.NewFromFloat(150.50)
+order, err := client.PlaceOrder(alpaca.PlaceOrderRequest{
+	Symbol:      "AAPL",
+	Qty:         &qty,
+	Side:        alpaca.Buy,
+	Type:        alpaca.Limit,
+	TimeInForce: alpaca.Day,
+	LimitPrice:  &limitPrice,
+	AdvancedInstructions: &alpaca.AdvancedInstructions{
+		Algorithm:   alpaca.AlgorithmDMA,
+		Destination: alpaca.DestinationNYSE,
+		DisplayQty:  &displayQty, // Iceberg: show only 100 shares at a time
+	},
+})
+
+// TWAP order - execute evenly over a time period
+startTime := time.Date(2025, 7, 21, 9, 30, 0, 0, time.FixedZone("EST", -5*3600))
+endTime := time.Date(2025, 7, 21, 15, 30, 0, 0, time.FixedZone("EST", -5*3600))
+maxPct := decimal.NewFromFloat(0.25)
+qty := decimal.NewFromInt(10000)
+order, err := client.PlaceOrder(alpaca.PlaceOrderRequest{
+	Symbol:      "AAPL",
+	Qty:         &qty,
+	Side:        alpaca.Buy,
+	Type:        alpaca.Market,
+	TimeInForce: alpaca.Day,
+	AdvancedInstructions: &alpaca.AdvancedInstructions{
+		Algorithm:     alpaca.AlgorithmTWAP,
+		StartTime:     &startTime,
+		EndTime:       &endTime,
+		MaxPercentage: &maxPct, // Max 25% of period volume
+	},
+})
+
+// VWAP order - execute in proportion to market volume
+order, err := client.PlaceOrder(alpaca.PlaceOrderRequest{
+	Symbol:      "SPY",
+	Qty:         &qty,
+	Side:        alpaca.Sell,
+	Type:        alpaca.Market,
+	TimeInForce: alpaca.Day,
+	AdvancedInstructions: &alpaca.AdvancedInstructions{
+		Algorithm:     alpaca.AlgorithmVWAP,
+		StartTime:     &startTime,
+		EndTime:       &endTime,
+		MaxPercentage: &maxPct,
+	},
+})
+```
+
+For more details, see the [Elite Smart Router documentation](https://docs.alpaca.markets/docs/alpaca-elite-smart-router).
+
 ### Further examples
 
 See the [examples](https://github.com/alpacahq/alpaca-trade-api-go/tree/master/examples)
