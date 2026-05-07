@@ -86,136 +86,200 @@ func (v *watchlistSlice) UnmarshalJSON(data []byte) error {
 func (v *watchlistSlice) UnmarshalEasyJSON(l *jlexer.Lexer) {
 	easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Alpaca(l, v)
 }
-func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Alpaca1(in *jlexer.Lexer, out *usTreasurySlice) {
+func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Alpaca1(in *jlexer.Lexer, out *usTreasuriesResponse) {
 	isTopLevel := in.IsStart()
 	if in.IsNull() {
+		if isTopLevel {
+			in.Consumed()
+		}
 		in.Skip()
-		*out = nil
-	} else {
-		in.Delim('[')
-		if *out == nil {
-			if !in.IsDelim(']') {
-				*out = make(usTreasurySlice, 0, 0)
-			} else {
-				*out = usTreasurySlice{}
-			}
-		} else {
-			*out = (*out)[:0]
-		}
-		for !in.IsDelim(']') {
-			var v4 USTreasury
-			(v4).UnmarshalEasyJSON(in)
-			*out = append(*out, v4)
-			in.WantComma()
-		}
-		in.Delim(']')
+		return
 	}
+	in.Delim('{')
+	for !in.IsDelim('}') {
+		key := in.UnsafeFieldName(false)
+		in.WantColon()
+		if in.IsNull() {
+			in.Skip()
+			in.WantComma()
+			continue
+		}
+		switch key {
+		case "us_treasuries":
+			if in.IsNull() {
+				in.Skip()
+				out.USTreasuries = nil
+			} else {
+				in.Delim('[')
+				if out.USTreasuries == nil {
+					if !in.IsDelim(']') {
+						out.USTreasuries = make([]USTreasury, 0, 0)
+					} else {
+						out.USTreasuries = []USTreasury{}
+					}
+				} else {
+					out.USTreasuries = (out.USTreasuries)[:0]
+				}
+				for !in.IsDelim(']') {
+					var v4 USTreasury
+					(v4).UnmarshalEasyJSON(in)
+					out.USTreasuries = append(out.USTreasuries, v4)
+					in.WantComma()
+				}
+				in.Delim(']')
+			}
+		default:
+			in.SkipRecursive()
+		}
+		in.WantComma()
+	}
+	in.Delim('}')
 	if isTopLevel {
 		in.Consumed()
 	}
 }
-func easyjson3e8ab7adEncodeGithubComAlpacahqAlpacaTradeApiGoV3Alpaca1(out *jwriter.Writer, in usTreasurySlice) {
-	if in == nil && (out.Flags&jwriter.NilSliceAsEmpty) == 0 {
-		out.RawString("null")
-	} else {
-		out.RawByte('[')
-		for v5, v6 := range in {
-			if v5 > 0 {
-				out.RawByte(',')
+func easyjson3e8ab7adEncodeGithubComAlpacahqAlpacaTradeApiGoV3Alpaca1(out *jwriter.Writer, in usTreasuriesResponse) {
+	out.RawByte('{')
+	first := true
+	_ = first
+	{
+		const prefix string = ",\"us_treasuries\":"
+		out.RawString(prefix[1:])
+		if in.USTreasuries == nil && (out.Flags&jwriter.NilSliceAsEmpty) == 0 {
+			out.RawString("null")
+		} else {
+			out.RawByte('[')
+			for v5, v6 := range in.USTreasuries {
+				if v5 > 0 {
+					out.RawByte(',')
+				}
+				(v6).MarshalEasyJSON(out)
 			}
-			(v6).MarshalEasyJSON(out)
+			out.RawByte(']')
 		}
-		out.RawByte(']')
 	}
+	out.RawByte('}')
 }
 
 // MarshalJSON supports json.Marshaler interface
-func (v usTreasurySlice) MarshalJSON() ([]byte, error) {
+func (v usTreasuriesResponse) MarshalJSON() ([]byte, error) {
 	w := jwriter.Writer{}
 	easyjson3e8ab7adEncodeGithubComAlpacahqAlpacaTradeApiGoV3Alpaca1(&w, v)
 	return w.Buffer.BuildBytes(), w.Error
 }
 
 // MarshalEasyJSON supports easyjson.Marshaler interface
-func (v usTreasurySlice) MarshalEasyJSON(w *jwriter.Writer) {
+func (v usTreasuriesResponse) MarshalEasyJSON(w *jwriter.Writer) {
 	easyjson3e8ab7adEncodeGithubComAlpacahqAlpacaTradeApiGoV3Alpaca1(w, v)
 }
 
 // UnmarshalJSON supports json.Unmarshaler interface
-func (v *usTreasurySlice) UnmarshalJSON(data []byte) error {
+func (v *usTreasuriesResponse) UnmarshalJSON(data []byte) error {
 	r := jlexer.Lexer{Data: data}
 	easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Alpaca1(&r, v)
 	return r.Error()
 }
 
 // UnmarshalEasyJSON supports easyjson.Unmarshaler interface
-func (v *usTreasurySlice) UnmarshalEasyJSON(l *jlexer.Lexer) {
+func (v *usTreasuriesResponse) UnmarshalEasyJSON(l *jlexer.Lexer) {
 	easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Alpaca1(l, v)
 }
-func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Alpaca2(in *jlexer.Lexer, out *usCorporateSlice) {
+func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Alpaca2(in *jlexer.Lexer, out *usCorporatesResponse) {
 	isTopLevel := in.IsStart()
 	if in.IsNull() {
+		if isTopLevel {
+			in.Consumed()
+		}
 		in.Skip()
-		*out = nil
-	} else {
-		in.Delim('[')
-		if *out == nil {
-			if !in.IsDelim(']') {
-				*out = make(usCorporateSlice, 0, 0)
-			} else {
-				*out = usCorporateSlice{}
-			}
-		} else {
-			*out = (*out)[:0]
-		}
-		for !in.IsDelim(']') {
-			var v7 USCorporate
-			(v7).UnmarshalEasyJSON(in)
-			*out = append(*out, v7)
-			in.WantComma()
-		}
-		in.Delim(']')
+		return
 	}
+	in.Delim('{')
+	for !in.IsDelim('}') {
+		key := in.UnsafeFieldName(false)
+		in.WantColon()
+		if in.IsNull() {
+			in.Skip()
+			in.WantComma()
+			continue
+		}
+		switch key {
+		case "us_corporates":
+			if in.IsNull() {
+				in.Skip()
+				out.USCorporates = nil
+			} else {
+				in.Delim('[')
+				if out.USCorporates == nil {
+					if !in.IsDelim(']') {
+						out.USCorporates = make([]USCorporate, 0, 0)
+					} else {
+						out.USCorporates = []USCorporate{}
+					}
+				} else {
+					out.USCorporates = (out.USCorporates)[:0]
+				}
+				for !in.IsDelim(']') {
+					var v7 USCorporate
+					(v7).UnmarshalEasyJSON(in)
+					out.USCorporates = append(out.USCorporates, v7)
+					in.WantComma()
+				}
+				in.Delim(']')
+			}
+		default:
+			in.SkipRecursive()
+		}
+		in.WantComma()
+	}
+	in.Delim('}')
 	if isTopLevel {
 		in.Consumed()
 	}
 }
-func easyjson3e8ab7adEncodeGithubComAlpacahqAlpacaTradeApiGoV3Alpaca2(out *jwriter.Writer, in usCorporateSlice) {
-	if in == nil && (out.Flags&jwriter.NilSliceAsEmpty) == 0 {
-		out.RawString("null")
-	} else {
-		out.RawByte('[')
-		for v8, v9 := range in {
-			if v8 > 0 {
-				out.RawByte(',')
+func easyjson3e8ab7adEncodeGithubComAlpacahqAlpacaTradeApiGoV3Alpaca2(out *jwriter.Writer, in usCorporatesResponse) {
+	out.RawByte('{')
+	first := true
+	_ = first
+	{
+		const prefix string = ",\"us_corporates\":"
+		out.RawString(prefix[1:])
+		if in.USCorporates == nil && (out.Flags&jwriter.NilSliceAsEmpty) == 0 {
+			out.RawString("null")
+		} else {
+			out.RawByte('[')
+			for v8, v9 := range in.USCorporates {
+				if v8 > 0 {
+					out.RawByte(',')
+				}
+				(v9).MarshalEasyJSON(out)
 			}
-			(v9).MarshalEasyJSON(out)
+			out.RawByte(']')
 		}
-		out.RawByte(']')
 	}
+	out.RawByte('}')
 }
 
 // MarshalJSON supports json.Marshaler interface
-func (v usCorporateSlice) MarshalJSON() ([]byte, error) {
+func (v usCorporatesResponse) MarshalJSON() ([]byte, error) {
 	w := jwriter.Writer{}
 	easyjson3e8ab7adEncodeGithubComAlpacahqAlpacaTradeApiGoV3Alpaca2(&w, v)
 	return w.Buffer.BuildBytes(), w.Error
 }
 
 // MarshalEasyJSON supports easyjson.Marshaler interface
-func (v usCorporateSlice) MarshalEasyJSON(w *jwriter.Writer) {
+func (v usCorporatesResponse) MarshalEasyJSON(w *jwriter.Writer) {
 	easyjson3e8ab7adEncodeGithubComAlpacahqAlpacaTradeApiGoV3Alpaca2(w, v)
 }
 
 // UnmarshalJSON supports json.Unmarshaler interface
-func (v *usCorporateSlice) UnmarshalJSON(data []byte) error {
+func (v *usCorporatesResponse) UnmarshalJSON(data []byte) error {
 	r := jlexer.Lexer{Data: data}
 	easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Alpaca2(&r, v)
 	return r.Error()
 }
 
 // UnmarshalEasyJSON supports easyjson.Unmarshaler interface
-func (v *usCorporateSlice) UnmarshalEasyJSON(l *jlexer.Lexer) {
+func (v *usCorporatesResponse) UnmarshalEasyJSON(l *jlexer.Lexer) {
 	easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Alpaca2(l, v)
 }
 func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Alpaca3(in *jlexer.Lexer, out *positionSlice) {

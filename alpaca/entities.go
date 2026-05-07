@@ -538,7 +538,9 @@ type USTreasury struct {
 }
 
 //easyjson:json
-type usTreasurySlice []USTreasury
+type usTreasuriesResponse struct {
+	USTreasuries []USTreasury `json:"us_treasuries"`
+}
 
 type DayCount string
 
@@ -634,4 +636,6 @@ type USCorporate struct {
 }
 
 //easyjson:json
-type usCorporateSlice []USCorporate
+type usCorporatesResponse struct {
+	USCorporates []USCorporate `json:"us_corporates"`
+}

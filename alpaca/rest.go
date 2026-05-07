@@ -1314,11 +1314,11 @@ func (c *Client) GetUSTreasuries(req GetUSTreasuriesRequest) ([]USTreasury, erro
 	}
 	defer closeResp(resp)
 
-	var treasuries usTreasurySlice
-	if err = unmarshal(resp, &treasuries); err != nil {
+	var result usTreasuriesResponse
+	if err = unmarshal(resp, &result); err != nil {
 		return nil, err
 	}
-	return treasuries, nil
+	return result.USTreasuries, nil
 }
 
 type GetUSCorporatesRequest struct {
@@ -1356,11 +1356,11 @@ func (c *Client) GetUSCorporates(req GetUSCorporatesRequest) ([]USCorporate, err
 	}
 	defer closeResp(resp)
 
-	var corporates usCorporateSlice
-	if err = unmarshal(resp, &corporates); err != nil {
+	var result usCorporatesResponse
+	if err = unmarshal(resp, &result); err != nil {
 		return nil, err
 	}
-	return corporates, nil
+	return result.USCorporates, nil
 }
 
 func (c *Client) get(u *url.URL) (*http.Response, error) {
