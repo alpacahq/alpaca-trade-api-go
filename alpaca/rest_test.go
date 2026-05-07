@@ -1347,7 +1347,7 @@ func TestGetUSTreasuries(t *testing.T) {
 		assert.Equal(t, "bill", req.URL.Query().Get("subtype"))
 		assert.Equal(t, "outstanding", req.URL.Query().Get("bond_status"))
 		assert.Equal(t, "US912797KJ59,US912797KJ60", req.URL.Query().Get("isins"))
-		resp := `[
+		resp := `{"us_treasuries":[
 			{
 				"cusip": "912797KJ5",
 				"isin": "US912797KJ59",
@@ -1383,7 +1383,7 @@ func TestGetUSTreasuries(t *testing.T) {
 				"next_coupon_date": "2026-11-01",
 				"last_coupon_date": "2026-05-01"
 			}
-		]`
+		]}`
 		return &http.Response{
 			Body: io.NopCloser(strings.NewReader(resp)),
 		}, nil
@@ -1438,7 +1438,7 @@ func TestGetUSTreasuries(t *testing.T) {
 		assert.Equal(t, "", req.URL.Query().Get("cusips"))
 		assert.Equal(t, "", req.URL.Query().Get("isins"))
 		return &http.Response{
-			Body: io.NopCloser(strings.NewReader(`[]`)),
+			Body: io.NopCloser(strings.NewReader(`{"us_treasuries":[]}`)),
 		}, nil
 	}
 	got, err = c.GetUSTreasuries(GetUSTreasuriesRequest{})
@@ -1463,7 +1463,7 @@ func TestGetUSCorporates(t *testing.T) {
 		assert.Equal(t, http.MethodGet, req.Method)
 		assert.Equal(t, "outstanding", req.URL.Query().Get("bond_status"))
 		assert.Equal(t, "BAC,MSFT", req.URL.Query().Get("tickers"))
-		resp := `[
+		resp := `{"us_corporates":[
 			{
 				"cusip": "06051GJH9",
 				"isin": "US06051GJH92",
@@ -1523,7 +1523,7 @@ func TestGetUSCorporates(t *testing.T) {
 				"reissue_size": 500000000,
 				"reissue_price": 101.5
 			}
-		]`
+		]}`
 		return &http.Response{
 			Body: io.NopCloser(strings.NewReader(resp)),
 		}, nil
@@ -1632,7 +1632,7 @@ func TestGetUSCorporates(t *testing.T) {
 		assert.Equal(t, "", req.URL.Query().Get("tickers"))
 		assert.Equal(t, "", req.URL.Query().Get("bond_status"))
 		return &http.Response{
-			Body: io.NopCloser(strings.NewReader(`[]`)),
+			Body: io.NopCloser(strings.NewReader(`{"us_corporates":[]}`)),
 		}, nil
 	}
 	got, err = c.GetUSCorporates(GetUSCorporatesRequest{
