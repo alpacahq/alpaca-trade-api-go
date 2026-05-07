@@ -477,3 +477,161 @@ type optionContractsResponse struct {
 	OptionContracts []OptionContract `json:"option_contracts"`
 	NextPageToken   *string          `json:"next_page_token,omitempty"`
 }
+
+type BondStatus string
+
+const (
+	BondStatusOutstanding BondStatus = "outstanding"
+	BondStatusMatured     BondStatus = "matured"
+	BondStatusPreIssuance BondStatus = "pre_issuance"
+)
+
+type TreasurySubtype string
+
+const (
+	TreasurySubtypeBill     TreasurySubtype = "bill"
+	TreasurySubtypeNote     TreasurySubtype = "note"
+	TreasurySubtypeBond     TreasurySubtype = "bond"
+	TreasurySubtypeStrips   TreasurySubtype = "strips"
+	TreasurySubtypeTips     TreasurySubtype = "tips"
+	TreasurySubtypeFloating TreasurySubtype = "floating"
+)
+
+type CouponType string
+
+const (
+	CouponTypeFixed    CouponType = "fixed"
+	CouponTypeFloating CouponType = "floating"
+	CouponTypeZero     CouponType = "zero"
+)
+
+type CouponFrequency string
+
+const (
+	CouponFrequencyAnnual     CouponFrequency = "annual"
+	CouponFrequencySemiAnnual CouponFrequency = "semi_annual"
+	CouponFrequencyQuarterly  CouponFrequency = "quarterly"
+	CouponFrequencyMonthly    CouponFrequency = "monthly"
+	CouponFrequencyZero       CouponFrequency = "zero"
+)
+
+type USTreasury struct {
+	CUSIP                string           `json:"cusip"`
+	ISIN                 string           `json:"isin"`
+	BondStatus           BondStatus       `json:"bond_status"`
+	Tradable             bool             `json:"tradable"`
+	Subtype              TreasurySubtype  `json:"subtype"`
+	IssueDate            civil.Date       `json:"issue_date"`
+	MaturityDate         civil.Date       `json:"maturity_date"`
+	Description          string           `json:"description"`
+	DescriptionShort     string           `json:"description_short"`
+	ClosePrice           *decimal.Decimal `json:"close_price,omitempty"`
+	ClosePriceDate       *civil.Date      `json:"close_price_date,omitempty"`
+	CloseYieldToMaturity *decimal.Decimal `json:"close_yield_to_maturity,omitempty"`
+	CloseYieldToWorst    *decimal.Decimal `json:"close_yield_to_worst,omitempty"`
+	Coupon               decimal.Decimal  `json:"coupon"`
+	CouponType           CouponType       `json:"coupon_type"`
+	CouponFrequency      CouponFrequency  `json:"coupon_frequency"`
+	FirstCouponDate      *civil.Date      `json:"first_coupon_date,omitempty"`
+	NextCouponDate       *civil.Date      `json:"next_coupon_date,omitempty"`
+	LastCouponDate       *civil.Date      `json:"last_coupon_date,omitempty"`
+}
+
+//easyjson:json
+type usTreasurySlice []USTreasury
+
+type DayCount string
+
+const (
+	DayCountA360   DayCount = "A/360"
+	DayCountA365   DayCount = "A/365"
+	DayCount30360  DayCount = "30/360"
+	DayCount30365  DayCount = "30/365"
+	DayCountAA     DayCount = "A/A"
+	DayCount30E360 DayCount = "30E/360"
+	DayCountB252   DayCount = "B/252"
+	DayCountA364   DayCount = "A/364"
+)
+
+type SPOutlook string
+
+const (
+	SPOutlookPositive      SPOutlook = "positive"
+	SPOutlookNegative      SPOutlook = "negative"
+	SPOutlookDeveloping    SPOutlook = "developing"
+	SPOutlookStable        SPOutlook = "stable"
+	SPOutlookNotRated      SPOutlook = "not_rated"
+	SPOutlookNotMeaningful SPOutlook = "not_meaningful"
+)
+
+type CallType string
+
+const (
+	CallTypeOrdinary   CallType = "ordinary"
+	CallTypeMakeWhole  CallType = "make_whole"
+	CallTypeRegulatory CallType = "regulatory"
+	CallTypeSpecial    CallType = "special"
+)
+
+type USCorporate struct {
+	CUSIP                           string           `json:"cusip"`
+	ISIN                            string           `json:"isin"`
+	BondStatus                      BondStatus       `json:"bond_status"`
+	Tradable                        bool             `json:"tradable"`
+	Marginable                      bool             `json:"marginable"`
+	ReissueDate                     *civil.Date      `json:"reissue_date,omitempty"`
+	ReissueSize                     *decimal.Decimal `json:"reissue_size,omitempty"`
+	ReissuePrice                    *decimal.Decimal `json:"reissue_price,omitempty"`
+	IssueDate                       civil.Date       `json:"issue_date"`
+	MaturityDate                    *civil.Date      `json:"maturity_date,omitempty"`
+	CountryDomicile                 string           `json:"country_domicile"`
+	Ticker                          string           `json:"ticker"`
+	Seniority                       string           `json:"seniority"`
+	Issuer                          string           `json:"issuer"`
+	Sector                          string           `json:"sector"`
+	Description                     string           `json:"description"`
+	DescriptionShort                string           `json:"description_short"`
+	Coupon                          decimal.Decimal  `json:"coupon"`
+	CouponType                      CouponType       `json:"coupon_type"`
+	CouponFrequency                 CouponFrequency  `json:"coupon_frequency"`
+	FirstCouponDate                 *civil.Date      `json:"first_coupon_date,omitempty"`
+	NextCouponDate                  *civil.Date      `json:"next_coupon_date,omitempty"`
+	LastCouponDate                  *civil.Date      `json:"last_coupon_date,omitempty"`
+	Perpetual                       bool             `json:"perpetual"`
+	DayCount                        DayCount         `json:"day_count"`
+	DatedDate                       civil.Date       `json:"dated_date"`
+	IssueSize                       decimal.Decimal  `json:"issue_size"`
+	IssuePrice                      decimal.Decimal  `json:"issue_price"`
+	IssueMinimumDenomination        decimal.Decimal  `json:"issue_minimum_denomination"`
+	ParValue                        decimal.Decimal  `json:"par_value"`
+	Callable                        bool             `json:"callable"`
+	NextCallDate                    *civil.Date      `json:"next_call_date,omitempty"`
+	NextCallPrice                   *decimal.Decimal `json:"next_call_price,omitempty"`
+	Puttable                        bool             `json:"puttable"`
+	Convertible                     bool             `json:"convertible"`
+	RegS                            bool             `json:"reg_s"`
+	SPRating                        *string          `json:"sp_rating,omitempty"`
+	SPRatingDate                    *civil.Date      `json:"sp_rating_date,omitempty"`
+	SPCreditwatch                   *string          `json:"sp_creditwatch,omitempty"`
+	SPCreditwatchDate               *civil.Date      `json:"sp_creditwatch_date,omitempty"`
+	SPOutlook                       *SPOutlook       `json:"sp_outlook,omitempty"`
+	SPOutlookDate                   *civil.Date      `json:"sp_outlook_date,omitempty"`
+	LiquidityMicroBuy               *decimal.Decimal `json:"liquidity_micro_buy,omitempty"`
+	LiquidityMicroSell              *decimal.Decimal `json:"liquidity_micro_sell,omitempty"`
+	LiquidityMicroAggregate         *decimal.Decimal `json:"liquidity_micro_aggregate,omitempty"`
+	LiquidityRetailBuy              *decimal.Decimal `json:"liquidity_retail_buy,omitempty"`
+	LiquidityRetailSell             *decimal.Decimal `json:"liquidity_retail_sell,omitempty"`
+	LiquidityRetailAggregate        *decimal.Decimal `json:"liquidity_retail_aggregate,omitempty"`
+	LiquidityInstitutionalBuy       *decimal.Decimal `json:"liquidity_institutional_buy,omitempty"`
+	LiquidityInstitutionalSell      *decimal.Decimal `json:"liquidity_institutional_sell,omitempty"`
+	LiquidityInstitutionalAggregate *decimal.Decimal `json:"liquidity_institutional_aggregate,omitempty"`
+	ClosePrice                      *decimal.Decimal `json:"close_price,omitempty"`
+	ClosePriceDate                  *civil.Date      `json:"close_price_date,omitempty"`
+	CloseYieldToMaturity            *decimal.Decimal `json:"close_yield_to_maturity,omitempty"`
+	CloseYieldToWorst               *decimal.Decimal `json:"close_yield_to_worst,omitempty"`
+	AccruedInterest                 *decimal.Decimal `json:"accrued_interest,omitempty"`
+	CallType                        *CallType        `json:"call_type,omitempty"`
+}
+
+//easyjson:json
+type usCorporateSlice []USCorporate
