@@ -405,3 +405,6 @@ issues:
         - wrapcheck
     - text: 'shadow: declaration of "(err|ctx)" shadows declaration at'
       linters: [govet]
+    - text: "unexported-return"
+      linters: [revive]
+      path: "marketdata/stream/entities\\.go"
