@@ -1338,6 +1338,293 @@ func TestGetAccountActivities(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+func assertDatePtr(t *testing.T, expected civil.Date, actual *civil.Date) {
+	t.Helper()
+	if assert.NotNil(t, actual) {
+		assert.Equal(t, expected, *actual)
+	}
+}
+
+func assertDecimalPtr(t *testing.T, expected string, actual *decimal.Decimal) {
+	t.Helper()
+	if assert.NotNil(t, actual) {
+		assert.Equal(t, expected, actual.String())
+	}
+}
+
+func TestGetUSTreasuries(t *testing.T) {
+	c := DefaultClient
+
+	c.do = func(_ *Client, req *http.Request) (*http.Response, error) {
+		assert.Equal(t, "/v2/assets/fixed_income/us_treasuries", req.URL.Path)
+		assert.Equal(t, http.MethodGet, req.Method)
+		assert.Equal(t, "bill", req.URL.Query().Get("subtype"))
+		assert.Equal(t, "outstanding", req.URL.Query().Get("bond_status"))
+		assert.Equal(t, "US912797KJ59,US912797KJ60", req.URL.Query().Get("isins"))
+		resp := `{"us_treasuries":[
+			{
+				"cusip": "912797KJ5",
+				"isin": "US912797KJ59",
+				"bond_status": "outstanding",
+				"tradable": true,
+				"subtype": "bill",
+				"issue_date": "2026-04-03",
+				"maturity_date": "2026-07-03",
+				"description": "test bill",
+				"description_short": "tb",
+				"close_price": 99.6459,
+				"close_price_date": "2026-04-29",
+				"close_yield_to_maturity": 4.249,
+				"close_yield_to_worst": 4.249,
+				"coupon": 0,
+				"coupon_type": "zero",
+				"coupon_frequency": "zero"
+			},
+			{
+				"cusip": "912797KJ6",
+				"isin": "US912797KJ60",
+				"bond_status": "outstanding",
+				"tradable": true,
+				"subtype": "bill",
+				"issue_date": "2026-05-01",
+				"maturity_date": "2026-08-01",
+				"description": "test bill 2",
+				"description_short": "tb2",
+				"coupon": 0,
+				"coupon_type": "zero",
+				"coupon_frequency": "zero",
+				"first_coupon_date": "2026-11-01",
+				"next_coupon_date": "2026-11-01",
+				"last_coupon_date": "2026-05-01"
+			}
+		]}`
+		return &http.Response{
+			Body: io.NopCloser(strings.NewReader(resp)),
+		}, nil
+	}
+
+	got, err := c.GetUSTreasuries(GetUSTreasuriesRequest{
+		Subtype:    TreasurySubtypeBill,
+		BondStatus: BondStatusOutstanding,
+		ISINs:      []string{"US912797KJ59", "US912797KJ60"},
+	})
+	require.NoError(t, err)
+	require.Len(t, got, 2)
+
+	assert.Equal(t, "912797KJ5", got[0].CUSIP)
+	assert.Equal(t, "US912797KJ59", got[0].ISIN)
+	assert.Equal(t, BondStatusOutstanding, got[0].BondStatus)
+	assert.True(t, got[0].Tradable)
+	assert.Equal(t, TreasurySubtypeBill, got[0].Subtype)
+	assert.Equal(t, civil.Date{Year: 2026, Month: 4, Day: 3}, got[0].IssueDate)
+	assert.Equal(t, civil.Date{Year: 2026, Month: 7, Day: 3}, got[0].MaturityDate)
+	assert.Equal(t, "test bill", got[0].Description)
+	assert.Equal(t, "tb", got[0].DescriptionShort)
+	assertDecimalPtr(t, "99.6459", got[0].ClosePrice)
+	assertDatePtr(t, civil.Date{Year: 2026, Month: 4, Day: 29}, got[0].ClosePriceDate)
+	assertDecimalPtr(t, "4.249", got[0].CloseYieldToMaturity)
+	assertDecimalPtr(t, "4.249", got[0].CloseYieldToWorst)
+	assert.Equal(t, "0", got[0].Coupon.String())
+	assert.Equal(t, CouponTypeZero, got[0].CouponType)
+	assert.Equal(t, CouponFrequencyZero, got[0].CouponFrequency)
+	assert.Nil(t, got[0].FirstCouponDate)
+	assert.Nil(t, got[0].NextCouponDate)
+	assert.Nil(t, got[0].LastCouponDate)
+
+	assert.Equal(t, "912797KJ6", got[1].CUSIP)
+	assert.Nil(t, got[1].ClosePrice)
+	assert.Nil(t, got[1].ClosePriceDate)
+	assertDatePtr(t, civil.Date{Year: 2026, Month: 11, Day: 1}, got[1].FirstCouponDate)
+	assertDatePtr(t, civil.Date{Year: 2026, Month: 11, Day: 1}, got[1].NextCouponDate)
+	assertDatePtr(t, civil.Date{Year: 2026, Month: 5, Day: 1}, got[1].LastCouponDate)
+
+	// empty request sends no query params
+	c.do = func(_ *Client, req *http.Request) (*http.Response, error) {
+		assert.Equal(t, "", req.URL.Query().Get("subtype"))
+		assert.Equal(t, "", req.URL.Query().Get("bond_status"))
+		assert.Equal(t, "", req.URL.Query().Get("cusips"))
+		assert.Equal(t, "", req.URL.Query().Get("isins"))
+		return &http.Response{
+			Body: io.NopCloser(strings.NewReader(`{"us_treasuries":[]}`)),
+		}, nil
+	}
+	got, err = c.GetUSTreasuries(GetUSTreasuriesRequest{})
+	require.NoError(t, err)
+	assert.Empty(t, got)
+
+	// api failure
+	c.do = func(_ *Client, _ *http.Request) (*http.Response, error) {
+		return &http.Response{}, errors.New("fail")
+	}
+	_, err = c.GetUSTreasuries(GetUSTreasuriesRequest{})
+	require.Error(t, err)
+}
+
+func TestGetUSCorporates(t *testing.T) {
+	c := DefaultClient
+
+	c.do = func(_ *Client, req *http.Request) (*http.Response, error) {
+		assert.Equal(t, "/v2/assets/fixed_income/us_corporates", req.URL.Path)
+		assert.Equal(t, http.MethodGet, req.Method)
+		assert.Equal(t, "outstanding", req.URL.Query().Get("bond_status"))
+		assert.Equal(t, "BAC,MSFT", req.URL.Query().Get("tickers"))
+		resp := `{"us_corporates":[
+			{
+				"cusip": "06051GJH9",
+				"isin": "US06051GJH92",
+				"bond_status": "outstanding",
+				"tradable": true,
+				"marginable": true,
+				"issue_date": "2025-06-15",
+				"maturity_date": "2030-06-15",
+				"country_domicile": "US",
+				"ticker": "BAC",
+				"seniority": "senior_unsecured",
+				"issuer": "Bank of America Corporation",
+				"sector": "Financials",
+				"description": "test bond",
+				"description_short": "tb",
+				"coupon": 3.5,
+				"coupon_type": "fixed",
+				"coupon_frequency": "semi_annual",
+				"first_coupon_date": "2025-12-15",
+				"next_coupon_date": "2026-06-15",
+				"last_coupon_date": "2025-12-15",
+				"perpetual": false,
+				"day_count": "30/360",
+				"dated_date": "2025-06-15",
+				"issue_size": 2000000000,
+				"issue_price": 99.876,
+				"issue_minimum_denomination": 1000,
+				"par_value": 1000,
+				"callable": true,
+				"next_call_date": "2026-05-15",
+				"next_call_price": 100,
+				"puttable": false,
+				"convertible": false,
+				"reg_s": false,
+				"sp_rating": "A-",
+				"sp_rating_date": "2026-01-10",
+				"sp_creditwatch": "positive",
+				"sp_creditwatch_date": "2026-01-10",
+				"sp_outlook": "stable",
+				"sp_outlook_date": "2026-01-10",
+				"liquidity_micro_buy": 4,
+				"liquidity_micro_sell": 3,
+				"liquidity_micro_aggregate": 3.5,
+				"liquidity_retail_buy": 5,
+				"liquidity_retail_sell": 4,
+				"liquidity_retail_aggregate": 4.5,
+				"liquidity_institutional_buy": 5,
+				"liquidity_institutional_sell": 5,
+				"liquidity_institutional_aggregate": 5,
+				"close_price": 99.95,
+				"close_price_date": "2026-05-02",
+				"close_yield_to_maturity": 3.55,
+				"close_yield_to_worst": 3.45,
+				"accrued_interest": 4.375,
+				"call_type": "make_whole",
+				"reissue_date": "2026-01-15",
+				"reissue_size": 500000000,
+				"reissue_price": 101.5
+			}
+		]}`
+		return &http.Response{
+			Body: io.NopCloser(strings.NewReader(resp)),
+		}, nil
+	}
+
+	got, err := c.GetUSCorporates(GetUSCorporatesRequest{
+		BondStatus: BondStatusOutstanding,
+		Tickers:    []string{"BAC", "MSFT"},
+	})
+	require.NoError(t, err)
+	require.Len(t, got, 1)
+
+	bond := got[0]
+	assert.Equal(t, "06051GJH9", bond.CUSIP)
+	assert.Equal(t, "US06051GJH92", bond.ISIN)
+	assert.Equal(t, BondStatusOutstanding, bond.BondStatus)
+	assert.True(t, bond.Tradable)
+	assert.True(t, bond.Marginable)
+	assert.Equal(t, civil.Date{Year: 2025, Month: 6, Day: 15}, bond.IssueDate)
+	assertDatePtr(t, civil.Date{Year: 2030, Month: 6, Day: 15}, bond.MaturityDate)
+	assert.Equal(t, "US", bond.CountryDomicile)
+	assert.Equal(t, "BAC", bond.Ticker)
+	assert.Equal(t, "senior_unsecured", bond.Seniority)
+	assert.Equal(t, "Bank of America Corporation", bond.Issuer)
+	assert.Equal(t, "Financials", bond.Sector)
+	assert.Equal(t, "test bond", bond.Description)
+	assert.Equal(t, "tb", bond.DescriptionShort)
+	assert.Equal(t, "3.5", bond.Coupon.String())
+	assert.Equal(t, CouponTypeFixed, bond.CouponType)
+	assert.Equal(t, CouponFrequencySemiAnnual, bond.CouponFrequency)
+	assertDatePtr(t, civil.Date{Year: 2025, Month: 12, Day: 15}, bond.FirstCouponDate)
+	assertDatePtr(t, civil.Date{Year: 2026, Month: 6, Day: 15}, bond.NextCouponDate)
+	assertDatePtr(t, civil.Date{Year: 2025, Month: 12, Day: 15}, bond.LastCouponDate)
+	assert.False(t, bond.Perpetual)
+	assert.Equal(t, DayCount30360, bond.DayCount)
+	assert.Equal(t, civil.Date{Year: 2025, Month: 6, Day: 15}, bond.DatedDate)
+	assert.Equal(t, "2000000000", bond.IssueSize.String())
+	assert.Equal(t, "99.876", bond.IssuePrice.String())
+	assert.Equal(t, "1000", bond.IssueMinimumDenomination.String())
+	assert.Equal(t, "1000", bond.ParValue.String())
+	assert.True(t, bond.Callable)
+	assertDatePtr(t, civil.Date{Year: 2026, Month: 5, Day: 15}, bond.NextCallDate)
+	assertDecimalPtr(t, "100", bond.NextCallPrice)
+	assert.False(t, bond.Puttable)
+	assert.False(t, bond.Convertible)
+	assert.False(t, bond.RegS)
+	assert.Equal(t, "A-", bond.SPRating)
+	assertDatePtr(t, civil.Date{Year: 2026, Month: 1, Day: 10}, bond.SPRatingDate)
+	assert.Equal(t, "positive", bond.SPCreditwatch)
+	assertDatePtr(t, civil.Date{Year: 2026, Month: 1, Day: 10}, bond.SPCreditwatchDate)
+	assert.Equal(t, SPOutlookStable, bond.SPOutlook)
+	assertDatePtr(t, civil.Date{Year: 2026, Month: 1, Day: 10}, bond.SPOutlookDate)
+	assertDecimalPtr(t, "4", bond.LiquidityMicroBuy)
+	assertDecimalPtr(t, "3", bond.LiquidityMicroSell)
+	assertDecimalPtr(t, "3.5", bond.LiquidityMicroAggregate)
+	assertDecimalPtr(t, "5", bond.LiquidityRetailBuy)
+	assertDecimalPtr(t, "4", bond.LiquidityRetailSell)
+	assertDecimalPtr(t, "4.5", bond.LiquidityRetailAggregate)
+	assertDecimalPtr(t, "5", bond.LiquidityInstitutionalBuy)
+	assertDecimalPtr(t, "5", bond.LiquidityInstitutionalSell)
+	assertDecimalPtr(t, "5", bond.LiquidityInstitutionalAggregate)
+	assertDecimalPtr(t, "99.95", bond.ClosePrice)
+	assertDatePtr(t, civil.Date{Year: 2026, Month: 5, Day: 2}, bond.ClosePriceDate)
+	assertDecimalPtr(t, "3.55", bond.CloseYieldToMaturity)
+	assertDecimalPtr(t, "3.45", bond.CloseYieldToWorst)
+	assertDecimalPtr(t, "4.375", bond.AccruedInterest)
+	assert.Equal(t, CallTypeMakeWhole, bond.CallType)
+	assertDatePtr(t, civil.Date{Year: 2026, Month: 1, Day: 15}, bond.ReissueDate)
+	assertDecimalPtr(t, "500000000", bond.ReissueSize)
+	assertDecimalPtr(t, "101.5", bond.ReissuePrice)
+
+	// filtering by cusips and isins
+	c.do = func(_ *Client, req *http.Request) (*http.Response, error) {
+		assert.Equal(t, "06051GJH9", req.URL.Query().Get("cusips"))
+		assert.Equal(t, "US06051GJH92", req.URL.Query().Get("isins"))
+		assert.Equal(t, "", req.URL.Query().Get("tickers"))
+		assert.Equal(t, "", req.URL.Query().Get("bond_status"))
+		return &http.Response{
+			Body: io.NopCloser(strings.NewReader(`{"us_corporates":[]}`)),
+		}, nil
+	}
+	got, err = c.GetUSCorporates(GetUSCorporatesRequest{
+		CUSIPs: []string{"06051GJH9"},
+		ISINs:  []string{"US06051GJH92"},
+	})
+	require.NoError(t, err)
+	assert.Empty(t, got)
+
+	// api failure
+	c.do = func(_ *Client, _ *http.Request) (*http.Response, error) {
+		return &http.Response{}, errors.New("fail")
+	}
+	_, err = c.GetUSCorporates(GetUSCorporatesRequest{})
+	require.Error(t, err)
+}
+
 type nopCloser struct {
 	io.Reader
 }

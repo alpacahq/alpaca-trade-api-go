@@ -1269,6 +1269,100 @@ func RemoveSymbolFromWatchlist(watchlistID string, req RemoveSymbolFromWatchlist
 	return DefaultClient.RemoveSymbolFromWatchlist(watchlistID, req)
 }
 
+// GetUSTreasuries returns the available US Treasury securities.
+func GetUSTreasuries(req GetUSTreasuriesRequest) ([]USTreasury, error) {
+	return DefaultClient.GetUSTreasuries(req)
+}
+
+// GetUSCorporates returns the available US Corporate bonds.
+func GetUSCorporates(req GetUSCorporatesRequest) ([]USCorporate, error) {
+	return DefaultClient.GetUSCorporates(req)
+}
+
+type GetUSTreasuriesRequest struct {
+	Subtype    TreasurySubtype
+	BondStatus BondStatus
+	CUSIPs     []string
+	ISINs      []string
+}
+
+// GetUSTreasuries returns the available US Treasury securities.
+func (c *Client) GetUSTreasuries(req GetUSTreasuriesRequest) ([]USTreasury, error) {
+	u, err := url.Parse(fmt.Sprintf("%s/%s/assets/fixed_income/us_treasuries", c.opts.BaseURL, apiVersion))
+	if err != nil {
+		return nil, err
+	}
+
+	q := u.Query()
+	if req.Subtype != "" {
+		q.Set("subtype", string(req.Subtype))
+	}
+	if req.BondStatus != "" {
+		q.Set("bond_status", string(req.BondStatus))
+	}
+	if len(req.CUSIPs) > 0 {
+		q.Set("cusips", strings.Join(req.CUSIPs, ","))
+	}
+	if len(req.ISINs) > 0 {
+		q.Set("isins", strings.Join(req.ISINs, ","))
+	}
+	u.RawQuery = q.Encode()
+
+	resp, err := c.get(u)
+	if err != nil {
+		return nil, err
+	}
+	defer closeResp(resp)
+
+	var result usTreasuriesResponse
+	if err = unmarshal(resp, &result); err != nil {
+		return nil, err
+	}
+	return result.USTreasuries, nil
+}
+
+type GetUSCorporatesRequest struct {
+	BondStatus BondStatus
+	ISINs      []string
+	CUSIPs     []string
+	Tickers    []string
+}
+
+// GetUSCorporates returns the available US Corporate bonds.
+func (c *Client) GetUSCorporates(req GetUSCorporatesRequest) ([]USCorporate, error) {
+	u, err := url.Parse(fmt.Sprintf("%s/%s/assets/fixed_income/us_corporates", c.opts.BaseURL, apiVersion))
+	if err != nil {
+		return nil, err
+	}
+
+	q := u.Query()
+	if req.BondStatus != "" {
+		q.Set("bond_status", string(req.BondStatus))
+	}
+	if len(req.ISINs) > 0 {
+		q.Set("isins", strings.Join(req.ISINs, ","))
+	}
+	if len(req.CUSIPs) > 0 {
+		q.Set("cusips", strings.Join(req.CUSIPs, ","))
+	}
+	if len(req.Tickers) > 0 {
+		q.Set("tickers", strings.Join(req.Tickers, ","))
+	}
+	u.RawQuery = q.Encode()
+
+	resp, err := c.get(u)
+	if err != nil {
+		return nil, err
+	}
+	defer closeResp(resp)
+
+	var result usCorporatesResponse
+	if err = unmarshal(resp, &result); err != nil {
+		return nil, err
+	}
+	return result.USCorporates, nil
+}
+
 func (c *Client) get(u *url.URL) (*http.Response, error) {
 	req, err := http.NewRequest(http.MethodGet, u.String(), nil)
 	if err != nil {
