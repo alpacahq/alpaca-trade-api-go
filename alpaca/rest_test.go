@@ -1406,15 +1406,19 @@ func TestGetUSTreasuries(t *testing.T) {
 	assert.Equal(t, civil.Date{Year: 2026, Month: 7, Day: 3}, got[0].MaturityDate)
 	assert.Equal(t, "test bill", got[0].Description)
 	assert.Equal(t, "tb", got[0].DescriptionShort)
-	require.NotNil(t, got[0].ClosePrice)
-	assert.True(t, decimal.NewFromFloat(99.6459).Equal(*got[0].ClosePrice))
-	require.NotNil(t, got[0].ClosePriceDate)
-	assert.Equal(t, civil.Date{Year: 2026, Month: 4, Day: 29}, *got[0].ClosePriceDate)
-	require.NotNil(t, got[0].CloseYieldToMaturity)
-	assert.True(t, decimal.NewFromFloat(4.249).Equal(*got[0].CloseYieldToMaturity))
-	require.NotNil(t, got[0].CloseYieldToWorst)
-	assert.True(t, decimal.NewFromFloat(4.249).Equal(*got[0].CloseYieldToWorst))
-	assert.True(t, decimal.Zero.Equal(got[0].Coupon))
+	if assert.NotNil(t, got[0].ClosePrice) {
+		assert.Equal(t, "99.6459", got[0].ClosePrice.String())
+	}
+	if assert.NotNil(t, got[0].ClosePriceDate) {
+		assert.Equal(t, civil.Date{Year: 2026, Month: 4, Day: 29}, *got[0].ClosePriceDate)
+	}
+	if assert.NotNil(t, got[0].CloseYieldToMaturity) {
+		assert.Equal(t, "4.249", got[0].CloseYieldToMaturity.String())
+	}
+	if assert.NotNil(t, got[0].CloseYieldToWorst) {
+		assert.Equal(t, "4.249", got[0].CloseYieldToWorst.String())
+	}
+	assert.Equal(t, "0", got[0].Coupon.String())
 	assert.Equal(t, CouponTypeZero, got[0].CouponType)
 	assert.Equal(t, CouponFrequencyZero, got[0].CouponFrequency)
 	assert.Nil(t, got[0].FirstCouponDate)
@@ -1424,12 +1428,15 @@ func TestGetUSTreasuries(t *testing.T) {
 	assert.Equal(t, "912797KJ6", got[1].CUSIP)
 	assert.Nil(t, got[1].ClosePrice)
 	assert.Nil(t, got[1].ClosePriceDate)
-	require.NotNil(t, got[1].FirstCouponDate)
-	assert.Equal(t, civil.Date{Year: 2026, Month: 11, Day: 1}, *got[1].FirstCouponDate)
-	require.NotNil(t, got[1].NextCouponDate)
-	assert.Equal(t, civil.Date{Year: 2026, Month: 11, Day: 1}, *got[1].NextCouponDate)
-	require.NotNil(t, got[1].LastCouponDate)
-	assert.Equal(t, civil.Date{Year: 2026, Month: 5, Day: 1}, *got[1].LastCouponDate)
+	if assert.NotNil(t, got[1].FirstCouponDate) {
+		assert.Equal(t, civil.Date{Year: 2026, Month: 11, Day: 1}, *got[1].FirstCouponDate)
+	}
+	if assert.NotNil(t, got[1].NextCouponDate) {
+		assert.Equal(t, civil.Date{Year: 2026, Month: 11, Day: 1}, *got[1].NextCouponDate)
+	}
+	if assert.NotNil(t, got[1].LastCouponDate) {
+		assert.Equal(t, civil.Date{Year: 2026, Month: 5, Day: 1}, *got[1].LastCouponDate)
+	}
 
 	// empty request sends no query params
 	c.do = func(_ *Client, req *http.Request) (*http.Response, error) {
@@ -1456,8 +1463,6 @@ func TestGetUSTreasuries(t *testing.T) {
 func TestGetUSCorporates(t *testing.T) {
 	c := DefaultClient
 
-	spOutlook := SPOutlookStable
-	callType := CallTypeMakeWhole
 	c.do = func(_ *Client, req *http.Request) (*http.Response, error) {
 		assert.Equal(t, "/v2/assets/fixed_income/us_corporates", req.URL.Path)
 		assert.Equal(t, http.MethodGet, req.Method)
@@ -1543,8 +1548,9 @@ func TestGetUSCorporates(t *testing.T) {
 	assert.True(t, bond.Tradable)
 	assert.True(t, bond.Marginable)
 	assert.Equal(t, civil.Date{Year: 2025, Month: 6, Day: 15}, bond.IssueDate)
-	require.NotNil(t, bond.MaturityDate)
-	assert.Equal(t, civil.Date{Year: 2030, Month: 6, Day: 15}, *bond.MaturityDate)
+	if assert.NotNil(t, bond.MaturityDate) {
+		assert.Equal(t, civil.Date{Year: 2030, Month: 6, Day: 15}, *bond.MaturityDate)
+	}
 	assert.Equal(t, "US", bond.CountryDomicile)
 	assert.Equal(t, "BAC", bond.Ticker)
 	assert.Equal(t, "senior_unsecured", bond.Seniority)
@@ -1552,78 +1558,99 @@ func TestGetUSCorporates(t *testing.T) {
 	assert.Equal(t, "Financials", bond.Sector)
 	assert.Equal(t, "test bond", bond.Description)
 	assert.Equal(t, "tb", bond.DescriptionShort)
-	assert.True(t, decimal.NewFromFloat(3.5).Equal(bond.Coupon))
+	assert.Equal(t, "3.5", bond.Coupon.String())
 	assert.Equal(t, CouponTypeFixed, bond.CouponType)
 	assert.Equal(t, CouponFrequencySemiAnnual, bond.CouponFrequency)
-	require.NotNil(t, bond.FirstCouponDate)
-	assert.Equal(t, civil.Date{Year: 2025, Month: 12, Day: 15}, *bond.FirstCouponDate)
-	require.NotNil(t, bond.NextCouponDate)
-	assert.Equal(t, civil.Date{Year: 2026, Month: 6, Day: 15}, *bond.NextCouponDate)
-	require.NotNil(t, bond.LastCouponDate)
-	assert.Equal(t, civil.Date{Year: 2025, Month: 12, Day: 15}, *bond.LastCouponDate)
+	if assert.NotNil(t, bond.FirstCouponDate) {
+		assert.Equal(t, civil.Date{Year: 2025, Month: 12, Day: 15}, *bond.FirstCouponDate)
+	}
+	if assert.NotNil(t, bond.NextCouponDate) {
+		assert.Equal(t, civil.Date{Year: 2026, Month: 6, Day: 15}, *bond.NextCouponDate)
+	}
+	if assert.NotNil(t, bond.LastCouponDate) {
+		assert.Equal(t, civil.Date{Year: 2025, Month: 12, Day: 15}, *bond.LastCouponDate)
+	}
 	assert.False(t, bond.Perpetual)
 	assert.Equal(t, DayCount30360, bond.DayCount)
 	assert.Equal(t, civil.Date{Year: 2025, Month: 6, Day: 15}, bond.DatedDate)
-	assert.True(t, decimal.NewFromFloat(2000000000).Equal(bond.IssueSize))
-	assert.True(t, decimal.NewFromFloat(99.876).Equal(bond.IssuePrice))
-	assert.True(t, decimal.NewFromFloat(1000).Equal(bond.IssueMinimumDenomination))
-	assert.True(t, decimal.NewFromFloat(1000).Equal(bond.ParValue))
+	assert.Equal(t, "2000000000", bond.IssueSize.String())
+	assert.Equal(t, "99.876", bond.IssuePrice.String())
+	assert.Equal(t, "1000", bond.IssueMinimumDenomination.String())
+	assert.Equal(t, "1000", bond.ParValue.String())
 	assert.True(t, bond.Callable)
-	require.NotNil(t, bond.NextCallDate)
-	assert.Equal(t, civil.Date{Year: 2026, Month: 5, Day: 15}, *bond.NextCallDate)
-	require.NotNil(t, bond.NextCallPrice)
-	assert.True(t, decimal.NewFromFloat(100).Equal(*bond.NextCallPrice))
+	if assert.NotNil(t, bond.NextCallDate) {
+		assert.Equal(t, civil.Date{Year: 2026, Month: 5, Day: 15}, *bond.NextCallDate)
+	}
+	if assert.NotNil(t, bond.NextCallPrice) {
+		assert.Equal(t, "100", bond.NextCallPrice.String())
+	}
 	assert.False(t, bond.Puttable)
 	assert.False(t, bond.Convertible)
 	assert.False(t, bond.RegS)
-	require.NotNil(t, bond.SPRating)
-	assert.Equal(t, "A-", *bond.SPRating)
-	require.NotNil(t, bond.SPRatingDate)
-	assert.Equal(t, civil.Date{Year: 2026, Month: 1, Day: 10}, *bond.SPRatingDate)
-	require.NotNil(t, bond.SPCreditwatch)
-	assert.Equal(t, "positive", *bond.SPCreditwatch)
-	require.NotNil(t, bond.SPCreditwatchDate)
-	assert.Equal(t, civil.Date{Year: 2026, Month: 1, Day: 10}, *bond.SPCreditwatchDate)
-	require.NotNil(t, bond.SPOutlook)
-	assert.Equal(t, &spOutlook, bond.SPOutlook)
-	require.NotNil(t, bond.SPOutlookDate)
-	assert.Equal(t, civil.Date{Year: 2026, Month: 1, Day: 10}, *bond.SPOutlookDate)
-	require.NotNil(t, bond.LiquidityMicroBuy)
-	assert.True(t, decimal.NewFromFloat(4).Equal(*bond.LiquidityMicroBuy))
-	require.NotNil(t, bond.LiquidityMicroSell)
-	assert.True(t, decimal.NewFromFloat(3).Equal(*bond.LiquidityMicroSell))
-	require.NotNil(t, bond.LiquidityMicroAggregate)
-	assert.True(t, decimal.NewFromFloat(3.5).Equal(*bond.LiquidityMicroAggregate))
-	require.NotNil(t, bond.LiquidityRetailBuy)
-	assert.True(t, decimal.NewFromFloat(5).Equal(*bond.LiquidityRetailBuy))
-	require.NotNil(t, bond.LiquidityRetailSell)
-	assert.True(t, decimal.NewFromFloat(4).Equal(*bond.LiquidityRetailSell))
-	require.NotNil(t, bond.LiquidityRetailAggregate)
-	assert.True(t, decimal.NewFromFloat(4.5).Equal(*bond.LiquidityRetailAggregate))
-	require.NotNil(t, bond.LiquidityInstitutionalBuy)
-	assert.True(t, decimal.NewFromFloat(5).Equal(*bond.LiquidityInstitutionalBuy))
-	require.NotNil(t, bond.LiquidityInstitutionalSell)
-	assert.True(t, decimal.NewFromFloat(5).Equal(*bond.LiquidityInstitutionalSell))
-	require.NotNil(t, bond.LiquidityInstitutionalAggregate)
-	assert.True(t, decimal.NewFromFloat(5).Equal(*bond.LiquidityInstitutionalAggregate))
-	require.NotNil(t, bond.ClosePrice)
-	assert.True(t, decimal.NewFromFloat(99.95).Equal(*bond.ClosePrice))
-	require.NotNil(t, bond.ClosePriceDate)
-	assert.Equal(t, civil.Date{Year: 2026, Month: 5, Day: 2}, *bond.ClosePriceDate)
-	require.NotNil(t, bond.CloseYieldToMaturity)
-	assert.True(t, decimal.NewFromFloat(3.55).Equal(*bond.CloseYieldToMaturity))
-	require.NotNil(t, bond.CloseYieldToWorst)
-	assert.True(t, decimal.NewFromFloat(3.45).Equal(*bond.CloseYieldToWorst))
-	require.NotNil(t, bond.AccruedInterest)
-	assert.True(t, decimal.NewFromFloat(4.375).Equal(*bond.AccruedInterest))
-	require.NotNil(t, bond.CallType)
-	assert.Equal(t, &callType, bond.CallType)
-	require.NotNil(t, bond.ReissueDate)
-	assert.Equal(t, civil.Date{Year: 2026, Month: 1, Day: 15}, *bond.ReissueDate)
-	require.NotNil(t, bond.ReissueSize)
-	assert.True(t, decimal.NewFromFloat(500000000).Equal(*bond.ReissueSize))
-	require.NotNil(t, bond.ReissuePrice)
-	assert.True(t, decimal.NewFromFloat(101.5).Equal(*bond.ReissuePrice))
+	assert.Equal(t, "A-", bond.SPRating)
+	if assert.NotNil(t, bond.SPRatingDate) {
+		assert.Equal(t, civil.Date{Year: 2026, Month: 1, Day: 10}, *bond.SPRatingDate)
+	}
+	assert.Equal(t, "positive", bond.SPCreditwatch)
+	if assert.NotNil(t, bond.SPCreditwatchDate) {
+		assert.Equal(t, civil.Date{Year: 2026, Month: 1, Day: 10}, *bond.SPCreditwatchDate)
+	}
+	assert.Equal(t, SPOutlookStable, bond.SPOutlook)
+	if assert.NotNil(t, bond.SPOutlookDate) {
+		assert.Equal(t, civil.Date{Year: 2026, Month: 1, Day: 10}, *bond.SPOutlookDate)
+	}
+	if assert.NotNil(t, bond.LiquidityMicroBuy) {
+		assert.Equal(t, "4", bond.LiquidityMicroBuy.String())
+	}
+	if assert.NotNil(t, bond.LiquidityMicroSell) {
+		assert.Equal(t, "3", bond.LiquidityMicroSell.String())
+	}
+	if assert.NotNil(t, bond.LiquidityMicroAggregate) {
+		assert.Equal(t, "3.5", bond.LiquidityMicroAggregate.String())
+	}
+	if assert.NotNil(t, bond.LiquidityRetailBuy) {
+		assert.Equal(t, "5", bond.LiquidityRetailBuy.String())
+	}
+	if assert.NotNil(t, bond.LiquidityRetailSell) {
+		assert.Equal(t, "4", bond.LiquidityRetailSell.String())
+	}
+	if assert.NotNil(t, bond.LiquidityRetailAggregate) {
+		assert.Equal(t, "4.5", bond.LiquidityRetailAggregate.String())
+	}
+	if assert.NotNil(t, bond.LiquidityInstitutionalBuy) {
+		assert.Equal(t, "5", bond.LiquidityInstitutionalBuy.String())
+	}
+	if assert.NotNil(t, bond.LiquidityInstitutionalSell) {
+		assert.Equal(t, "5", bond.LiquidityInstitutionalSell.String())
+	}
+	if assert.NotNil(t, bond.LiquidityInstitutionalAggregate) {
+		assert.Equal(t, "5", bond.LiquidityInstitutionalAggregate.String())
+	}
+	if assert.NotNil(t, bond.ClosePrice) {
+		assert.Equal(t, "99.95", bond.ClosePrice.String())
+	}
+	if assert.NotNil(t, bond.ClosePriceDate) {
+		assert.Equal(t, civil.Date{Year: 2026, Month: 5, Day: 2}, *bond.ClosePriceDate)
+	}
+	if assert.NotNil(t, bond.CloseYieldToMaturity) {
+		assert.Equal(t, "3.55", bond.CloseYieldToMaturity.String())
+	}
+	if assert.NotNil(t, bond.CloseYieldToWorst) {
+		assert.Equal(t, "3.45", bond.CloseYieldToWorst.String())
+	}
+	if assert.NotNil(t, bond.AccruedInterest) {
+		assert.Equal(t, "4.375", bond.AccruedInterest.String())
+	}
+	assert.Equal(t, CallTypeMakeWhole, bond.CallType)
+	if assert.NotNil(t, bond.ReissueDate) {
+		assert.Equal(t, civil.Date{Year: 2026, Month: 1, Day: 15}, *bond.ReissueDate)
+	}
+	if assert.NotNil(t, bond.ReissueSize) {
+		assert.Equal(t, "500000000", bond.ReissueSize.String())
+	}
+	if assert.NotNil(t, bond.ReissuePrice) {
+		assert.Equal(t, "101.5", bond.ReissuePrice.String())
+	}
 
 	// filtering by cusips and isins
 	c.do = func(_ *Client, req *http.Request) (*http.Response, error) {

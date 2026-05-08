@@ -1641,15 +1641,7 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Alpaca15(in *jlexe
 		case "reg_s":
 			out.RegS = bool(in.Bool())
 		case "sp_rating":
-			if in.IsNull() {
-				in.Skip()
-				out.SPRating = nil
-			} else {
-				if out.SPRating == nil {
-					out.SPRating = new(string)
-				}
-				*out.SPRating = string(in.String())
-			}
+			out.SPRating = string(in.String())
 		case "sp_rating_date":
 			if in.IsNull() {
 				in.Skip()
@@ -1663,15 +1655,7 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Alpaca15(in *jlexe
 				}
 			}
 		case "sp_creditwatch":
-			if in.IsNull() {
-				in.Skip()
-				out.SPCreditwatch = nil
-			} else {
-				if out.SPCreditwatch == nil {
-					out.SPCreditwatch = new(string)
-				}
-				*out.SPCreditwatch = string(in.String())
-			}
+			out.SPCreditwatch = string(in.String())
 		case "sp_creditwatch_date":
 			if in.IsNull() {
 				in.Skip()
@@ -1685,15 +1669,7 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Alpaca15(in *jlexe
 				}
 			}
 		case "sp_outlook":
-			if in.IsNull() {
-				in.Skip()
-				out.SPOutlook = nil
-			} else {
-				if out.SPOutlook == nil {
-					out.SPOutlook = new(SPOutlook)
-				}
-				*out.SPOutlook = SPOutlook(in.String())
-			}
+			out.SPOutlook = SPOutlook(in.String())
 		case "sp_outlook_date":
 			if in.IsNull() {
 				in.Skip()
@@ -1875,15 +1851,7 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Alpaca15(in *jlexe
 				}
 			}
 		case "call_type":
-			if in.IsNull() {
-				in.Skip()
-				out.CallType = nil
-			} else {
-				if out.CallType == nil {
-					out.CallType = new(CallType)
-				}
-				*out.CallType = CallType(in.String())
-			}
+			out.CallType = CallType(in.String())
 		default:
 			in.SkipRecursive()
 		}
@@ -2078,30 +2046,30 @@ func easyjson3e8ab7adEncodeGithubComAlpacahqAlpacaTradeApiGoV3Alpaca15(out *jwri
 		out.RawString(prefix)
 		out.Bool(bool(in.RegS))
 	}
-	if in.SPRating != nil {
+	if in.SPRating != "" {
 		const prefix string = ",\"sp_rating\":"
 		out.RawString(prefix)
-		out.String(string(*in.SPRating))
+		out.String(string(in.SPRating))
 	}
 	if in.SPRatingDate != nil {
 		const prefix string = ",\"sp_rating_date\":"
 		out.RawString(prefix)
 		out.RawText((*in.SPRatingDate).MarshalText())
 	}
-	if in.SPCreditwatch != nil {
+	if in.SPCreditwatch != "" {
 		const prefix string = ",\"sp_creditwatch\":"
 		out.RawString(prefix)
-		out.String(string(*in.SPCreditwatch))
+		out.String(string(in.SPCreditwatch))
 	}
 	if in.SPCreditwatchDate != nil {
 		const prefix string = ",\"sp_creditwatch_date\":"
 		out.RawString(prefix)
 		out.RawText((*in.SPCreditwatchDate).MarshalText())
 	}
-	if in.SPOutlook != nil {
+	if in.SPOutlook != "" {
 		const prefix string = ",\"sp_outlook\":"
 		out.RawString(prefix)
-		out.String(string(*in.SPOutlook))
+		out.String(string(in.SPOutlook))
 	}
 	if in.SPOutlookDate != nil {
 		const prefix string = ",\"sp_outlook_date\":"
@@ -2178,10 +2146,10 @@ func easyjson3e8ab7adEncodeGithubComAlpacahqAlpacaTradeApiGoV3Alpaca15(out *jwri
 		out.RawString(prefix)
 		out.Raw((*in.AccruedInterest).MarshalJSON())
 	}
-	if in.CallType != nil {
+	if in.CallType != "" {
 		const prefix string = ",\"call_type\":"
 		out.RawString(prefix)
-		out.String(string(*in.CallType))
+		out.String(string(in.CallType))
 	}
 	out.RawByte('}')
 }

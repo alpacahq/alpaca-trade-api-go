@@ -612,11 +612,11 @@ type USCorporate struct {
 	Puttable                        bool             `json:"puttable"`
 	Convertible                     bool             `json:"convertible"`
 	RegS                            bool             `json:"reg_s"`
-	SPRating                        *string          `json:"sp_rating,omitempty"`
+	SPRating                        string           `json:"sp_rating,omitempty"`
 	SPRatingDate                    *civil.Date      `json:"sp_rating_date,omitempty"`
-	SPCreditwatch                   *string          `json:"sp_creditwatch,omitempty"`
+	SPCreditwatch                   string           `json:"sp_creditwatch,omitempty"`
 	SPCreditwatchDate               *civil.Date      `json:"sp_creditwatch_date,omitempty"`
-	SPOutlook                       *SPOutlook       `json:"sp_outlook,omitempty"`
+	SPOutlook                       SPOutlook        `json:"sp_outlook,omitempty"`
 	SPOutlookDate                   *civil.Date      `json:"sp_outlook_date,omitempty"`
 	LiquidityMicroBuy               *decimal.Decimal `json:"liquidity_micro_buy,omitempty"`
 	LiquidityMicroSell              *decimal.Decimal `json:"liquidity_micro_sell,omitempty"`
@@ -632,7 +632,7 @@ type USCorporate struct {
 	CloseYieldToMaturity            *decimal.Decimal `json:"close_yield_to_maturity,omitempty"`
 	CloseYieldToWorst               *decimal.Decimal `json:"close_yield_to_worst,omitempty"`
 	AccruedInterest                 *decimal.Decimal `json:"accrued_interest,omitempty"`
-	CallType                        *CallType        `json:"call_type,omitempty"`
+	CallType                        CallType         `json:"call_type,omitempty"`
 }
 
 //easyjson:json
