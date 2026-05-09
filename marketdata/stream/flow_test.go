@@ -14,7 +14,7 @@ import (
 func TestInitializeConnectFails(t *testing.T) {
 	conn := newMockConn()
 	defer conn.close()
-	c := client{conn: conn, key: "key", secret: "secret"}
+	c := client{conn: conn, authProvider: newStreamAuthProvider(streamAuthProviderOptions{key: "key", secret: "secret"})}
 
 	res := make(chan error, 1)
 
@@ -35,7 +35,7 @@ func TestInitializeConnectFails(t *testing.T) {
 func TestInitializeAuthError(t *testing.T) {
 	conn := newMockConn()
 	defer conn.close()
-	c := client{conn: conn, key: "key", secret: "secret"}
+	c := client{conn: conn, authProvider: newStreamAuthProvider(streamAuthProviderOptions{key: "key", secret: "secret"})}
 
 	res := make(chan error, 1)
 
@@ -67,7 +67,14 @@ func TestInitializeAuthError(t *testing.T) {
 func TestInitializeAuthRetryFails(t *testing.T) {
 	conn := newMockConn()
 	defer conn.close()
-	c := client{conn: conn, key: "key", secret: "secret", logger: DefaultLogger()}
+	c := client{
+		conn: conn,
+		authProvider: newStreamAuthProvider(streamAuthProviderOptions{
+			key:    "key",
+			secret: "secret",
+		}),
+		logger: DefaultLogger(),
+	}
 	ordm := authRetryDelayMultiplier
 	arc := authRetryCount
 	defer func() {
@@ -243,7 +250,8 @@ func TestInitializeSubError(t *testing.T) {
 	conn := newMockConn()
 	defer conn.close()
 	c := client{
-		conn: conn,
+		conn:         conn,
+		authProvider: newStreamAuthProvider(streamAuthProviderOptions{}),
 		sub: subscriptions{
 			trades: []string{"TEST"},
 		},
@@ -290,7 +298,7 @@ func TestInitializeSubError(t *testing.T) {
 func TestReadConnectedCancelled(t *testing.T) {
 	conn := newMockConn()
 	defer conn.close()
-	c := client{conn: conn, key: "key", secret: "secret"}
+	c := client{conn: conn, authProvider: newStreamAuthProvider(streamAuthProviderOptions{key: "key", secret: "secret"})}
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 	err := c.readConnected(ctx)
@@ -299,7 +307,7 @@ func TestReadConnectedCancelled(t *testing.T) {
 }
 
 func TestReadConnectedContents(t *testing.T) {
-	c := client{}
+	c := client{authProvider: newStreamAuthProvider(streamAuthProviderOptions{})}
 	tests := []struct {
 		name        string
 		message     []byte
@@ -390,7 +398,7 @@ func TestWriteAuthCancelled(t *testing.T) {
 	conn := newMockConn()
 	// We want to close it so that the write fails
 	conn.close()
-	c := client{conn: conn}
+	c := client{conn: conn, authProvider: newStreamAuthProvider(streamAuthProviderOptions{})}
 
 	err := c.writeAuth(context.Background())
 
@@ -400,7 +408,10 @@ func TestWriteAuthCancelled(t *testing.T) {
 func TestWriteAuthContents(t *testing.T) {
 	conn := newMockConn()
 	defer conn.close()
-	c := client{conn: conn, key: "mykey", secret: "mysecret"}
+	c := client{
+		conn:         conn,
+		authProvider: newStreamAuthProvider(streamAuthProviderOptions{key: "mykey", secret: "mysecret"}),
+	}
 
 	err := c.writeAuth(context.Background())
 
@@ -417,7 +428,7 @@ func TestWriteAuthContents(t *testing.T) {
 func TestReadAuthResponseCancelled(t *testing.T) {
 	conn := newMockConn()
 	defer conn.close()
-	c := client{conn: conn}
+	c := client{conn: conn, authProvider: newStreamAuthProvider(streamAuthProviderOptions{})}
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 	err := c.readAuthResponse(ctx)
@@ -426,7 +437,7 @@ func TestReadAuthResponseCancelled(t *testing.T) {
 }
 
 func TestReadAuthResponseContents(t *testing.T) {
-	c := client{}
+	c := client{authProvider: newStreamAuthProvider(streamAuthProviderOptions{})}
 	tests := []struct {
 		name        string
 		message     []byte
@@ -558,7 +569,7 @@ func TestWriteSubCancelled(t *testing.T) {
 	conn := newMockConn()
 	// We want to close it so that the write fails
 	conn.close()
-	c := client{conn: conn}
+	c := client{conn: conn, authProvider: newStreamAuthProvider(streamAuthProviderOptions{})}
 
 	err := c.writeSub(context.Background())
 
@@ -610,7 +621,8 @@ func TestWriteSubContents(t *testing.T) {
 			conn := newMockConn()
 			defer conn.close()
 			c := client{
-				conn: conn,
+				conn:         conn,
+				authProvider: newStreamAuthProvider(streamAuthProviderOptions{}),
 				sub: subscriptions{
 					trades:      test.trades,
 					quotes:      test.quotes,
@@ -656,7 +668,7 @@ func TestWriteSubContents(t *testing.T) {
 func TestReadSubResponseCancelled(t *testing.T) {
 	conn := newMockConn()
 	defer conn.close()
-	c := client{conn: conn}
+	c := client{conn: conn, authProvider: newStreamAuthProvider(streamAuthProviderOptions{})}
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 	err := c.readSubResponse(ctx)
@@ -751,7 +763,7 @@ func TestReadSubResponseContents(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			conn := newMockConn()
 			defer conn.close()
-			c := client{conn: conn}
+			c := client{conn: conn, authProvider: newStreamAuthProvider(streamAuthProviderOptions{})}
 
 			conn.readCh <- test.message
 

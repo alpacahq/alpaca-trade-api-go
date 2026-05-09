@@ -16,6 +16,7 @@ import (
 	"github.com/mailru/easyjson"
 
 	"github.com/alpacahq/alpaca-trade-api-go/v3/alpaca"
+	"github.com/alpacahq/alpaca-trade-api-go/v3/internal/authn"
 )
 
 // ClientOpts contains options for the alpaca marketdata client.
@@ -23,14 +24,41 @@ import (
 // Currently it contains the exact same options as the trading alpaca client,
 // but there is no guarantee that this will remain the case.
 type ClientOpts struct {
-	APIKey       string
-	APISecret    string
-	BrokerKey    string
+	// APIKey is the Alpaca API key to use. Use the web dashboard to create one.
+	//
+	// Deprecated: use ClientID instead
+	APIKey string
+	// APISecret is the Alpaca API secret to use.
+	//
+	// Deprecated: use ClientSecret instead
+	APISecret string
+	// BrokerKey is the Alpaca Broker API key to use. Use the web broker dashboard to create one.
+	//
+	// Deprecated: use ClientID instead
+	BrokerKey string
+	// BrokerSecret is the Alpaca Broker API secret to use.
+	//
+	// Deprecated: use ClientSecret instead
 	BrokerSecret string
-	OAuth        string
-	BaseURL      string
-	RetryLimit   int
-	RetryDelay   time.Duration
+	// OAuth is the Alpaca OAuth token to use. Use the web dashboard to create one.
+	OAuth string
+	// ClientID is the Alpaca Client ID to use. Use the web dashboard to create one.
+	// Can be used with legacy APIKey and BrokerKey.
+	ClientID string
+	// ClientSecret is the Alpaca Client secret to use. Use the web dashboard to create one.
+	ClientSecret string
+	// BaseURL is the Alpaca API Base URL to use.
+	// Default: https://data.alpaca.markets.
+	BaseURL string
+	// TokenURL is the Alpaca API Token URL to use.
+	// Default: https://authx.alpaca.markets/v1/oauth2/token.
+	TokenURL string
+	// RetryLimit is the number of times to retry a request.
+	// Default: 3.
+	RetryLimit int
+	// RetryDelay is the delay between retries.
+	// Default: 1 second.
+	RetryDelay time.Duration
 	// Feed is the default feed to be used by all requests. Can be overridden per request.
 	Feed Feed
 	// CryptoFeed is the default crypto feed to be used by all requests. Can be overridden per request.
@@ -46,23 +74,15 @@ type ClientOpts struct {
 
 // Client is the alpaca marketdata Client.
 type Client struct {
-	opts       ClientOpts
-	httpClient *http.Client
+	opts          ClientOpts
+	httpClient    *http.Client
+	authnProvider *authn.RestAuthProvider
 
 	do func(c *Client, req *http.Request) (*http.Response, error)
 }
 
 // NewClient creates a new marketdata client using the given opts.
 func NewClient(opts ClientOpts) *Client {
-	if opts.APIKey == "" {
-		opts.APIKey = os.Getenv("APCA_API_KEY_ID")
-	}
-	if opts.APISecret == "" {
-		opts.APISecret = os.Getenv("APCA_API_SECRET_KEY")
-	}
-	if opts.OAuth == "" {
-		opts.OAuth = os.Getenv("APCA_API_OAUTH")
-	}
 	if opts.BaseURL == "" {
 		if s := os.Getenv("APCA_API_DATA_URL"); s != "" {
 			opts.BaseURL = s
@@ -85,7 +105,19 @@ func NewClient(opts ClientOpts) *Client {
 	return &Client{
 		opts:       opts,
 		httpClient: httpClient,
-
+		authnProvider: authn.NewRestAuthProvider(authn.RestAuthProviderOptions{
+			HTTPClient: httpClient,
+			TokenURL:   opts.TokenURL,
+			Credentials: authn.Credentials{
+				APIKey:       opts.APIKey,
+				APISecret:    opts.APISecret,
+				BrokerKey:    opts.BrokerKey,
+				BrokerSecret: opts.BrokerSecret,
+				ClientID:     opts.ClientID,
+				ClientSecret: opts.ClientSecret,
+				OAuthToken:   opts.OAuth,
+			},
+		}),
 		do: defaultDo,
 	}
 }
@@ -99,14 +131,8 @@ func defaultDo(c *Client, req *http.Request) (*http.Response, error) {
 		req.Host = c.opts.RequestHost
 	}
 
-	switch {
-	case c.opts.OAuth != "":
-		req.Header.Set("Authorization", "Bearer "+c.opts.OAuth)
-	case c.opts.BrokerKey != "":
-		req.SetBasicAuth(c.opts.BrokerKey, c.opts.BrokerSecret)
-	default:
-		req.Header.Set("APCA-API-KEY-ID", c.opts.APIKey)
-		req.Header.Set("APCA-API-SECRET-KEY", c.opts.APISecret)
+	if err := c.authnProvider.SetAuthHeader(req, true); err != nil {
+		return nil, err
 	}
 
 	var resp *http.Response

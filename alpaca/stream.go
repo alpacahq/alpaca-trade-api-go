@@ -59,11 +59,9 @@ func (c *Client) StreamTradeUpdates(
 	if err != nil {
 		return err
 	}
-	if c.opts.OAuth != "" {
-		request.Header.Set("Authorization", "Bearer "+c.opts.OAuth)
-	} else {
-		request.Header.Set("APCA-API-KEY-ID", c.opts.APIKey)
-		request.Header.Set("APCA-API-SECRET-KEY", c.opts.APISecret)
+
+	if err := c.authnProvider.SetAuthHeader(request, false); err != nil {
+		return err
 	}
 
 	resp, err := client.Do(request)
