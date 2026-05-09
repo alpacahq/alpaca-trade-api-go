@@ -51,6 +51,14 @@ type Account struct {
 	SMA                   decimal.Decimal `json:"sma"`
 	DaytradeCount         int64           `json:"daytrade_count"`
 	CryptoTier            int             `json:"crypto_tier"`
+	OptionsTradingLevel   int             `json:"options_trading_level"`
+	OptionsApprovedLevel  int             `json:"options_approved_level"`
+	OptionsBuyingPower    string          `json:"options_buying_power"`
+	PendingRegTafFees     string          `json:"pending_reg_taf_fees"`
+	PendingTransferIn     string          `json:"pending_transfer_in"`
+	PendingTransferOut    string          `json:"pending_transfer_out"`
+	IntradayAdjustments   string          `json:"intraday_adjustments"`
+	BalanceAsOf           string          `json:"balance_asof"`
 }
 
 type Order struct {
