@@ -1278,8 +1278,10 @@ func TestGetCorporateActions(t *testing.T) {
 		"corporate_actions": {
 			"forward_splits": [
 				{
+					"cusip": "38747R843",
 					"due_bill_redemption_date": "2024-03-14",
 					"ex_date": "2024-03-13",
+					"id": "ae274e7d-cac8-44f1-8a67-161f1eee7f6a",
 					"new_rate": 5,
 					"old_rate": 1,
 					"payable_date": "2024-03-12",
@@ -1288,8 +1290,10 @@ func TestGetCorporateActions(t *testing.T) {
 					"symbol": "FBL"
 				},
 				{
+					"cusip": "38747R827",
 					"due_bill_redemption_date": "2024-03-14",
 					"ex_date": "2024-03-13",
+					"id": "581060ef-0f54-4f11-812a-51875970cb88",
 					"new_rate": 6,
 					"old_rate": 1,
 					"payable_date": "2024-03-12",
@@ -1300,84 +1304,173 @@ func TestGetCorporateActions(t *testing.T) {
 			],
 			"name_changes": [
 				{
+					"id": "4ad3f383-afb8-4ec6-b3ae-bf557a5f8c73",
+					"new_cusip": "98944F109",
 					"new_symbol": "ZEO",
+					"old_cusip": "G3R95N103",
 					"old_symbol": "ESAC",
 					"process_date": "2024-03-14"
 				},
 				{
+					"id": "a953c5c7-edb3-4391-bf7f-4477a261da85",
+					"new_cusip": "98944F117",
 					"new_symbol": "ZEOWW",
+					"old_cusip": "G3R95N111",
 					"old_symbol": "ESACW",
 					"process_date": "2024-03-14"
 				},
 				{
+					"id": "6deee669-bfc2-415e-a6fe-f748d3307425",
+					"new_cusip": "36468G103",
+					"new_symbol": "GAME",
+					"old_cusip": "364934109",
+					"old_symbol": "GAME",
+					"process_date": "2024-03-12"
+				},
+				{
+					"id": "a6c959a6-5ce8-4716-8dfd-aaba82a9c0af",
+					"new_cusip": "98423K108",
 					"new_symbol": "XTIA",
+					"old_cusip": "45790J867",
 					"old_symbol": "INPX",
 					"process_date": "2024-03-13"
 				},
 				{
+					"id": "7e39ba8e-1e30-4e77-9e5e-5fc6a0c016ec",
+					"new_cusip": "45827R114",
 					"new_symbol": "IRRXW",
+					"old_cusip": "45827R114",
 					"old_symbol": "IRRX.WS",
 					"process_date": "2024-03-12"
 				},
 				{
+					"id": "b0118e37-145a-4508-98c0-e8beacef9aa9",
+					"new_cusip": "63903P100",
 					"new_symbol": "NMHI",
+					"old_cusip": "G5352N105",
 					"old_symbol": "LBBB",
 					"process_date": "2024-03-12"
 				},
 				{
+					"id": "a513d960-4e87-4efa-95d9-8ea1b8d3dea4",
+					"new_cusip": "63903P118",
 					"new_symbol": "NMHIW",
+					"old_cusip": "G5352N121",
 					"old_symbol": "LBBBW",
 					"process_date": "2024-03-12"
 				},
 				{
+					"id": "9df01964-0357-4321-8a7e-d1fefbd710f8",
+					"new_cusip": "28252C208",
 					"new_symbol": "POLCQ",
+					"old_cusip": "28252C208",
 					"old_symbol": "POLC",
 					"process_date": "2024-03-11"
 				},
 				{
+					"id": "6de8a707-8ac3-4b7f-8a87-12d838ea3110",
+					"new_cusip": "54405Q209",
 					"new_symbol": "NRDE",
+					"old_cusip": "54405Q209",
 					"old_symbol": "RIDEQ",
 					"process_date": "2024-03-14"
 				},
 				{
+					"id": "3e941ff0-358a-4d77-ad48-70b7e5adbd7b",
+					"new_cusip": "826598609",
 					"new_symbol": "NTRP",
+					"old_cusip": "826598609",
 					"old_symbol": "SASI",
 					"process_date": "2024-03-13"
 				}
 			],
 			"stock_mergers": [
 				{
+					"acquiree_cusip": "G2758T109",
+					"acquiree_rate": 1,
+					"acquiree_symbol": "DHCA",
+					"acquirer_cusip": "104932108",
+					"acquirer_rate": 1,
+					"acquirer_symbol": "",
+					"effective_date": "2024-03-14",
+					"id": "cedb0a16-1b3d-4fdf-bb75-dbde382c31f2",
+					"process_date": "2024-03-14"
+				},
+				{
+					"acquiree_cusip": "G3R95N103",
+					"acquiree_rate": 1,
+					"acquiree_symbol": "ESAC",
+					"acquirer_cusip": "98944F109",
+					"acquirer_rate": 1,
+					"acquirer_symbol": "",
+					"effective_date": "2024-03-13",
+					"id": "261c9307-673c-49fd-9b70-36d1905084d5",
+					"process_date": "2024-03-13"
+				},
+				{
+					"acquiree_cusip": "31423J102",
 					"acquiree_rate": 1,
 					"acquiree_symbol": "FAZE",
+					"acquirer_cusip": "364934109",
 					"acquirer_rate": 0.13091,
 					"acquirer_symbol": "GAME",
 					"effective_date": "2024-03-11",
+					"id": "43f44a92-2a16-4ae5-9508-de1f4cebd286",
 					"payable_date": "2024-03-11",
 					"process_date": "2024-03-11"
 				},
 				{
+					"acquiree_cusip": "G5352N105",
+					"acquiree_rate": 1,
+					"acquiree_symbol": "LBBB",
+					"acquirer_cusip": "63903P100",
+					"acquirer_rate": 1,
+					"acquirer_symbol": "",
+					"effective_date": "2024-03-11",
+					"id": "72923b84-b072-49e0-89fe-8453b9af5af6",
+					"process_date": "2024-03-11"
+				},
+				{
+					"acquiree_cusip": "G5352N113",
 					"acquiree_rate": 1,
 					"acquiree_symbol": "LBBBR",
+					"acquirer_cusip": "63903P100",
 					"acquirer_rate": 0.1,
 					"acquirer_symbol": "NMHI",
 					"effective_date": "2024-03-12",
+					"id": "176fb17e-063b-454f-b29e-fcb7591eb5d4",
 					"payable_date": "2024-03-12",
 					"process_date": "2024-03-12"
+				},
+				{
+					"acquiree_cusip": "73919C100",
+					"acquiree_rate": 1,
+					"acquiree_symbol": "XPDB",
+					"acquirer_cusip": "612160101",
+					"acquirer_rate": 1,
+					"acquirer_symbol": "",
+					"effective_date": "2024-03-14",
+					"id": "3c98075b-d36d-4633-9cb9-c05e298cd191",
+					"process_date": "2024-03-14"
 				}
 			],
 			"worthless_removals": [
 				{
+					"cusip": "28059Q111",
+					"id": "6bdc70ea-3ecb-40b1-89fb-c63b7d3dd872",
 					"process_date": "2024-03-12",
 					"symbol": "EACPW"
 				},
 				{
+					"cusip": "98979H301",
+					"id": "55c969ea-5643-4c40-9637-08814bba89f5",
 					"process_date": "2024-03-12",
 					"symbol": "ZSANQ"
 				}
 			]
 		},
 		"next_page_token": null
-	}`
+}`
 	c := DefaultClient
 	c.do = func(_ *Client, req *http.Request) (*http.Response, error) {
 		assert.Equal(t, "/v1/corporate-actions", req.URL.Path)
@@ -1399,7 +1492,9 @@ func TestGetCorporateActions(t *testing.T) {
 	require.NoError(t, err)
 	if assert.Len(t, got.ForwardSplits, 2) {
 		assert.Equal(t, ForwardSplit{
+			ID:                    "ae274e7d-cac8-44f1-8a67-161f1eee7f6a",
 			Symbol:                "FBL",
+			Cusip:                 "38747R843",
 			NewRate:               5,
 			OldRate:               1,
 			ProcessDate:           civil.Date{Year: 2024, Month: 3, Day: 13},
@@ -1409,23 +1504,29 @@ func TestGetCorporateActions(t *testing.T) {
 			DueBillRedemptionDate: &civil.Date{Year: 2024, Month: 3, Day: 14},
 		}, got.ForwardSplits[0])
 	}
-	if assert.Len(t, got.NameChanges, 9) {
+	if assert.Len(t, got.NameChanges, 10) {
 		assert.Equal(t, NameChange{
+			ID:          "3e941ff0-358a-4d77-ad48-70b7e5adbd7b",
 			NewSymbol:   "NTRP",
+			NewCusip:    "826598609",
 			OldSymbol:   "SASI",
+			OldCusip:    "826598609",
 			ProcessDate: civil.Date{Year: 2024, Month: 3, Day: 13},
-		}, got.NameChanges[8])
+		}, got.NameChanges[9])
 	}
-	if assert.Len(t, got.StockMergers, 2) {
+	if assert.Len(t, got.StockMergers, 6) {
 		assert.Equal(t, StockMerger{
+			ID:             "43f44a92-2a16-4ae5-9508-de1f4cebd286",
 			AcquirerSymbol: "GAME",
+			AcquirerCusip:  "364934109",
 			AcquirerRate:   0.13091,
 			AcquireeSymbol: "FAZE",
+			AcquireeCusip:  "31423J102",
 			AcquireeRate:   1,
 			ProcessDate:    civil.Date{Year: 2024, Month: 3, Day: 11},
 			EffectiveDate:  civil.Date{Year: 2024, Month: 3, Day: 11},
 			PayableDate:    &civil.Date{Year: 2024, Month: 3, Day: 11},
-		}, got.StockMergers[0])
+		}, got.StockMergers[2])
 	}
 	if assert.Len(t, got.WorthlessRemovals, 2) {
 		assert.Equal(t, "EACPW", got.WorthlessRemovals[0].Symbol)

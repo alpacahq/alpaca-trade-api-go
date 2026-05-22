@@ -1468,6 +1468,8 @@ func (c *Client) GetNews(req GetNewsRequest) ([]News, error) {
 type GetCorporateActionsRequest struct {
 	// Symbols is the list of company symbols
 	Symbols []string
+	// Cusips is the list of company CUSIPs
+	Cusips []string
 	// Types is the list of corporate actions types. Available types:
 	//
 	// The following types are supported:
@@ -1484,11 +1486,16 @@ type GetCorporateActionsRequest struct {
 	//  - name_change
 	//  - worthless_removal
 	//  - rights_distribution
+	//  - partial_call
+	//  - reorganization
 	Types []string
 	// Start is the inclusive beginning of the interval
 	Start civil.Date
 	// End is the inclusive end of the interval
 	End civil.Date
+	// IDs is the list of corporate action IDs to fetch. When set, it is mutually
+	// exclusive with all other filters (Symbols, Cusips, Types, Start, End).
+	IDs []string
 	// TotalLimit is the limit of the total number of the returned trades.
 	// If missing, all trades between start end end will be returned.
 	TotalLimit int
@@ -1509,6 +1516,9 @@ func (c *Client) GetCorporateActions(req GetCorporateActionsRequest) (CorporateA
 	if len(req.Symbols) > 0 {
 		q.Set("symbols", strings.Join(req.Symbols, ","))
 	}
+	if len(req.Cusips) > 0 {
+		q.Set("cusips", strings.Join(req.Cusips, ","))
+	}
 	if !req.Start.IsZero() {
 		q.Set("start", req.Start.String())
 	}
@@ -1520,6 +1530,9 @@ func (c *Client) GetCorporateActions(req GetCorporateActionsRequest) (CorporateA
 	}
 	if len(req.Types) > 0 {
 		q.Set("types", strings.Join(req.Types, ","))
+	}
+	if len(req.IDs) > 0 {
+		q.Set("ids", strings.Join(req.IDs, ","))
 	}
 
 	cas := CorporateActions{}
@@ -1551,11 +1564,14 @@ func (c *Client) GetCorporateActions(req GetCorporateActionsRequest) (CorporateA
 		cas.NameChanges = append(cas.NameChanges, c.NameChanges...)
 		cas.WorthlessRemovals = append(cas.WorthlessRemovals, c.WorthlessRemovals...)
 		cas.RightsDistributions = append(cas.RightsDistributions, c.RightsDistributions...)
+		cas.PartialCalls = append(cas.PartialCalls, c.PartialCalls...)
+		cas.Reorganizations = append(cas.Reorganizations, c.Reorganizations...)
 		received += (len(c.ReverseSplits) + len(c.ForwardSplits) + len(c.UnitSplits) +
 			len(c.CashDividends) + len(c.StockDividends) +
 			len(c.CashMergers) + len(c.StockMergers) + len(c.StockAndCashMergers) +
 			len(c.Redemptions) + len(c.SpinOffs) + len(c.NameChanges) +
-			len(c.WorthlessRemovals) + len(c.RightsDistributions))
+			len(c.WorthlessRemovals) + len(c.RightsDistributions) +
+			len(c.PartialCalls) + len(c.Reorganizations))
 		if casResp.NextPageToken == nil {
 			break
 		}
