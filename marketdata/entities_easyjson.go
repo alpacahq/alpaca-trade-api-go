@@ -5390,13 +5390,21 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata43(in *j
 				in.AddError((out.Timestamp).UnmarshalJSON(data))
 			}
 		case "o":
-			out.Open = float64(in.Float64())
+			if data := in.Raw(); in.Ok() {
+				in.AddError((out.Open).UnmarshalJSON(data))
+			}
 		case "h":
-			out.High = float64(in.Float64())
+			if data := in.Raw(); in.Ok() {
+				in.AddError((out.High).UnmarshalJSON(data))
+			}
 		case "l":
-			out.Low = float64(in.Float64())
+			if data := in.Raw(); in.Ok() {
+				in.AddError((out.Low).UnmarshalJSON(data))
+			}
 		case "c":
-			out.Close = float64(in.Float64())
+			if data := in.Raw(); in.Ok() {
+				in.AddError((out.Close).UnmarshalJSON(data))
+			}
 		case "v":
 			out.Volume = uint64(in.Uint64())
 		case "n":
@@ -5425,22 +5433,22 @@ func easyjson3e8ab7adEncodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata43(out *
 	{
 		const prefix string = ",\"o\":"
 		out.RawString(prefix)
-		out.Float64(float64(in.Open))
+		out.Raw((in.Open).MarshalJSON())
 	}
 	{
 		const prefix string = ",\"h\":"
 		out.RawString(prefix)
-		out.Float64(float64(in.High))
+		out.Raw((in.High).MarshalJSON())
 	}
 	{
 		const prefix string = ",\"l\":"
 		out.RawString(prefix)
-		out.Float64(float64(in.Low))
+		out.Raw((in.Low).MarshalJSON())
 	}
 	{
 		const prefix string = ",\"c\":"
 		out.RawString(prefix)
-		out.Float64(float64(in.Close))
+		out.Raw((in.Close).MarshalJSON())
 	}
 	{
 		const prefix string = ",\"v\":"
@@ -6825,13 +6833,21 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata55(in *j
 				in.AddError((out.Timestamp).UnmarshalJSON(data))
 			}
 		case "o":
-			out.Open = float64(in.Float64())
+			if data := in.Raw(); in.Ok() {
+				in.AddError((out.Open).UnmarshalJSON(data))
+			}
 		case "h":
-			out.High = float64(in.Float64())
+			if data := in.Raw(); in.Ok() {
+				in.AddError((out.High).UnmarshalJSON(data))
+			}
 		case "l":
-			out.Low = float64(in.Float64())
+			if data := in.Raw(); in.Ok() {
+				in.AddError((out.Low).UnmarshalJSON(data))
+			}
 		case "c":
-			out.Close = float64(in.Float64())
+			if data := in.Raw(); in.Ok() {
+				in.AddError((out.Close).UnmarshalJSON(data))
+			}
 		case "v":
 			out.Volume = float64(in.Float64())
 		case "n":
@@ -6860,22 +6876,22 @@ func easyjson3e8ab7adEncodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata55(out *
 	{
 		const prefix string = ",\"o\":"
 		out.RawString(prefix)
-		out.Float64(float64(in.Open))
+		out.Raw((in.Open).MarshalJSON())
 	}
 	{
 		const prefix string = ",\"h\":"
 		out.RawString(prefix)
-		out.Float64(float64(in.High))
+		out.Raw((in.High).MarshalJSON())
 	}
 	{
 		const prefix string = ",\"l\":"
 		out.RawString(prefix)
-		out.Float64(float64(in.Low))
+		out.Raw((in.Low).MarshalJSON())
 	}
 	{
 		const prefix string = ",\"c\":"
 		out.RawString(prefix)
-		out.Float64(float64(in.Close))
+		out.Raw((in.Close).MarshalJSON())
 	}
 	{
 		const prefix string = ",\"v\":"
@@ -7973,13 +7989,21 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata59(in *j
 				in.AddError((out.Timestamp).UnmarshalJSON(data))
 			}
 		case "o":
-			out.Open = float64(in.Float64())
+			if data := in.Raw(); in.Ok() {
+				in.AddError((out.Open).UnmarshalJSON(data))
+			}
 		case "h":
-			out.High = float64(in.Float64())
+			if data := in.Raw(); in.Ok() {
+				in.AddError((out.High).UnmarshalJSON(data))
+			}
 		case "l":
-			out.Low = float64(in.Float64())
+			if data := in.Raw(); in.Ok() {
+				in.AddError((out.Low).UnmarshalJSON(data))
+			}
 		case "c":
-			out.Close = float64(in.Float64())
+			if data := in.Raw(); in.Ok() {
+				in.AddError((out.Close).UnmarshalJSON(data))
+			}
 		case "v":
 			out.Volume = uint64(in.Uint64())
 		case "n":
@@ -8008,22 +8032,22 @@ func easyjson3e8ab7adEncodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata59(out *
 	{
 		const prefix string = ",\"o\":"
 		out.RawString(prefix)
-		out.Float64(float64(in.Open))
+		out.Raw((in.Open).MarshalJSON())
 	}
 	{
 		const prefix string = ",\"h\":"
 		out.RawString(prefix)
-		out.Float64(float64(in.High))
+		out.Raw((in.High).MarshalJSON())
 	}
 	{
 		const prefix string = ",\"l\":"
 		out.RawString(prefix)
-		out.Float64(float64(in.Low))
+		out.Raw((in.Low).MarshalJSON())
 	}
 	{
 		const prefix string = ",\"c\":"
 		out.RawString(prefix)
-		out.Float64(float64(in.Close))
+		out.Raw((in.Close).MarshalJSON())
 	}
 	{
 		const prefix string = ",\"v\":"

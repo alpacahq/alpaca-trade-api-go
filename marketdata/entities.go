@@ -6,6 +6,8 @@ import (
 	"time"
 
 	"cloud.google.com/go/civil"
+	"github.com/shopspring/decimal"
+
 	// Required for easyjson generation
 	_ "github.com/mailru/easyjson/gen"
 )
@@ -179,14 +181,14 @@ func CombineAdjustments(adjustments ...Adjustment) Adjustment {
 
 // Bar is an aggregate of trades
 type Bar struct {
-	Timestamp  time.Time `json:"t"`
-	Open       float64   `json:"o"`
-	High       float64   `json:"h"`
-	Low        float64   `json:"l"`
-	Close      float64   `json:"c"`
-	Volume     uint64    `json:"v"`
-	TradeCount uint64    `json:"n"`
-	VWAP       float64   `json:"vw"`
+	Timestamp  time.Time       `json:"t"`
+	Open       decimal.Decimal `json:"o"`
+	High       decimal.Decimal `json:"h"`
+	Low        decimal.Decimal `json:"l"`
+	Close      decimal.Decimal `json:"c"`
+	Volume     uint64          `json:"v"`
+	TradeCount uint64          `json:"n"`
+	VWAP       float64         `json:"vw"`
 }
 
 // Auction is a special trade that represents a stock auction
@@ -237,14 +239,14 @@ type CryptoQuote struct {
 
 // CryptoBar is an aggregate of crypto trades
 type CryptoBar struct {
-	Timestamp  time.Time `json:"t"`
-	Open       float64   `json:"o"`
-	High       float64   `json:"h"`
-	Low        float64   `json:"l"`
-	Close      float64   `json:"c"`
-	Volume     float64   `json:"v"`
-	TradeCount uint64    `json:"n"`
-	VWAP       float64   `json:"vw"`
+	Timestamp  time.Time       `json:"t"`
+	Open       decimal.Decimal `json:"o"`
+	High       decimal.Decimal `json:"h"`
+	Low        decimal.Decimal `json:"l"`
+	Close      decimal.Decimal `json:"c"`
+	Volume     float64         `json:"v"`
+	TradeCount uint64          `json:"n"`
+	VWAP       float64         `json:"vw"`
 }
 
 // CryptoSnapshot is a snapshot of a crypto symbol
@@ -537,14 +539,14 @@ type OptionTrade struct {
 
 // OptionBar is an aggregate of option trades
 type OptionBar struct {
-	Timestamp  time.Time `json:"t"`
-	Open       float64   `json:"o"`
-	High       float64   `json:"h"`
-	Low        float64   `json:"l"`
-	Close      float64   `json:"c"`
-	Volume     uint64    `json:"v"`
-	TradeCount uint64    `json:"n"`
-	VWAP       float64   `json:"vw"`
+	Timestamp  time.Time       `json:"t"`
+	Open       decimal.Decimal `json:"o"`
+	High       decimal.Decimal `json:"h"`
+	Low        decimal.Decimal `json:"l"`
+	Close      decimal.Decimal `json:"c"`
+	Volume     uint64          `json:"v"`
+	TradeCount uint64          `json:"n"`
+	VWAP       float64         `json:"vw"`
 }
 
 // OptionQuote is an option NBBO (National Best Bid and Offer)
