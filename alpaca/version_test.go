@@ -34,6 +34,29 @@ func TestSdkVersion_NoLeadingV(t *testing.T) {
 	assert.False(t, strings.HasPrefix(sdkVersion(), "v"))
 }
 
+func TestIsSDKModulePath(t *testing.T) {
+	tests := []struct {
+		name string
+		path string
+		want bool
+	}{
+		{"canonical", repoName, true},
+		{"v3 suffix", repoName + "/v3", true},
+		{"v10 suffix", repoName + "/v10", true},
+		{"unrelated prefix", repoName + "-extra", false},
+		{"unrelated suffix", repoName + "/vendor", false},
+		{"non-numeric version suffix", repoName + "/vNext", false},
+		{"empty version suffix", repoName + "/v", false},
+		{"subpackage path", repoName + "/alpaca", false},
+		{"unrelated module", "github.com/other/module", false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, isSDKModulePath(tt.path))
+		})
+	}
+}
+
 func TestIsValidVersion(t *testing.T) {
 	tests := []struct {
 		name    string

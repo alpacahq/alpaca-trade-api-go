@@ -24,15 +24,36 @@ func sdkVersion() string {
 	if !found {
 		return "unknown"
 	}
-	if strings.HasPrefix(buildInfo.Main.Path, repoName) && isValidVersion(buildInfo.Main.Version) {
+	if isSDKModulePath(buildInfo.Main.Path) && isValidVersion(buildInfo.Main.Version) {
 		return strings.TrimPrefix(buildInfo.Main.Version, "v")
 	}
 	for _, dep := range buildInfo.Deps {
-		if strings.HasPrefix(dep.Path, repoName) {
+		if isSDKModulePath(dep.Path) && isValidVersion(dep.Version) {
 			return strings.TrimPrefix(dep.Version, "v")
 		}
 	}
 	return "unknown"
+}
+
+// isSDKModulePath reports whether path is this SDK's module path, either the
+// canonical form (repoName) or a subsequent major-version form such as
+// "repoName/v3". It requires an exact match (or exact match up to a numeric
+// "/vN" suffix) so that unrelated modules sharing repoName as a prefix, e.g.
+// "github.com/alpacahq/alpaca-trade-api-go-extra", aren't misclassified.
+func isSDKModulePath(path string) bool {
+	if path == repoName {
+		return true
+	}
+	suffix, ok := strings.CutPrefix(path, repoName+"/v")
+	if !ok || suffix == "" {
+		return false
+	}
+	for _, r := range suffix {
+		if r < '0' || r > '9' {
+			return false
+		}
+	}
+	return true
 }
 
 func isValidVersion(v string) bool {
