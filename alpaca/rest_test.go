@@ -43,6 +43,23 @@ func TestDefaultDo(t *testing.T) {
 	assert.Equal(t, "test body", string(b))
 }
 
+func TestDefaultDo_UserAgent(t *testing.T) {
+	var gotUserAgent string
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotUserAgent = r.Header.Get("User-Agent")
+		fmt.Fprint(w, "test body")
+	}))
+	c := NewClient(ClientOpts{
+		BaseURL: ts.URL,
+	})
+	req, err := http.NewRequest(http.MethodGet, ts.URL, nil)
+	require.NoError(t, err)
+	_, err = defaultDo(c, req)
+	require.NoError(t, err)
+	assert.Regexp(t, userAgentRE, gotUserAgent)
+	assert.Equal(t, Version(), gotUserAgent)
+}
+
 func TestDefaultDo_BrokerAuth(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		authHeader := r.Header.Get("Authorization")
