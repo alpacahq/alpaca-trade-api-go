@@ -70,7 +70,7 @@ func (c *Client) StreamTradeUpdates(
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
+	defer CloseResp(resp)
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
 		return fmt.Errorf("%s (HTTP %d)", body, resp.StatusCode)
