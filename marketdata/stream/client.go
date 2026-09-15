@@ -7,8 +7,10 @@ import (
 	"net/url"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
+	"github.com/alpacahq/alpaca-trade-api-go/v3/internal/ctxtime"
 	"github.com/alpacahq/alpaca-trade-api-go/v3/marketdata"
 )
 
@@ -19,19 +21,22 @@ type client struct {
 	key     string
 	secret  string
 
-	reconnectLimit     int
-	reconnectDelay     time.Duration
-	connectCallback    func()
-	disconnectCallback func()
-	processorCount     int
-	bufferSize         int
-	connectOnce        sync.Once
-	connectCalled      bool
-	hasTerminated      bool
-	terminatedChan     chan error
-	conn               conn
-	in                 chan []byte
-	subChanges         chan []byte
+	connectionCtx       context.Context
+	connectionCtxCancel context.CancelFunc
+	connectionDoneChan  chan struct{}
+	reconnectLimit      int
+	reconnectDelay      time.Duration
+	connectCallback     func()
+	disconnectCallback  func()
+	processorCount      int
+	bufferSize          int
+	connectOnce         sync.Once
+	connectCalled       atomic.Bool
+	hasTerminated       bool
+	terminatedChan      chan error
+	conn                conn
+	in                  chan []byte
+	subChanges          chan []byte
 
 	bufferFillCallback func([]byte)
 	lastBufferFill     time.Time
@@ -48,9 +53,13 @@ type client struct {
 }
 
 func newClient() *client {
+	connectCtx, connectCtxCancel := context.WithCancel(context.Background())
 	return &client{
-		terminatedChan: make(chan error, 1),
-		subChanges:     make(chan []byte, 1),
+		terminatedChan:      make(chan error, 1),
+		subChanges:          make(chan []byte, 1),
+		connectionCtx:       connectCtx,
+		connectionCtxCancel: connectCtxCancel,
+		connectionDoneChan:  make(chan struct{}),
 	}
 }
 
@@ -126,13 +135,21 @@ func (sc *StocksClient) configure(o stockOptions) {
 //
 // It blocks until the connection has been established for the first time (or it failed to do so).
 //
+// The provided ctx is only used to control the initial connection of the stream.
+// Once the stream is successfully started, it will continue running independently of the ctx.
+// To terminate the stream, use the Terminate() method or the returned terminate function.
+//
 // **Should only be called once!**
-func (sc *StocksClient) Connect(ctx context.Context) error {
+func (sc *StocksClient) Connect(ctx context.Context) (func(), error) {
 	u, err := sc.constructURL()
 	if err != nil {
-		return err
+		return nil, err
 	}
-	return sc.connect(ctx, u)
+	err = sc.connect(ctx, u)
+	if err != nil {
+		return nil, err
+	}
+	return sc.Terminate, nil
 }
 
 func (sc *StocksClient) constructURL() (url.URL, error) {
@@ -210,13 +227,21 @@ func (cc *CryptoClient) configure(o cryptoOptions) {
 //
 // It blocks until the connection has been established for the first time (or it failed to do so).
 //
+// The provided ctx is only used to control the initial connection of the stream.
+// Once the stream is successfully started, it will continue running independently of the ctx.
+// To terminate the stream, use the Terminate() method or the returned terminate function.
+//
 // **Should only be called once!**
-func (cc *CryptoClient) Connect(ctx context.Context) error {
+func (cc *CryptoClient) Connect(ctx context.Context) (func(), error) {
 	u, err := cc.constructURL()
 	if err != nil {
-		return err
+		return nil, err
 	}
-	return cc.connect(ctx, u)
+	err = cc.connect(ctx, u)
+	if err != nil {
+		return nil, err
+	}
+	return cc.Terminate, nil
 }
 
 func (cc *CryptoClient) constructURL() (url.URL, error) {
@@ -271,13 +296,21 @@ func (cc *OptionClient) configure(o optionOptions) {
 //
 // It blocks until the connection has been established for the first time (or it failed to do so).
 //
+// The provided ctx is only used to control the initial connection of the stream.
+// Once the stream is successfully started, it will continue running independently of the ctx.
+// To terminate the stream, use the Terminate() method or the returned terminate function.
+//
 // **Should only be called once!**
-func (cc *OptionClient) Connect(ctx context.Context) error {
+func (cc *OptionClient) Connect(ctx context.Context) (func(), error) {
 	u, err := cc.constructURL()
 	if err != nil {
-		return err
+		return nil, err
 	}
-	return cc.connect(ctx, u)
+	err = cc.connect(ctx, u)
+	if err != nil {
+		return nil, err
+	}
+	return cc.Terminate, nil
 }
 
 func (cc *OptionClient) constructURL() (url.URL, error) {
@@ -313,13 +346,21 @@ func (nc *NewsClient) configure(o newsOptions) {
 //
 // It blocks until the connection has been established for the first time (or it failed to do so).
 //
+// The provided ctx is only used to control the initial connection of the stream.
+// Once the stream is successfully started, it will continue running independently of the ctx.
+// To terminate the stream, use the Terminate() method or the returned terminate function.
+//
 // **Should only be called once!**
-func (nc *NewsClient) Connect(ctx context.Context) error {
+func (nc *NewsClient) Connect(ctx context.Context) (func(), error) {
 	u, err := nc.constructURL()
 	if err != nil {
-		return err
+		return nil, err
 	}
-	return nc.connect(ctx, u)
+	err = nc.connect(ctx, u)
+	if err != nil {
+		return nil, err
+	}
+	return nc.Terminate, nil
 }
 
 func (nc *NewsClient) constructURL() (url.URL, error) {
@@ -336,23 +377,30 @@ func (nc *NewsClient) constructURL() (url.URL, error) {
 	return url.URL{Scheme: scheme, Host: ub.Host, Path: ub.Path}, nil
 }
 
-func (c *client) connect(ctx context.Context, u url.URL) error {
+func (c *client) connect(initialCtx context.Context, u url.URL) error {
 	err := ErrConnectCalledMultipleTimes
 	c.connectOnce.Do(func() {
-		err = c.connectAndMaintainConnection(ctx, u)
+		err = c.connectAndMaintainConnection(initialCtx, u)
 		if err != nil {
 			c.terminatedChan <- err
 			close(c.terminatedChan)
 		}
-		c.connectCalled = true
+		c.connectCalled.Store(true)
 	})
 	return err
 }
 
-func (c *client) connectAndMaintainConnection(ctx context.Context, u url.URL) error {
+func (c *client) connectAndMaintainConnection(initialCtx context.Context, u url.URL) error {
 	initialResultCh := make(chan error)
-	go c.maintainConnection(ctx, u, initialResultCh)
+	go c.maintainConnection(initialCtx, u, initialResultCh)
 	return <-initialResultCh
+}
+
+func (c *client) Terminate() {
+	if c.connectCalled.Load() {
+		c.connectionCtxCancel()
+		<-c.connectionDoneChan
+	}
 }
 
 // Terminated returns a channel that the client sends an error to when it has terminated.
@@ -365,7 +413,9 @@ func (c *client) Terminated() <-chan error {
 // and recreates them if there was an error as long as reconnectLimit consecutive
 // connection initialization errors don't occur. It sends the first connection
 // initialization's result to initialResultCh.
-func (c *client) maintainConnection(ctx context.Context, u url.URL, initialResultCh chan<- error) { //nolint:funlen,gocognit,lll // TODO: Refactor this.
+func (c *client) maintainConnection(initialCtx context.Context, u url.URL, initialResultCh chan<- error) { //nolint:funlen,gocognit,lll // TODO: Refactor this.
+	defer close(c.connectionDoneChan)
+
 	var connError error
 	failedAttemptsInARow := 0
 	connectedAtLeastOnce := false
@@ -380,7 +430,7 @@ func (c *client) maintainConnection(ctx context.Context, u url.URL, initialResul
 		}
 		c.pendingSubChange = nil
 		c.hasTerminated = true
-		// if we haven't connected at least once then Connected should close the channel
+		// if we have connected at least once then Connected should close the channel
 		if connectedAtLeastOnce {
 			close(c.terminatedChan)
 		}
@@ -403,7 +453,7 @@ func (c *client) maintainConnection(ctx context.Context, u url.URL, initialResul
 	pwg := sync.WaitGroup{}
 	pwg.Add(c.processorCount)
 	for i := 0; i < c.processorCount; i++ {
-		go c.messageProcessor(ctx, &pwg)
+		go c.messageProcessor(c.connectionCtx, &pwg)
 	}
 	defer func() {
 		close(c.in)
@@ -411,6 +461,10 @@ func (c *client) maintainConnection(ctx context.Context, u url.URL, initialResul
 	}()
 
 	for {
+		ctx := c.connectionCtx
+		if !connectedAtLeastOnce {
+			ctx = initialCtx
+		}
 		select {
 		case <-ctx.Done():
 			if !connectedAtLeastOnce {
@@ -428,7 +482,12 @@ func (c *client) maintainConnection(ctx context.Context, u url.URL, initialResul
 				sendError(e)
 				return
 			}
-			time.Sleep(time.Duration(failedAttemptsInARow) * c.reconnectDelay)
+			if err := ctxtime.Sleep(ctx, time.Duration(failedAttemptsInARow)*c.reconnectDelay); err != nil {
+				c.logger.Errorf("datav2stream: cancel reconnect: %v", err)
+				e := fmt.Errorf("cancel reconnect: %w", err)
+				sendError(e)
+				return
+			}
 			failedAttemptsInARow++
 			c.logger.Infof("datav2stream: connecting to %s, attempt %d/%d ...",
 				u.String(), failedAttemptsInARow, c.reconnectLimit)
@@ -477,12 +536,12 @@ func (c *client) maintainConnection(ctx context.Context, u url.URL, initialResul
 			wg := sync.WaitGroup{}
 			wg.Add(3)
 			closeCh := make(chan struct{})
-			go c.connPinger(ctx, &wg, closeCh)
-			go c.connReader(ctx, &wg, closeCh)
-			go c.connWriter(ctx, &wg, closeCh)
+			go c.connPinger(c.connectionCtx, &wg, closeCh)
+			go c.connReader(c.connectionCtx, &wg, closeCh)
+			go c.connWriter(c.connectionCtx, &wg, closeCh)
 			wg.Wait()
 
-			if ctx.Err() != nil {
+			if c.connectionCtx.Err() != nil {
 				c.logger.Infof("datav2stream: disconnected")
 			} else {
 				c.logger.Warnf("datav2stream: connection lost")

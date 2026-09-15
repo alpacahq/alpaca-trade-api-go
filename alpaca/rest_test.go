@@ -2,6 +2,7 @@ package alpaca
 
 import (
 	"bytes"
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -151,6 +152,7 @@ func TestDefaultDo_Error(t *testing.T) {
 
 func TestGetAccount(t *testing.T) {
 	c := DefaultClient
+	ctx := context.Background()
 
 	// successful
 	c.do = func(_ *Client, _ *http.Request) (*http.Response, error) {
@@ -162,7 +164,7 @@ func TestGetAccount(t *testing.T) {
 		}, nil
 	}
 
-	acct, err := c.GetAccount()
+	acct, err := c.GetAccount(ctx)
 	require.NoError(t, err)
 	assert.NotNil(t, acct)
 	assert.Equal(t, "some_id", acct.ID)
@@ -172,12 +174,13 @@ func TestGetAccount(t *testing.T) {
 		return &http.Response{}, errors.New("fail")
 	}
 
-	_, err = c.GetAccount()
+	_, err = c.GetAccount(ctx)
 	require.Error(t, err)
 }
 
 func TestGetPositions(t *testing.T) {
 	c := DefaultClient
+	ctx := context.Background()
 
 	// successful
 	c.do = func(_ *Client, _ *http.Request) (*http.Response, error) {
@@ -189,7 +192,7 @@ func TestGetPositions(t *testing.T) {
 		}, nil
 	}
 
-	positions, err := c.GetPositions()
+	positions, err := c.GetPositions(ctx)
 	require.NoError(t, err)
 	assert.Len(t, positions, 1)
 
@@ -198,13 +201,14 @@ func TestGetPositions(t *testing.T) {
 		return &http.Response{}, errors.New("fail")
 	}
 
-	positions, err = c.GetPositions()
+	positions, err = c.GetPositions(ctx)
 	require.Error(t, err)
 	assert.Nil(t, positions)
 }
 
 func TestCancelPosition(t *testing.T) {
 	c := DefaultClient
+	ctx := context.Background()
 	order := &Order{
 		ID:            "5aee8a3f-3ac8-42e0-b3e6-ed5cfdf85864",
 		ClientOrderID: "0571ce61-bf65-4f0c-b3de-6f42de628422",
@@ -218,7 +222,7 @@ func TestCancelPosition(t *testing.T) {
 			Body: genBody(order),
 		}, nil
 	}
-	got, err := c.ClosePosition("AAPL", ClosePositionRequest{
+	got, err := c.ClosePosition(ctx, "AAPL", ClosePositionRequest{
 		Qty: decimal.RequireFromString("0.12345678"),
 	})
 	require.NoError(t, err)
@@ -229,6 +233,7 @@ func TestCancelPosition(t *testing.T) {
 
 func TestCancelAllPositions(t *testing.T) {
 	c := DefaultClient
+	ctx := context.Background()
 
 	closeAllPositionsResponse := []closeAllPositionsResponse{
 		{
@@ -250,7 +255,7 @@ func TestCancelAllPositions(t *testing.T) {
 			Body: genBody(closeAllPositionsResponse),
 		}, nil
 	}
-	gotOrders, err := c.CloseAllPositions(CloseAllPositionsRequest{
+	gotOrders, err := c.CloseAllPositions(ctx, CloseAllPositionsRequest{
 		CancelOrders: true,
 	})
 	require.Error(t, err)
@@ -260,6 +265,7 @@ func TestCancelAllPositions(t *testing.T) {
 
 func TestGetClock(t *testing.T) {
 	c := DefaultClient
+	ctx := context.Background()
 	// successful
 	c.do = func(_ *Client, _ *http.Request) (*http.Response, error) {
 		clock := Clock{
@@ -273,7 +279,7 @@ func TestGetClock(t *testing.T) {
 		}, nil
 	}
 
-	clock, err := c.GetClock()
+	clock, err := c.GetClock(ctx)
 	require.NoError(t, err)
 	assert.NotNil(t, clock)
 	assert.True(t, clock.IsOpen)
@@ -283,12 +289,13 @@ func TestGetClock(t *testing.T) {
 		return &http.Response{}, errors.New("fail")
 	}
 
-	_, err = c.GetClock()
+	_, err = c.GetClock(ctx)
 	require.Error(t, err)
 }
 
 func TestGetCalendar(t *testing.T) {
 	c := DefaultClient
+	ctx := context.Background()
 	// successful
 	c.do = func(_ *Client, req *http.Request) (*http.Response, error) {
 		assert.Equal(t, "2018-01-01", req.URL.Query().Get("start"))
@@ -305,7 +312,7 @@ func TestGetCalendar(t *testing.T) {
 		}, nil
 	}
 
-	calendar, err := c.GetCalendar(GetCalendarRequest{
+	calendar, err := c.GetCalendar(ctx, GetCalendarRequest{
 		Start: time.Date(2018, 1, 1, 0, 0, 0, 0, time.UTC),
 		End:   time.Date(2018, 1, 2, 0, 0, 0, 0, time.UTC),
 	})
@@ -317,13 +324,14 @@ func TestGetCalendar(t *testing.T) {
 		return &http.Response{}, errors.New("fail")
 	}
 
-	calendar, err = c.GetCalendar(GetCalendarRequest{})
+	calendar, err = c.GetCalendar(ctx, GetCalendarRequest{})
 	require.Error(t, err)
 	assert.Nil(t, calendar)
 }
 
 func TestGetOrders_EmptyRequest(t *testing.T) {
 	c := DefaultClient
+	ctx := context.Background()
 	c.do = func(_ *Client, req *http.Request) (*http.Response, error) {
 		assert.Equal(t, "/v2/orders", req.URL.Path)
 		assert.Equal(t, "", req.URL.Query().Get("status"))
@@ -347,7 +355,7 @@ func TestGetOrders_EmptyRequest(t *testing.T) {
 
 	req := GetOrdersRequest{}
 
-	orders, err := c.GetOrders(req)
+	orders, err := c.GetOrders(ctx, req)
 	require.NoError(t, err)
 	require.Len(t, orders, 1)
 	assert.Equal(t, "some_id", orders[0].ID)
@@ -355,6 +363,7 @@ func TestGetOrders_EmptyRequest(t *testing.T) {
 
 func TestGetOrders(t *testing.T) {
 	c := DefaultClient
+	ctx := context.Background()
 	c.do = func(_ *Client, req *http.Request) (*http.Response, error) {
 		assert.Equal(t, "/v2/orders", req.URL.Path)
 		assert.Equal(t, "all", req.URL.Query().Get("status"))
@@ -386,7 +395,7 @@ func TestGetOrders(t *testing.T) {
 		Side:      "buy",
 	}
 
-	orders, err := c.GetOrders(req)
+	orders, err := c.GetOrders(ctx, req)
 	require.NoError(t, err)
 	require.Len(t, orders, 1)
 	assert.Equal(t, "some_id", orders[0].ID)
@@ -396,13 +405,14 @@ func TestGetOrders(t *testing.T) {
 		return &http.Response{}, errors.New("fail")
 	}
 
-	orders, err = c.GetOrders(req)
+	orders, err = c.GetOrders(ctx, req)
 	require.Error(t, err)
 	assert.Nil(t, orders)
 }
 
 func TestPlaceOrder(t *testing.T) {
 	c := DefaultClient
+	ctx := context.Background()
 	// successful (w/ Qty)
 	c.do = func(_ *Client, req *http.Request) (*http.Response, error) {
 		por := PlaceOrderRequest{}
@@ -439,7 +449,7 @@ func TestPlaceOrder(t *testing.T) {
 		Type:        Limit,
 	}
 
-	order, err := c.PlaceOrder(req)
+	order, err := c.PlaceOrder(ctx, req)
 	require.NoError(t, err)
 	assert.NotNil(t, order)
 	assert.Equal(t, req.Qty, order.Qty)
@@ -456,7 +466,7 @@ func TestPlaceOrder(t *testing.T) {
 		Type:        Limit,
 	}
 
-	order, err = c.PlaceOrder(req)
+	order, err = c.PlaceOrder(ctx, req)
 	require.NoError(t, err)
 	assert.NotNil(t, order)
 	assert.Equal(t, req.Notional, order.Notional)
@@ -474,7 +484,7 @@ func TestPlaceOrder(t *testing.T) {
 		PositionIntent: SellToClose,
 	}
 
-	order, err = c.PlaceOrder(req)
+	order, err = c.PlaceOrder(ctx, req)
 	require.NoError(t, err)
 	assert.NotNil(t, order)
 	assert.NotNil(t, req.Qty)
@@ -487,7 +497,7 @@ func TestPlaceOrder(t *testing.T) {
 		return &http.Response{}, errors.New("fail")
 	}
 
-	_, err = c.PlaceOrder(req)
+	_, err = c.PlaceOrder(ctx, req)
 	require.Error(t, err)
 }
 
@@ -498,6 +508,7 @@ func deciP(s string) *decimal.Decimal {
 
 func TestPlaceMLegOrder(t *testing.T) {
 	c := DefaultClient
+	ctx := context.Background()
 	// mock response
 	c.do = func(_ *Client, req *http.Request) (*http.Response, error) {
 		por := PlaceOrderRequest{}
@@ -575,7 +586,7 @@ func TestPlaceMLegOrder(t *testing.T) {
 		},
 	}
 
-	order, err := c.PlaceOrder(req)
+	order, err := c.PlaceOrder(ctx, req)
 	require.NoError(t, err)
 	assert.NotNil(t, order)
 	assert.Equal(t, req.Qty, order.Qty)
@@ -596,6 +607,7 @@ func TestPlaceMLegOrder(t *testing.T) {
 
 func TestGetOrder(t *testing.T) {
 	c := DefaultClient
+	ctx := context.Background()
 	// successful
 	c.do = func(_ *Client, _ *http.Request) (*http.Response, error) {
 		order := Order{
@@ -606,7 +618,7 @@ func TestGetOrder(t *testing.T) {
 		}, nil
 	}
 
-	order, err := c.GetOrder("some_order_id")
+	order, err := c.GetOrder(ctx, "some_order_id")
 	require.NoError(t, err)
 	assert.NotNil(t, order)
 
@@ -615,12 +627,13 @@ func TestGetOrder(t *testing.T) {
 		return &http.Response{}, errors.New("fail")
 	}
 
-	_, err = c.GetOrder("some_order_id")
+	_, err = c.GetOrder(ctx, "some_order_id")
 	require.Error(t, err)
 }
 
 func TestGetOrderByClientOrderId(t *testing.T) {
 	c := DefaultClient
+	ctx := context.Background()
 	// successful
 	c.do = func(_ *Client, _ *http.Request) (*http.Response, error) {
 		order := Order{
@@ -631,7 +644,7 @@ func TestGetOrderByClientOrderId(t *testing.T) {
 		}, nil
 	}
 
-	order, err := c.GetOrderByClientOrderID("some_client_order_id")
+	order, err := c.GetOrderByClientOrderID(ctx, "some_client_order_id")
 	require.NoError(t, err)
 	assert.NotNil(t, order)
 
@@ -640,12 +653,13 @@ func TestGetOrderByClientOrderId(t *testing.T) {
 		return &http.Response{}, errors.New("fail")
 	}
 
-	_, err = c.GetOrderByClientOrderID("some_client_order_id")
+	_, err = c.GetOrderByClientOrderID(ctx, "some_client_order_id")
 	require.Error(t, err)
 }
 
 func TestClient_GetAnnouncements(t *testing.T) {
 	c := DefaultClient
+	ctx := context.Background()
 	// successful
 	c.do = func(_ *Client, req *http.Request) (*http.Response, error) {
 		assert.Equal(t, "/v2/corporate_actions/announcements", req.URL.Path)
@@ -667,7 +681,7 @@ func TestClient_GetAnnouncements(t *testing.T) {
 		}, nil
 	}
 
-	announcements, err := c.GetAnnouncements(GetAnnouncementsRequest{
+	announcements, err := c.GetAnnouncements(ctx, GetAnnouncementsRequest{
 		CATypes:  []string{"Dividend", "Merger"},
 		Since:    time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC),
 		Until:    time.Date(2020, 1, 2, 0, 0, 0, 0, time.UTC),
@@ -681,6 +695,7 @@ func TestClient_GetAnnouncements(t *testing.T) {
 
 func TestClient_GetAnnouncement(t *testing.T) {
 	c := DefaultClient
+	ctx := context.Background()
 	// successful
 	c.do = func(_ *Client, req *http.Request) (*http.Response, error) {
 		assert.Equal(t, "/v2/corporate_actions/announcements/123", req.URL.Path)
@@ -695,13 +710,14 @@ func TestClient_GetAnnouncement(t *testing.T) {
 		}, nil
 	}
 
-	announcement, err := c.GetAnnouncement("123")
+	announcement, err := c.GetAnnouncement(ctx, "123")
 	require.NoError(t, err)
 	require.NotNil(t, announcement)
 }
 
 func TestClient_GetWatchlists(t *testing.T) {
 	c := DefaultClient
+	ctx := context.Background()
 	// successful
 	c.do = func(_ *Client, req *http.Request) (*http.Response, error) {
 		assert.Equal(t, "/v2/watchlists", req.URL.Path)
@@ -727,13 +743,14 @@ func TestClient_GetWatchlists(t *testing.T) {
 		}, nil
 	}
 
-	watchlists, err := c.GetWatchlists()
+	watchlists, err := c.GetWatchlists(ctx)
 	require.NoError(t, err)
 	require.Len(t, watchlists, 1)
 }
 
 func TestClient_CreateWatchlist(t *testing.T) {
 	c := DefaultClient
+	ctx := context.Background()
 	// successful
 	c.do = func(_ *Client, req *http.Request) (*http.Response, error) {
 		assert.Equal(t, "/v2/watchlists", req.URL.Path)
@@ -757,7 +774,7 @@ func TestClient_CreateWatchlist(t *testing.T) {
 		}, nil
 	}
 
-	watchlist, err := c.CreateWatchlist(CreateWatchlistRequest{
+	watchlist, err := c.CreateWatchlist(ctx, CreateWatchlistRequest{
 		Name:    "testname",
 		Symbols: []string{"AAPL"},
 	})
@@ -771,6 +788,7 @@ func TestClient_CreateWatchlist(t *testing.T) {
 
 func TestClient_GetWatchlist(t *testing.T) {
 	c := DefaultClient
+	ctx := context.Background()
 	// successful
 	c.do = func(_ *Client, req *http.Request) (*http.Response, error) {
 		assert.Equal(t, "/v2/watchlists/123", req.URL.Path)
@@ -794,7 +812,7 @@ func TestClient_GetWatchlist(t *testing.T) {
 		}, nil
 	}
 
-	watchlist, err := c.GetWatchlist("123")
+	watchlist, err := c.GetWatchlist(ctx, "123")
 	require.NoError(t, err)
 	require.NotNil(t, watchlist)
 	require.Equal(t, "testname", watchlist.Name)
@@ -805,6 +823,7 @@ func TestClient_GetWatchlist(t *testing.T) {
 
 func TestClient_UpdateWatchlist(t *testing.T) {
 	c := DefaultClient
+	ctx := context.Background()
 	// successful
 	c.do = func(_ *Client, req *http.Request) (*http.Response, error) {
 		assert.Equal(t, "/v2/watchlists/123", req.URL.Path)
@@ -828,7 +847,7 @@ func TestClient_UpdateWatchlist(t *testing.T) {
 		}, nil
 	}
 
-	watchlist, err := c.UpdateWatchlist("123", UpdateWatchlistRequest{
+	watchlist, err := c.UpdateWatchlist(ctx, "123", UpdateWatchlistRequest{
 		Name:    "testname",
 		Symbols: []string{"AAPL"},
 	})
@@ -842,6 +861,7 @@ func TestClient_UpdateWatchlist(t *testing.T) {
 
 func TestClient_DeleteWatchlist(t *testing.T) {
 	c := DefaultClient
+	ctx := context.Background()
 	// successful
 	c.do = func(_ *Client, req *http.Request) (*http.Response, error) {
 		assert.Equal(t, "/v2/watchlists/123", req.URL.Path)
@@ -852,13 +872,14 @@ func TestClient_DeleteWatchlist(t *testing.T) {
 		}, nil
 	}
 
-	err := c.DeleteWatchlist("123")
+	err := c.DeleteWatchlist(ctx, "123")
 	require.NoError(t, err)
 }
 
 func TestClient_AddSymbolToWatchlist(t *testing.T) {
 	t.Run("happy path", func(t *testing.T) {
 		c := DefaultClient
+		ctx := context.Background()
 		// successful
 		c.do = func(_ *Client, req *http.Request) (*http.Response, error) {
 			assert.Equal(t, "/v2/watchlists/123", req.URL.Path)
@@ -882,7 +903,7 @@ func TestClient_AddSymbolToWatchlist(t *testing.T) {
 			}, nil
 		}
 
-		watchlist, err := c.AddSymbolToWatchlist("123", AddSymbolToWatchlistRequest{
+		watchlist, err := c.AddSymbolToWatchlist(ctx, "123", AddSymbolToWatchlistRequest{
 			Symbol: "AAPL",
 		})
 		require.NoError(t, err)
@@ -895,6 +916,7 @@ func TestClient_AddSymbolToWatchlist(t *testing.T) {
 
 	t.Run("error: symbol not found", func(t *testing.T) {
 		c := DefaultClient
+		ctx := context.Background()
 		// successful
 		c.do = func(_ *Client, req *http.Request) (*http.Response, error) {
 			assert.Equal(t, "/v2/watchlists/123", req.URL.Path)
@@ -906,7 +928,7 @@ func TestClient_AddSymbolToWatchlist(t *testing.T) {
 			}, nil
 		}
 
-		_, err := c.AddSymbolToWatchlist("123", AddSymbolToWatchlistRequest{})
+		_, err := c.AddSymbolToWatchlist(ctx, "123", AddSymbolToWatchlistRequest{})
 		require.Error(t, err)
 		require.Equal(t, ErrSymbolMissing, err)
 	})
@@ -915,6 +937,7 @@ func TestClient_AddSymbolToWatchlist(t *testing.T) {
 func TestClient_RemoveSymbolFromWatchlist(t *testing.T) {
 	t.Run("happy path", func(t *testing.T) {
 		c := DefaultClient
+		ctx := context.Background()
 		// successful
 		c.do = func(_ *Client, req *http.Request) (*http.Response, error) {
 			assert.Equal(t, "/v2/watchlists/123/AAPL", req.URL.Path)
@@ -925,7 +948,7 @@ func TestClient_RemoveSymbolFromWatchlist(t *testing.T) {
 			}, nil
 		}
 
-		err := c.RemoveSymbolFromWatchlist("123", RemoveSymbolFromWatchlistRequest{
+		err := c.RemoveSymbolFromWatchlist(ctx, "123", RemoveSymbolFromWatchlistRequest{
 			Symbol: "AAPL",
 		})
 		require.NoError(t, err)
@@ -933,6 +956,7 @@ func TestClient_RemoveSymbolFromWatchlist(t *testing.T) {
 
 	t.Run("error: symbol is required", func(t *testing.T) {
 		c := DefaultClient
+		ctx := context.Background()
 		// successful
 		c.do = func(_ *Client, req *http.Request) (*http.Response, error) {
 			assert.Equal(t, "/v2/watchlists/123/AAPL", req.URL.Path)
@@ -944,7 +968,7 @@ func TestClient_RemoveSymbolFromWatchlist(t *testing.T) {
 			}, errors.New("symbol is required")
 		}
 
-		err := c.RemoveSymbolFromWatchlist("123", RemoveSymbolFromWatchlistRequest{})
+		err := c.RemoveSymbolFromWatchlist(ctx, "123", RemoveSymbolFromWatchlistRequest{})
 		require.Error(t, err)
 		require.Equal(t, ErrSymbolMissing, err)
 	})
@@ -952,23 +976,25 @@ func TestClient_RemoveSymbolFromWatchlist(t *testing.T) {
 
 func TestCancelOrder(t *testing.T) {
 	c := DefaultClient
+	ctx := context.Background()
 	// successful
 	c.do = func(_ *Client, _ *http.Request) (*http.Response, error) {
 		return &http.Response{}, nil
 	}
 
-	require.NoError(t, c.CancelOrder("some_order_id"))
+	require.NoError(t, c.CancelOrder(ctx, "some_order_id"))
 
 	// api failure
 	c.do = func(_ *Client, _ *http.Request) (*http.Response, error) {
 		return &http.Response{}, errors.New("fail")
 	}
 
-	assert.Error(t, c.CancelOrder("some_order_id"))
+	assert.Error(t, c.CancelOrder(ctx, "some_order_id"))
 }
 
 func TestGetAssets(t *testing.T) {
 	c := DefaultClient
+	ctx := context.Background()
 	// successful
 	c.do = func(_ *Client, req *http.Request) (*http.Response, error) {
 		assert.Equal(t, "active", req.URL.Query().Get("status"))
@@ -980,7 +1006,7 @@ func TestGetAssets(t *testing.T) {
 		}, nil
 	}
 
-	assets, err := c.GetAssets(GetAssetsRequest{
+	assets, err := c.GetAssets(ctx, GetAssetsRequest{
 		Status: "active",
 	})
 	require.NoError(t, err)
@@ -992,12 +1018,13 @@ func TestGetAssets(t *testing.T) {
 		return &http.Response{}, errors.New("fail")
 	}
 
-	_, err = c.GetAssets(GetAssetsRequest{})
+	_, err = c.GetAssets(ctx, GetAssetsRequest{})
 	require.Error(t, err)
 }
 
 func TestGetAsset(t *testing.T) {
 	c := DefaultClient
+	ctx := context.Background()
 	// successful
 	c.do = func(_ *Client, _ *http.Request) (*http.Response, error) {
 		asset := Asset{ID: "some_id"}
@@ -1006,7 +1033,7 @@ func TestGetAsset(t *testing.T) {
 		}, nil
 	}
 
-	asset, err := c.GetAsset("APCA")
+	asset, err := c.GetAsset(ctx, "APCA")
 	require.NoError(t, err)
 	assert.NotNil(t, asset)
 
@@ -1015,13 +1042,14 @@ func TestGetAsset(t *testing.T) {
 		return &http.Response{}, errors.New("fail")
 	}
 
-	asset, err = c.GetAsset("APCA")
+	asset, err = c.GetAsset(ctx, "APCA")
 	require.Error(t, err)
 	assert.Nil(t, asset)
 }
 
 func TestGetAssetFromJSON(t *testing.T) {
 	c := DefaultClient
+	ctx := context.Background()
 
 	assetJSON := `{
 			"id": "904837e3-3b76-47ec-b432-046db621571b",
@@ -1043,7 +1071,7 @@ func TestGetAssetFromJSON(t *testing.T) {
 		}, nil
 	}
 
-	asset, err := c.GetAsset("APCA")
+	asset, err := c.GetAsset(ctx, "APCA")
 	require.NoError(t, err)
 	assert.Equal(t, USEquity, asset.Class)
 	assert.True(t, asset.Fractionable)
@@ -1054,7 +1082,7 @@ func TestGetAssetFromJSON(t *testing.T) {
 		return &http.Response{}, errors.New("fail")
 	}
 
-	asset, err = c.GetAsset("APCA")
+	asset, err = c.GetAsset(ctx, "APCA")
 	require.Error(t, err)
 	assert.Nil(t, asset)
 }
@@ -1081,7 +1109,8 @@ func TestGetOptionContracts(t *testing.T) {
 		}, nil
 	}
 
-	contracts, err := c.GetOptionContracts(request)
+	ctx := context.Background()
+	contracts, err := c.GetOptionContracts(ctx, request)
 	require.NoError(t, err)
 	require.Len(t, contracts, 1)
 	assert.Equal(t, expectedID, contracts[0].ID)
@@ -1123,8 +1152,7 @@ func TestGetOptionContracts(t *testing.T) {
 			Body: genBody(assets),
 		}, nil
 	}
-
-	contracts, err = c.GetOptionContracts(request)
+	contracts, err = c.GetOptionContracts(ctx, request)
 	require.NoError(t, err)
 	require.Len(t, contracts, 1)
 	assert.Equal(t, expectedID, contracts[0].ID)
@@ -1134,7 +1162,7 @@ func TestGetOptionContracts(t *testing.T) {
 		return &http.Response{}, errors.New("fail")
 	}
 
-	_, err = c.GetOptionContracts(GetOptionContractsRequest{})
+	_, err = c.GetOptionContracts(ctx, GetOptionContractsRequest{})
 	require.Error(t, err)
 }
 
@@ -1154,7 +1182,8 @@ func TestGetOptionContract(t *testing.T) {
 		}, nil
 	}
 
-	contract, err := c.GetOptionContract(expectedSymbol)
+	ctx := context.Background()
+	contract, err := c.GetOptionContract(ctx, expectedSymbol)
 	require.NoError(t, err)
 	require.NotNil(t, contract)
 	assert.Equal(t, expectedID, contract.ID)
@@ -1164,7 +1193,7 @@ func TestGetOptionContract(t *testing.T) {
 		return &http.Response{}, errors.New("fail")
 	}
 
-	_, err = c.GetOptionContract(expectedSymbol)
+	_, err = c.GetOptionContract(ctx, expectedSymbol)
 	require.Error(t, err)
 }
 
@@ -1187,6 +1216,7 @@ func TestTestVerify(t *testing.T) {
 
 func TestOTOCOOrders(t *testing.T) {
 	c := DefaultClient
+	ctx := context.Background()
 	c.do = func(_ *Client, req *http.Request) (*http.Response, error) {
 		or := PlaceOrderRequest{}
 		if err := json.NewDecoder(req.Body).Decode(&or); err != nil {
@@ -1220,7 +1250,7 @@ func TestOTOCOOrders(t *testing.T) {
 		StopLoss:    sl,
 	}
 
-	order, err := c.PlaceOrder(req)
+	order, err := c.PlaceOrder(ctx, req)
 	require.NoError(t, err)
 	assert.NotNil(t, order)
 	assert.Equal(t, Bracket, order.OrderClass)
@@ -1228,6 +1258,7 @@ func TestOTOCOOrders(t *testing.T) {
 
 func TestGetAccountActivities(t *testing.T) {
 	c := DefaultClient
+	ctx := context.Background()
 	// happy path
 	c.do = func(_ *Client, _ *http.Request) (*http.Response, error) {
 		// https://alpaca.markets/docs/api-documentation/api-v2/account-activities/#nontradeactivity-entity
@@ -1272,7 +1303,7 @@ func TestGetAccountActivities(t *testing.T) {
 		}, nil
 	}
 
-	activities, err := c.GetAccountActivities(GetAccountActivitiesRequest{
+	activities, err := c.GetAccountActivities(ctx, GetAccountActivitiesRequest{
 		ActivityTypes: []string{"DIV", "FILL"},
 	})
 	require.NoError(t, err)
@@ -1314,7 +1345,7 @@ func TestGetAccountActivities(t *testing.T) {
 		return &http.Response{}, &APIError{StatusCode: 500, Message: "internal server error"}
 	}
 
-	_, err = c.GetAccountActivities(GetAccountActivitiesRequest{})
+	_, err = c.GetAccountActivities(ctx, GetAccountActivitiesRequest{})
 	require.Error(t, err)
 	var apiErr *APIError
 	require.ErrorAs(t, err, &apiErr)
@@ -1347,7 +1378,7 @@ func TestGetAccountActivities(t *testing.T) {
 		}, nil
 	}
 
-	_, err = c.GetAccountActivities(GetAccountActivitiesRequest{
+	_, err = c.GetAccountActivities(ctx, GetAccountActivitiesRequest{
 		ActivityTypes: []string{"DIV"},
 		After:         time.Date(2019, 1, 1, 0, 0, 0, 100, time.UTC),
 		PageSize:      10,
@@ -1370,6 +1401,7 @@ func assertDecimalPtr(t *testing.T, expected string, actual *decimal.Decimal) {
 }
 
 func TestGetUSTreasuries(t *testing.T) {
+	ctx := context.Background()
 	c := DefaultClient
 
 	c.do = func(_ *Client, req *http.Request) (*http.Response, error) {
@@ -1420,7 +1452,7 @@ func TestGetUSTreasuries(t *testing.T) {
 		}, nil
 	}
 
-	got, err := c.GetUSTreasuries(GetUSTreasuriesRequest{
+	got, err := c.GetUSTreasuries(ctx, GetUSTreasuriesRequest{
 		Subtype:    TreasurySubtypeBill,
 		BondStatus: BondStatusOutstanding,
 		ISINs:      []string{"US912797KJ59", "US912797KJ60"},
@@ -1465,7 +1497,7 @@ func TestGetUSTreasuries(t *testing.T) {
 			Body: io.NopCloser(strings.NewReader(`{"us_treasuries":[]}`)),
 		}, nil
 	}
-	got, err = c.GetUSTreasuries(GetUSTreasuriesRequest{})
+	got, err = c.GetUSTreasuries(ctx, GetUSTreasuriesRequest{})
 	require.NoError(t, err)
 	assert.Empty(t, got)
 
@@ -1473,11 +1505,12 @@ func TestGetUSTreasuries(t *testing.T) {
 	c.do = func(_ *Client, _ *http.Request) (*http.Response, error) {
 		return &http.Response{}, errors.New("fail")
 	}
-	_, err = c.GetUSTreasuries(GetUSTreasuriesRequest{})
+	_, err = c.GetUSTreasuries(ctx, GetUSTreasuriesRequest{})
 	require.Error(t, err)
 }
 
 func TestGetUSCorporates(t *testing.T) {
+	ctx := context.Background()
 	c := DefaultClient
 
 	c.do = func(_ *Client, req *http.Request) (*http.Response, error) {
@@ -1551,7 +1584,7 @@ func TestGetUSCorporates(t *testing.T) {
 		}, nil
 	}
 
-	got, err := c.GetUSCorporates(GetUSCorporatesRequest{
+	got, err := c.GetUSCorporates(ctx, GetUSCorporatesRequest{
 		BondStatus: BondStatusOutstanding,
 		Tickers:    []string{"BAC", "MSFT"},
 	})
@@ -1627,7 +1660,7 @@ func TestGetUSCorporates(t *testing.T) {
 			Body: io.NopCloser(strings.NewReader(`{"us_corporates":[]}`)),
 		}, nil
 	}
-	got, err = c.GetUSCorporates(GetUSCorporatesRequest{
+	got, err = c.GetUSCorporates(ctx, GetUSCorporatesRequest{
 		CUSIPs: []string{"06051GJH9"},
 		ISINs:  []string{"US06051GJH92"},
 	})
@@ -1638,7 +1671,7 @@ func TestGetUSCorporates(t *testing.T) {
 	c.do = func(_ *Client, _ *http.Request) (*http.Response, error) {
 		return &http.Response{}, errors.New("fail")
 	}
-	_, err = c.GetUSCorporates(GetUSCorporatesRequest{})
+	_, err = c.GetUSCorporates(ctx, GetUSCorporatesRequest{})
 	require.Error(t, err)
 }
 
