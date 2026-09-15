@@ -113,7 +113,7 @@ func main() {
 	}
 
 	feed := "iex" // Use sip if you have proper subscription
-	c := stream.NewStocksClient(feed)
+	c := stream.NewStocksClient(feed, stream.WithCredentials(alpacaClient.apiKey, alpacaClient.apiSecret))
 	if err := c.Connect(context.TODO()); err != nil {
 		panic(err)
 	}
