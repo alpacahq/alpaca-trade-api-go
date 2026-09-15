@@ -362,6 +362,8 @@ type APIError struct {
 }
 
 func APIErrorFromResponse(resp *http.Response) error {
+	defer CloseResp(resp)
+
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return err
