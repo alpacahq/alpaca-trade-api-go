@@ -675,8 +675,9 @@ func (c *Client) CancelOrder(orderID string) error {
 	if err != nil {
 		return err
 	}
+	defer closeResp(resp)
 
-	return verify(resp)
+	return nil
 }
 
 // CancelAllOrders submits a request to cancel all orders.
@@ -690,7 +691,9 @@ func (c *Client) CancelAllOrders() error {
 	if err != nil {
 		return err
 	}
-	return verify(resp)
+	defer closeResp(resp)
+
+	return nil
 }
 
 type GetAssetsRequest struct {
