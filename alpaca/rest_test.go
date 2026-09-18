@@ -953,18 +953,67 @@ func TestClient_RemoveSymbolFromWatchlist(t *testing.T) {
 func TestCancelOrder(t *testing.T) {
 	c := DefaultClient
 	// successful
-	c.do = func(_ *Client, _ *http.Request) (*http.Response, error) {
-		return &http.Response{}, nil
+	closed := false
+	c.do = func(_ *Client, req *http.Request) (*http.Response, error) {
+		assert.Equal(t, http.MethodDelete, req.Method)
+		assert.Equal(t, "/v2/orders/some_order_id", req.URL.Path)
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Body: &testReadCloser{
+				Reader:  strings.NewReader(`{}`),
+				onClose: func() { closed = true },
+			},
+		}, nil
 	}
 
 	require.NoError(t, c.CancelOrder("some_order_id"))
+	assert.True(t, closed, "response body should be closed")
 
 	// api failure
 	c.do = func(_ *Client, _ *http.Request) (*http.Response, error) {
-		return &http.Response{}, errors.New("fail")
+		return nil, errors.New("fail")
 	}
 
 	assert.Error(t, c.CancelOrder("some_order_id"))
+}
+
+func TestCancelAllOrders(t *testing.T) {
+	c := DefaultClient
+	// successful
+	closed := false
+	c.do = func(_ *Client, req *http.Request) (*http.Response, error) {
+		assert.Equal(t, http.MethodDelete, req.Method)
+		assert.Equal(t, "/v2/orders", req.URL.Path)
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Body: &testReadCloser{
+				Reader:  strings.NewReader(`[]`),
+				onClose: func() { closed = true },
+			},
+		}, nil
+	}
+
+	require.NoError(t, c.CancelAllOrders())
+	assert.True(t, closed, "response body should be closed")
+
+	// api failure
+	c.do = func(_ *Client, _ *http.Request) (*http.Response, error) {
+		return nil, errors.New("fail")
+	}
+
+	assert.Error(t, c.CancelAllOrders())
+}
+
+type testReadCloser struct {
+	io.Reader
+	onClose func()
+}
+
+func (t *testReadCloser) Close() error {
+	if t.onClose != nil {
+		t.onClose()
+	}
+	return nil
 }
 
 func TestGetAssets(t *testing.T) {
