@@ -363,11 +363,15 @@ type APIError struct {
 }
 
 func APIErrorFromResponse(resp *http.Response) error {
+	requestID := resp.Header.Get("X-Request-ID")
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return err
+		return &APIError{
+			StatusCode: resp.StatusCode,
+			Message:    err.Error(),
+			RequestID:  requestID,
+		}
 	}
-	requestID := resp.Header.Get("X-Request-ID")
 	var apiErr APIError
 	if err := json.Unmarshal(body, &apiErr); err != nil {
 		// Non-JSON body: still return *APIError so RequestID is available.

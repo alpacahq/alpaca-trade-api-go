@@ -180,6 +180,25 @@ func TestAPIErrorFromResponse_NonJSONIncludesRequestID(t *testing.T) {
 	assert.Equal(t, "bad gateway (HTTP 502)", apiErr.Error())
 }
 
+type errReader struct{}
+
+func (errReader) Read([]byte) (int, error) { return 0, errors.New("read failed") }
+func (errReader) Close() error             { return nil }
+
+func TestAPIErrorFromResponse_BodyReadErrorKeepsRequestID(t *testing.T) {
+	resp := &http.Response{
+		StatusCode: http.StatusInternalServerError,
+		Header:     http.Header{"X-Request-Id": []string{"req-read-fail"}},
+		Body:       errReader{},
+	}
+	err := APIErrorFromResponse(resp)
+	var apiErr *APIError
+	require.ErrorAs(t, err, &apiErr)
+	assert.Equal(t, http.StatusInternalServerError, apiErr.StatusCode)
+	assert.Equal(t, "req-read-fail", apiErr.RequestID)
+	assert.Equal(t, "read failed", apiErr.Message)
+}
+
 func TestGetAccount(t *testing.T) {
 	c := DefaultClient
 
