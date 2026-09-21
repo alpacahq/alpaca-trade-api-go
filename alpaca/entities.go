@@ -360,6 +360,7 @@ type APIError struct {
 	Message    string `json:"message"`
 	Body       string `json:"-"`
 	RequestID  string `json:"-"`
+	cause      error
 }
 
 func APIErrorFromResponse(resp *http.Response) error {
@@ -370,6 +371,7 @@ func APIErrorFromResponse(resp *http.Response) error {
 			StatusCode: resp.StatusCode,
 			Message:    err.Error(),
 			RequestID:  requestID,
+			cause:      err,
 		}
 	}
 	var apiErr APIError
@@ -397,6 +399,10 @@ func (e *APIError) Error() string {
 		return fmt.Sprintf("%s (HTTP %d, Code %d)", e.Message, e.StatusCode, e.Code)
 	}
 	return fmt.Sprintf("%s (HTTP %d)", e.Message, e.StatusCode)
+}
+
+func (e *APIError) Unwrap() error {
+	return e.cause
 }
 
 //easyjson:json
