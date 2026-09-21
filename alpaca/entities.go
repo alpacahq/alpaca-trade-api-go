@@ -359,6 +359,7 @@ type APIError struct {
 	Code       int    `json:"code"`
 	Message    string `json:"message"`
 	Body       string `json:"-"`
+	RequestID  string `json:"-"`
 }
 
 func APIErrorFromResponse(resp *http.Response) error {
@@ -366,13 +367,24 @@ func APIErrorFromResponse(resp *http.Response) error {
 	if err != nil {
 		return err
 	}
+	requestID := resp.Header.Get("X-Request-ID")
 	var apiErr APIError
 	if err := json.Unmarshal(body, &apiErr); err != nil {
-		// If the error is not in our JSON format, we simply return the HTTP response
-		return fmt.Errorf("%s (HTTP %d)", body, resp.StatusCode)
+		// Non-JSON body: still return *APIError so RequestID is available.
+		message := strings.TrimSpace(string(body))
+		if message == "" {
+			message = http.StatusText(resp.StatusCode)
+		}
+		return &APIError{
+			StatusCode: resp.StatusCode,
+			Message:    message,
+			Body:       message,
+			RequestID:  requestID,
+		}
 	}
 	apiErr.StatusCode = resp.StatusCode
 	apiErr.Body = strings.TrimSpace(string(body))
+	apiErr.RequestID = requestID
 	return &apiErr
 }
 

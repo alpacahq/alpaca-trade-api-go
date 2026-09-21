@@ -134,6 +134,7 @@ func TestDefaultDo_TooManyRetries(t *testing.T) {
 func TestDefaultDo_Error(t *testing.T) {
 	resp := `{"code":1234567,"message":"custom error message","other_field":"x"}`
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("X-Request-ID", "req-abc-123")
 		http.Error(w, resp, http.StatusBadRequest)
 	}))
 	c := DefaultClient
@@ -146,7 +147,37 @@ func TestDefaultDo_Error(t *testing.T) {
 	assert.Equal(t, 1234567, apiErr.Code)
 	assert.Equal(t, "custom error message", apiErr.Message)
 	assert.Equal(t, resp, apiErr.Body)
+	assert.Equal(t, "req-abc-123", apiErr.RequestID)
 	assert.Equal(t, "custom error message (HTTP 400, Code 1234567)", apiErr.Error())
+}
+
+func TestDefaultDo_ErrorWithoutRequestID(t *testing.T) {
+	resp := `{"code":1234567,"message":"custom error message"}`
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		http.Error(w, resp, http.StatusBadRequest)
+	}))
+	c := DefaultClient
+	req, err := http.NewRequest(http.MethodGet, ts.URL, nil)
+	require.NoError(t, err)
+	_, err = defaultDo(c, req)
+	var apiErr *APIError
+	require.ErrorAs(t, err, &apiErr)
+	assert.Empty(t, apiErr.RequestID)
+}
+
+func TestAPIErrorFromResponse_NonJSONIncludesRequestID(t *testing.T) {
+	resp := &http.Response{
+		StatusCode: http.StatusBadGateway,
+		Header:     http.Header{"X-Request-Id": []string{"req-non-json"}},
+		Body:       io.NopCloser(strings.NewReader("bad gateway")),
+	}
+	err := APIErrorFromResponse(resp)
+	var apiErr *APIError
+	require.ErrorAs(t, err, &apiErr)
+	assert.Equal(t, http.StatusBadGateway, apiErr.StatusCode)
+	assert.Equal(t, "bad gateway", apiErr.Message)
+	assert.Equal(t, "req-non-json", apiErr.RequestID)
+	assert.Equal(t, "bad gateway (HTTP 502)", apiErr.Error())
 }
 
 func TestGetAccount(t *testing.T) {

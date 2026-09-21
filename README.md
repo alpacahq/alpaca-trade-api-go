@@ -76,6 +76,23 @@ log.Println("order sent")
 select {}
 ```
 
+### Handling API errors
+
+Failed API calls return an `*alpaca.APIError`. Include `RequestID` (from
+Alpaca's `X-Request-ID` header) when opening a support ticket:
+
+```go
+acct, err := client.GetAccount()
+if err != nil {
+	var apiErr *alpaca.APIError
+	if errors.As(err, &apiErr) {
+		log.Printf("request %s failed: %v", apiErr.RequestID, apiErr)
+		return
+	}
+	log.Fatal(err)
+}
+```
+
 ### Further examples
 
 See the [examples](https://github.com/alpacahq/alpaca-trade-api-go/tree/master/examples)
@@ -143,6 +160,9 @@ For broker partners, set the base URL to
 For a more in-depth look at the SDK, see the [package documentation](https://pkg.go.dev/github.com/alpacahq/alpaca-trade-api-go/v3).
 
 ## Support
+
+For failed API calls, include `RequestID` from `*alpaca.APIError` when contacting
+Alpaca support (see [Handling API errors](#handling-api-errors)).
 
 - **Library / SDK issues:** Bugs, feature requests, or questions specific to this Go library → [GitHub Issues](https://github.com/alpacahq/alpaca-trade-api-go/issues).
 - **General Alpaca support & API discussion:** Account questions, platform issues, or broader API topics → [Alpaca Community Forum](https://forum.alpaca.markets/).
