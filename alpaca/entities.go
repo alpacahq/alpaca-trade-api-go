@@ -376,7 +376,6 @@ func APIErrorFromResponse(resp *http.Response) error {
 	}
 	var apiErr APIError
 	if err := json.Unmarshal(body, &apiErr); err != nil {
-		// Non-JSON body: still return *APIError so RequestID is available.
 		message := strings.TrimSpace(string(body))
 		if message == "" {
 			message = http.StatusText(resp.StatusCode)
@@ -384,7 +383,6 @@ func APIErrorFromResponse(resp *http.Response) error {
 		return &APIError{
 			StatusCode: resp.StatusCode,
 			Message:    message,
-			Body:       message,
 			RequestID:  requestID,
 		}
 	}

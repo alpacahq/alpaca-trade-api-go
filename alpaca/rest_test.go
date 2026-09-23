@@ -176,6 +176,7 @@ func TestAPIErrorFromResponse_NonJSONIncludesRequestID(t *testing.T) {
 	require.ErrorAs(t, err, &apiErr)
 	assert.Equal(t, http.StatusBadGateway, apiErr.StatusCode)
 	assert.Equal(t, "bad gateway", apiErr.Message)
+	assert.Empty(t, apiErr.Body)
 	assert.Equal(t, "req-non-json", apiErr.RequestID)
 	assert.Equal(t, "bad gateway (HTTP 502)", apiErr.Error())
 }
@@ -199,6 +200,7 @@ func TestAPIErrorFromResponse_BodyReadErrorKeepsRequestID(t *testing.T) {
 	assert.Equal(t, http.StatusInternalServerError, apiErr.StatusCode)
 	assert.Equal(t, "req-read-fail", apiErr.RequestID)
 	assert.Equal(t, "read failed", apiErr.Message)
+	assert.Empty(t, apiErr.Body)
 	assert.ErrorIs(t, err, errReadFailed)
 }
 
