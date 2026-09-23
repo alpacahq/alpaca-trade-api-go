@@ -181,6 +181,21 @@ func TestAPIErrorFromResponse_NonJSONIncludesRequestID(t *testing.T) {
 	assert.Equal(t, "bad gateway (HTTP 502)", apiErr.Error())
 }
 
+func TestAPIErrorFromResponse_EmptyBody(t *testing.T) {
+	resp := &http.Response{
+		StatusCode: http.StatusBadGateway,
+		Header:     http.Header{"X-Request-Id": []string{"req-empty"}},
+		Body:       io.NopCloser(strings.NewReader("")),
+	}
+	err := APIErrorFromResponse(resp)
+	var apiErr *APIError
+	require.ErrorAs(t, err, &apiErr)
+	assert.Empty(t, apiErr.Message)
+	assert.Empty(t, apiErr.Body)
+	assert.Equal(t, "req-empty", apiErr.RequestID)
+	assert.Equal(t, " (HTTP 502)", apiErr.Error())
+}
+
 var errReadFailed = errors.New("read failed")
 
 type errReader struct{}
