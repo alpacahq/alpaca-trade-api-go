@@ -378,7 +378,7 @@ func APIErrorFromResponse(resp *http.Response) error {
 	if err := json.Unmarshal(body, &apiErr); err != nil {
 		return &APIError{
 			StatusCode: resp.StatusCode,
-			Message:    strings.TrimSpace(string(body)),
+			Message:    string(body),
 			RequestID:  requestID,
 		}
 	}

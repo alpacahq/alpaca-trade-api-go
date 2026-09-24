@@ -196,6 +196,15 @@ func TestAPIErrorFromResponse_EmptyBody(t *testing.T) {
 	assert.Equal(t, " (HTTP 502)", apiErr.Error())
 }
 
+func TestAPIErrorFromResponse_NonJSONKeepsBodyVerbatim(t *testing.T) {
+	resp := &http.Response{
+		StatusCode: http.StatusBadGateway,
+		Body:       io.NopCloser(strings.NewReader("  bad gateway\n")),
+	}
+	err := APIErrorFromResponse(resp)
+	assert.Equal(t, "  bad gateway\n (HTTP 502)", err.Error())
+}
+
 var errReadFailed = errors.New("read failed")
 
 type errReader struct{}
