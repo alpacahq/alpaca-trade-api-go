@@ -317,13 +317,17 @@ func TestCancelAllPositions(t *testing.T) {
 		assert.Equal(t, http.MethodDelete, req.Method)
 		assert.Equal(t, "true", req.URL.Query().Get("cancel_orders"))
 		return &http.Response{
-			Body: genBody(closeAllPositionsResponse),
+			Header: http.Header{"X-Request-Id": []string{"req-close-all"}},
+			Body:   genBody(closeAllPositionsResponse),
 		}, nil
 	}
 	gotOrders, err := c.CloseAllPositions(CloseAllPositionsRequest{
 		CancelOrders: true,
 	})
-	require.Error(t, err)
+	var apiErr *APIError
+	require.ErrorAs(t, err, &apiErr)
+	assert.Equal(t, 422, apiErr.StatusCode)
+	assert.Equal(t, "req-close-all", apiErr.RequestID)
 	assert.Len(t, gotOrders, 1)
 	assert.Equal(t, "AAPL", gotOrders[0].Symbol)
 }

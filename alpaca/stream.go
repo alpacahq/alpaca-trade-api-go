@@ -6,7 +6,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io"
 	"log"
 	"net"
@@ -72,8 +71,7 @@ func (c *Client) StreamTradeUpdates(
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("%s (HTTP %d)", body, resp.StatusCode)
+		return APIErrorFromResponse(resp)
 	}
 
 	reader := bufio.NewReader(resp.Body)
