@@ -55,3 +55,19 @@ func TestStreamTradeUpdates(t *testing.T) {
 	}))
 	require.NoError(t, ctx.Err())
 }
+
+func TestStreamTradeUpdates_Error(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("X-Request-ID", "req-stream")
+		http.Error(w, `{"code":40110000,"message":"request is not authorized"}`, http.StatusUnauthorized)
+	}))
+	defer ts.Close()
+
+	c := NewClient(ClientOpts{BaseURL: ts.URL})
+	err := c.StreamTradeUpdates(context.Background(), func(TradeUpdate) {}, StreamTradeUpdatesRequest{})
+	var apiErr *APIError
+	require.ErrorAs(t, err, &apiErr)
+	assert.Equal(t, http.StatusUnauthorized, apiErr.StatusCode)
+	assert.Equal(t, 40110000, apiErr.Code)
+	assert.Equal(t, "req-stream", apiErr.RequestID)
+}

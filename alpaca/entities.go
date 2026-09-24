@@ -359,20 +359,32 @@ type APIError struct {
 	Code       int    `json:"code"`
 	Message    string `json:"message"`
 	Body       string `json:"-"`
+	RequestID  string `json:"-"`
+	cause      error
 }
 
 func APIErrorFromResponse(resp *http.Response) error {
+	requestID := resp.Header.Get("X-Request-ID")
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return err
+		return &APIError{
+			StatusCode: resp.StatusCode,
+			Message:    err.Error(),
+			RequestID:  requestID,
+			cause:      err,
+		}
 	}
 	var apiErr APIError
 	if err := json.Unmarshal(body, &apiErr); err != nil {
-		// If the error is not in our JSON format, we simply return the HTTP response
-		return fmt.Errorf("%s (HTTP %d)", body, resp.StatusCode)
+		return &APIError{
+			StatusCode: resp.StatusCode,
+			Message:    string(body),
+			RequestID:  requestID,
+		}
 	}
 	apiErr.StatusCode = resp.StatusCode
 	apiErr.Body = strings.TrimSpace(string(body))
+	apiErr.RequestID = requestID
 	return &apiErr
 }
 
@@ -381,6 +393,10 @@ func (e *APIError) Error() string {
 		return fmt.Sprintf("%s (HTTP %d, Code %d)", e.Message, e.StatusCode, e.Code)
 	}
 	return fmt.Sprintf("%s (HTTP %d)", e.Message, e.StatusCode)
+}
+
+func (e *APIError) Unwrap() error {
+	return e.cause
 }
 
 //easyjson:json

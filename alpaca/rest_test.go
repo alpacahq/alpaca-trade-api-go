@@ -134,6 +134,7 @@ func TestDefaultDo_TooManyRetries(t *testing.T) {
 func TestDefaultDo_Error(t *testing.T) {
 	resp := `{"code":1234567,"message":"custom error message","other_field":"x"}`
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("X-Request-ID", "req-abc-123")
 		http.Error(w, resp, http.StatusBadRequest)
 	}))
 	c := DefaultClient
@@ -146,7 +147,85 @@ func TestDefaultDo_Error(t *testing.T) {
 	assert.Equal(t, 1234567, apiErr.Code)
 	assert.Equal(t, "custom error message", apiErr.Message)
 	assert.Equal(t, resp, apiErr.Body)
+	assert.Equal(t, "req-abc-123", apiErr.RequestID)
 	assert.Equal(t, "custom error message (HTTP 400, Code 1234567)", apiErr.Error())
+}
+
+func TestDefaultDo_ErrorWithoutRequestID(t *testing.T) {
+	resp := `{"code":1234567,"message":"custom error message"}`
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		http.Error(w, resp, http.StatusBadRequest)
+	}))
+	c := DefaultClient
+	req, err := http.NewRequest(http.MethodGet, ts.URL, nil)
+	require.NoError(t, err)
+	_, err = defaultDo(c, req)
+	var apiErr *APIError
+	require.ErrorAs(t, err, &apiErr)
+	assert.Empty(t, apiErr.RequestID)
+}
+
+func TestAPIErrorFromResponse_NonJSONIncludesRequestID(t *testing.T) {
+	resp := &http.Response{
+		StatusCode: http.StatusBadGateway,
+		Header:     http.Header{"X-Request-Id": []string{"req-non-json"}},
+		Body:       io.NopCloser(strings.NewReader("bad gateway")),
+	}
+	err := APIErrorFromResponse(resp)
+	var apiErr *APIError
+	require.ErrorAs(t, err, &apiErr)
+	assert.Equal(t, http.StatusBadGateway, apiErr.StatusCode)
+	assert.Equal(t, "bad gateway", apiErr.Message)
+	assert.Empty(t, apiErr.Body)
+	assert.Equal(t, "req-non-json", apiErr.RequestID)
+	assert.Equal(t, "bad gateway (HTTP 502)", apiErr.Error())
+}
+
+func TestAPIErrorFromResponse_EmptyBody(t *testing.T) {
+	resp := &http.Response{
+		StatusCode: http.StatusBadGateway,
+		Header:     http.Header{"X-Request-Id": []string{"req-empty"}},
+		Body:       io.NopCloser(strings.NewReader("")),
+	}
+	err := APIErrorFromResponse(resp)
+	var apiErr *APIError
+	require.ErrorAs(t, err, &apiErr)
+	assert.Empty(t, apiErr.Message)
+	assert.Empty(t, apiErr.Body)
+	assert.Equal(t, "req-empty", apiErr.RequestID)
+	assert.Equal(t, " (HTTP 502)", apiErr.Error())
+}
+
+func TestAPIErrorFromResponse_NonJSONKeepsBodyVerbatim(t *testing.T) {
+	resp := &http.Response{
+		StatusCode: http.StatusBadGateway,
+		Body:       io.NopCloser(strings.NewReader("  bad gateway\n")),
+	}
+	err := APIErrorFromResponse(resp)
+	assert.Equal(t, "  bad gateway\n (HTTP 502)", err.Error())
+}
+
+var errReadFailed = errors.New("read failed")
+
+type errReader struct{}
+
+func (errReader) Read([]byte) (int, error) { return 0, errReadFailed }
+func (errReader) Close() error             { return nil }
+
+func TestAPIErrorFromResponse_BodyReadErrorKeepsRequestID(t *testing.T) {
+	resp := &http.Response{
+		StatusCode: http.StatusInternalServerError,
+		Header:     http.Header{"X-Request-Id": []string{"req-read-fail"}},
+		Body:       errReader{},
+	}
+	err := APIErrorFromResponse(resp)
+	var apiErr *APIError
+	require.ErrorAs(t, err, &apiErr)
+	assert.Equal(t, http.StatusInternalServerError, apiErr.StatusCode)
+	assert.Equal(t, "req-read-fail", apiErr.RequestID)
+	assert.Equal(t, "read failed", apiErr.Message)
+	assert.Empty(t, apiErr.Body)
+	assert.ErrorIs(t, err, errReadFailed)
 }
 
 func TestGetAccount(t *testing.T) {
@@ -247,13 +326,17 @@ func TestCancelAllPositions(t *testing.T) {
 		assert.Equal(t, http.MethodDelete, req.Method)
 		assert.Equal(t, "true", req.URL.Query().Get("cancel_orders"))
 		return &http.Response{
-			Body: genBody(closeAllPositionsResponse),
+			Header: http.Header{"X-Request-Id": []string{"req-close-all"}},
+			Body:   genBody(closeAllPositionsResponse),
 		}, nil
 	}
 	gotOrders, err := c.CloseAllPositions(CloseAllPositionsRequest{
 		CancelOrders: true,
 	})
-	require.Error(t, err)
+	var apiErr *APIError
+	require.ErrorAs(t, err, &apiErr)
+	assert.Equal(t, 422, apiErr.StatusCode)
+	assert.Equal(t, "req-close-all", apiErr.RequestID)
 	assert.Len(t, gotOrders, 1)
 	assert.Equal(t, "AAPL", gotOrders[0].Symbol)
 }

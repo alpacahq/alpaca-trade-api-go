@@ -377,6 +377,7 @@ func (c *Client) CloseAllPositions(req CloseAllPositionsRequest) ([]Order, error
 			return nil, err
 		}
 		apiErr.StatusCode = capr.Status
+		apiErr.RequestID = resp.Header.Get("X-Request-ID")
 		errs = append(errs, &apiErr)
 	}
 
