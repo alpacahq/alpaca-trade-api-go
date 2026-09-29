@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -20,7 +21,7 @@ type mlegClientWrapper struct {
 	acct     *alpaca.Account
 }
 
-func newMlegClientWrapper() (*mlegClientWrapper, error) {
+func newMlegClientWrapper(ctx context.Context) (*mlegClientWrapper, error) {
 	// You can set your API key/secret here or you can use environment variables
 	apiKey := os.Getenv("APCA_API_KEY_ID")
 	apiSecret := os.Getenv("APCA_API_SECRET_KEY")
@@ -39,13 +40,13 @@ func newMlegClientWrapper() (*mlegClientWrapper, error) {
 	})
 
 	// Cancel any open orders so they don't interfere with this algo
-	if err := tdClient.CancelAllOrders(); err != nil {
+	if err := tdClient.CancelAllOrders(ctx); err != nil {
 		return nil, err
 	}
 
 	// Make sure we have enough green for some mleg fun
 	decimal10k := decimal.NewFromInt(10000)
-	acct, err := tdClient.GetAccount()
+	acct, err := tdClient.GetAccount(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -58,13 +59,14 @@ func newMlegClientWrapper() (*mlegClientWrapper, error) {
 }
 
 func main() {
-	mcw, err := newMlegClientWrapper()
+	ctx := context.Background()
+	mcw, err := newMlegClientWrapper(ctx)
 	if err != nil {
 		log.Fatalf("failed to initialize client wrapper: %v", err)
 	}
 
 	underlying := "INTC"
-	td, err := mcw.mdClient.GetLatestTrade(underlying, marketdata.GetLatestTradeRequest{})
+	td, err := mcw.mdClient.GetLatestTrade(ctx, underlying, marketdata.GetLatestTradeRequest{})
 	if err != nil {
 		log.Fatalf("getting latest trade for symbol %s: %v", underlying, err)
 	}
@@ -86,7 +88,7 @@ func main() {
 		StrikePriceGTE:    decimal.NewFromFloat(px), // strike A
 		TotalLimit:        1,
 	}
-	contracts, err := mcw.tdClient.GetOptionContracts(req)
+	contracts, err := mcw.tdClient.GetOptionContracts(ctx, req)
 	if err != nil {
 		log.Fatalf("listing contracts: %v", err)
 	}
@@ -98,7 +100,7 @@ func main() {
 
 	// 2. short leg, strike B at $10 above latest trade
 	req.StrikePriceGTE = decimal.NewFromFloat(px + 10) // strike B
-	contracts, err = mcw.tdClient.GetOptionContracts(req)
+	contracts, err = mcw.tdClient.GetOptionContracts(ctx, req)
 	if err != nil {
 		log.Fatalf("listing contracts: %v", err)
 	}
@@ -112,7 +114,7 @@ func main() {
 	// higher strike (B). The maximum profit occurs when the stock is at or above strike B, but
 	// the profit is capped at the difference between the two strikes minus the premium paid (cost of the spread).
 	qty := decimal.NewFromInt(2) // instances of the strategy to be placed
-	order, err := mcw.tdClient.PlaceOrder(alpaca.PlaceOrderRequest{
+	order, err := mcw.tdClient.PlaceOrder(ctx, alpaca.PlaceOrderRequest{
 		Qty:         &qty,
 		TimeInForce: alpaca.Day,
 		Type:        alpaca.Market,

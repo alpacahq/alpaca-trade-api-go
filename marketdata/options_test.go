@@ -1,6 +1,7 @@
 package marketdata
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"net/http"
@@ -21,7 +22,7 @@ func TestGetOptionTrades(t *testing.T) {
 			Body: io.NopCloser(strings.NewReader(resp)),
 		}, nil
 	}
-	got, err := c.GetOptionTrades("AAPL240308C00172500", GetOptionTradesRequest{
+	got, err := c.GetOptionTrades(context.Background(), "AAPL240308C00172500", GetOptionTradesRequest{
 		Start:      time.Date(2024, 3, 5, 16, 0, 0, 0, time.UTC),
 		End:        time.Date(2024, 3, 5, 17, 0, 0, 0, time.UTC),
 		TotalLimit: 2,
@@ -58,7 +59,7 @@ func TestGetOptionBars(t *testing.T) {
 		}, nil
 	}
 
-	got, err := c.GetOptionBars("AAPL240308C00172500", GetOptionBarsRequest{
+	got, err := c.GetOptionBars(context.Background(), "AAPL240308C00172500", GetOptionBarsRequest{
 		TimeFrame: OneDay,
 		Start:     time.Date(2024, 3, 5, 0, 0, 0, 0, time.UTC),
 		End:       time.Date(2024, 3, 6, 0, 0, 0, 0, time.UTC),
@@ -81,7 +82,7 @@ func TestGetLatestOptionTrade(t *testing.T) {
 	c := DefaultClient
 	c.do = mockResp(
 		`{"trades":{"BABA260116P00125000":{"c":"f","p":49.61,"s":1,"t":"2024-02-26T18:23:18.79373184Z","x":"D"}}}`)
-	got, err := c.GetLatestOptionTrade("BABA260116P00125000", GetLatestOptionTradeRequest{})
+	got, err := c.GetLatestOptionTrade(context.Background(), "BABA260116P00125000", GetLatestOptionTradeRequest{})
 	require.NoError(t, err)
 	require.NotNil(t, got)
 	assert.Equal(t, OptionTrade{
@@ -93,7 +94,7 @@ func TestGetLatestOptionTrade(t *testing.T) {
 	}, *got)
 
 	c.do = mockResp(`{"trades":{}}`)
-	got, err = c.GetLatestOptionTrade("BABA260116P00125000", GetLatestOptionTradeRequest{
+	got, err = c.GetLatestOptionTrade(context.Background(), "BABA260116P00125000", GetLatestOptionTradeRequest{
 		Feed: Indicative,
 	})
 	require.NoError(t, err)
@@ -103,7 +104,7 @@ func TestGetLatestOptionTrade(t *testing.T) {
 func TestGetLatestOptionQuote(t *testing.T) {
 	c := DefaultClient
 	c.do = mockResp(`{"quotes":{"SPXW240327P04925000":{"ap":11.7,"as":103,"ax":"C","bp":11.4,"bs":172,"bx":"C","c":"A","t":"2024-03-07T13:54:51.985563136Z"}}}`) //nolint:lll
-	got, err := c.GetLatestOptionQuote("SPXW240327P04925000", GetLatestOptionQuoteRequest{})
+	got, err := c.GetLatestOptionQuote(context.Background(), "SPXW240327P04925000", GetLatestOptionQuoteRequest{})
 	require.NoError(t, err)
 	require.NotNil(t, got)
 	assert.Equal(t, OptionQuote{
@@ -121,7 +122,7 @@ func TestGetLatestOptionQuote(t *testing.T) {
 func TestGetOptionSnapshot(t *testing.T) {
 	c := DefaultClient
 	c.do = mockResp(`{"snapshots":{"SPXW240327P04925000":{"latestQuote":{"ap":11.6,"as":59,"ax":"C","bp":11.3,"bs":180,"bx":"C","c":"A","t":"2024-03-07T13:56:22.278961408Z"},"latestTrade":{"c":"g","p":14.85,"s":2,"t":"2024-03-05T16:36:57.709309696Z","x":"C"}}}}`) //nolint:lll
-	got, err := c.GetOptionSnapshot("SPXW240327P04925000", GetOptionSnapshotRequest{})
+	got, err := c.GetOptionSnapshot(context.Background(), "SPXW240327P04925000", GetOptionSnapshotRequest{})
 	require.NoError(t, err)
 	require.NotNil(t, got)
 	assert.Equal(t, OptionQuote{
@@ -148,7 +149,7 @@ func TestGetOptionChain(t *testing.T) {
 		DefaultClient = NewClient(ClientOpts{})
 	}()
 	DefaultClient.do = mockResp(`{"snapshots":{"NIO240719P00002000":{"latestQuote":{"ap":1.24,"as":2183,"ax":"A","bp":0.03,"bs":1143,"bx":"A","c":"A","t":"2024-03-06T20:59:05.378523136Z"}},"NIO240405P00004000":{"latestQuote":{"ap":0.05,"as":3041,"ax":"D","bp":0.03,"bs":1726,"bx":"D","c":"C","t":"2024-03-06T20:59:59.678798848Z"},"latestTrade":{"c":"f","p":0.05,"s":17,"t":"2024-03-07T15:53:37.134486784Z","x":"I"}}}}`) //nolint:lll
-	got, err := GetOptionChain("NIO", GetOptionChainRequest{})
+	got, err := GetOptionChain(context.Background(), "NIO", GetOptionChainRequest{})
 	require.NoError(t, err)
 	require.NotNil(t, got)
 	require.Len(t, got, 2)
@@ -188,7 +189,7 @@ func TestGetOptionChainWithFilters(t *testing.T) {
 			Body: io.NopCloser(strings.NewReader(resp)),
 		}, nil
 	}
-	got, err := c.GetOptionChain("AAPL", GetOptionChainRequest{
+	got, err := c.GetOptionChain(context.Background(), "AAPL", GetOptionChainRequest{
 		PageLimit:         1,
 		Type:              Call,
 		StrikePriceGte:    151.123,
