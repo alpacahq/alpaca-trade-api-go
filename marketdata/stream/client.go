@@ -34,6 +34,7 @@ type client struct {
 	subChanges         chan []byte
 
 	bufferFillCallback func([]byte)
+	rawMessageHandler  func([]byte)
 	lastBufferFill     time.Time
 	droppedMsgCount    int
 
@@ -63,6 +64,7 @@ func (c *client) configure(o options) {
 	c.reconnectDelay = o.reconnectDelay
 	c.connectCallback = o.connectCallback
 	c.bufferFillCallback = o.bufferFillCallback
+	c.rawMessageHandler = o.rawMessageHandler
 	c.disconnectCallback = o.disconnectCallback
 	c.processorCount = o.processorCount
 	c.bufferSize = o.bufferSize
@@ -605,6 +607,9 @@ func (c *client) connReader(
 				c.logger.Warnf("datav2stream: reading from conn failed, error: %v", err)
 			}
 			return
+		}
+		if c.rawMessageHandler != nil {
+			c.rawMessageHandler(append([]byte(nil), msg...))
 		}
 
 		select {
