@@ -42,6 +42,8 @@ type ClientOpts struct {
 	HTTPClient *http.Client
 	// Host used to set the http request's host
 	RequestHost string
+	// HTTPCallback is a user defined callback to execute on the raw http.Response
+	HTTPCallback func(*http.Request, *http.Response)
 }
 
 // Client is the alpaca marketdata Client.
@@ -117,6 +119,9 @@ RetryLoop:
 		resp, err = c.httpClient.Do(req)
 		if err != nil {
 			return nil, err
+		}
+		if c.opts.HTTPCallback != nil {
+			c.opts.HTTPCallback(req, resp)
 		}
 		switch resp.StatusCode {
 		case http.StatusTooManyRequests, http.StatusInternalServerError:
