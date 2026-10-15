@@ -7,7 +7,7 @@ require (
 	github.com/RobinUS2/golang-moving-average v1.0.0
 	github.com/coder/websocket v1.8.15
 	github.com/mailru/easyjson v0.9.2
-	github.com/shopspring/decimal v1.4.0
+	github.com/shopspring/decimal v1.5.0
 	github.com/stretchr/testify v1.12.1
 	github.com/vmihailenco/msgpack/v5 v5.4.1
 )
