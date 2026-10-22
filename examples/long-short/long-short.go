@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"math"
@@ -78,7 +79,10 @@ func init() {
 
 func main() {
 	fmt.Print("Cancelling all open orders so they don't impact our buying power... ")
-	orders, err := algo.tradeClient.GetOrders(alpaca.GetOrdersRequest{
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	orders, err := algo.tradeClient.GetOrders(ctx, alpaca.GetOrdersRequest{
 		Status: "open",
 		Until:  time.Now(),
 		Limit:  100,
@@ -87,31 +91,36 @@ func main() {
 		log.Fatalf("Failed to list orders: %v", err)
 	}
 	for _, order := range orders {
-		if err := algo.tradeClient.CancelOrder(order.ID); err != nil {
+		if err := algo.tradeClient.CancelOrder(ctx, order.ID); err != nil {
 			log.Fatalf("Failed to cancel order %s: %v", order.ID, err)
 		}
 	}
 	fmt.Printf("%d order(s) cancelled\n", len(orders))
 
 	for {
-		isOpen, err := algo.awaitMarketOpen()
-		if err != nil {
-			log.Fatalf("Failed to wait for market open: %v", err)
-		}
-		if !isOpen {
-			time.Sleep(1 * time.Minute)
-			continue
-		}
-		if err := algo.run(); err != nil {
-			log.Fatalf("Run error: %v", err)
-		}
+		func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+			defer cancel()
+
+			isOpen, err := algo.awaitMarketOpen(ctx)
+			if err != nil {
+				log.Fatalf("Failed to wait for market open: %v", err)
+			}
+			if !isOpen {
+				time.Sleep(1 * time.Minute)
+				return
+			}
+			if err := algo.run(ctx); err != nil {
+				log.Fatalf("Run error: %v", err)
+			}
+		}()
 	}
 }
 
 // Rebalance the portfolio every minute, making necessary trades.
-func (alp longShortAlgo) run() error {
+func (alp longShortAlgo) run(ctx context.Context) error {
 	// Figure out when the market will close so we can prepare to sell beforehand.
-	clock, err := algo.tradeClient.GetClock()
+	clock, err := algo.tradeClient.GetClock(ctx)
 	if err != nil {
 		return fmt.Errorf("get clock: %w", err)
 	}
@@ -119,7 +128,7 @@ func (alp longShortAlgo) run() error {
 		// Close all positions when 15 minutes til market close.
 		fmt.Println("Market closing soon. Closing positions")
 
-		positions, err := algo.tradeClient.GetPositions()
+		positions, err := algo.tradeClient.GetPositions(ctx)
 		if err != nil {
 			return fmt.Errorf("get positions: %w", err)
 		}
@@ -132,7 +141,7 @@ func (alp longShortAlgo) run() error {
 			}
 			qty, _ := position.Qty.Float64()
 			qty = math.Abs(qty)
-			if err := algo.submitOrder(int(qty), position.Symbol, orderSide); err != nil {
+			if err := algo.submitOrder(ctx, int(qty), position.Symbol, orderSide); err != nil {
 				return fmt.Errorf("submit order: %w", err)
 			}
 		}
@@ -141,7 +150,7 @@ func (alp longShortAlgo) run() error {
 		time.Sleep(15 * time.Minute)
 	} else {
 		// Rebalance the portfolio.
-		if err := algo.rebalance(); err != nil {
+		if err := algo.rebalance(ctx); err != nil {
 			fmt.Println("Failed to rebalance, will try again in a minute:", err)
 		}
 		fmt.Println("Sleeping for 1 minute")
@@ -151,8 +160,8 @@ func (alp longShortAlgo) run() error {
 }
 
 // Spin until the market is open.
-func (alp longShortAlgo) awaitMarketOpen() (bool, error) {
-	clock, err := algo.tradeClient.GetClock()
+func (alp longShortAlgo) awaitMarketOpen(ctx context.Context) (bool, error) {
+	clock, err := algo.tradeClient.GetClock(ctx)
 	if err != nil {
 		return false, fmt.Errorf("get clock: %w", err)
 	}
@@ -165,8 +174,8 @@ func (alp longShortAlgo) awaitMarketOpen() (bool, error) {
 }
 
 // Rebalance our position after an update.
-func (alp longShortAlgo) rebalance() error {
-	if err := algo.rerank(); err != nil {
+func (alp longShortAlgo) rebalance(ctx context.Context) error {
+	if err := algo.rerank(ctx); err != nil {
 		return fmt.Errorf("rerank: %w", err)
 	}
 
@@ -174,7 +183,7 @@ func (alp longShortAlgo) rebalance() error {
 	fmt.Printf("We are taking a short position in: %v\n", algo.short.list)
 
 	// Clear existing orders again.
-	orders, err := algo.tradeClient.GetOrders(alpaca.GetOrdersRequest{
+	orders, err := algo.tradeClient.GetOrders(ctx, alpaca.GetOrdersRequest{
 		Status: "open",
 		Until:  time.Now(),
 		Limit:  100,
@@ -183,7 +192,7 @@ func (alp longShortAlgo) rebalance() error {
 		return fmt.Errorf("list orders: %w", err)
 	}
 	for _, order := range orders {
-		if err := algo.tradeClient.CancelOrder(order.ID); err != nil {
+		if err := algo.tradeClient.CancelOrder(ctx, order.ID); err != nil {
 			return fmt.Errorf("cancel order %s: %w", order.ID, err)
 		}
 	}
@@ -191,7 +200,7 @@ func (alp longShortAlgo) rebalance() error {
 	// Remove positions that are no longer in the short or long list, and make a list of positions that do not need to change.  Adjust position quantities if needed.
 	algo.blacklist = nil
 	var executed [2][]string
-	positions, err := algo.tradeClient.GetPositions()
+	positions, err := algo.tradeClient.GetPositions(ctx)
 	if err != nil {
 		return fmt.Errorf("list positions: %w", err)
 	}
@@ -211,14 +220,14 @@ func (alp longShortAlgo) rebalance() error {
 				} else {
 					side = "buy"
 				}
-				if err := algo.submitOrder(int(math.Abs(float64(qty))), position.Symbol, side); err != nil {
+				if err := algo.submitOrder(ctx, int(math.Abs(float64(qty))), position.Symbol, side); err != nil {
 					return fmt.Errorf("submit order for %d %s: %w", qty, position.Symbol, err)
 				}
 			} else {
 				if position.Side == "long" {
 					// Position changed from long to short.  Clear long position to prep for short sell.
 					side = "sell"
-					if err := algo.submitOrder(qty, position.Symbol, side); err != nil {
+					if err := algo.submitOrder(ctx, qty, position.Symbol, side); err != nil {
 						return fmt.Errorf("submit order for %d %s: %w", qty, position.Symbol, err)
 					}
 				} else {
@@ -237,7 +246,7 @@ func (alp longShortAlgo) rebalance() error {
 							side = "sell"
 						}
 						qty = diff
-						if err := algo.submitOrder(qty, position.Symbol, side); err != nil {
+						if err := algo.submitOrder(ctx, qty, position.Symbol, side); err != nil {
 							return fmt.Errorf("submit order for %d %s: %w", qty, position.Symbol, err)
 						}
 					}
@@ -250,7 +259,7 @@ func (alp longShortAlgo) rebalance() error {
 			if position.Side == "short" {
 				// Position changed from short to long.  Clear short position to prep for long purchase.
 				side = "buy"
-				if err := algo.submitOrder(qty, position.Symbol, side); err != nil {
+				if err := algo.submitOrder(ctx, qty, position.Symbol, side); err != nil {
 					return fmt.Errorf("submit order for %d %s: %w", qty, position.Symbol, err)
 				}
 			} else {
@@ -267,7 +276,7 @@ func (alp longShortAlgo) rebalance() error {
 						side = "buy"
 					}
 					qty = diff
-					if err := algo.submitOrder(qty, position.Symbol, side); err != nil {
+					if err := algo.submitOrder(ctx, qty, position.Symbol, side); err != nil {
 						return fmt.Errorf("submit order for %d %s: %w", qty, position.Symbol, err)
 					}
 				}
@@ -278,12 +287,12 @@ func (alp longShortAlgo) rebalance() error {
 	}
 
 	// Send orders to all remaining stocks in the long and short list.
-	longBOResp := algo.sendBatchOrder(algo.long.qty, algo.long.list, "buy")
+	longBOResp := algo.sendBatchOrder(ctx, algo.long.qty, algo.long.list, "buy")
 	executed[0] = append(executed[0], longBOResp[0][:]...)
 	if len(longBOResp[1][:]) > 0 {
 		// Handle rejected/incomplete orders and determine new quantities to purchase.
 
-		longTPResp, err := algo.getTotalPrice(executed[0])
+		longTPResp, err := algo.getTotalPrice(ctx, executed[0])
 		if err != nil {
 			return fmt.Errorf("get total long price: %w", err)
 		}
@@ -296,11 +305,11 @@ func (alp longShortAlgo) rebalance() error {
 		algo.long.adjustedQty = -1
 	}
 
-	shortBOResp := algo.sendBatchOrder(algo.short.qty, algo.short.list, "sell")
+	shortBOResp := algo.sendBatchOrder(ctx, algo.short.qty, algo.short.list, "sell")
 	executed[1] = append(executed[1], shortBOResp[0][:]...)
 	if len(shortBOResp[1][:]) > 0 {
 		// Handle rejected/incomplete orders and determine new quantities to purchase.
-		shortTPResp, err := algo.getTotalPrice(executed[1])
+		shortTPResp, err := algo.getTotalPrice(ctx, executed[1])
 		if err != nil {
 			return fmt.Errorf("get total short price: %w", err)
 		}
@@ -317,7 +326,7 @@ func (alp longShortAlgo) rebalance() error {
 	if algo.long.adjustedQty > -1 {
 		algo.long.qty = algo.long.adjustedQty - algo.long.qty
 		for _, stock := range executed[0] {
-			if err := algo.submitOrder(algo.long.qty, stock, "buy"); err != nil {
+			if err := algo.submitOrder(ctx, algo.long.qty, stock, "buy"); err != nil {
 				return fmt.Errorf("submit order for %d %s: %w", algo.long.qty, stock, err)
 			}
 		}
@@ -326,7 +335,7 @@ func (alp longShortAlgo) rebalance() error {
 	if algo.short.adjustedQty > -1 {
 		algo.short.qty = algo.short.adjustedQty - algo.short.qty
 		for _, stock := range executed[1] {
-			if err := algo.submitOrder(algo.short.qty, stock, "sell"); err != nil {
+			if err := algo.submitOrder(ctx, algo.short.qty, stock, "sell"); err != nil {
 				return fmt.Errorf("submit order for %d %s: %w", algo.long.qty, stock, err)
 			}
 		}
@@ -336,8 +345,8 @@ func (alp longShortAlgo) rebalance() error {
 }
 
 // Re-rank all stocks to adjust longs and shorts.
-func (alp longShortAlgo) rerank() error {
-	if err := algo.rank(); err != nil {
+func (alp longShortAlgo) rerank(ctx context.Context) error {
+	if err := algo.rank(ctx); err != nil {
 		return err
 	}
 
@@ -357,12 +366,12 @@ func (alp longShortAlgo) rerank() error {
 	}
 
 	// Determine amount to long/short based on total stock price of each bucket.
-	account, err := algo.tradeClient.GetAccount()
+	account, err := algo.tradeClient.GetAccount(ctx)
 	if err != nil {
 		return fmt.Errorf("get account: %w", err)
 	}
 	equity, _ := account.Cash.Float64()
-	positions, err := algo.tradeClient.GetPositions()
+	positions, err := algo.tradeClient.GetPositions(ctx)
 	if err != nil {
 		return fmt.Errorf("list positions: %w", err)
 	}
@@ -374,11 +383,11 @@ func (alp longShortAlgo) rerank() error {
 	algo.short.equityAmt = equity * 0.30
 	algo.long.equityAmt = equity + algo.short.equityAmt
 
-	longTotal, err := algo.getTotalPrice(algo.long.list)
+	longTotal, err := algo.getTotalPrice(ctx, algo.long.list)
 	if err != nil {
 		return fmt.Errorf("get total long price: %w", err)
 	}
-	shortTotal, err := algo.getTotalPrice(algo.short.list)
+	shortTotal, err := algo.getTotalPrice(ctx, algo.short.list)
 	if err != nil {
 		return fmt.Errorf("get total short price: %w", err)
 	}
@@ -390,9 +399,9 @@ func (alp longShortAlgo) rerank() error {
 }
 
 // Get the total price of the array of input stocks.
-func (alp longShortAlgo) getTotalPrice(arr []string) (float64, error) {
+func (alp longShortAlgo) getTotalPrice(ctx context.Context, arr []string) (float64, error) {
 	totalPrice := 0.0
-	snapshots, err := algo.dataClient.GetSnapshots(arr, marketdata.GetSnapshotRequest{})
+	snapshots, err := algo.dataClient.GetSnapshots(ctx, arr, marketdata.GetSnapshotRequest{})
 	if err != nil {
 		return 0, fmt.Errorf("get snapshots: %w", err)
 	}
@@ -409,11 +418,11 @@ func (alp longShortAlgo) getTotalPrice(arr []string) (float64, error) {
 }
 
 // Submit an order if quantity is above 0.
-func (alp longShortAlgo) submitOrder(qty int, symbol string, side string) error {
+func (alp longShortAlgo) submitOrder(ctx context.Context, qty int, symbol string, side string) error {
 	if qty > 0 {
 		adjSide := alpaca.Side(side)
 		decimalQty := decimal.NewFromInt(int64(qty))
-		_, err := algo.tradeClient.PlaceOrder(alpaca.PlaceOrderRequest{
+		_, err := algo.tradeClient.PlaceOrder(ctx, alpaca.PlaceOrderRequest{
 			Symbol:      symbol,
 			Qty:         &decimalQty,
 			Side:        adjSide,
@@ -432,13 +441,13 @@ func (alp longShortAlgo) submitOrder(qty int, symbol string, side string) error 
 }
 
 // Submit a batch order that returns completed and uncompleted orders.
-func (alp longShortAlgo) sendBatchOrder(qty int, stocks []string, side string) [2][]string {
+func (alp longShortAlgo) sendBatchOrder(ctx context.Context, qty int, stocks []string, side string) [2][]string {
 	var executed []string
 	var incomplete []string
 	for _, stock := range stocks {
 		index := indexOf(algo.blacklist, stock)
 		if index == -1 {
-			err := algo.submitOrder(qty, stock, side)
+			err := algo.submitOrder(ctx, qty, stock, side)
 			if err != nil {
 				incomplete = append(incomplete, stock)
 			} else {
@@ -450,7 +459,7 @@ func (alp longShortAlgo) sendBatchOrder(qty int, stocks []string, side string) [
 }
 
 // Get percent changes of the stock prices over the past 10 minutes.
-func (alp longShortAlgo) getPercentChanges() error {
+func (alp longShortAlgo) getPercentChanges(ctx context.Context) error {
 	symbols := make([]string, len(alp.allStocks))
 	for i, stock := range algo.allStocks {
 		symbols[i] = stock.name
@@ -462,7 +471,7 @@ func (alp longShortAlgo) getPercentChanges() error {
 	if !hasSipAccess {
 		feed = "iex"
 	}
-	multiBars, err := algo.dataClient.GetMultiBars(symbols, marketdata.GetBarsRequest{
+	multiBars, err := algo.dataClient.GetMultiBars(ctx, symbols, marketdata.GetBarsRequest{
 		TimeFrame: marketdata.OneMin,
 		Start:     start,
 		End:       end,
@@ -484,9 +493,9 @@ func (alp longShortAlgo) getPercentChanges() error {
 }
 
 // Mechanism used to rank the stocks, the basis of the Long-Short Equity Strategy.
-func (alp longShortAlgo) rank() error {
+func (alp longShortAlgo) rank(ctx context.Context) error {
 	// Ranks all stocks by percent change over the past 10 days (higher is better).
-	if err := algo.getPercentChanges(); err != nil {
+	if err := algo.getPercentChanges(ctx); err != nil {
 		return err
 	}
 

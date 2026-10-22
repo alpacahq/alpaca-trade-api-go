@@ -61,9 +61,11 @@ func main() {
 		}
 	}()
 
-	if err := c.Connect(ctx); err != nil {
+	terminate, err := c.Connect(ctx)
+	if err != nil {
 		log.Fatalf("could not establish connection, error: %s", err)
 	}
+	defer terminate()
 	fmt.Println("established connection")
 
 	// starting a goroutine that checks whether the client has terminated
@@ -78,14 +80,14 @@ func main() {
 
 	time.Sleep(3 * time.Second)
 	// Adding AAPL trade subscription
-	if err := c.SubscribeToTrades(tradeHandler, "AAPL"); err != nil {
+	if err := c.SubscribeToTrades(ctx, tradeHandler, "AAPL"); err != nil {
 		log.Fatalf("error during subscribing: %s", err)
 	}
 	fmt.Println("subscribed to AAPL trades")
 
 	time.Sleep(3 * time.Second)
 	// Unsubscribing from AAPL quotes
-	if err := c.UnsubscribeFromQuotes("AAPL"); err != nil {
+	if err := c.UnsubscribeFromQuotes(ctx, "AAPL"); err != nil {
 		log.Fatalf("error during unsubscribing: %s", err)
 	}
 	fmt.Println("unsubscribed from AAPL quotes")
