@@ -1,0 +1,92 @@
+name: 🚀 Feature request
+description: Propose an improvement to the Alpaca Go SDK
+title: "[Feature]: "
+labels: [enhancement]
+assignees: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Propose SDK-specific work here in English. API feature requests, general questions, and dashboard bugs go to the [Community Forum](https://forum.alpaca.markets/) or [Slack](https://alpaca.markets/slack). Bugs in the Alpaca API itself, its OpenAPI specs, or its documentation go to [alpacahq/alpaca-api](https://github.com/alpacahq/alpaca-api/issues/new/choose).
+
+        Read the [contribution policy](https://github.com/alpacahq/alpaca-trade-api-go/blob/master/CONTRIBUTING.md#contribution-policy) before implementing substantial work or a third-party integration.
+
+  - type: checkboxes
+    id: preflight
+    attributes:
+      label: Preflight
+      options:
+        - label: I searched existing issues and confirmed this request is specific to the SDK. API feature requests belong on the Community Forum or Slack, not in alpacahq/alpaca-api.
+          required: true
+        - label: I understand that substantial work requires maintainer agreement before implementation.
+          required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: SDK area
+      options:
+        - Trading REST
+        - Market Data REST
+        - Trading WebSocket stream
+        - Market Data WebSocket stream
+        - Authentication or configuration
+        - Go module or runtime compatibility
+        - Developer experience
+        - Documentation or examples
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem or use case
+      description: Explain the concrete SDK problem and who it affects.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposed_solution
+    attributes:
+      label: Proposed SDK change
+      description: Describe the desired SDK behavior or interface.
+    validations:
+      required: true
+
+  - type: input
+    id: api_documentation
+    attributes:
+      label: Relevant Alpaca API documentation
+      description: Link the documented API capability, or enter "Not applicable" for tooling or documentation work.
+      placeholder: https://docs.alpaca.markets/...
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Describe workarounds or alternative SDK designs.
+
+  - type: textarea
+    id: third_party
+    attributes:
+      label: Third-party products or services
+      description: Identify any provider, hosted endpoint, client, referral, dependency, or promotional content involved. Enter "None" when not applicable.
+    validations:
+      required: true
+
+  - type: textarea
+    id: additional_context
+    attributes:
+      label: Additional context
+      description: Add examples, prior discussion, or other relevant details.
+
+  - type: checkboxes
+    id: sensitive_data
+    attributes:
+      label: Sensitive-data check
+      options:
+        - label: I removed API keys, credentials, account details, request or trace IDs, and other sensitive information.
+          required: true

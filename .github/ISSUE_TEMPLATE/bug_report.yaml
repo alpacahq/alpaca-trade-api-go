@@ -1,0 +1,105 @@
+name: 🐞 Bug report
+description: Report reproducible behavior in the Alpaca Go SDK
+title: "[Bug]: "
+labels: [bug]
+assignees: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Report SDK behavior here in English. Bugs in the Alpaca API itself, its OpenAPI specs, or its documentation go to [alpacahq/alpaca-api](https://github.com/alpacahq/alpaca-api/issues/new/choose). API feature requests, general questions, and dashboard bugs go to the [Community Forum](https://forum.alpaca.markets/) or [Slack](https://alpaca.markets/slack). Questions about your account, funding, or orders go to a [support request](https://alpaca.markets/support/request). Service status and incident updates are on the [status page](https://status.alpaca.markets/).
+
+        Do not disclose suspected security vulnerabilities publicly. Follow the private reporting process in our [Security Policy](https://github.com/alpacahq/alpaca-trade-api-go/blob/master/SECURITY.md).
+
+        Never include API keys, account details, request or trace IDs, or other secrets.
+
+  - type: checkboxes
+    id: preflight
+    attributes:
+      label: Preflight
+      options:
+        - label: I searched existing issues and tested the latest applicable SDK release.
+          required: true
+        - label: This report concerns SDK behavior. Bugs in the Alpaca API, its OpenAPI specs, or docs.alpaca.markets go to alpacahq/alpaca-api.
+          required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: SDK area
+      description: Which SDK surface is affected?
+      options:
+        - Trading REST
+        - Market Data REST
+        - Trading WebSocket stream
+        - Market Data WebSocket stream
+        - Authentication or configuration
+        - Go module or runtime compatibility
+        - Documentation or examples
+        - Other
+    validations:
+      required: true
+
+  - type: input
+    id: sdk_version
+    attributes:
+      label: SDK version
+      description: Provide the exact installed version.
+      placeholder: v3.11.0
+    validations:
+      required: true
+
+  - type: input
+    id: environment
+    attributes:
+      label: Go version, OS, and architecture
+      description: Include the output of `go version` because networking and WebSocket behavior can differ by environment.
+      placeholder: go1.24.0 darwin/arm64
+    validations:
+      required: true
+
+  - type: input
+    id: package
+    attributes:
+      label: Package
+      description: State which SDK package or import path is affected.
+      placeholder: github.com/alpacahq/alpaca-trade-api-go/v3/alpaca
+
+  - type: textarea
+    id: current_behavior
+    attributes:
+      label: Current behavior
+      description: Describe what happens, including safe error output.
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected_behavior
+    attributes:
+      label: Expected behavior
+      description: Describe what you expected instead.
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Minimal reproduction
+      description: Provide the smallest runnable example and exact steps.
+      render: go
+    validations:
+      required: true
+
+  - type: textarea
+    id: additional_context
+    attributes:
+      label: Additional context
+      description: Add sanitized logs or other non-sensitive context. Do not post request IDs, trace IDs, account identifiers, or private diagnostics; share those privately through a [support request](https://alpaca.markets/support/request) or the [Security Policy](https://github.com/alpacahq/alpaca-trade-api-go/blob/master/SECURITY.md) when appropriate.
+
+  - type: checkboxes
+    id: sensitive_data
+    attributes:
+      label: Sensitive-data check
+      options:
+        - label: I removed API keys, credentials, account details, request or trace IDs, and other sensitive information.
+          required: true
