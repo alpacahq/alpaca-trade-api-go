@@ -1,0 +1,160 @@
+// generated_by: claude-fable-5 / layered-docs 2026-09
+// source_commit: 6ee44e6acbfe27101f84ff4949ff217bc3e84ba0   source_branch: docs/layered-2026-09   generated_at: 2026-10-29T08:55:36+00:00
+// confidence: medium   review_status: draft-needs-review
+model {
+
+  alpaca_trade_api_go = system 'Alpaca Trade API Go SDK' {
+    #generated
+    description '
+      Go library for the Alpaca trade and market data APIs (README.md:7), distributed as the Go module github.com/alpacahq/alpaca-trade-api-go/v3. It wraps the REST endpoints and the streaming interfaces so that Go programs can place orders, read account state and consume live and historical market data. Evidence: README.md, go.mod
+    '
+    technology 'Go 1.26.10 (go.mod) / net/http / coder/websocket / easyjson / msgpack / shopspring decimal'
+    link https://github.com/alpacahq/alpaca-trade-api-go 'Repository'
+    metadata {
+      okf 'docs/okf/system.md'
+      allium 'none: no accepted spec'
+      evidence 'go.mod, README.md, Makefile, .github/workflows/go.yml, alpaca/, marketdata/, examples/'
+      note 'Packaging caveat: the containers below are Go packages of one distributable module, not independently deployable units (go.mod declares a single module). They are modelled at container level for readability; confidence low on the level assignment. There is no Dockerfile, compose, k8s or terraform in the repository (git ls-files), so no deployment model is published.'
+    }
+
+    trading_client = container 'Trading REST client' {
+      #generated #entrypoint
+      description '
+        Client for the v2 trading endpoints: account, account configurations and activities, portfolio history, positions, orders, assets, option contracts, announcements, watchlists, clock and calendar. Handles key, broker-basic and OAuth authentication, a User-Agent built from the module version, a bounded retry on HTTP 429 (default up to 3 retries, delay 1s) and limit-price rounding. Evidence: alpaca/rest.go (endpoint builders, options and retry loop at 29-65,100-115), alpaca/entities.go, alpaca/trading.go (RoundLimitPrice only), alpaca/version.go
+      '
+      technology 'Go / net/http / easyjson'
+      link https://github.com/alpacahq/alpaca-trade-api-go/tree/master/alpaca 'Repository'
+      metadata {
+        okf 'docs/okf/system.md'
+        allium 'none: no accepted spec'
+        evidence 'alpaca/rest.go, alpaca/entities.go, alpaca/trading.go, alpaca/version.go'
+      }
+    }
+
+    trade_updates_stream = container 'Trade updates stream' {
+      #generated #entrypoint
+      description '
+        Streams the account own trade updates from the v2/events/trades endpoint as a long-lived HTTP response read line by line, with an unlimited-reconnect background helper. Evidence: alpaca/stream.go, README.md
+      '
+      technology 'Go / net/http streaming response / bufio'
+      link https://github.com/alpacahq/alpaca-trade-api-go/tree/master/alpaca 'Repository'
+      metadata {
+        okf 'docs/okf/system.md'
+        allium 'none: no accepted spec'
+        evidence 'alpaca/stream.go, README.md'
+      }
+    }
+
+    marketdata_client = container 'Market data REST client' {
+      #generated #entrypoint
+      description '
+        Historical market data client: bars, trades, quotes, auctions, snapshots and latest values for stocks, crypto and options, plus news and corporate actions. Default host https://data.alpaca.markets, overridable with APCA_API_DATA_URL. Evidence: marketdata/rest.go:58-71, marketdata/entities.go, marketdata/options.go
+      '
+      technology 'Go / net/http / easyjson'
+      link https://github.com/alpacahq/alpaca-trade-api-go/tree/master/marketdata 'Repository'
+      metadata {
+        okf 'docs/okf/system.md'
+        allium 'none: no accepted spec'
+        evidence 'marketdata/rest.go, marketdata/entities.go, marketdata/options.go'
+      }
+    }
+
+    marketdata_stream = container 'Market data streaming client' {
+      #generated #entrypoint
+      description '
+        WebSocket streaming clients for stocks, crypto, crypto perpetuals, options and news, with subscription management, an authenticate-and-subscribe initialization flow with retries, configurable reconnect, and msgpack-encoded messages. Hosts under stream.data.alpaca.markets; the stocks and options hosts are overridable with DATA_PROXY_WS and the crypto host with DATA_CRYPTO_PROXY_WS, while the news host is fixed. Evidence: marketdata/stream/client.go, marketdata/stream/conn_coder.go, marketdata/stream/subscription.go, marketdata/stream/flow.go, marketdata/stream/options.go:188-198,346-357,467-478 (Getenv), 544 (no override)
+      '
+      technology 'Go / coder/websocket / vmihailenco msgpack'
+      link https://github.com/alpacahq/alpaca-trade-api-go/tree/master/marketdata/stream 'Repository'
+      metadata {
+        okf 'docs/okf/system.md'
+        allium 'none: no accepted spec'
+        evidence 'marketdata/stream/client.go, marketdata/stream/conn_coder.go, marketdata/stream/options.go'
+      }
+    }
+
+    examples = container 'Example algorithms' {
+      #generated
+      description '
+        Standalone Go programs showing realistic SDK use against the paper-trading API: long-short, martingale, mean-reversion, bull-spread and the market data and streaming samples. Not part of the published library surface. Evidence: examples/README.md, examples/long-short/long-short.go, examples/mean-reversion/mean-reversion.go
+      '
+      technology 'Go main packages'
+      link https://github.com/alpacahq/alpaca-trade-api-go/tree/master/examples 'Repository'
+      metadata {
+        okf 'docs/okf/system.md'
+        allium 'none: no accepted spec'
+        evidence 'examples/README.md, examples/bull-spread/bull-spread.go, examples/crypto-perp-stream/crypto_stream.go'
+      }
+    }
+
+    examples -[uses]-> trading_client 'place and manage orders'
+    examples -[uses]-> marketdata_client 'read historical bars and quotes'
+    examples -[uses]-> marketdata_stream 'subscribe to live bars and trades'
+    examples -[uses]-> trade_updates_stream 'react to own order fills. Evidence: examples/martingale/martingale.go:122 (StreamTradeUpdatesInBackground)'
+  }
+
+  ext_alpaca_trading_api = external 'Alpaca Trading API' {
+    #generated #external
+    description '
+      Trading REST hosts (live default https://api.alpaca.markets, paper https://paper-api.alpaca.markets, broker hosts for broker credentials) and the v2/events/trades update stream, selected by the BaseURL option or APCA_API_BASE_URL. Evidence: alpaca/rest.go:54-59, alpaca/stream.go:37, README.md
+    '
+  }
+
+  ext_alpaca_market_data_api = external 'Alpaca Market Data API' {
+    #generated #external
+    description '
+      Historical market data host (default https://data.alpaca.markets, overridable with APCA_API_DATA_URL; https://data.sandbox.alpaca.markets for the broker sandbox) and the WebSocket streaming hosts under stream.data.alpaca.markets (stocks/options and crypto hosts env-overridable with DATA_PROXY_WS / DATA_CRYPTO_PROXY_WS, news host fixed). Evidence: marketdata/rest.go:66-71, README.md:136,156, marketdata/stream/options.go:188-189,346-348,467-469,544
+    '
+  }
+
+  ext_go_module_proxy = external 'Go module ecosystem' {
+    #generated #external
+    description '
+      Distribution channel: consumers fetch the v3 module path with go get and read its reference on pkg.go.dev. How the module is released or tagged is not evidenced in the repository (no release workflow in .github/workflows, no tags in the clone). Evidence: README.md:15,160, go.mod
+    '
+    metadata {
+      confidence 'low'
+      note 'Unverified: release/tagging process. Only the consumer-side go get command and the pkg.go.dev link are in the repository.'
+    }
+  }
+
+  ext_github = external 'GitHub' {
+    #generated #external
+    description '
+      Hosts the repository, runs the test and lint workflows, and keeps Actions and Go modules updated weekly through Dependabot. Issues are the stated channel for library bugs; API-side bugs are redirected to a separate repository by the issue template. Evidence: .github/workflows/go.yml, .github/dependabot.yml, .github/ISSUE_TEMPLATE/config.yml, README.md Support section
+    '
+  }
+
+  sdk_developer = person 'Application developer' {
+    #generated
+    description '
+      Writes Go trading or market data programs against the SDK, supplying an API key pair or broker credentials from the Alpaca web console. Evidence: README.md Authentication section, examples/README.md
+    '
+  }
+
+  sdk_developer -[uses]-> alpaca_trade_api_go.trading_client 'submits orders and reads account state'
+  sdk_developer -[uses]-> alpaca_trade_api_go.trade_updates_stream 'watches its own order lifecycle events'
+  sdk_developer -[uses]-> alpaca_trade_api_go.marketdata_client 'queries historical market data'
+  sdk_developer -[uses]-> alpaca_trade_api_go.marketdata_stream 'consumes live market data'
+  sdk_developer -[uses]-> alpaca_trade_api_go.examples 'copies a starting point for an algorithm'
+
+  alpaca_trade_api_go.trading_client -[calls]-> ext_alpaca_trading_api 'HTTPS requests to the v2 trading endpoints. Evidence: alpaca/rest.go'
+  alpaca_trade_api_go.trade_updates_stream -[calls]-> ext_alpaca_trading_api 'long-lived HTTP GET of v2/events/trades. Evidence: alpaca/stream.go:25-57'
+  alpaca_trade_api_go.marketdata_client -[calls]-> ext_alpaca_market_data_api 'HTTPS requests to the historical data host. Evidence: marketdata/rest.go'
+  alpaca_trade_api_go.marketdata_stream -[calls]-> ext_alpaca_market_data_api 'WebSocket subscriptions to the streaming data host. Evidence: marketdata/stream/options.go, marketdata/stream/conn_coder.go'
+  ext_go_module_proxy -[uses]-> alpaca_trade_api_go 'v3 module path fetched by consumers with go get; reference on pkg.go.dev. Release/tagging process unevidenced, confidence low. Evidence: README.md:15,160, go.mod'
+  alpaca_trade_api_go -[uses]-> ext_github 'test matrix, lint, generated-file drift check and dependency updates. Evidence: .github/workflows/go.yml, .github/dependabot.yml'
+}
+
+views {
+  view alpaca_trade_api_go_context {
+    title 'Alpaca Trade API Go SDK — context'
+    include alpaca_trade_api_go, sdk_developer, ext_alpaca_trading_api, ext_alpaca_market_data_api, ext_go_module_proxy, ext_github
+    autoLayout TopBottom
+  }
+  view alpaca_trade_api_go_containers of alpaca_trade_api_go {
+    title 'Alpaca Trade API Go SDK — containers'
+    include *
+    autoLayout LeftRight
+  }
+}
