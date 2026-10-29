@@ -16,7 +16,7 @@
 - [ ] Any substantial API, dependency, or third-party work was discussed with maintainers before implementation.
 - [ ] Generated easyjson files were not edited by hand and are current.
 - [ ] New or changed behavior has focused tests when applicable.
-- [ ] Tests are deterministic and credential-free and cannot place live orders; new or modified trading examples default to paper trading and fixtures use synthetic data.
+- [ ] Tests are deterministic and credential-free and cannot place live orders; trading examples default to paper trading and fixtures use synthetic data.
 - [ ] Documentation and examples are updated when applicable.
 - [ ] Applicable build, lint, test, and generation checks pass.
 - [ ] No credentials, account data, or other secrets are included.

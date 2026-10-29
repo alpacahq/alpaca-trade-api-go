@@ -14,9 +14,9 @@
 go get -u github.com/alpacahq/alpaca-trade-api-go/v3/alpaca
 ```
 
-## Examples
+## Quick start
 
-In order to call Alpaca's trade API, you need to obtain an API key pair from the web console.
+To call the Alpaca Trading API, obtain a paper-account API key pair from the [Alpaca dashboard](https://app.alpaca.markets/) and set the `APCA_API_KEY_ID` and `APCA_API_SECRET_KEY` environment variables as described in [Authentication](#authentication). The inline Trading examples below explicitly use the paper-trading endpoint.
 
 ### Trading REST example
 
@@ -31,11 +31,7 @@ import (
 
 func main() {
 	client := alpaca.NewClient(alpaca.ClientOpts{
-		// Alternatively you can set your key and secret using the
-		// APCA_API_KEY_ID and APCA_API_SECRET_KEY environment variables
-		APIKey:    "YOUR_API_KEY",
-		APISecret: "YOUR_API_SECRET",
-		BaseURL:   "https://paper-api.alpaca.markets",
+		BaseURL: "https://paper-api.alpaca.markets",
 	})
 	acct, err := client.GetAccount()
 	if err != nil {
@@ -47,17 +43,21 @@ func main() {
 
 ### Trade updates stream example
 
-The following example shows how you can stream your own trade updates. First we register a handler function that simply prints the received trade updates, then we submit a single AAPL buy order. You should see two updates, a "new" event as soon as you submit the order, and a "fill" event soon after that, provided that the market is open.
+The following example shows how you can stream your own trade updates. First, we register a handler function that prints the received trade updates, then we submit a single AAPL buy order through the paper-trading endpoint. You should see two updates: a `new` event as soon as you submit the order, and a `fill` event soon after that, provided that the market is open.
 
 ```go
+client := alpaca.NewClient(alpaca.ClientOpts{
+	BaseURL: "https://paper-api.alpaca.markets",
+})
+
 // Listen to trade updates in the background (with unlimited reconnect)
-alpaca.StreamTradeUpdatesInBackground(context.TODO(), func(tu alpaca.TradeUpdate) {
+client.StreamTradeUpdatesInBackground(context.TODO(), func(tu alpaca.TradeUpdate) {
 	log.Printf("TRADE UPDATE: %+v\n", tu)
 })
 
 // Send a single AAPL order
 qty := decimal.NewFromInt(1)
-if _, err := alpaca.PlaceOrder(alpaca.PlaceOrderRequest{
+if _, err := client.PlaceOrder(alpaca.PlaceOrderRequest{
 	Symbol:      "AAPL",
 	Qty:         &qty,
 	Side:        "buy",
@@ -92,59 +92,87 @@ if err != nil {
 See the [examples](https://github.com/alpacahq/alpaca-trade-api-go/tree/master/examples) directory for further examples:
 
 - algo-trading examples
+  - bull-spread
   - long-short
   - martingale
   - mean-reversion
 - marketdata examples
+  - crypto-perp-stream
   - crypto-stream
   - data-stream
   - marketdata
 
-## API Document
+## Configuration
 
-The HTTP API document is located [here](https://alpaca.markets/docs/api-documentation/).
+### Authentication
 
-## Authentication
-
-The Alpaca API requires API key ID and secret key, which you can obtain from the web console after you sign in. This key pair can then be applied to the SDK either by setting environment variables (`APCA_API_KEY_ID=<key_id>` and `APCA_API_SECRET_KEY=<secret_key>`), or hardcoding them into the Go code directly as shown in the examples above.
+The Alpaca API requires an API key ID and secret key. The SDK reads them from the `APCA_API_KEY_ID` and `APCA_API_SECRET_KEY` environment variables:
 
 ```sh
 export APCA_API_KEY_ID=xxxxx
 export APCA_API_SECRET_KEY=yyyyy
 ```
 
-### Broker auth
+Applications that load credentials securely at runtime can instead pass them through the `APIKey` and `APISecret` fields of `alpaca.ClientOpts`. Do not commit credentials to source control.
 
-You use your Broker API key and secret for authentication. However, for this to work make sure you're using the appropriate base URL (for more details check the next section)!
+### Endpoints
 
-```go
-client := marketdata.NewClient(marketdata.ClientOpts{
-	BrokerKey:    "CK...",                               // Sandbox broker key
-	BrokerSecret: "<your secret>",                       // Sandbox broker secret
-	BaseURL:      "https://data.sandbox.alpaca.markets", // Sandbox url
-})
-```
-
-## Endpoint
-
-For paper trading, set the environment variable `APCA_API_BASE_URL` or set the `BaseURL` option when constructing the client.
+For paper trading, set the `APCA_API_BASE_URL` environment variable or set the `BaseURL` field when constructing the client:
 
 ```sh
 export APCA_API_BASE_URL=https://paper-api.alpaca.markets
 ```
 
-### Broker API
+The v3 client preserves its historical default: if neither `ClientOpts.BaseURL` nor `APCA_API_BASE_URL` is set, it uses the live Trading API at `https://api.alpaca.markets`. Applications that can place orders should always select the Trading endpoint explicitly and keep paper and live credentials in separate configuration.
 
-For broker partners, set the base URL to
+### Broker integrations
 
-- `broker-api.alpaca.markets` for production
-- `broker-api.sandbox.alpaca.markets` for sandbox
-- `data.alpaca.markets` for production marketdata
-- `data.sandbox.alpaca.markets` for sandbox marketdata
+This SDK does not currently expose first-class Broker API resource methods for account creation, funding, or account-scoped trading. Use the [Broker API documentation](https://docs.alpaca.markets/us/docs/getting-started-with-broker-api) for those workflows.
+
+The `marketdata` client supports broker-authenticated Market Data. The recommended approach is to obtain a short-lived access token through the [client credentials authentication flow](https://docs.alpaca.markets/us/docs/authentication) and pass it through `marketdata.ClientOpts.OAuth`. This setup fragment uses `APCA_BROKER_ACCESS_TOKEN` as an application-defined environment variable; the SDK does not read it automatically:
+
+```go
+accessToken := os.Getenv("APCA_BROKER_ACCESS_TOKEN")
+if accessToken == "" {
+	log.Fatal("APCA_BROKER_ACCESS_TOKEN is required")
+}
+
+client := marketdata.NewClient(marketdata.ClientOpts{
+	OAuth:   accessToken,
+	BaseURL: "https://data.sandbox.alpaca.markets",
+})
+```
+
+For legacy Basic Auth on Market Data requests, use the `BrokerKey` and `BrokerSecret` fields and leave both `OAuth` and `APCA_API_OAUTH` unset because Bearer authentication takes precedence. These fields select the request authentication method; they do not add Broker API resource methods.
+
+Broker integrations use sandbox or production environments:
+
+- `https://broker-api.sandbox.alpaca.markets` for sandbox Broker API resources
+- `https://broker-api.alpaca.markets` for production Broker API resources
+- `https://data.sandbox.alpaca.markets` for sandbox broker-authenticated Market Data
+- `https://data.alpaca.markets` for production broker-authenticated Market Data
 
 ## Documentation
 
-For a more in-depth look at the SDK, see the [package documentation](https://pkg.go.dev/github.com/alpacahq/alpaca-trade-api-go/v3).
+- [Alpaca API documentation](https://docs.alpaca.markets/)
+- [Go package documentation](https://pkg.go.dev/github.com/alpacahq/alpaca-trade-api-go/v3)
+- [Go SDK examples](https://github.com/alpacahq/alpaca-trade-api-go/tree/master/examples)
+
+## Build from source
+
+Build and test the SDK with the repository's standard commands:
+
+```sh
+go build -v ./...
+make test
+make lint
+```
+
+The `make lint` target installs the linter version pinned by the repository workflow before running it. When entity definitions change, regenerate easyjson files:
+
+```sh
+make generate
+```
 
 ## Support
 

@@ -32,11 +32,9 @@ type algo struct {
 }
 
 func main() {
-	// You can set your API key/secret here or you can use environment variables!
-	apiKey := ""
-	apiSecret := ""
-	// Change baseURL to https://paper-api.alpaca.markets if you want use paper!
-	baseURL := ""
+	apiKey := os.Getenv("APCA_API_KEY_ID")
+	apiSecret := os.Getenv("APCA_API_SECRET_KEY")
+	baseURL := "https://paper-api.alpaca.markets"
 	// Change feed to sip if you have proper subscription
 	feed := "iex"
 

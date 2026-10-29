@@ -28,7 +28,7 @@ body:
       options:
         - Trading REST
         - Market Data REST
-        - Trading WebSocket stream
+        - Trading updates stream (SSE)
         - Market Data WebSocket stream
         - Authentication or configuration
         - Go module or runtime compatibility
