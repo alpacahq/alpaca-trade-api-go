@@ -1,6 +1,6 @@
 # Examples
 
-This directory contains example trading algorithms that connect to the paper-trading API.  These scripts are meant as simple Go executibles, where you install the Alpaca package and build and run your Go executible.  Please note you will need to replace the `API_KEY` and `API_SECRET` parameters at the top of the file with your own information from the [Alpaca dashboard](https://app.alpaca.markets/).  Alternatively, you can set your environment variables "APCA_API_KEY_ID" and "APCA_API_SECRET_KEY", and the script will read your keys from there.  Please also note that the performance of these scripts in a real trading environment is not guaranteed. While they are written with the goal of showing realistic uses of the SDK, there is no guarantee that the strategies they outline are a good fit for your own brokerage account.
+This directory contains runnable Go examples for the Alpaca SDK. Examples that can place or cancel orders explicitly connect to the paper-trading API and require paper-account credentials in the `APCA_API_KEY_ID` and `APCA_API_SECRET_KEY` environment variables. Do not paste credentials into source files. Regular paper accounts use the standard `data.alpaca.markets` host for Market Data, so a production Market Data hostname does not mean that an example can place live orders. These examples are educational and are not intended for unattended or live trading. Their strategies are not guaranteed to perform well or to be suitable for your account.
 
 ## Mean Reversion
 

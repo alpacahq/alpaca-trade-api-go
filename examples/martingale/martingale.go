@@ -43,10 +43,8 @@ var alpacaClient alpacaClientContainer
 // The MartingaleTrader bets that streaks of increases or decreases in a stock's
 // price are likely to break, and increases its bet each time it is wrong.
 func init() {
-	// You can set your API key/secret here or you can use environment variables!
-	apiKey := ""
-	apiSecret := ""
-	// Change this to https://api.alpaca.markets if you want to go live!
+	apiKey := os.Getenv("APCA_API_KEY_ID")
+	apiSecret := os.Getenv("APCA_API_SECRET_KEY")
 	baseURL := "https://paper-api.alpaca.markets"
 
 	// Check if user input a stock
