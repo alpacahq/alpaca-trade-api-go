@@ -44,13 +44,20 @@ type client struct {
 	pendingSubChangeMutex sync.Mutex
 	pendingSubChange      *subChangeRequest
 
-	connCreator func(ctx context.Context, u url.URL) (conn, error)
+	connCreatorMutex sync.RWMutex
+	connCreator      func(ctx context.Context, u url.URL) (conn, error)
+	timeAfter        func(time.Duration) <-chan time.Time
+	pingTicker       func() ticker
 }
 
 func newClient() *client {
 	return &client{
 		terminatedChan: make(chan error, 1),
 		subChanges:     make(chan []byte, 1),
+		timeAfter:      time.After,
+		pingTicker: func() ticker {
+			return &timeTicker{ticker: time.NewTicker(pingPeriod)}
+		},
 	}
 }
 
@@ -67,7 +74,26 @@ func (c *client) configure(o options) {
 	c.processorCount = o.processorCount
 	c.bufferSize = o.bufferSize
 	c.sub = o.sub
-	c.connCreator = o.connCreator
+	c.setConnCreator(o.connCreator)
+	if o.timeAfter != nil {
+		c.timeAfter = o.timeAfter
+	}
+	if o.pingTicker != nil {
+		c.pingTicker = o.pingTicker
+	}
+}
+
+func (c *client) setConnCreator(creator func(context.Context, url.URL) (conn, error)) {
+	c.connCreatorMutex.Lock()
+	defer c.connCreatorMutex.Unlock()
+	c.connCreator = creator
+}
+
+func (c *client) createConn(ctx context.Context, u url.URL) (conn, error) {
+	c.connCreatorMutex.RLock()
+	creator := c.connCreator
+	c.connCreatorMutex.RUnlock()
+	return creator(ctx, u)
 }
 
 // StocksClient is a client that connects to the Alpaca stream server
@@ -432,7 +458,7 @@ func (c *client) maintainConnection(ctx context.Context, u url.URL, initialResul
 			failedAttemptsInARow++
 			c.logger.Infof("datav2stream: connecting to %s, attempt %d/%d ...",
 				u.String(), failedAttemptsInARow, c.reconnectLimit)
-			conn, err := c.connCreator(ctx, u)
+			conn, err := c.createConn(ctx, u)
 			if err != nil {
 				connError = err
 				if isHTTP4xx(err) {
@@ -554,13 +580,9 @@ func wrapIrrecoverable(err error) error {
 	return fmt.Errorf("irrecoverable error: %w", err)
 }
 
-var newPingTicker = func() ticker {
-	return &timeTicker{ticker: time.NewTicker(pingPeriod)}
-}
-
 // connPinger periodically calls c.conn.Ping to ensure the connection is still alive
 func (c *client) connPinger(ctx context.Context, wg *sync.WaitGroup, closeCh <-chan struct{}) {
-	pingTicker := newPingTicker()
+	pingTicker := c.pingTicker()
 	defer func() {
 		pingTicker.Stop()
 		c.conn.close()

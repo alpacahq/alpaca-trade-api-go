@@ -255,8 +255,6 @@ func (s subscriptions) noSubscribeCallNecessary() bool {
 		len(s.orderbooks) == 0 && len(s.news) == 0 && len(s.pricing) == 0
 }
 
-var timeAfter = time.After
-
 func (c *client) handleSubChange(subscribe bool, changes subscriptions) error {
 	if !c.connectCalled {
 		return ErrSubscriptionChangeBeforeConnect
@@ -282,7 +280,7 @@ func (c *client) handleSubChange(subscribe bool, changes subscriptions) error {
 	select {
 	case err := <-request.result:
 		return err
-	case <-timeAfter(3 * time.Second):
+	case <-c.timeAfter(3 * time.Second):
 		c.pendingSubChangeMutex.Lock()
 		defer c.pendingSubChangeMutex.Unlock()
 		c.pendingSubChange = nil
