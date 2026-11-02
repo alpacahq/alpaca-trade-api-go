@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"sync"
+	"sync/atomic"
 )
 
 var (
@@ -17,7 +18,7 @@ type mockConn struct {
 	closeOnce    sync.Once
 	readCh       chan []byte
 	writeCh      chan []byte
-	pingDisabled bool
+	pingDisabled atomic.Bool
 }
 
 var _ conn = (*mockConn)(nil)
@@ -43,7 +44,7 @@ func (c *mockConn) close() error {
 }
 
 func (c *mockConn) ping(_ context.Context) error {
-	if c.pingDisabled {
+	if c.pingDisabled.Load() {
 		return errPingDisabled
 	}
 	select {

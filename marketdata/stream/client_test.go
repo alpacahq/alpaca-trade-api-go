@@ -459,15 +459,12 @@ func TestSubscriptionTimeout(t *testing.T) {
 	writeInitialFlowMessagesToConn(t, connection, subscriptions{})
 
 	mockTimeAfterCh := make(chan time.Time)
-	timeAfter = func(_ time.Duration) <-chan time.Time {
-		return mockTimeAfterCh
-	}
-	defer func() {
-		timeAfter = time.After
-	}()
 
 	c := NewStocksClient(marketdata.IEX,
 		WithCredentials("a", "b"),
+		withTimeAfter(func(_ time.Duration) <-chan time.Time {
+			return mockTimeAfterCh
+		}),
 		withConnCreator(func(_ context.Context, _ url.URL) (conn, error) {
 			return connection, nil
 		}))
@@ -578,9 +575,9 @@ func TestSubscriptionAcrossConnectionIssues(t *testing.T) {
 	// shutting down the first connection
 	conn2 := newMockConn()
 	writeInitialFlowMessagesToConn(t, conn2, subscriptions{})
-	c.connCreator = func(_ context.Context, _ url.URL) (conn, error) {
+	c.setConnCreator(func(_ context.Context, _ url.URL) (conn, error) {
 		return conn2, nil
-	}
+	})
 	conn1.close()
 
 	// checking whether the client sent what we wanted it to (auth,sub1,sub2)
@@ -604,11 +601,11 @@ func TestSubscriptionAcrossConnectionIssues(t *testing.T) {
 	// the connection is shut down and the new one isn't established for a while
 	conn3 := newMockConn()
 	defer conn3.close()
-	c.connCreator = func(_ context.Context, _ url.URL) (conn, error) {
+	c.setConnCreator(func(_ context.Context, _ url.URL) (conn, error) {
 		time.Sleep(100 * time.Millisecond)
 		writeInitialFlowMessagesToConn(t, conn3, subscriptions{trades: trades1})
 		return conn3, nil
-	}
+	})
 	conn2.close()
 
 	// call an unsubscribe with the connection being down
@@ -638,12 +635,6 @@ func TestSubscriptionAcrossConnectionIssues(t *testing.T) {
 
 func TestSubscriptionTwiceAcrossConnectionIssues(t *testing.T) {
 	mockTimeAfterCh := make(chan time.Time)
-	timeAfter = func(_ time.Duration) <-chan time.Time {
-		return mockTimeAfterCh
-	}
-	defer func() {
-		timeAfter = time.After
-	}()
 
 	conn1 := newMockConn()
 	writeInitialFlowMessagesToConn(t, conn1, subscriptions{})
@@ -664,6 +655,9 @@ func TestSubscriptionTwiceAcrossConnectionIssues(t *testing.T) {
 	secret := "testsecret"
 	c := NewStocksClient(marketdata.IEX,
 		WithCredentials(key, secret),
+		withTimeAfter(func(_ time.Duration) <-chan time.Time {
+			return mockTimeAfterCh
+		}),
 		withConnCreator(func(_ context.Context, _ url.URL) (conn, error) {
 			return conn1, nil
 		}),
@@ -702,9 +696,9 @@ func TestSubscriptionTwiceAcrossConnectionIssues(t *testing.T) {
 	require.NoError(t, err)
 
 	// shutting down the first connection
-	c.connCreator = func(_ context.Context, _ url.URL) (conn, error) {
+	c.setConnCreator(func(_ context.Context, _ url.URL) (conn, error) {
 		return nil, errors.New("connection failed")
-	}
+	})
 	conn1.close()
 	// wait disconnect callback
 	<-disconnected
@@ -728,9 +722,9 @@ func TestSubscriptionTwiceAcrossConnectionIssues(t *testing.T) {
 	// establish 2nd connection
 	conn2 := newMockConn()
 	writeInitialFlowMessagesToConn(t, conn2, subscriptions{trades: trades1})
-	c.connCreator = func(_ context.Context, _ url.URL) (conn, error) {
+	c.setConnCreator(func(_ context.Context, _ url.URL) (conn, error) {
 		return conn2, nil
-	}
+	})
 	// wait connect callback
 	<-connected
 
@@ -757,11 +751,11 @@ func TestSubscriptionTwiceAcrossConnectionIssues(t *testing.T) {
 	// the connection is shut down and the new one isn't established for a while
 	conn3 := newMockConn()
 	defer conn3.close()
-	c.connCreator = func(_ context.Context, _ url.URL) (conn, error) {
+	c.setConnCreator(func(_ context.Context, _ url.URL) (conn, error) {
 		time.Sleep(100 * time.Millisecond)
 		writeInitialFlowMessagesToConn(t, conn3, subscriptions{trades: trades1})
 		return conn3, nil
-	}
+	})
 	conn2.close()
 
 	// call an unsubscribe with the connection being down
@@ -966,20 +960,20 @@ func TestPingFails(t *testing.T) {
 			writeInitialFlowMessagesToConn(t, connection, subscriptions{})
 
 			testTicker := newTestTicker()
-			newPingTicker = func() ticker {
-				return testTicker
-			}
 
 			var c streamClient
 			switch tt.name {
 			case stocksTests:
-				c = NewStocksClient(marketdata.IEX, WithReconnectSettings(1, 0), withConnCreator(connCreator))
+				c = NewStocksClient(marketdata.IEX, WithReconnectSettings(1, 0),
+					withConnCreator(connCreator), withPingTicker(func() ticker { return testTicker }))
 			case cryptoTests:
 				c = NewCryptoClient(marketdata.US,
-					WithReconnectSettings(1, 0), withConnCreator(connCreator))
+					WithReconnectSettings(1, 0), withConnCreator(connCreator),
+					withPingTicker(func() ticker { return testTicker }))
 			case cryptoPerpTests:
 				c = NewCryptoClient(marketdata.GLOBAL,
-					WithReconnectSettings(1, 0), withConnCreator(connCreator))
+					WithReconnectSettings(1, 0), withConnCreator(connCreator),
+					withPingTicker(func() ticker { return testTicker }))
 			}
 
 			ctx, cancel := context.WithCancel(context.Background())
@@ -994,20 +988,20 @@ func TestPingFails(t *testing.T) {
 			//nolint:errcheck // False positive "error return value is not checked"
 			switch tt.name {
 			case stocksTests:
-				c.(*StocksClient).connCreator = func(_ context.Context, _ url.URL) (conn, error) {
+				c.(*StocksClient).setConnCreator(func(_ context.Context, _ url.URL) (conn, error) {
 					return nil, connErr
-				}
+				})
 			case cryptoTests:
-				c.(*CryptoClient).connCreator = func(_ context.Context, _ url.URL) (conn, error) {
+				c.(*CryptoClient).setConnCreator(func(_ context.Context, _ url.URL) (conn, error) {
 					return nil, connErr
-				}
+				})
 			case cryptoPerpTests:
-				c.(*CryptoClient).connCreator = func(_ context.Context, _ url.URL) (conn, error) {
+				c.(*CryptoClient).setConnCreator(func(_ context.Context, _ url.URL) (conn, error) {
 					return nil, connErr
-				}
+				})
 			}
 			// disabling ping (but not closing the connection altogether!)
-			connection.pingDisabled = true
+			connection.pingDisabled.Store(true)
 			// triggering a ping
 			testTicker.Tick()
 
