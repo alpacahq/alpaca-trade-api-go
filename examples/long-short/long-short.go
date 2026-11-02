@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"math"
+	"os"
 	"sort"
 	"time"
 
@@ -40,11 +41,9 @@ var algo longShortAlgo
 var hasSipAccess bool = false
 
 func init() {
-	// You can set your API key/secret here or you can use environment variables!
-	apiKey := ""
-	apiSecret := ""
-	// Change baseURL to https://paper-api.alpaca.markets if you want use paper!
-	baseURL := ""
+	apiKey := os.Getenv("APCA_API_KEY_ID")
+	apiSecret := os.Getenv("APCA_API_SECRET_KEY")
+	baseURL := "https://paper-api.alpaca.markets"
 
 	// Format the allStocks variable for use in the class.
 	allStocks := []stockField{}

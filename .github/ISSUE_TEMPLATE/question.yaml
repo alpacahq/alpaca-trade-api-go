@@ -1,0 +1,54 @@
+name: ❓ Question about the SDK
+description: Ask about the Alpaca Go SDK after checking the documentation
+title: "[Question]: "
+labels: [question]
+assignees: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Ask SDK-specific questions here in English. General API questions go to the [Community Forum](https://forum.alpaca.markets/) or [Slack](https://alpaca.markets/slack), and API bugs go to [alpacahq/alpaca-api](https://github.com/alpacahq/alpaca-api/issues/new/choose). Questions about your account, funding, or orders go to a [support request](https://alpaca.markets/support/request).
+
+        Never include API keys, account details, request or trace IDs, or other secrets.
+
+  - type: checkboxes
+    id: preflight
+    attributes:
+      label: Preflight
+      options:
+        - label: I searched the documentation and existing issues.
+          required: true
+        - label: My question has to do with this SDK and isn't a general question about the API. (General API questions go to the Community Forum or Slack, and API bugs go to alpacahq/alpaca-api.)
+          required: true
+        - label: My question is not asking for a trading strategy, algorithm design, or investment advice.
+          required: true
+
+  - type: input
+    id: sdk_version
+    attributes:
+      label: SDK version
+      description: Provide the installed version when the question concerns observed behavior.
+      placeholder: v3.11.0, or Not applicable
+
+  - type: input
+    id: environment
+    attributes:
+      label: Go and environment context
+      description: Include the Go version, OS, architecture, and affected package when relevant.
+      placeholder: go1.24.0 on darwin/arm64 using the alpaca package, or Not applicable
+
+  - type: textarea
+    id: question
+    attributes:
+      label: Question
+      description: Explain what you are trying to accomplish and what you already tried.
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: sensitive_data
+    attributes:
+      label: Sensitive-data check
+      options:
+        - label: I removed API keys, credentials, account details, and other secrets.
+          required: true
