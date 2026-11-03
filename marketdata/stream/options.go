@@ -42,6 +42,7 @@ type options struct {
 	reconnectDelay     time.Duration
 	connectCallback    func()
 	bufferFillCallback func([]byte)
+	rawMessageHandler  func([]byte)
 	disconnectCallback func()
 	processorCount     int
 	bufferSize         int
@@ -132,6 +133,20 @@ func WithConnectCallback(callback func()) Option {
 func WithBufferFillCallback(callback func(msg []byte)) Option {
 	return newFuncOption(func(o *options) {
 		o.bufferFillCallback = callback
+	})
+}
+
+// WithRawMessageHandler runs handler once for every complete WebSocket frame,
+// before the frame enters the client's processing buffer. The byte slice is an
+// exact copy of the received MessagePack frame and is owned by the handler.
+//
+// The handler executes on the socket reader goroutine and must return quickly;
+// callers should move the frame into their own bounded queue. This callback is
+// intended for lossless audit envelopes and protocol-drift detection. It is
+// invoked even when the normal processing buffer subsequently overflows.
+func WithRawMessageHandler(handler func(msg []byte)) Option {
+	return newFuncOption(func(o *options) {
+		o.rawMessageHandler = handler
 	})
 }
 
