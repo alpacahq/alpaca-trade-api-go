@@ -3,8 +3,11 @@ package alpaca
 import (
 	"context"
 	"fmt"
+	"log"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -70,4 +73,61 @@ func TestStreamTradeUpdates_Error(t *testing.T) {
 	assert.Equal(t, http.StatusUnauthorized, apiErr.StatusCode)
 	assert.Equal(t, 40110000, apiErr.Code)
 	assert.Equal(t, "req-stream", apiErr.RequestID)
+}
+
+func TestStreamTradeUpdatesInBackground_ReconnectsAfterServerClose(t *testing.T) {
+	var conns atomic.Int32
+	reconnected := make(chan string, 1)
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if conns.Add(1) == 1 {
+			// the server ends the stream cleanly after one update
+			fmt.Fprint(w, `data: {"at":"2023-01-20T01:02:03.456789Z","event":"new"}`+"\n\n")
+			return
+		}
+		select {
+		case reconnected <- r.URL.Query().Get("since"):
+		default:
+		}
+		<-r.Context().Done()
+	}))
+	defer ts.Close()
+
+	c := NewClient(ClientOpts{BaseURL: ts.URL})
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	c.StreamTradeUpdatesInBackground(ctx, func(TradeUpdate) {})
+
+	select {
+	case since := <-reconnected:
+		assert.Equal(t, "2023-01-20T01:02:03.456789001Z", since)
+	case <-time.After(2 * time.Second):
+		t.Fatalf("stream did not reconnect after the server closed it (connections: %d)", conns.Load())
+	}
+}
+
+type countingWriter struct{ n atomic.Int64 }
+
+func (w *countingWriter) Write(p []byte) (int, error) {
+	w.n.Add(1)
+	return len(p), nil
+}
+
+func TestStreamTradeUpdatesInBackground_StopsOnDeadline(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
+		<-r.Context().Done()
+	}))
+	defer ts.Close()
+
+	logs := &countingWriter{}
+	log.SetOutput(logs)
+	defer log.SetOutput(os.Stderr)
+
+	c := NewClient(ClientOpts{BaseURL: ts.URL})
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	defer cancel()
+	c.StreamTradeUpdatesInBackground(ctx, func(TradeUpdate) {})
+
+	<-ctx.Done()
+	time.Sleep(300 * time.Millisecond)
+	assert.Zero(t, logs.n.Load(), "kept retrying after the context deadline passed")
 }
