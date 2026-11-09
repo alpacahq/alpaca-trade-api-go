@@ -126,6 +126,7 @@ RetryLoop:
 		if i >= c.opts.RetryLimit {
 			break
 		}
+		closeResp(resp)
 		time.Sleep(c.opts.RetryDelay)
 	}
 
