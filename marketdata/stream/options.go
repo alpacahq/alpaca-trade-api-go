@@ -49,6 +49,8 @@ type options struct {
 
 	// for testing only
 	connCreator func(ctx context.Context, u url.URL) (conn, error)
+	timeAfter   func(time.Duration) <-chan time.Time
+	pingTicker  func() ticker
 }
 
 type funcOption struct {
@@ -165,6 +167,18 @@ func WithBufferSize(size int) Option {
 func withConnCreator(connCreator func(ctx context.Context, u url.URL) (conn, error)) Option {
 	return newFuncOption(func(o *options) {
 		o.connCreator = connCreator
+	})
+}
+
+func withTimeAfter(timeAfter func(time.Duration) <-chan time.Time) Option {
+	return newFuncOption(func(o *options) {
+		o.timeAfter = timeAfter
+	})
+}
+
+func withPingTicker(pingTicker func() ticker) Option {
+	return newFuncOption(func(o *options) {
+		o.pingTicker = pingTicker
 	})
 }
 
