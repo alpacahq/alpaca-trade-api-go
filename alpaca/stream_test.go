@@ -6,7 +6,6 @@ import (
 	"log"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -118,16 +117,17 @@ func TestStreamTradeUpdatesInBackground_StopsOnDeadline(t *testing.T) {
 	}))
 	defer ts.Close()
 
+	// This test must not run in parallel because it changes the default logger.
 	logs := &countingWriter{}
+	defer log.SetOutput(log.Writer())
 	log.SetOutput(logs)
-	defer log.SetOutput(os.Stderr)
 
 	c := NewClient(ClientOpts{BaseURL: ts.URL})
-	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
 	defer cancel()
 	c.StreamTradeUpdatesInBackground(ctx, func(TradeUpdate) {})
 
 	<-ctx.Done()
-	time.Sleep(300 * time.Millisecond)
+	time.Sleep(100 * time.Millisecond)
 	assert.Zero(t, logs.n.Load(), "kept retrying after the context deadline passed")
 }
