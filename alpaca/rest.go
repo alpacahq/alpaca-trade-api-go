@@ -30,6 +30,8 @@ type ClientOpts struct {
 	RetryDelay   time.Duration
 	// HTTPClient to be used for each http request.
 	HTTPClient *http.Client
+	// HTTPCallback is a user defined callback to execute on the raw http.Response
+	HTTPCallback func(*http.Request, *http.Response)
 }
 
 // Client is the alpaca trading client
@@ -104,6 +106,9 @@ func defaultDo(c *Client, req *http.Request) (*http.Response, error) {
 		resp, err = c.httpClient.Do(req)
 		if err != nil {
 			return nil, err
+		}
+		if c.opts.HTTPCallback != nil {
+			c.opts.HTTPCallback(req, resp)
 		}
 		if resp.StatusCode != http.StatusTooManyRequests {
 			break
