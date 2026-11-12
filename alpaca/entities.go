@@ -117,19 +117,23 @@ type Position struct {
 type positionSlice []Position
 
 type Asset struct {
-	ID                           string      `json:"id"`
-	Class                        AssetClass  `json:"class"`
-	Exchange                     string      `json:"exchange"`
-	Symbol                       string      `json:"symbol"`
-	Name                         string      `json:"name"`
-	Status                       AssetStatus `json:"status"`
-	Tradable                     bool        `json:"tradable"`
-	Marginable                   bool        `json:"marginable"`
-	MaintenanceMarginRequirement uint        `json:"maintenance_margin_requirement"`
-	Shortable                    bool        `json:"shortable"`
-	EasyToBorrow                 bool        `json:"easy_to_borrow"`
-	Fractionable                 bool        `json:"fractionable"`
-	Attributes                   []string    `json:"attributes"`
+	ID                           string          `json:"id"`
+	Class                        AssetClass      `json:"class"`
+	CUSIP                        string          `json:"cusip"`
+	Exchange                     string          `json:"exchange"`
+	Symbol                       string          `json:"symbol"`
+	Name                         string          `json:"name"`
+	Status                       AssetStatus     `json:"status"`
+	Tradable                     bool            `json:"tradable"`
+	Marginable                   bool            `json:"marginable"`
+	Shortable                    bool            `json:"shortable"`
+	EasyToBorrow                 bool            `json:"easy_to_borrow"`
+	Fractionable                 bool            `json:"fractionable"`
+	// Deprecated: Please use margin_requirement_long or margin_requirement_short instead. Note that these fields are of type string.
+	MaintenanceMarginRequirement uint            `json:"maintenance_margin_requirement"`
+	MarginRequirementLong        decimal.Decimal `json:"margin_requirement_long"`
+	MarginRequirementShort       decimal.Decimal `json:"margin_requirement_short"`
+	Attributes                   []string        `json:"attributes"`
 }
 
 //easyjson:json
@@ -147,6 +151,7 @@ type AssetClass string
 const (
 	USEquity AssetClass = "us_equity"
 	Crypto   AssetClass = "crypto"
+	USOption AssetClass = "us_option"
 )
 
 type CalendarDay struct {
