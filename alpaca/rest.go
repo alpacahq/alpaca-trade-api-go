@@ -100,6 +100,7 @@ func defaultDo(c *Client, req *http.Request) (*http.Response, error) {
 
 	var resp *http.Response
 	var err error
+RetryLoop:
 	for i := 0; ; i++ {
 		resp, err = c.httpClient.Do(req)
 		if err != nil {
@@ -110,6 +111,11 @@ func defaultDo(c *Client, req *http.Request) (*http.Response, error) {
 		}
 		if i >= c.opts.RetryLimit {
 			break
+		}
+		switch req.Method {
+		case http.MethodGet, http.MethodHead, http.MethodOptions, http.MethodTrace:
+		default:
+			break RetryLoop
 		}
 		closeResp(resp)
 		time.Sleep(c.opts.RetryDelay)
