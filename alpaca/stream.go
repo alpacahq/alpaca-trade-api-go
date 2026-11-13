@@ -111,10 +111,12 @@ func (c *Client) StreamTradeUpdatesInBackground(ctx context.Context, handler fun
 				lastMessage = tu.At
 				handler(tu)
 			}, req)
-			if err == nil || errors.Is(err, context.Canceled) {
+			if ctx.Err() != nil {
 				return
 			}
-			log.Printf("alpaca stream trade updates error: %v", err)
+			if err != nil {
+				log.Printf("alpaca stream trade updates error: %v", err)
+			}
 		}
 	}()
 }
