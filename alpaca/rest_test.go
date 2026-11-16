@@ -11,6 +11,7 @@ import (
 	"net/http/httptest"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -129,6 +130,26 @@ func TestDefaultDo_TooManyRetries(t *testing.T) {
 	require.NoError(t, err)
 	_, err = defaultDo(c, req)
 	require.Error(t, err)
+}
+
+func TestDefaultDo_NoRetryForPost(t *testing.T) {
+	var requests atomic.Int32
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		requests.Add(1)
+		http.Error(w, "too many requests", http.StatusTooManyRequests)
+	}))
+	defer ts.Close()
+	c := NewClient(ClientOpts{
+		RetryDelay: time.Nanosecond,
+		RetryLimit: 3,
+	})
+	req, err := http.NewRequest(http.MethodPost, ts.URL, strings.NewReader(`{"symbol":"AAPL"}`))
+	require.NoError(t, err)
+	_, err = defaultDo(c, req)
+	var apiErr *APIError
+	require.ErrorAs(t, err, &apiErr)
+	assert.Equal(t, http.StatusTooManyRequests, apiErr.StatusCode)
+	assert.EqualValues(t, 1, requests.Load())
 }
 
 func TestDefaultDo_Error(t *testing.T) {
