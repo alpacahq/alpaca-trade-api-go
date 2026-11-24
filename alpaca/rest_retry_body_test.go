@@ -117,6 +117,7 @@ func TestDefaultDo_ClosesRateLimitedBodyBeforeRetry(t *testing.T) {
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
 	b, err := io.ReadAll(resp.Body)
 	require.NoError(t, err)
+	//nolint:testifylint // Exact bytes prove retries preserve the response body unchanged.
 	assert.Equal(t, `{"id":"acct-1"}`, string(b))
 }
 
