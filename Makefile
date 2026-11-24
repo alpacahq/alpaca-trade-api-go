@@ -8,6 +8,7 @@ help:  ## Display this help
 GOLANGCI_LINT_VERSION := $(shell sed -n '/golangci-lint-action/,/version:/s/.*version: \(v[0-9.]*\).*/\1/p' .github/workflows/go.yml)
 GO_BIN_DIR := $(shell go env GOBIN)
 EASYJSON_VERSION := v0.7.7
+EASYJSON_DIRECTIVE_PATTERN := ^//go:generate easyjson[[:space:]]
 ifeq ($(GO_BIN_DIR),)
 GO_BIN_DIR := $(shell go env GOPATH)/bin
 endif
@@ -24,10 +25,20 @@ generate-easyjson: ## Generate easyjson for SDK entity types
 	cp go.sum "$$easyjson_tmp/easyjson.sum"; \
 	GOWORK=off go mod edit -modfile="$$easyjson_tmp/easyjson.mod" \
 		-require=github.com/mailru/easyjson@$(EASYJSON_VERSION); \
+	GOWORK=off go mod download -modfile="$$easyjson_tmp/easyjson.mod" \
+		github.com/mailru/easyjson; \
 	GOBIN="$$easyjson_tmp/bin" GOWORK=off \
 		go install github.com/mailru/easyjson/easyjson@$(EASYJSON_VERSION); \
-	GOWORK=off PATH="$$easyjson_tmp/bin:$$PATH" \
-		go generate -modfile="$$easyjson_tmp/easyjson.mod" -run='^easyjson ' ./...
+	easyjson_commands="$$(GOWORK=off GOFLAGS="-modfile=$$easyjson_tmp/easyjson.mod" \
+		PATH="$$easyjson_tmp/bin:$$PATH" go generate -n \
+		-run='$(EASYJSON_DIRECTIVE_PATTERN)' ./... 2>&1)"; \
+	if [ -z "$$easyjson_commands" ]; then \
+		echo "no easyjson directives matched $(EASYJSON_DIRECTIVE_PATTERN)" >&2; \
+		exit 1; \
+	fi; \
+	GOWORK=off GOFLAGS="-modfile=$$easyjson_tmp/easyjson.mod" \
+		PATH="$$easyjson_tmp/bin:$$PATH" go generate \
+		-run='$(EASYJSON_DIRECTIVE_PATTERN)' ./...
 
 .PHONY: golangci-lint
 golangci-lint:

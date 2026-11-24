@@ -6,8 +6,10 @@ Run `make generate-easyjson` to regenerate the SDK entity serializers. The targe
 
 - copies the current root module files into a temporary directory
 - overrides only easyjson to 0.7.7 in that temporary module graph
+- propagates the temporary graph to easyjson's bootstrap process
 - installs the easyjson executable into a temporary `GOBIN`
 - discovers and runs every easyjson directive
+- fails if no easyjson directives match
 - removes the temporary generation environment when it finishes
 
 The root `generate` target depends on `generate-easyjson`. Other generators can use separate targets and their current dependency graphs.
