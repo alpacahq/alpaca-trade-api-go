@@ -29,14 +29,14 @@ generate-easyjson: ## Generate easyjson for SDK entity types
 		github.com/mailru/easyjson; \
 	GOBIN="$$easyjson_tmp/bin" GOWORK=off \
 		go install github.com/mailru/easyjson/easyjson@$(EASYJSON_VERSION); \
-	easyjson_commands="$$(GOWORK=off GOFLAGS="-modfile=$$easyjson_tmp/easyjson.mod" \
+	easyjson_commands="$$(GOWORK=off GOFLAGS="'-modfile=$$easyjson_tmp/easyjson.mod'" \
 		PATH="$$easyjson_tmp/bin:$$PATH" go generate -n \
 		-run='$(EASYJSON_DIRECTIVE_PATTERN)' ./... 2>&1)"; \
 	if [ -z "$$easyjson_commands" ]; then \
 		echo "no easyjson directives matched $(EASYJSON_DIRECTIVE_PATTERN)" >&2; \
 		exit 1; \
 	fi; \
-	GOWORK=off GOFLAGS="-modfile=$$easyjson_tmp/easyjson.mod" \
+	GOWORK=off GOFLAGS="'-modfile=$$easyjson_tmp/easyjson.mod'" \
 		PATH="$$easyjson_tmp/bin:$$PATH" go generate \
 		-run='$(EASYJSON_DIRECTIVE_PATTERN)' ./...
 
