@@ -13,7 +13,7 @@ endif
 
 .PHONY: generate
 generate: ## Generate easyjson
-	PATH="$(GO_BIN_DIR):$$PATH" go generate ./...
+	go generate ./...
 
 .PHONY: golangci-lint
 golangci-lint:

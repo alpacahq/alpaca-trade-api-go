@@ -30,15 +30,14 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3MarketdataStream(i
 	for !in.IsDelim('}') {
 		key := in.UnsafeFieldName(false)
 		in.WantColon()
-		if in.IsNull() {
-			in.Skip()
-			in.WantComma()
-			continue
-		}
 		switch key {
 		case "received_at":
-			if data := in.Raw(); in.Ok() {
-				in.AddError((out.ReceivedAt).UnmarshalJSON(data))
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				if data := in.Raw(); in.Ok() {
+					in.AddError((out.ReceivedAt).UnmarshalJSON(data))
+				}
 			}
 		default:
 			in.SkipRecursive()
@@ -98,15 +97,14 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3MarketdataStream1(
 	for !in.IsDelim('}') {
 		key := in.UnsafeFieldName(false)
 		in.WantColon()
-		if in.IsNull() {
-			in.Skip()
-			in.WantComma()
-			continue
-		}
 		switch key {
 		case "received_at":
-			if data := in.Raw(); in.Ok() {
-				in.AddError((out.ReceivedAt).UnmarshalJSON(data))
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				if data := in.Raw(); in.Ok() {
+					in.AddError((out.ReceivedAt).UnmarshalJSON(data))
+				}
 			}
 		default:
 			in.SkipRecursive()
@@ -166,11 +164,6 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3MarketdataStream2(
 	for !in.IsDelim('}') {
 		key := in.UnsafeFieldName(false)
 		in.WantColon()
-		if in.IsNull() {
-			in.Skip()
-			in.WantComma()
-			continue
-		}
 		switch key {
 		default:
 			in.SkipRecursive()
@@ -225,28 +218,51 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3MarketdataStream3(
 	for !in.IsDelim('}') {
 		key := in.UnsafeFieldName(false)
 		in.WantColon()
-		if in.IsNull() {
-			in.Skip()
-			in.WantComma()
-			continue
-		}
 		switch key {
 		case "symbol":
-			out.Symbol = string(in.String())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.Symbol = string(in.String())
+			}
 		case "status_code":
-			out.StatusCode = string(in.String())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.StatusCode = string(in.String())
+			}
 		case "status_msg":
-			out.StatusMsg = string(in.String())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.StatusMsg = string(in.String())
+			}
 		case "reason_code":
-			out.ReasonCode = string(in.String())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.ReasonCode = string(in.String())
+			}
 		case "reason_msg":
-			out.ReasonMsg = string(in.String())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.ReasonMsg = string(in.String())
+			}
 		case "timestamp":
-			if data := in.Raw(); in.Ok() {
-				in.AddError((out.Timestamp).UnmarshalJSON(data))
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				if data := in.Raw(); in.Ok() {
+					in.AddError((out.Timestamp).UnmarshalJSON(data))
+				}
 			}
 		case "tape":
-			out.Tape = string(in.String())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.Tape = string(in.String())
+			}
 		default:
 			in.SkipRecursive()
 		}
@@ -335,22 +351,37 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3MarketdataStream4(
 	for !in.IsDelim('}') {
 		key := in.UnsafeFieldName(false)
 		in.WantColon()
-		if in.IsNull() {
-			in.Skip()
-			in.WantComma()
-			continue
-		}
 		switch key {
 		case "symbol":
-			out.Symbol = string(in.String())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.Symbol = string(in.String())
+			}
 		case "exchange":
-			out.Exchange = string(in.String())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.Exchange = string(in.String())
+			}
 		case "original_id":
-			out.OriginalID = int64(in.Int64())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.OriginalID = int64(in.Int64())
+			}
 		case "original_price":
-			out.OriginalPrice = float64(in.Float64())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.OriginalPrice = float64(in.Float64())
+			}
 		case "original_size":
-			out.OriginalSize = uint32(in.Uint32())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.OriginalSize = uint32(in.Uint32())
+			}
 		case "original_conditions":
 			if in.IsNull() {
 				in.Skip()
@@ -368,18 +399,34 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3MarketdataStream4(
 				}
 				for !in.IsDelim(']') {
 					var v1 string
-					v1 = string(in.String())
+					if in.IsNull() {
+						in.Skip()
+					} else {
+						v1 = string(in.String())
+					}
 					out.OriginalConditions = append(out.OriginalConditions, v1)
 					in.WantComma()
 				}
 				in.Delim(']')
 			}
 		case "corrected_id":
-			out.CorrectedID = int64(in.Int64())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.CorrectedID = int64(in.Int64())
+			}
 		case "corrected_price":
-			out.CorrectedPrice = float64(in.Float64())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.CorrectedPrice = float64(in.Float64())
+			}
 		case "corrected_size":
-			out.CorrectedSize = uint32(in.Uint32())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.CorrectedSize = uint32(in.Uint32())
+			}
 		case "corrected_conditions":
 			if in.IsNull() {
 				in.Skip()
@@ -397,17 +444,29 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3MarketdataStream4(
 				}
 				for !in.IsDelim(']') {
 					var v2 string
-					v2 = string(in.String())
+					if in.IsNull() {
+						in.Skip()
+					} else {
+						v2 = string(in.String())
+					}
 					out.CorrectedConditions = append(out.CorrectedConditions, v2)
 					in.WantComma()
 				}
 				in.Delim(']')
 			}
 		case "tape":
-			out.Tape = string(in.String())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.Tape = string(in.String())
+			}
 		case "timestamp":
-			if data := in.Raw(); in.Ok() {
-				in.AddError((out.Timestamp).UnmarshalJSON(data))
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				if data := in.Raw(); in.Ok() {
+					in.AddError((out.Timestamp).UnmarshalJSON(data))
+				}
 			}
 		default:
 			in.SkipRecursive()
@@ -544,29 +603,56 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3MarketdataStream5(
 	for !in.IsDelim('}') {
 		key := in.UnsafeFieldName(false)
 		in.WantColon()
-		if in.IsNull() {
-			in.Skip()
-			in.WantComma()
-			continue
-		}
 		switch key {
 		case "symbol":
-			out.Symbol = string(in.String())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.Symbol = string(in.String())
+			}
 		case "id":
-			out.ID = int64(in.Int64())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.ID = int64(in.Int64())
+			}
 		case "exchange":
-			out.Exchange = string(in.String())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.Exchange = string(in.String())
+			}
 		case "price":
-			out.Price = float64(in.Float64())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.Price = float64(in.Float64())
+			}
 		case "size":
-			out.Size = uint32(in.Uint32())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.Size = uint32(in.Uint32())
+			}
 		case "cancel_error_action":
-			out.CancelErrorAction = string(in.String())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.CancelErrorAction = string(in.String())
+			}
 		case "tape":
-			out.Tape = string(in.String())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.Tape = string(in.String())
+			}
 		case "timestamp":
-			if data := in.Raw(); in.Ok() {
-				in.AddError((out.Timestamp).UnmarshalJSON(data))
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				if data := in.Raw(); in.Ok() {
+					in.AddError((out.Timestamp).UnmarshalJSON(data))
+				}
 			}
 		default:
 			in.SkipRecursive()
@@ -661,25 +747,44 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3MarketdataStream6(
 	for !in.IsDelim('}') {
 		key := in.UnsafeFieldName(false)
 		in.WantColon()
-		if in.IsNull() {
-			in.Skip()
-			in.WantComma()
-			continue
-		}
 		switch key {
 		case "id":
-			out.ID = int64(in.Int64())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.ID = int64(in.Int64())
+			}
 		case "symbol":
-			out.Symbol = string(in.String())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.Symbol = string(in.String())
+			}
 		case "exchange":
-			out.Exchange = string(in.String())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.Exchange = string(in.String())
+			}
 		case "price":
-			out.Price = float64(in.Float64())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.Price = float64(in.Float64())
+			}
 		case "size":
-			out.Size = uint32(in.Uint32())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.Size = uint32(in.Uint32())
+			}
 		case "timestamp":
-			if data := in.Raw(); in.Ok() {
-				in.AddError((out.Timestamp).UnmarshalJSON(data))
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				if data := in.Raw(); in.Ok() {
+					in.AddError((out.Timestamp).UnmarshalJSON(data))
+				}
 			}
 		case "conditions":
 			if in.IsNull() {
@@ -698,14 +803,22 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3MarketdataStream6(
 				}
 				for !in.IsDelim(']') {
 					var v7 string
-					v7 = string(in.String())
+					if in.IsNull() {
+						in.Skip()
+					} else {
+						v7 = string(in.String())
+					}
 					out.Conditions = append(out.Conditions, v7)
 					in.WantComma()
 				}
 				in.Delim(']')
 			}
 		case "tape":
-			out.Tape = string(in.String())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.Tape = string(in.String())
+			}
 		default:
 			in.SkipRecursive()
 		}
@@ -810,29 +923,56 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3MarketdataStream7(
 	for !in.IsDelim('}') {
 		key := in.UnsafeFieldName(false)
 		in.WantColon()
-		if in.IsNull() {
-			in.Skip()
-			in.WantComma()
-			continue
-		}
 		switch key {
 		case "symbol":
-			out.Symbol = string(in.String())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.Symbol = string(in.String())
+			}
 		case "bid_exchange":
-			out.BidExchange = string(in.String())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.BidExchange = string(in.String())
+			}
 		case "bid_price":
-			out.BidPrice = float64(in.Float64())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.BidPrice = float64(in.Float64())
+			}
 		case "bid_size":
-			out.BidSize = uint32(in.Uint32())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.BidSize = uint32(in.Uint32())
+			}
 		case "ask_exchange":
-			out.AskExchange = string(in.String())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.AskExchange = string(in.String())
+			}
 		case "ask_price":
-			out.AskPrice = float64(in.Float64())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.AskPrice = float64(in.Float64())
+			}
 		case "ask_size":
-			out.AskSize = uint32(in.Uint32())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.AskSize = uint32(in.Uint32())
+			}
 		case "timestamp":
-			if data := in.Raw(); in.Ok() {
-				in.AddError((out.Timestamp).UnmarshalJSON(data))
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				if data := in.Raw(); in.Ok() {
+					in.AddError((out.Timestamp).UnmarshalJSON(data))
+				}
 			}
 		case "conditions":
 			if in.IsNull() {
@@ -851,14 +991,22 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3MarketdataStream7(
 				}
 				for !in.IsDelim(']') {
 					var v10 string
-					v10 = string(in.String())
+					if in.IsNull() {
+						in.Skip()
+					} else {
+						v10 = string(in.String())
+					}
 					out.Conditions = append(out.Conditions, v10)
 					in.WantComma()
 				}
 				in.Delim(']')
 			}
 		case "tape":
-			out.Tape = string(in.String())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.Tape = string(in.String())
+			}
 		default:
 			in.SkipRecursive()
 		}
@@ -973,26 +1121,45 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3MarketdataStream8(
 	for !in.IsDelim('}') {
 		key := in.UnsafeFieldName(false)
 		in.WantColon()
-		if in.IsNull() {
-			in.Skip()
-			in.WantComma()
-			continue
-		}
 		switch key {
 		case "symbol":
-			out.Symbol = string(in.String())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.Symbol = string(in.String())
+			}
 		case "exchange":
-			out.Exchange = string(in.String())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.Exchange = string(in.String())
+			}
 		case "price":
-			out.Price = float64(in.Float64())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.Price = float64(in.Float64())
+			}
 		case "size":
-			out.Size = uint32(in.Uint32())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.Size = uint32(in.Uint32())
+			}
 		case "timestamp":
-			if data := in.Raw(); in.Ok() {
-				in.AddError((out.Timestamp).UnmarshalJSON(data))
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				if data := in.Raw(); in.Ok() {
+					in.AddError((out.Timestamp).UnmarshalJSON(data))
+				}
 			}
 		case "condition":
-			out.Condition = string(in.String())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.Condition = string(in.String())
+			}
 		default:
 			in.SkipRecursive()
 		}
@@ -1076,32 +1243,63 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3MarketdataStream9(
 	for !in.IsDelim('}') {
 		key := in.UnsafeFieldName(false)
 		in.WantColon()
-		if in.IsNull() {
-			in.Skip()
-			in.WantComma()
-			continue
-		}
 		switch key {
 		case "symbol":
-			out.Symbol = string(in.String())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.Symbol = string(in.String())
+			}
 		case "bid_exchange":
-			out.BidExchange = string(in.String())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.BidExchange = string(in.String())
+			}
 		case "bid_price":
-			out.BidPrice = float64(in.Float64())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.BidPrice = float64(in.Float64())
+			}
 		case "bid_size":
-			out.BidSize = uint32(in.Uint32())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.BidSize = uint32(in.Uint32())
+			}
 		case "ask_exchange":
-			out.AskExchange = string(in.String())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.AskExchange = string(in.String())
+			}
 		case "ask_price":
-			out.AskPrice = float64(in.Float64())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.AskPrice = float64(in.Float64())
+			}
 		case "ask_size":
-			out.AskSize = uint32(in.Uint32())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.AskSize = uint32(in.Uint32())
+			}
 		case "timestamp":
-			if data := in.Raw(); in.Ok() {
-				in.AddError((out.Timestamp).UnmarshalJSON(data))
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				if data := in.Raw(); in.Ok() {
+					in.AddError((out.Timestamp).UnmarshalJSON(data))
+				}
 			}
 		case "condition":
-			out.Condition = string(in.String())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.Condition = string(in.String())
+			}
 		default:
 			in.SkipRecursive()
 		}
@@ -1200,32 +1398,59 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3MarketdataStream10
 	for !in.IsDelim('}') {
 		key := in.UnsafeFieldName(false)
 		in.WantColon()
-		if in.IsNull() {
-			in.Skip()
-			in.WantComma()
-			continue
-		}
 		switch key {
 		case "id":
-			out.ID = int(in.Int())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.ID = int(in.Int())
+			}
 		case "author":
-			out.Author = string(in.String())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.Author = string(in.String())
+			}
 		case "created_at":
-			if data := in.Raw(); in.Ok() {
-				in.AddError((out.CreatedAt).UnmarshalJSON(data))
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				if data := in.Raw(); in.Ok() {
+					in.AddError((out.CreatedAt).UnmarshalJSON(data))
+				}
 			}
 		case "updated_at":
-			if data := in.Raw(); in.Ok() {
-				in.AddError((out.UpdatedAt).UnmarshalJSON(data))
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				if data := in.Raw(); in.Ok() {
+					in.AddError((out.UpdatedAt).UnmarshalJSON(data))
+				}
 			}
 		case "headline":
-			out.Headline = string(in.String())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.Headline = string(in.String())
+			}
 		case "summary":
-			out.Summary = string(in.String())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.Summary = string(in.String())
+			}
 		case "content":
-			out.Content = string(in.String())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.Content = string(in.String())
+			}
 		case "url":
-			out.URL = string(in.String())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.URL = string(in.String())
+			}
 		case "symbols":
 			if in.IsNull() {
 				in.Skip()
@@ -1243,7 +1468,11 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3MarketdataStream10
 				}
 				for !in.IsDelim(']') {
 					var v13 string
-					v13 = string(in.String())
+					if in.IsNull() {
+						in.Skip()
+					} else {
+						v13 = string(in.String())
+					}
 					out.Symbols = append(out.Symbols, v13)
 					in.WantComma()
 				}
@@ -1358,26 +1587,45 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3MarketdataStream11
 	for !in.IsDelim('}') {
 		key := in.UnsafeFieldName(false)
 		in.WantColon()
-		if in.IsNull() {
-			in.Skip()
-			in.WantComma()
-			continue
-		}
 		switch key {
 		case "symbol":
-			out.Symbol = string(in.String())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.Symbol = string(in.String())
+			}
 		case "limit_up_price":
-			out.LimitUpPrice = float64(in.Float64())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.LimitUpPrice = float64(in.Float64())
+			}
 		case "limit_down_price":
-			out.LimitDownPrice = float64(in.Float64())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.LimitDownPrice = float64(in.Float64())
+			}
 		case "indicator":
-			out.Indicator = string(in.String())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.Indicator = string(in.String())
+			}
 		case "timestamp":
-			if data := in.Raw(); in.Ok() {
-				in.AddError((out.Timestamp).UnmarshalJSON(data))
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				if data := in.Raw(); in.Ok() {
+					in.AddError((out.Timestamp).UnmarshalJSON(data))
+				}
 			}
 		case "tape":
-			out.Tape = string(in.String())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.Tape = string(in.String())
+			}
 		default:
 			in.SkipRecursive()
 		}
@@ -1461,22 +1709,33 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3MarketdataStream12
 	for !in.IsDelim('}') {
 		key := in.UnsafeFieldName(false)
 		in.WantColon()
-		if in.IsNull() {
-			in.Skip()
-			in.WantComma()
-			continue
-		}
 		switch key {
 		case "symbol":
-			out.Symbol = string(in.String())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.Symbol = string(in.String())
+			}
 		case "price":
-			out.Price = float64(in.Float64())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.Price = float64(in.Float64())
+			}
 		case "timestamp":
-			if data := in.Raw(); in.Ok() {
-				in.AddError((out.Timestamp).UnmarshalJSON(data))
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				if data := in.Raw(); in.Ok() {
+					in.AddError((out.Timestamp).UnmarshalJSON(data))
+				}
 			}
 		case "tape":
-			out.Tape = string(in.String())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.Tape = string(in.String())
+			}
 		default:
 			in.SkipRecursive()
 		}
@@ -1550,28 +1809,51 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3MarketdataStream13
 	for !in.IsDelim('}') {
 		key := in.UnsafeFieldName(false)
 		in.WantColon()
-		if in.IsNull() {
-			in.Skip()
-			in.WantComma()
-			continue
-		}
 		switch key {
 		case "id":
-			out.ID = int64(in.Int64())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.ID = int64(in.Int64())
+			}
 		case "symbol":
-			out.Symbol = string(in.String())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.Symbol = string(in.String())
+			}
 		case "exchange":
-			out.Exchange = string(in.String())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.Exchange = string(in.String())
+			}
 		case "price":
-			out.Price = float64(in.Float64())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.Price = float64(in.Float64())
+			}
 		case "size":
-			out.Size = float64(in.Float64())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.Size = float64(in.Float64())
+			}
 		case "timestamp":
-			if data := in.Raw(); in.Ok() {
-				in.AddError((out.Timestamp).UnmarshalJSON(data))
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				if data := in.Raw(); in.Ok() {
+					in.AddError((out.Timestamp).UnmarshalJSON(data))
+				}
 			}
 		case "taker_side":
-			out.TakerSide = string(in.String())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.TakerSide = string(in.String())
+			}
 		default:
 			in.SkipRecursive()
 		}
@@ -1660,27 +1942,50 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3MarketdataStream14
 	for !in.IsDelim('}') {
 		key := in.UnsafeFieldName(false)
 		in.WantColon()
-		if in.IsNull() {
-			in.Skip()
-			in.WantComma()
-			continue
-		}
 		switch key {
 		case "symbol":
-			out.Symbol = string(in.String())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.Symbol = string(in.String())
+			}
 		case "exchange":
-			out.Exchange = string(in.String())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.Exchange = string(in.String())
+			}
 		case "bid_price":
-			out.BidPrice = float64(in.Float64())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.BidPrice = float64(in.Float64())
+			}
 		case "bid_size":
-			out.BidSize = float64(in.Float64())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.BidSize = float64(in.Float64())
+			}
 		case "ask_price":
-			out.AskPrice = float64(in.Float64())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.AskPrice = float64(in.Float64())
+			}
 		case "ask_size":
-			out.AskSize = float64(in.Float64())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.AskSize = float64(in.Float64())
+			}
 		case "timestamp":
-			if data := in.Raw(); in.Ok() {
-				in.AddError((out.Timestamp).UnmarshalJSON(data))
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				if data := in.Raw(); in.Ok() {
+					in.AddError((out.Timestamp).UnmarshalJSON(data))
+				}
 			}
 		default:
 			in.SkipRecursive()
@@ -1770,31 +2075,58 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3MarketdataStream15
 	for !in.IsDelim('}') {
 		key := in.UnsafeFieldName(false)
 		in.WantColon()
-		if in.IsNull() {
-			in.Skip()
-			in.WantComma()
-			continue
-		}
 		switch key {
 		case "symbol":
-			out.Symbol = string(in.String())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.Symbol = string(in.String())
+			}
 		case "timestamp":
-			if data := in.Raw(); in.Ok() {
-				in.AddError((out.Timestamp).UnmarshalJSON(data))
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				if data := in.Raw(); in.Ok() {
+					in.AddError((out.Timestamp).UnmarshalJSON(data))
+				}
 			}
 		case "exchange":
-			out.Exchange = string(in.String())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.Exchange = string(in.String())
+			}
 		case "index_price":
-			out.IndexPrice = float64(in.Float64())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.IndexPrice = float64(in.Float64())
+			}
 		case "mark_price":
-			out.MarkPrice = float64(in.Float64())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.MarkPrice = float64(in.Float64())
+			}
 		case "funding_rate":
-			out.FundingRate = float64(in.Float64())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.FundingRate = float64(in.Float64())
+			}
 		case "open_interest":
-			out.OpenInterest = float64(in.Float64())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.OpenInterest = float64(in.Float64())
+			}
 		case "next_funding_time":
-			if data := in.Raw(); in.Ok() {
-				in.AddError((out.NextFundingTime).UnmarshalJSON(data))
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				if data := in.Raw(); in.Ok() {
+					in.AddError((out.NextFundingTime).UnmarshalJSON(data))
+				}
 			}
 		default:
 			in.SkipRecursive()
@@ -1889,16 +2221,19 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3MarketdataStream16
 	for !in.IsDelim('}') {
 		key := in.UnsafeFieldName(false)
 		in.WantColon()
-		if in.IsNull() {
-			in.Skip()
-			in.WantComma()
-			continue
-		}
 		switch key {
 		case "price":
-			out.Price = float64(in.Float64())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.Price = float64(in.Float64())
+			}
 		case "size":
-			out.Size = float64(in.Float64())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.Size = float64(in.Float64())
+			}
 		default:
 			in.SkipRecursive()
 		}
@@ -1962,19 +2297,26 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3MarketdataStream17
 	for !in.IsDelim('}') {
 		key := in.UnsafeFieldName(false)
 		in.WantColon()
-		if in.IsNull() {
-			in.Skip()
-			in.WantComma()
-			continue
-		}
 		switch key {
 		case "symbol":
-			out.Symbol = string(in.String())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.Symbol = string(in.String())
+			}
 		case "exchange":
-			out.Exchange = string(in.String())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.Exchange = string(in.String())
+			}
 		case "timestamp":
-			if data := in.Raw(); in.Ok() {
-				in.AddError((out.Timestamp).UnmarshalJSON(data))
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				if data := in.Raw(); in.Ok() {
+					in.AddError((out.Timestamp).UnmarshalJSON(data))
+				}
 			}
 		case "bids":
 			if in.IsNull() {
@@ -1993,7 +2335,11 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3MarketdataStream17
 				}
 				for !in.IsDelim(']') {
 					var v16 CryptoOrderbookEntry
-					(v16).UnmarshalEasyJSON(in)
+					if in.IsNull() {
+						in.Skip()
+					} else {
+						(v16).UnmarshalEasyJSON(in)
+					}
 					out.Bids = append(out.Bids, v16)
 					in.WantComma()
 				}
@@ -2016,14 +2362,22 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3MarketdataStream17
 				}
 				for !in.IsDelim(']') {
 					var v17 CryptoOrderbookEntry
-					(v17).UnmarshalEasyJSON(in)
+					if in.IsNull() {
+						in.Skip()
+					} else {
+						(v17).UnmarshalEasyJSON(in)
+					}
 					out.Asks = append(out.Asks, v17)
 					in.WantComma()
 				}
 				in.Delim(']')
 			}
 		case "reset":
-			out.Reset = bool(in.Bool())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.Reset = bool(in.Bool())
+			}
 		default:
 			in.SkipRecursive()
 		}
@@ -2129,34 +2483,69 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3MarketdataStream18
 	for !in.IsDelim('}') {
 		key := in.UnsafeFieldName(false)
 		in.WantColon()
-		if in.IsNull() {
-			in.Skip()
-			in.WantComma()
-			continue
-		}
 		switch key {
 		case "symbol":
-			out.Symbol = string(in.String())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.Symbol = string(in.String())
+			}
 		case "exchange":
-			out.Exchange = string(in.String())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.Exchange = string(in.String())
+			}
 		case "open":
-			out.Open = float64(in.Float64())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.Open = float64(in.Float64())
+			}
 		case "high":
-			out.High = float64(in.Float64())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.High = float64(in.Float64())
+			}
 		case "low":
-			out.Low = float64(in.Float64())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.Low = float64(in.Float64())
+			}
 		case "close":
-			out.Close = float64(in.Float64())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.Close = float64(in.Float64())
+			}
 		case "volume":
-			out.Volume = float64(in.Float64())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.Volume = float64(in.Float64())
+			}
 		case "timestamp":
-			if data := in.Raw(); in.Ok() {
-				in.AddError((out.Timestamp).UnmarshalJSON(data))
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				if data := in.Raw(); in.Ok() {
+					in.AddError((out.Timestamp).UnmarshalJSON(data))
+				}
 			}
 		case "trade_count":
-			out.TradeCount = uint64(in.Uint64())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.TradeCount = uint64(in.Uint64())
+			}
 		case "vwap":
-			out.VWAP = float64(in.Float64())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.VWAP = float64(in.Float64())
+			}
 		default:
 			in.SkipRecursive()
 		}
@@ -2260,32 +2649,63 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3MarketdataStream19
 	for !in.IsDelim('}') {
 		key := in.UnsafeFieldName(false)
 		in.WantColon()
-		if in.IsNull() {
-			in.Skip()
-			in.WantComma()
-			continue
-		}
 		switch key {
 		case "symbol":
-			out.Symbol = string(in.String())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.Symbol = string(in.String())
+			}
 		case "open":
-			out.Open = float64(in.Float64())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.Open = float64(in.Float64())
+			}
 		case "high":
-			out.High = float64(in.Float64())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.High = float64(in.Float64())
+			}
 		case "low":
-			out.Low = float64(in.Float64())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.Low = float64(in.Float64())
+			}
 		case "close":
-			out.Close = float64(in.Float64())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.Close = float64(in.Float64())
+			}
 		case "volume":
-			out.Volume = uint64(in.Uint64())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.Volume = uint64(in.Uint64())
+			}
 		case "timestamp":
-			if data := in.Raw(); in.Ok() {
-				in.AddError((out.Timestamp).UnmarshalJSON(data))
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				if data := in.Raw(); in.Ok() {
+					in.AddError((out.Timestamp).UnmarshalJSON(data))
+				}
 			}
 		case "trade_count":
-			out.TradeCount = uint64(in.Uint64())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.TradeCount = uint64(in.Uint64())
+			}
 		case "vwap":
-			out.VWAP = float64(in.Float64())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.VWAP = float64(in.Float64())
+			}
 		default:
 			in.SkipRecursive()
 		}
