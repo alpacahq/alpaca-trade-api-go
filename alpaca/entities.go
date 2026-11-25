@@ -14,8 +14,7 @@ import (
 	"github.com/shopspring/decimal"
 )
 
-//go:generate go install github.com/mailru/easyjson/...@v0.7.7
-//go:generate easyjson -all -snake_case $GOFILE
+//go:generate go run github.com/mailru/easyjson/easyjson -all -snake_case $GOFILE
 
 type Account struct {
 	ID                    string          `json:"id"`

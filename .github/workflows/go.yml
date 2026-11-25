@@ -34,5 +34,4 @@ jobs:
       - name: Make sure the generated files are up-to-date
         run: |
           make generate
-          git status --short
-          test -z "$(git status --porcelain)"
+          git diff --exit-code

@@ -10,8 +10,7 @@ import (
 	_ "github.com/mailru/easyjson/gen"
 )
 
-//go:generate go install github.com/mailru/easyjson/...@v0.7.7
-//go:generate easyjson -all -lower_camel_case $GOFILE
+//go:generate go run github.com/mailru/easyjson/easyjson -all -lower_camel_case $GOFILE
 
 // Feed defines the source feed of stock data.
 type Feed = string

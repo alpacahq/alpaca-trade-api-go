@@ -36,7 +36,11 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata(in *jle
 				if v1 == nil {
 					v1 = new(Snapshot)
 				}
-				(*v1).UnmarshalEasyJSON(in)
+				if in.IsNull() {
+					in.Skip()
+				} else {
+					(*v1).UnmarshalEasyJSON(in)
+				}
 			}
 			(*out)[key] = v1
 			in.WantComma()
@@ -107,11 +111,6 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata1(in *jl
 	for !in.IsDelim('}') {
 		key := in.UnsafeFieldName(false)
 		in.WantColon()
-		if in.IsNull() {
-			in.Skip()
-			in.WantComma()
-			continue
-		}
 		switch key {
 		case "next_page_token":
 			if in.IsNull() {
@@ -121,7 +120,11 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata1(in *jl
 				if out.NextPageToken == nil {
 					out.NextPageToken = new(string)
 				}
-				*out.NextPageToken = string(in.String())
+				if in.IsNull() {
+					in.Skip()
+				} else {
+					*out.NextPageToken = string(in.String())
+				}
 			}
 		case "snapshots":
 			if in.IsNull() {
@@ -133,7 +136,11 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata1(in *jl
 					key := string(in.String())
 					in.WantColon()
 					var v3 OptionSnapshot
-					(v3).UnmarshalEasyJSON(in)
+					if in.IsNull() {
+						in.Skip()
+					} else {
+						(v3).UnmarshalEasyJSON(in)
+					}
 					(out.Snapshots)[key] = v3
 					in.WantComma()
 				}
@@ -222,11 +229,6 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata2(in *jl
 	for !in.IsDelim('}') {
 		key := in.UnsafeFieldName(false)
 		in.WantColon()
-		if in.IsNull() {
-			in.Skip()
-			in.WantComma()
-			continue
-		}
 		switch key {
 		case "next_page_token":
 			if in.IsNull() {
@@ -236,7 +238,11 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata2(in *jl
 				if out.NextPageToken == nil {
 					out.NextPageToken = new(string)
 				}
-				*out.NextPageToken = string(in.String())
+				if in.IsNull() {
+					in.Skip()
+				} else {
+					*out.NextPageToken = string(in.String())
+				}
 			}
 		case "news":
 			if in.IsNull() {
@@ -255,7 +261,11 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata2(in *jl
 				}
 				for !in.IsDelim(']') {
 					var v5 News
-					(v5).UnmarshalEasyJSON(in)
+					if in.IsNull() {
+						in.Skip()
+					} else {
+						(v5).UnmarshalEasyJSON(in)
+					}
 					out.News = append(out.News, v5)
 					in.WantComma()
 				}
@@ -339,11 +349,6 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata3(in *jl
 	for !in.IsDelim('}') {
 		key := in.UnsafeFieldName(false)
 		in.WantColon()
-		if in.IsNull() {
-			in.Skip()
-			in.WantComma()
-			continue
-		}
 		switch key {
 		case "next_page_token":
 			if in.IsNull() {
@@ -353,7 +358,11 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata3(in *jl
 				if out.NextPageToken == nil {
 					out.NextPageToken = new(string)
 				}
-				*out.NextPageToken = string(in.String())
+				if in.IsNull() {
+					in.Skip()
+				} else {
+					*out.NextPageToken = string(in.String())
+				}
 			}
 		case "trades":
 			if in.IsNull() {
@@ -381,7 +390,11 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata3(in *jl
 						}
 						for !in.IsDelim(']') {
 							var v9 Trade
-							(v9).UnmarshalEasyJSON(in)
+							if in.IsNull() {
+								in.Skip()
+							} else {
+								(v9).UnmarshalEasyJSON(in)
+							}
 							v8 = append(v8, v9)
 							in.WantComma()
 						}
@@ -486,11 +499,6 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata4(in *jl
 	for !in.IsDelim('}') {
 		key := in.UnsafeFieldName(false)
 		in.WantColon()
-		if in.IsNull() {
-			in.Skip()
-			in.WantComma()
-			continue
-		}
 		switch key {
 		case "next_page_token":
 			if in.IsNull() {
@@ -500,7 +508,11 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata4(in *jl
 				if out.NextPageToken == nil {
 					out.NextPageToken = new(string)
 				}
-				*out.NextPageToken = string(in.String())
+				if in.IsNull() {
+					in.Skip()
+				} else {
+					*out.NextPageToken = string(in.String())
+				}
 			}
 		case "quotes":
 			if in.IsNull() {
@@ -528,7 +540,11 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata4(in *jl
 						}
 						for !in.IsDelim(']') {
 							var v14 Quote
-							(v14).UnmarshalEasyJSON(in)
+							if in.IsNull() {
+								in.Skip()
+							} else {
+								(v14).UnmarshalEasyJSON(in)
+							}
 							v13 = append(v13, v14)
 							in.WantComma()
 						}
@@ -633,11 +649,6 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata5(in *jl
 	for !in.IsDelim('}') {
 		key := in.UnsafeFieldName(false)
 		in.WantColon()
-		if in.IsNull() {
-			in.Skip()
-			in.WantComma()
-			continue
-		}
 		switch key {
 		case "next_page_token":
 			if in.IsNull() {
@@ -647,7 +658,11 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata5(in *jl
 				if out.NextPageToken == nil {
 					out.NextPageToken = new(string)
 				}
-				*out.NextPageToken = string(in.String())
+				if in.IsNull() {
+					in.Skip()
+				} else {
+					*out.NextPageToken = string(in.String())
+				}
 			}
 		case "trades":
 			if in.IsNull() {
@@ -675,7 +690,11 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata5(in *jl
 						}
 						for !in.IsDelim(']') {
 							var v19 OptionTrade
-							(v19).UnmarshalEasyJSON(in)
+							if in.IsNull() {
+								in.Skip()
+							} else {
+								(v19).UnmarshalEasyJSON(in)
+							}
 							v18 = append(v18, v19)
 							in.WantComma()
 						}
@@ -780,11 +799,6 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata6(in *jl
 	for !in.IsDelim('}') {
 		key := in.UnsafeFieldName(false)
 		in.WantColon()
-		if in.IsNull() {
-			in.Skip()
-			in.WantComma()
-			continue
-		}
 		switch key {
 		case "next_page_token":
 			if in.IsNull() {
@@ -794,7 +808,11 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata6(in *jl
 				if out.NextPageToken == nil {
 					out.NextPageToken = new(string)
 				}
-				*out.NextPageToken = string(in.String())
+				if in.IsNull() {
+					in.Skip()
+				} else {
+					*out.NextPageToken = string(in.String())
+				}
 			}
 		case "bars":
 			if in.IsNull() {
@@ -822,7 +840,11 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata6(in *jl
 						}
 						for !in.IsDelim(']') {
 							var v24 OptionBar
-							(v24).UnmarshalEasyJSON(in)
+							if in.IsNull() {
+								in.Skip()
+							} else {
+								(v24).UnmarshalEasyJSON(in)
+							}
 							v23 = append(v23, v24)
 							in.WantComma()
 						}
@@ -927,11 +949,6 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata7(in *jl
 	for !in.IsDelim('}') {
 		key := in.UnsafeFieldName(false)
 		in.WantColon()
-		if in.IsNull() {
-			in.Skip()
-			in.WantComma()
-			continue
-		}
 		switch key {
 		case "next_page_token":
 			if in.IsNull() {
@@ -941,7 +958,11 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata7(in *jl
 				if out.NextPageToken == nil {
 					out.NextPageToken = new(string)
 				}
-				*out.NextPageToken = string(in.String())
+				if in.IsNull() {
+					in.Skip()
+				} else {
+					*out.NextPageToken = string(in.String())
+				}
 			}
 		case "bars":
 			if in.IsNull() {
@@ -969,7 +990,11 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata7(in *jl
 						}
 						for !in.IsDelim(']') {
 							var v29 Bar
-							(v29).UnmarshalEasyJSON(in)
+							if in.IsNull() {
+								in.Skip()
+							} else {
+								(v29).UnmarshalEasyJSON(in)
+							}
 							v28 = append(v28, v29)
 							in.WantComma()
 						}
@@ -1074,11 +1099,6 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata8(in *jl
 	for !in.IsDelim('}') {
 		key := in.UnsafeFieldName(false)
 		in.WantColon()
-		if in.IsNull() {
-			in.Skip()
-			in.WantComma()
-			continue
-		}
 		switch key {
 		case "next_page_token":
 			if in.IsNull() {
@@ -1088,7 +1108,11 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata8(in *jl
 				if out.NextPageToken == nil {
 					out.NextPageToken = new(string)
 				}
-				*out.NextPageToken = string(in.String())
+				if in.IsNull() {
+					in.Skip()
+				} else {
+					*out.NextPageToken = string(in.String())
+				}
 			}
 		case "auctions":
 			if in.IsNull() {
@@ -1116,7 +1140,11 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata8(in *jl
 						}
 						for !in.IsDelim(']') {
 							var v34 DailyAuctions
-							(v34).UnmarshalEasyJSON(in)
+							if in.IsNull() {
+								in.Skip()
+							} else {
+								(v34).UnmarshalEasyJSON(in)
+							}
 							v33 = append(v33, v34)
 							in.WantComma()
 						}
@@ -1221,11 +1249,6 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata9(in *jl
 	for !in.IsDelim('}') {
 		key := in.UnsafeFieldName(false)
 		in.WantColon()
-		if in.IsNull() {
-			in.Skip()
-			in.WantComma()
-			continue
-		}
 		switch key {
 		case "trades":
 			if in.IsNull() {
@@ -1237,7 +1260,11 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata9(in *jl
 					key := string(in.String())
 					in.WantColon()
 					var v38 Trade
-					(v38).UnmarshalEasyJSON(in)
+					if in.IsNull() {
+						in.Skip()
+					} else {
+						(v38).UnmarshalEasyJSON(in)
+					}
 					(out.Trades)[key] = v38
 					in.WantComma()
 				}
@@ -1317,11 +1344,6 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata10(in *j
 	for !in.IsDelim('}') {
 		key := in.UnsafeFieldName(false)
 		in.WantColon()
-		if in.IsNull() {
-			in.Skip()
-			in.WantComma()
-			continue
-		}
 		switch key {
 		case "quotes":
 			if in.IsNull() {
@@ -1333,7 +1355,11 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata10(in *j
 					key := string(in.String())
 					in.WantColon()
 					var v40 Quote
-					(v40).UnmarshalEasyJSON(in)
+					if in.IsNull() {
+						in.Skip()
+					} else {
+						(v40).UnmarshalEasyJSON(in)
+					}
 					(out.Quotes)[key] = v40
 					in.WantComma()
 				}
@@ -1413,11 +1439,6 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata11(in *j
 	for !in.IsDelim('}') {
 		key := in.UnsafeFieldName(false)
 		in.WantColon()
-		if in.IsNull() {
-			in.Skip()
-			in.WantComma()
-			continue
-		}
 		switch key {
 		case "trades":
 			if in.IsNull() {
@@ -1429,7 +1450,11 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata11(in *j
 					key := string(in.String())
 					in.WantColon()
 					var v42 OptionTrade
-					(v42).UnmarshalEasyJSON(in)
+					if in.IsNull() {
+						in.Skip()
+					} else {
+						(v42).UnmarshalEasyJSON(in)
+					}
 					(out.Trades)[key] = v42
 					in.WantComma()
 				}
@@ -1509,11 +1534,6 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata12(in *j
 	for !in.IsDelim('}') {
 		key := in.UnsafeFieldName(false)
 		in.WantColon()
-		if in.IsNull() {
-			in.Skip()
-			in.WantComma()
-			continue
-		}
 		switch key {
 		case "quotes":
 			if in.IsNull() {
@@ -1525,7 +1545,11 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata12(in *j
 					key := string(in.String())
 					in.WantColon()
 					var v44 OptionQuote
-					(v44).UnmarshalEasyJSON(in)
+					if in.IsNull() {
+						in.Skip()
+					} else {
+						(v44).UnmarshalEasyJSON(in)
+					}
 					(out.Quotes)[key] = v44
 					in.WantComma()
 				}
@@ -1605,11 +1629,6 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata13(in *j
 	for !in.IsDelim('}') {
 		key := in.UnsafeFieldName(false)
 		in.WantColon()
-		if in.IsNull() {
-			in.Skip()
-			in.WantComma()
-			continue
-		}
 		switch key {
 		case "prices":
 			if in.IsNull() {
@@ -1621,7 +1640,11 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata13(in *j
 					key := string(in.String())
 					in.WantColon()
 					var v46 FixedIncomePrice
-					(v46).UnmarshalEasyJSON(in)
+					if in.IsNull() {
+						in.Skip()
+					} else {
+						(v46).UnmarshalEasyJSON(in)
+					}
 					(out.Prices)[key] = v46
 					in.WantComma()
 				}
@@ -1701,11 +1724,6 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata14(in *j
 	for !in.IsDelim('}') {
 		key := in.UnsafeFieldName(false)
 		in.WantColon()
-		if in.IsNull() {
-			in.Skip()
-			in.WantComma()
-			continue
-		}
 		switch key {
 		case "trades":
 			if in.IsNull() {
@@ -1717,7 +1735,11 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata14(in *j
 					key := string(in.String())
 					in.WantColon()
 					var v48 CryptoTrade
-					(v48).UnmarshalEasyJSON(in)
+					if in.IsNull() {
+						in.Skip()
+					} else {
+						(v48).UnmarshalEasyJSON(in)
+					}
 					(out.Trades)[key] = v48
 					in.WantComma()
 				}
@@ -1797,11 +1819,6 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata15(in *j
 	for !in.IsDelim('}') {
 		key := in.UnsafeFieldName(false)
 		in.WantColon()
-		if in.IsNull() {
-			in.Skip()
-			in.WantComma()
-			continue
-		}
 		switch key {
 		case "quotes":
 			if in.IsNull() {
@@ -1813,7 +1830,11 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata15(in *j
 					key := string(in.String())
 					in.WantColon()
 					var v50 CryptoQuote
-					(v50).UnmarshalEasyJSON(in)
+					if in.IsNull() {
+						in.Skip()
+					} else {
+						(v50).UnmarshalEasyJSON(in)
+					}
 					(out.Quotes)[key] = v50
 					in.WantComma()
 				}
@@ -1893,11 +1914,6 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata16(in *j
 	for !in.IsDelim('}') {
 		key := in.UnsafeFieldName(false)
 		in.WantColon()
-		if in.IsNull() {
-			in.Skip()
-			in.WantComma()
-			continue
-		}
 		switch key {
 		case "pricing":
 			if in.IsNull() {
@@ -1909,7 +1925,11 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata16(in *j
 					key := string(in.String())
 					in.WantColon()
 					var v52 CryptoPerpPricing
-					(v52).UnmarshalEasyJSON(in)
+					if in.IsNull() {
+						in.Skip()
+					} else {
+						(v52).UnmarshalEasyJSON(in)
+					}
 					(out.Pricing)[key] = v52
 					in.WantComma()
 				}
@@ -1989,11 +2009,6 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata17(in *j
 	for !in.IsDelim('}') {
 		key := in.UnsafeFieldName(false)
 		in.WantColon()
-		if in.IsNull() {
-			in.Skip()
-			in.WantComma()
-			continue
-		}
 		switch key {
 		case "bars":
 			if in.IsNull() {
@@ -2005,7 +2020,11 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata17(in *j
 					key := string(in.String())
 					in.WantColon()
 					var v54 CryptoBar
-					(v54).UnmarshalEasyJSON(in)
+					if in.IsNull() {
+						in.Skip()
+					} else {
+						(v54).UnmarshalEasyJSON(in)
+					}
 					(out.Bars)[key] = v54
 					in.WantComma()
 				}
@@ -2085,11 +2104,6 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata18(in *j
 	for !in.IsDelim('}') {
 		key := in.UnsafeFieldName(false)
 		in.WantColon()
-		if in.IsNull() {
-			in.Skip()
-			in.WantComma()
-			continue
-		}
 		switch key {
 		case "bars":
 			if in.IsNull() {
@@ -2101,7 +2115,11 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata18(in *j
 					key := string(in.String())
 					in.WantColon()
 					var v56 Bar
-					(v56).UnmarshalEasyJSON(in)
+					if in.IsNull() {
+						in.Skip()
+					} else {
+						(v56).UnmarshalEasyJSON(in)
+					}
 					(out.Bars)[key] = v56
 					in.WantComma()
 				}
@@ -2181,11 +2199,6 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata19(in *j
 	for !in.IsDelim('}') {
 		key := in.UnsafeFieldName(false)
 		in.WantColon()
-		if in.IsNull() {
-			in.Skip()
-			in.WantComma()
-			continue
-		}
 		switch key {
 		case "next_page_token":
 			if in.IsNull() {
@@ -2195,7 +2208,11 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata19(in *j
 				if out.NextPageToken == nil {
 					out.NextPageToken = new(string)
 				}
-				*out.NextPageToken = string(in.String())
+				if in.IsNull() {
+					in.Skip()
+				} else {
+					*out.NextPageToken = string(in.String())
+				}
 			}
 		case "trades":
 			if in.IsNull() {
@@ -2223,7 +2240,11 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata19(in *j
 						}
 						for !in.IsDelim(']') {
 							var v59 CryptoTrade
-							(v59).UnmarshalEasyJSON(in)
+							if in.IsNull() {
+								in.Skip()
+							} else {
+								(v59).UnmarshalEasyJSON(in)
+							}
 							v58 = append(v58, v59)
 							in.WantComma()
 						}
@@ -2328,11 +2349,6 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata20(in *j
 	for !in.IsDelim('}') {
 		key := in.UnsafeFieldName(false)
 		in.WantColon()
-		if in.IsNull() {
-			in.Skip()
-			in.WantComma()
-			continue
-		}
 		switch key {
 		case "next_page_token":
 			if in.IsNull() {
@@ -2342,7 +2358,11 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata20(in *j
 				if out.NextPageToken == nil {
 					out.NextPageToken = new(string)
 				}
-				*out.NextPageToken = string(in.String())
+				if in.IsNull() {
+					in.Skip()
+				} else {
+					*out.NextPageToken = string(in.String())
+				}
 			}
 		case "quotes":
 			if in.IsNull() {
@@ -2370,7 +2390,11 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata20(in *j
 						}
 						for !in.IsDelim(']') {
 							var v64 CryptoQuote
-							(v64).UnmarshalEasyJSON(in)
+							if in.IsNull() {
+								in.Skip()
+							} else {
+								(v64).UnmarshalEasyJSON(in)
+							}
 							v63 = append(v63, v64)
 							in.WantComma()
 						}
@@ -2475,11 +2499,6 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata21(in *j
 	for !in.IsDelim('}') {
 		key := in.UnsafeFieldName(false)
 		in.WantColon()
-		if in.IsNull() {
-			in.Skip()
-			in.WantComma()
-			continue
-		}
 		switch key {
 		case "next_page_token":
 			if in.IsNull() {
@@ -2489,7 +2508,11 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata21(in *j
 				if out.NextPageToken == nil {
 					out.NextPageToken = new(string)
 				}
-				*out.NextPageToken = string(in.String())
+				if in.IsNull() {
+					in.Skip()
+				} else {
+					*out.NextPageToken = string(in.String())
+				}
 			}
 		case "bars":
 			if in.IsNull() {
@@ -2517,7 +2540,11 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata21(in *j
 						}
 						for !in.IsDelim(']') {
 							var v69 CryptoBar
-							(v69).UnmarshalEasyJSON(in)
+							if in.IsNull() {
+								in.Skip()
+							} else {
+								(v69).UnmarshalEasyJSON(in)
+							}
 							v68 = append(v68, v69)
 							in.WantComma()
 						}
@@ -2622,11 +2649,6 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata22(in *j
 	for !in.IsDelim('}') {
 		key := in.UnsafeFieldName(false)
 		in.WantColon()
-		if in.IsNull() {
-			in.Skip()
-			in.WantComma()
-			continue
-		}
 		switch key {
 		case "next_page_token":
 			if in.IsNull() {
@@ -2636,10 +2658,18 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata22(in *j
 				if out.NextPageToken == nil {
 					out.NextPageToken = new(string)
 				}
-				*out.NextPageToken = string(in.String())
+				if in.IsNull() {
+					in.Skip()
+				} else {
+					*out.NextPageToken = string(in.String())
+				}
 			}
 		case "corporate_actions":
-			(out.CorporateActions).UnmarshalEasyJSON(in)
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				(out.CorporateActions).UnmarshalEasyJSON(in)
+			}
 		default:
 			in.SkipRecursive()
 		}
@@ -2707,21 +2737,32 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata23(in *j
 	for !in.IsDelim('}') {
 		key := in.UnsafeFieldName(false)
 		in.WantColon()
-		if in.IsNull() {
-			in.Skip()
-			in.WantComma()
-			continue
-		}
 		switch key {
 		case "id":
-			out.ID = string(in.String())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.ID = string(in.String())
+			}
 		case "symbol":
-			out.Symbol = string(in.String())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.Symbol = string(in.String())
+			}
 		case "cusip":
-			out.Cusip = string(in.String())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.Cusip = string(in.String())
+			}
 		case "process_date":
-			if data := in.UnsafeBytes(); in.Ok() {
-				in.AddError((out.ProcessDate).UnmarshalText(data))
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				if data := in.UnsafeBytes(); in.Ok() {
+					in.AddError((out.ProcessDate).UnmarshalText(data))
+				}
 			}
 		default:
 			in.SkipRecursive()
@@ -2796,39 +2837,82 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata24(in *j
 	for !in.IsDelim('}') {
 		key := in.UnsafeFieldName(false)
 		in.WantColon()
-		if in.IsNull() {
-			in.Skip()
-			in.WantComma()
-			continue
-		}
 		switch key {
 		case "id":
-			out.ID = string(in.String())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.ID = string(in.String())
+			}
 		case "new_symbol":
-			out.NewSymbol = string(in.String())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.NewSymbol = string(in.String())
+			}
 		case "new_cusip":
-			out.NewCusip = string(in.String())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.NewCusip = string(in.String())
+			}
 		case "new_rate":
-			out.NewRate = float64(in.Float64())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.NewRate = float64(in.Float64())
+			}
 		case "old_symbol":
-			out.OldSymbol = string(in.String())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.OldSymbol = string(in.String())
+			}
 		case "old_cusip":
-			out.OldCusip = string(in.String())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.OldCusip = string(in.String())
+			}
 		case "old_rate":
-			out.OldRate = float64(in.Float64())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.OldRate = float64(in.Float64())
+			}
 		case "alternate_symbol":
-			out.AlternateSymbol = string(in.String())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.AlternateSymbol = string(in.String())
+			}
 		case "alternate_cusip":
-			out.AlternateCusip = string(in.String())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.AlternateCusip = string(in.String())
+			}
 		case "alternate_rate":
-			out.AlternateRate = float64(in.Float64())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.AlternateRate = float64(in.Float64())
+			}
 		case "process_date":
-			if data := in.UnsafeBytes(); in.Ok() {
-				in.AddError((out.ProcessDate).UnmarshalText(data))
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				if data := in.UnsafeBytes(); in.Ok() {
+					in.AddError((out.ProcessDate).UnmarshalText(data))
+				}
 			}
 		case "effective_date":
-			if data := in.UnsafeBytes(); in.Ok() {
-				in.AddError((out.EffectiveDate).UnmarshalText(data))
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				if data := in.UnsafeBytes(); in.Ok() {
+					in.AddError((out.EffectiveDate).UnmarshalText(data))
+				}
 			}
 		case "payable_date":
 			if in.IsNull() {
@@ -2838,8 +2922,12 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata24(in *j
 				if out.PayableDate == nil {
 					out.PayableDate = new(civil.Date)
 				}
-				if data := in.UnsafeBytes(); in.Ok() {
-					in.AddError((*out.PayableDate).UnmarshalText(data))
+				if in.IsNull() {
+					in.Skip()
+				} else {
+					if data := in.UnsafeBytes(); in.Ok() {
+						in.AddError((*out.PayableDate).UnmarshalText(data))
+					}
 				}
 			}
 		default:
@@ -2960,24 +3048,39 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata25(in *j
 	for !in.IsDelim('}') {
 		key := in.UnsafeFieldName(false)
 		in.WantColon()
-		if in.IsNull() {
-			in.Skip()
-			in.WantComma()
-			continue
-		}
 		switch key {
 		case "t":
-			if data := in.Raw(); in.Ok() {
-				in.AddError((out.Timestamp).UnmarshalJSON(data))
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				if data := in.Raw(); in.Ok() {
+					in.AddError((out.Timestamp).UnmarshalJSON(data))
+				}
 			}
 		case "p":
-			out.Price = float64(in.Float64())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.Price = float64(in.Float64())
+			}
 		case "s":
-			out.Size = uint32(in.Uint32())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.Size = uint32(in.Uint32())
+			}
 		case "x":
-			out.Exchange = string(in.String())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.Exchange = string(in.String())
+			}
 		case "i":
-			out.ID = int64(in.Int64())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.ID = int64(in.Int64())
+			}
 		case "c":
 			if in.IsNull() {
 				in.Skip()
@@ -2995,16 +3098,28 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata25(in *j
 				}
 				for !in.IsDelim(']') {
 					var v73 string
-					v73 = string(in.String())
+					if in.IsNull() {
+						in.Skip()
+					} else {
+						v73 = string(in.String())
+					}
 					out.Conditions = append(out.Conditions, v73)
 					in.WantComma()
 				}
 				in.Delim(']')
 			}
 		case "z":
-			out.Tape = string(in.String())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.Tape = string(in.String())
+			}
 		case "u":
-			out.Update = string(in.String())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.Update = string(in.String())
+			}
 		default:
 			in.SkipRecursive()
 		}
@@ -3109,16 +3224,19 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata26(in *j
 	for !in.IsDelim('}') {
 		key := in.UnsafeFieldName(false)
 		in.WantColon()
-		if in.IsNull() {
-			in.Skip()
-			in.WantComma()
-			continue
-		}
 		switch key {
 		case "n":
-			out.N = int(in.Int())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.N = int(in.Int())
+			}
 		case "unit":
-			out.Unit = TimeFrameUnit(in.String())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.Unit = TimeFrameUnit(in.String())
+			}
 		default:
 			in.SkipRecursive()
 		}
@@ -3182,33 +3300,64 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata27(in *j
 	for !in.IsDelim('}') {
 		key := in.UnsafeFieldName(false)
 		in.WantColon()
-		if in.IsNull() {
-			in.Skip()
-			in.WantComma()
-			continue
-		}
 		switch key {
 		case "id":
-			out.ID = string(in.String())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.ID = string(in.String())
+			}
 		case "acquirer_symbol":
-			out.AcquirerSymbol = string(in.String())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.AcquirerSymbol = string(in.String())
+			}
 		case "acquirer_cusip":
-			out.AcquirerCusip = string(in.String())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.AcquirerCusip = string(in.String())
+			}
 		case "acquirer_rate":
-			out.AcquirerRate = float64(in.Float64())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.AcquirerRate = float64(in.Float64())
+			}
 		case "acquiree_symbol":
-			out.AcquireeSymbol = string(in.String())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.AcquireeSymbol = string(in.String())
+			}
 		case "acquiree_cusip":
-			out.AcquireeCusip = string(in.String())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.AcquireeCusip = string(in.String())
+			}
 		case "acquiree_rate":
-			out.AcquireeRate = float64(in.Float64())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.AcquireeRate = float64(in.Float64())
+			}
 		case "process_date":
-			if data := in.UnsafeBytes(); in.Ok() {
-				in.AddError((out.ProcessDate).UnmarshalText(data))
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				if data := in.UnsafeBytes(); in.Ok() {
+					in.AddError((out.ProcessDate).UnmarshalText(data))
+				}
 			}
 		case "effective_date":
-			if data := in.UnsafeBytes(); in.Ok() {
-				in.AddError((out.EffectiveDate).UnmarshalText(data))
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				if data := in.UnsafeBytes(); in.Ok() {
+					in.AddError((out.EffectiveDate).UnmarshalText(data))
+				}
 			}
 		case "payable_date":
 			if in.IsNull() {
@@ -3218,8 +3367,12 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata27(in *j
 				if out.PayableDate == nil {
 					out.PayableDate = new(civil.Date)
 				}
-				if data := in.UnsafeBytes(); in.Ok() {
-					in.AddError((*out.PayableDate).UnmarshalText(data))
+				if in.IsNull() {
+					in.Skip()
+				} else {
+					if data := in.UnsafeBytes(); in.Ok() {
+						in.AddError((*out.PayableDate).UnmarshalText(data))
+					}
 				}
 			}
 		default:
@@ -3325,27 +3478,46 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata28(in *j
 	for !in.IsDelim('}') {
 		key := in.UnsafeFieldName(false)
 		in.WantColon()
-		if in.IsNull() {
-			in.Skip()
-			in.WantComma()
-			continue
-		}
 		switch key {
 		case "id":
-			out.ID = string(in.String())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.ID = string(in.String())
+			}
 		case "symbol":
-			out.Symbol = string(in.String())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.Symbol = string(in.String())
+			}
 		case "cusip":
-			out.Cusip = string(in.String())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.Cusip = string(in.String())
+			}
 		case "rate":
-			out.Rate = float64(in.Float64())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.Rate = float64(in.Float64())
+			}
 		case "process_date":
-			if data := in.UnsafeBytes(); in.Ok() {
-				in.AddError((out.ProcessDate).UnmarshalText(data))
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				if data := in.UnsafeBytes(); in.Ok() {
+					in.AddError((out.ProcessDate).UnmarshalText(data))
+				}
 			}
 		case "ex_date":
-			if data := in.UnsafeBytes(); in.Ok() {
-				in.AddError((out.ExDate).UnmarshalText(data))
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				if data := in.UnsafeBytes(); in.Ok() {
+					in.AddError((out.ExDate).UnmarshalText(data))
+				}
 			}
 		case "record_date":
 			if in.IsNull() {
@@ -3355,8 +3527,12 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata28(in *j
 				if out.RecordDate == nil {
 					out.RecordDate = new(civil.Date)
 				}
-				if data := in.UnsafeBytes(); in.Ok() {
-					in.AddError((*out.RecordDate).UnmarshalText(data))
+				if in.IsNull() {
+					in.Skip()
+				} else {
+					if data := in.UnsafeBytes(); in.Ok() {
+						in.AddError((*out.RecordDate).UnmarshalText(data))
+					}
 				}
 			}
 		case "payable_date":
@@ -3367,8 +3543,12 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata28(in *j
 				if out.PayableDate == nil {
 					out.PayableDate = new(civil.Date)
 				}
-				if data := in.UnsafeBytes(); in.Ok() {
-					in.AddError((*out.PayableDate).UnmarshalText(data))
+				if in.IsNull() {
+					in.Skip()
+				} else {
+					if data := in.UnsafeBytes(); in.Ok() {
+						in.AddError((*out.PayableDate).UnmarshalText(data))
+					}
 				}
 			}
 		default:
@@ -3464,35 +3644,70 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata29(in *j
 	for !in.IsDelim('}') {
 		key := in.UnsafeFieldName(false)
 		in.WantColon()
-		if in.IsNull() {
-			in.Skip()
-			in.WantComma()
-			continue
-		}
 		switch key {
 		case "id":
-			out.ID = string(in.String())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.ID = string(in.String())
+			}
 		case "acquirer_symbol":
-			out.AcquirerSymbol = string(in.String())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.AcquirerSymbol = string(in.String())
+			}
 		case "acquirer_cusip":
-			out.AcquirerCusip = string(in.String())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.AcquirerCusip = string(in.String())
+			}
 		case "acquirer_rate":
-			out.AcquirerRate = float64(in.Float64())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.AcquirerRate = float64(in.Float64())
+			}
 		case "acquiree_symbol":
-			out.AcquireeSymbol = string(in.String())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.AcquireeSymbol = string(in.String())
+			}
 		case "acquiree_cusip":
-			out.AcquireeCusip = string(in.String())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.AcquireeCusip = string(in.String())
+			}
 		case "acquiree_rate":
-			out.AcquireeRate = float64(in.Float64())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.AcquireeRate = float64(in.Float64())
+			}
 		case "cash_rate":
-			out.CashRate = float64(in.Float64())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.CashRate = float64(in.Float64())
+			}
 		case "process_date":
-			if data := in.UnsafeBytes(); in.Ok() {
-				in.AddError((out.ProcessDate).UnmarshalText(data))
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				if data := in.UnsafeBytes(); in.Ok() {
+					in.AddError((out.ProcessDate).UnmarshalText(data))
+				}
 			}
 		case "effective_date":
-			if data := in.UnsafeBytes(); in.Ok() {
-				in.AddError((out.EffectiveDate).UnmarshalText(data))
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				if data := in.UnsafeBytes(); in.Ok() {
+					in.AddError((out.EffectiveDate).UnmarshalText(data))
+				}
 			}
 		case "payable_date":
 			if in.IsNull() {
@@ -3502,8 +3717,12 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata29(in *j
 				if out.PayableDate == nil {
 					out.PayableDate = new(civil.Date)
 				}
-				if data := in.UnsafeBytes(); in.Ok() {
-					in.AddError((*out.PayableDate).UnmarshalText(data))
+				if in.IsNull() {
+					in.Skip()
+				} else {
+					if data := in.UnsafeBytes(); in.Ok() {
+						in.AddError((*out.PayableDate).UnmarshalText(data))
+					}
 				}
 			}
 		default:
@@ -3614,33 +3833,64 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata30(in *j
 	for !in.IsDelim('}') {
 		key := in.UnsafeFieldName(false)
 		in.WantColon()
-		if in.IsNull() {
-			in.Skip()
-			in.WantComma()
-			continue
-		}
 		switch key {
 		case "id":
-			out.ID = string(in.String())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.ID = string(in.String())
+			}
 		case "source_symbol":
-			out.SourceSymbol = string(in.String())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.SourceSymbol = string(in.String())
+			}
 		case "source_cusip":
-			out.SourceCusip = string(in.String())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.SourceCusip = string(in.String())
+			}
 		case "source_rate":
-			out.SourceRate = float64(in.Float64())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.SourceRate = float64(in.Float64())
+			}
 		case "new_symbol":
-			out.NewSymbol = string(in.String())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.NewSymbol = string(in.String())
+			}
 		case "new_cusip":
-			out.NewCusip = string(in.String())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.NewCusip = string(in.String())
+			}
 		case "new_rate":
-			out.NewRate = float64(in.Float64())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.NewRate = float64(in.Float64())
+			}
 		case "process_date":
-			if data := in.UnsafeBytes(); in.Ok() {
-				in.AddError((out.ProcessDate).UnmarshalText(data))
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				if data := in.UnsafeBytes(); in.Ok() {
+					in.AddError((out.ProcessDate).UnmarshalText(data))
+				}
 			}
 		case "ex_date":
-			if data := in.UnsafeBytes(); in.Ok() {
-				in.AddError((out.ExDate).UnmarshalText(data))
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				if data := in.UnsafeBytes(); in.Ok() {
+					in.AddError((out.ExDate).UnmarshalText(data))
+				}
 			}
 		case "payable_date":
 			if in.IsNull() {
@@ -3650,8 +3900,12 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata30(in *j
 				if out.PayableDate == nil {
 					out.PayableDate = new(civil.Date)
 				}
-				if data := in.UnsafeBytes(); in.Ok() {
-					in.AddError((*out.PayableDate).UnmarshalText(data))
+				if in.IsNull() {
+					in.Skip()
+				} else {
+					if data := in.UnsafeBytes(); in.Ok() {
+						in.AddError((*out.PayableDate).UnmarshalText(data))
+					}
 				}
 			}
 		case "record_date":
@@ -3662,8 +3916,12 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata30(in *j
 				if out.RecordDate == nil {
 					out.RecordDate = new(civil.Date)
 				}
-				if data := in.UnsafeBytes(); in.Ok() {
-					in.AddError((*out.RecordDate).UnmarshalText(data))
+				if in.IsNull() {
+					in.Skip()
+				} else {
+					if data := in.UnsafeBytes(); in.Ok() {
+						in.AddError((*out.RecordDate).UnmarshalText(data))
+					}
 				}
 			}
 		case "due_bill_redemption_date":
@@ -3674,8 +3932,12 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata30(in *j
 				if out.DueBillRedemptionDate == nil {
 					out.DueBillRedemptionDate = new(civil.Date)
 				}
-				if data := in.UnsafeBytes(); in.Ok() {
-					in.AddError((*out.DueBillRedemptionDate).UnmarshalText(data))
+				if in.IsNull() {
+					in.Skip()
+				} else {
+					if data := in.UnsafeBytes(); in.Ok() {
+						in.AddError((*out.DueBillRedemptionDate).UnmarshalText(data))
+					}
 				}
 			}
 		default:
@@ -3791,11 +4053,6 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata31(in *j
 	for !in.IsDelim('}') {
 		key := in.UnsafeFieldName(false)
 		in.WantColon()
-		if in.IsNull() {
-			in.Skip()
-			in.WantComma()
-			continue
-		}
 		switch key {
 		case "latestTrade":
 			if in.IsNull() {
@@ -3805,7 +4062,11 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata31(in *j
 				if out.LatestTrade == nil {
 					out.LatestTrade = new(Trade)
 				}
-				(*out.LatestTrade).UnmarshalEasyJSON(in)
+				if in.IsNull() {
+					in.Skip()
+				} else {
+					(*out.LatestTrade).UnmarshalEasyJSON(in)
+				}
 			}
 		case "latestQuote":
 			if in.IsNull() {
@@ -3815,7 +4076,11 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata31(in *j
 				if out.LatestQuote == nil {
 					out.LatestQuote = new(Quote)
 				}
-				(*out.LatestQuote).UnmarshalEasyJSON(in)
+				if in.IsNull() {
+					in.Skip()
+				} else {
+					(*out.LatestQuote).UnmarshalEasyJSON(in)
+				}
 			}
 		case "minuteBar":
 			if in.IsNull() {
@@ -3825,7 +4090,11 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata31(in *j
 				if out.MinuteBar == nil {
 					out.MinuteBar = new(Bar)
 				}
-				(*out.MinuteBar).UnmarshalEasyJSON(in)
+				if in.IsNull() {
+					in.Skip()
+				} else {
+					(*out.MinuteBar).UnmarshalEasyJSON(in)
+				}
 			}
 		case "dailyBar":
 			if in.IsNull() {
@@ -3835,7 +4104,11 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata31(in *j
 				if out.DailyBar == nil {
 					out.DailyBar = new(Bar)
 				}
-				(*out.DailyBar).UnmarshalEasyJSON(in)
+				if in.IsNull() {
+					in.Skip()
+				} else {
+					(*out.DailyBar).UnmarshalEasyJSON(in)
+				}
 			}
 		case "prevDailyBar":
 			if in.IsNull() {
@@ -3845,7 +4118,11 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata31(in *j
 				if out.PrevDailyBar == nil {
 					out.PrevDailyBar = new(Bar)
 				}
-				(*out.PrevDailyBar).UnmarshalEasyJSON(in)
+				if in.IsNull() {
+					in.Skip()
+				} else {
+					(*out.PrevDailyBar).UnmarshalEasyJSON(in)
+				}
 			}
 		default:
 			in.SkipRecursive()
@@ -3945,35 +4222,66 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata32(in *j
 	for !in.IsDelim('}') {
 		key := in.UnsafeFieldName(false)
 		in.WantColon()
-		if in.IsNull() {
-			in.Skip()
-			in.WantComma()
-			continue
-		}
 		switch key {
 		case "id":
-			out.ID = string(in.String())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.ID = string(in.String())
+			}
 		case "source_symbol":
-			out.SourceSymbol = string(in.String())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.SourceSymbol = string(in.String())
+			}
 		case "source_cusip":
-			out.SourceCusip = string(in.String())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.SourceCusip = string(in.String())
+			}
 		case "new_symbol":
-			out.NewSymbol = string(in.String())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.NewSymbol = string(in.String())
+			}
 		case "new_cusip":
-			out.NewCusip = string(in.String())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.NewCusip = string(in.String())
+			}
 		case "rate":
-			out.Rate = float64(in.Float64())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.Rate = float64(in.Float64())
+			}
 		case "process_date":
-			if data := in.UnsafeBytes(); in.Ok() {
-				in.AddError((out.ProcessDate).UnmarshalText(data))
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				if data := in.UnsafeBytes(); in.Ok() {
+					in.AddError((out.ProcessDate).UnmarshalText(data))
+				}
 			}
 		case "ex_date":
-			if data := in.UnsafeBytes(); in.Ok() {
-				in.AddError((out.ExDate).UnmarshalText(data))
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				if data := in.UnsafeBytes(); in.Ok() {
+					in.AddError((out.ExDate).UnmarshalText(data))
+				}
 			}
 		case "payable_date":
-			if data := in.UnsafeBytes(); in.Ok() {
-				in.AddError((out.PayableDate).UnmarshalText(data))
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				if data := in.UnsafeBytes(); in.Ok() {
+					in.AddError((out.PayableDate).UnmarshalText(data))
+				}
 			}
 		case "record_date":
 			if in.IsNull() {
@@ -3983,8 +4291,12 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata32(in *j
 				if out.RecordDate == nil {
 					out.RecordDate = new(civil.Date)
 				}
-				if data := in.UnsafeBytes(); in.Ok() {
-					in.AddError((*out.RecordDate).UnmarshalText(data))
+				if in.IsNull() {
+					in.Skip()
+				} else {
+					if data := in.UnsafeBytes(); in.Ok() {
+						in.AddError((*out.RecordDate).UnmarshalText(data))
+					}
 				}
 			}
 		case "expiration_date":
@@ -3995,8 +4307,12 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata32(in *j
 				if out.ExpirationDate == nil {
 					out.ExpirationDate = new(civil.Date)
 				}
-				if data := in.UnsafeBytes(); in.Ok() {
-					in.AddError((*out.ExpirationDate).UnmarshalText(data))
+				if in.IsNull() {
+					in.Skip()
+				} else {
+					if data := in.UnsafeBytes(); in.Ok() {
+						in.AddError((*out.ExpirationDate).UnmarshalText(data))
+					}
 				}
 			}
 		default:
@@ -4107,31 +4423,58 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata33(in *j
 	for !in.IsDelim('}') {
 		key := in.UnsafeFieldName(false)
 		in.WantColon()
-		if in.IsNull() {
-			in.Skip()
-			in.WantComma()
-			continue
-		}
 		switch key {
 		case "id":
-			out.ID = string(in.String())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.ID = string(in.String())
+			}
 		case "symbol":
-			out.Symbol = string(in.String())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.Symbol = string(in.String())
+			}
 		case "old_cusip":
-			out.OldCusip = string(in.String())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.OldCusip = string(in.String())
+			}
 		case "new_cusip":
-			out.NewCusip = string(in.String())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.NewCusip = string(in.String())
+			}
 		case "new_rate":
-			out.NewRate = float64(in.Float64())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.NewRate = float64(in.Float64())
+			}
 		case "old_rate":
-			out.OldRate = float64(in.Float64())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.OldRate = float64(in.Float64())
+			}
 		case "process_date":
-			if data := in.UnsafeBytes(); in.Ok() {
-				in.AddError((out.ProcessDate).UnmarshalText(data))
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				if data := in.UnsafeBytes(); in.Ok() {
+					in.AddError((out.ProcessDate).UnmarshalText(data))
+				}
 			}
 		case "ex_date":
-			if data := in.UnsafeBytes(); in.Ok() {
-				in.AddError((out.ExDate).UnmarshalText(data))
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				if data := in.UnsafeBytes(); in.Ok() {
+					in.AddError((out.ExDate).UnmarshalText(data))
+				}
 			}
 		case "record_date":
 			if in.IsNull() {
@@ -4141,8 +4484,12 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata33(in *j
 				if out.RecordDate == nil {
 					out.RecordDate = new(civil.Date)
 				}
-				if data := in.UnsafeBytes(); in.Ok() {
-					in.AddError((*out.RecordDate).UnmarshalText(data))
+				if in.IsNull() {
+					in.Skip()
+				} else {
+					if data := in.UnsafeBytes(); in.Ok() {
+						in.AddError((*out.RecordDate).UnmarshalText(data))
+					}
 				}
 			}
 		case "payable_date":
@@ -4153,8 +4500,12 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata33(in *j
 				if out.PayableDate == nil {
 					out.PayableDate = new(civil.Date)
 				}
-				if data := in.UnsafeBytes(); in.Ok() {
-					in.AddError((*out.PayableDate).UnmarshalText(data))
+				if in.IsNull() {
+					in.Skip()
+				} else {
+					if data := in.UnsafeBytes(); in.Ok() {
+						in.AddError((*out.PayableDate).UnmarshalText(data))
+					}
 				}
 			}
 		default:
@@ -4260,20 +4611,31 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata34(in *j
 	for !in.IsDelim('}') {
 		key := in.UnsafeFieldName(false)
 		in.WantColon()
-		if in.IsNull() {
-			in.Skip()
-			in.WantComma()
-			continue
-		}
 		switch key {
 		case "symbol":
-			out.Symbol = string(in.String())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.Symbol = string(in.String())
+			}
 		case "cusip":
-			out.Cusip = string(in.String())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.Cusip = string(in.String())
+			}
 		case "new_rate":
-			out.NewRate = float64(in.Float64())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.NewRate = float64(in.Float64())
+			}
 		case "source_rate":
-			out.SourceRate = float64(in.Float64())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.SourceRate = float64(in.Float64())
+			}
 		default:
 			in.SkipRecursive()
 		}
@@ -4347,27 +4709,46 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata35(in *j
 	for !in.IsDelim('}') {
 		key := in.UnsafeFieldName(false)
 		in.WantColon()
-		if in.IsNull() {
-			in.Skip()
-			in.WantComma()
-			continue
-		}
 		switch key {
 		case "id":
-			out.ID = string(in.String())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.ID = string(in.String())
+			}
 		case "symbol":
-			out.Symbol = string(in.String())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.Symbol = string(in.String())
+			}
 		case "cusip":
-			out.Cusip = string(in.String())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.Cusip = string(in.String())
+			}
 		case "cash_rate":
-			out.CashRate = float64(in.Float64())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.CashRate = float64(in.Float64())
+			}
 		case "process_date":
-			if data := in.UnsafeBytes(); in.Ok() {
-				in.AddError((out.ProcessDate).UnmarshalText(data))
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				if data := in.UnsafeBytes(); in.Ok() {
+					in.AddError((out.ProcessDate).UnmarshalText(data))
+				}
 			}
 		case "effective_date":
-			if data := in.UnsafeBytes(); in.Ok() {
-				in.AddError((out.EffectiveDate).UnmarshalText(data))
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				if data := in.UnsafeBytes(); in.Ok() {
+					in.AddError((out.EffectiveDate).UnmarshalText(data))
+				}
 			}
 		case "payable_date":
 			if in.IsNull() {
@@ -4377,8 +4758,12 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata35(in *j
 				if out.PayableDate == nil {
 					out.PayableDate = new(civil.Date)
 				}
-				if data := in.UnsafeBytes(); in.Ok() {
-					in.AddError((*out.PayableDate).UnmarshalText(data))
+				if in.IsNull() {
+					in.Skip()
+				} else {
+					if data := in.UnsafeBytes(); in.Ok() {
+						in.AddError((*out.PayableDate).UnmarshalText(data))
+					}
 				}
 			}
 		case "stock_movements":
@@ -4398,7 +4783,11 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata35(in *j
 				}
 				for !in.IsDelim(']') {
 					var v76 ReorganizationStockMovement
-					(v76).UnmarshalEasyJSON(in)
+					if in.IsNull() {
+						in.Skip()
+					} else {
+						(v76).UnmarshalEasyJSON(in)
+					}
 					out.StockMovements = append(out.StockMovements, v76)
 					in.WantComma()
 				}
@@ -4506,20 +4895,31 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata36(in *j
 	for !in.IsDelim('}') {
 		key := in.UnsafeFieldName(false)
 		in.WantColon()
-		if in.IsNull() {
-			in.Skip()
-			in.WantComma()
-			continue
-		}
 		switch key {
 		case "id":
-			out.ID = string(in.String())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.ID = string(in.String())
+			}
 		case "symbol":
-			out.Symbol = string(in.String())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.Symbol = string(in.String())
+			}
 		case "cusip":
-			out.Cusip = string(in.String())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.Cusip = string(in.String())
+			}
 		case "rate":
-			out.Rate = float64(in.Float64())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.Rate = float64(in.Float64())
+			}
 		case "payable_date":
 			if in.IsNull() {
 				in.Skip()
@@ -4528,13 +4928,21 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata36(in *j
 				if out.PayableDate == nil {
 					out.PayableDate = new(civil.Date)
 				}
-				if data := in.UnsafeBytes(); in.Ok() {
-					in.AddError((*out.PayableDate).UnmarshalText(data))
+				if in.IsNull() {
+					in.Skip()
+				} else {
+					if data := in.UnsafeBytes(); in.Ok() {
+						in.AddError((*out.PayableDate).UnmarshalText(data))
+					}
 				}
 			}
 		case "process_date":
-			if data := in.UnsafeBytes(); in.Ok() {
-				in.AddError((out.ProcessDate).UnmarshalText(data))
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				if data := in.UnsafeBytes(); in.Ok() {
+					in.AddError((out.ProcessDate).UnmarshalText(data))
+				}
 			}
 		default:
 			in.SkipRecursive()
@@ -4619,28 +5027,51 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata37(in *j
 	for !in.IsDelim('}') {
 		key := in.UnsafeFieldName(false)
 		in.WantColon()
-		if in.IsNull() {
-			in.Skip()
-			in.WantComma()
-			continue
-		}
 		switch key {
 		case "t":
-			if data := in.Raw(); in.Ok() {
-				in.AddError((out.Timestamp).UnmarshalJSON(data))
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				if data := in.Raw(); in.Ok() {
+					in.AddError((out.Timestamp).UnmarshalJSON(data))
+				}
 			}
 		case "bp":
-			out.BidPrice = float64(in.Float64())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.BidPrice = float64(in.Float64())
+			}
 		case "bs":
-			out.BidSize = uint32(in.Uint32())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.BidSize = uint32(in.Uint32())
+			}
 		case "bx":
-			out.BidExchange = string(in.String())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.BidExchange = string(in.String())
+			}
 		case "ap":
-			out.AskPrice = float64(in.Float64())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.AskPrice = float64(in.Float64())
+			}
 		case "as":
-			out.AskSize = uint32(in.Uint32())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.AskSize = uint32(in.Uint32())
+			}
 		case "ax":
-			out.AskExchange = string(in.String())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.AskExchange = string(in.String())
+			}
 		case "c":
 			if in.IsNull() {
 				in.Skip()
@@ -4658,14 +5089,22 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata37(in *j
 				}
 				for !in.IsDelim(']') {
 					var v79 string
-					v79 = string(in.String())
+					if in.IsNull() {
+						in.Skip()
+					} else {
+						v79 = string(in.String())
+					}
 					out.Conditions = append(out.Conditions, v79)
 					in.WantComma()
 				}
 				in.Delim(']')
 			}
 		case "z":
-			out.Tape = string(in.String())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.Tape = string(in.String())
+			}
 		default:
 			in.SkipRecursive()
 		}
@@ -4775,27 +5214,50 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata38(in *j
 	for !in.IsDelim('}') {
 		key := in.UnsafeFieldName(false)
 		in.WantColon()
-		if in.IsNull() {
-			in.Skip()
-			in.WantComma()
-			continue
-		}
 		switch key {
 		case "id":
-			out.ID = string(in.String())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.ID = string(in.String())
+			}
 		case "symbol":
-			out.Symbol = string(in.String())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.Symbol = string(in.String())
+			}
 		case "cusip":
-			out.Cusip = string(in.String())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.Cusip = string(in.String())
+			}
 		case "price":
-			out.Price = float64(in.Float64())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.Price = float64(in.Float64())
+			}
 		case "dividend_rate":
-			out.DividendRate = float64(in.Float64())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.DividendRate = float64(in.Float64())
+			}
 		case "lottery_type":
-			out.LotteryType = string(in.String())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.LotteryType = string(in.String())
+			}
 		case "process_date":
-			if data := in.UnsafeBytes(); in.Ok() {
-				in.AddError((out.ProcessDate).UnmarshalText(data))
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				if data := in.UnsafeBytes(); in.Ok() {
+					in.AddError((out.ProcessDate).UnmarshalText(data))
+				}
 			}
 		case "payable_date":
 			if in.IsNull() {
@@ -4805,8 +5267,12 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata38(in *j
 				if out.PayableDate == nil {
 					out.PayableDate = new(civil.Date)
 				}
-				if data := in.UnsafeBytes(); in.Ok() {
-					in.AddError((*out.PayableDate).UnmarshalText(data))
+				if in.IsNull() {
+					in.Skip()
+				} else {
+					if data := in.UnsafeBytes(); in.Ok() {
+						in.AddError((*out.PayableDate).UnmarshalText(data))
+					}
 				}
 			}
 		case "record_date":
@@ -4817,8 +5283,12 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata38(in *j
 				if out.RecordDate == nil {
 					out.RecordDate = new(civil.Date)
 				}
-				if data := in.UnsafeBytes(); in.Ok() {
-					in.AddError((*out.RecordDate).UnmarshalText(data))
+				if in.IsNull() {
+					in.Skip()
+				} else {
+					if data := in.UnsafeBytes(); in.Ok() {
+						in.AddError((*out.RecordDate).UnmarshalText(data))
+					}
 				}
 			}
 		case "lottery_date":
@@ -4829,8 +5299,12 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata38(in *j
 				if out.LotteryDate == nil {
 					out.LotteryDate = new(civil.Date)
 				}
-				if data := in.UnsafeBytes(); in.Ok() {
-					in.AddError((*out.LotteryDate).UnmarshalText(data))
+				if in.IsNull() {
+					in.Skip()
+				} else {
+					if data := in.UnsafeBytes(); in.Ok() {
+						in.AddError((*out.LotteryDate).UnmarshalText(data))
+					}
 				}
 			}
 		case "results_publication_date":
@@ -4841,8 +5315,12 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata38(in *j
 				if out.ResultsPublicationDate == nil {
 					out.ResultsPublicationDate = new(civil.Date)
 				}
-				if data := in.UnsafeBytes(); in.Ok() {
-					in.AddError((*out.ResultsPublicationDate).UnmarshalText(data))
+				if in.IsNull() {
+					in.Skip()
+				} else {
+					if data := in.UnsafeBytes(); in.Ok() {
+						in.AddError((*out.ResultsPublicationDate).UnmarshalText(data))
+					}
 				}
 			}
 		default:
@@ -4953,24 +5431,39 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata39(in *j
 	for !in.IsDelim('}') {
 		key := in.UnsafeFieldName(false)
 		in.WantColon()
-		if in.IsNull() {
-			in.Skip()
-			in.WantComma()
-			continue
-		}
 		switch key {
 		case "t":
-			if data := in.Raw(); in.Ok() {
-				in.AddError((out.Timestamp).UnmarshalJSON(data))
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				if data := in.Raw(); in.Ok() {
+					in.AddError((out.Timestamp).UnmarshalJSON(data))
+				}
 			}
 		case "p":
-			out.Price = float64(in.Float64())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.Price = float64(in.Float64())
+			}
 		case "s":
-			out.Size = uint32(in.Uint32())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.Size = uint32(in.Uint32())
+			}
 		case "x":
-			out.Exchange = string(in.String())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.Exchange = string(in.String())
+			}
 		case "c":
-			out.Condition = string(in.String())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.Condition = string(in.String())
+			}
 		default:
 			in.SkipRecursive()
 		}
@@ -5049,11 +5542,6 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata40(in *j
 	for !in.IsDelim('}') {
 		key := in.UnsafeFieldName(false)
 		in.WantColon()
-		if in.IsNull() {
-			in.Skip()
-			in.WantComma()
-			continue
-		}
 		switch key {
 		case "latestTrade":
 			if in.IsNull() {
@@ -5063,7 +5551,11 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata40(in *j
 				if out.LatestTrade == nil {
 					out.LatestTrade = new(OptionTrade)
 				}
-				(*out.LatestTrade).UnmarshalEasyJSON(in)
+				if in.IsNull() {
+					in.Skip()
+				} else {
+					(*out.LatestTrade).UnmarshalEasyJSON(in)
+				}
 			}
 		case "latestQuote":
 			if in.IsNull() {
@@ -5073,10 +5565,18 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata40(in *j
 				if out.LatestQuote == nil {
 					out.LatestQuote = new(OptionQuote)
 				}
-				(*out.LatestQuote).UnmarshalEasyJSON(in)
+				if in.IsNull() {
+					in.Skip()
+				} else {
+					(*out.LatestQuote).UnmarshalEasyJSON(in)
+				}
 			}
 		case "impliedVolatility":
-			out.ImpliedVolatility = float64(in.Float64())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.ImpliedVolatility = float64(in.Float64())
+			}
 		case "greeks":
 			if in.IsNull() {
 				in.Skip()
@@ -5085,7 +5585,11 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata40(in *j
 				if out.Greeks == nil {
 					out.Greeks = new(OptionGreeks)
 				}
-				(*out.Greeks).UnmarshalEasyJSON(in)
+				if in.IsNull() {
+					in.Skip()
+				} else {
+					(*out.Greeks).UnmarshalEasyJSON(in)
+				}
 			}
 		default:
 			in.SkipRecursive()
@@ -5168,30 +5672,57 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata41(in *j
 	for !in.IsDelim('}') {
 		key := in.UnsafeFieldName(false)
 		in.WantColon()
-		if in.IsNull() {
-			in.Skip()
-			in.WantComma()
-			continue
-		}
 		switch key {
 		case "t":
-			if data := in.Raw(); in.Ok() {
-				in.AddError((out.Timestamp).UnmarshalJSON(data))
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				if data := in.Raw(); in.Ok() {
+					in.AddError((out.Timestamp).UnmarshalJSON(data))
+				}
 			}
 		case "bp":
-			out.BidPrice = float64(in.Float64())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.BidPrice = float64(in.Float64())
+			}
 		case "bs":
-			out.BidSize = uint32(in.Uint32())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.BidSize = uint32(in.Uint32())
+			}
 		case "bx":
-			out.BidExchange = string(in.String())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.BidExchange = string(in.String())
+			}
 		case "ap":
-			out.AskPrice = float64(in.Float64())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.AskPrice = float64(in.Float64())
+			}
 		case "as":
-			out.AskSize = uint32(in.Uint32())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.AskSize = uint32(in.Uint32())
+			}
 		case "ax":
-			out.AskExchange = string(in.String())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.AskExchange = string(in.String())
+			}
 		case "c":
-			out.Condition = string(in.String())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.Condition = string(in.String())
+			}
 		default:
 			in.SkipRecursive()
 		}
@@ -5285,22 +5816,37 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata42(in *j
 	for !in.IsDelim('}') {
 		key := in.UnsafeFieldName(false)
 		in.WantColon()
-		if in.IsNull() {
-			in.Skip()
-			in.WantComma()
-			continue
-		}
 		switch key {
 		case "delta":
-			out.Delta = float64(in.Float64())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.Delta = float64(in.Float64())
+			}
 		case "gamma":
-			out.Gamma = float64(in.Float64())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.Gamma = float64(in.Float64())
+			}
 		case "rho":
-			out.Rho = float64(in.Float64())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.Rho = float64(in.Float64())
+			}
 		case "theta":
-			out.Theta = float64(in.Float64())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.Theta = float64(in.Float64())
+			}
 		case "vega":
-			out.Vega = float64(in.Float64())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.Vega = float64(in.Float64())
+			}
 		default:
 			in.SkipRecursive()
 		}
@@ -5379,30 +5925,57 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata43(in *j
 	for !in.IsDelim('}') {
 		key := in.UnsafeFieldName(false)
 		in.WantColon()
-		if in.IsNull() {
-			in.Skip()
-			in.WantComma()
-			continue
-		}
 		switch key {
 		case "t":
-			if data := in.Raw(); in.Ok() {
-				in.AddError((out.Timestamp).UnmarshalJSON(data))
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				if data := in.Raw(); in.Ok() {
+					in.AddError((out.Timestamp).UnmarshalJSON(data))
+				}
 			}
 		case "o":
-			out.Open = float64(in.Float64())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.Open = float64(in.Float64())
+			}
 		case "h":
-			out.High = float64(in.Float64())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.High = float64(in.Float64())
+			}
 		case "l":
-			out.Low = float64(in.Float64())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.Low = float64(in.Float64())
+			}
 		case "c":
-			out.Close = float64(in.Float64())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.Close = float64(in.Float64())
+			}
 		case "v":
-			out.Volume = uint64(in.Uint64())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.Volume = uint64(in.Uint64())
+			}
 		case "n":
-			out.TradeCount = uint64(in.Uint64())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.TradeCount = uint64(in.Uint64())
+			}
 		case "vw":
-			out.VWAP = float64(in.Float64())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.VWAP = float64(in.Float64())
+			}
 		default:
 			in.SkipRecursive()
 		}
@@ -5496,16 +6069,19 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata44(in *j
 	for !in.IsDelim('}') {
 		key := in.UnsafeFieldName(false)
 		in.WantColon()
-		if in.IsNull() {
-			in.Skip()
-			in.WantComma()
-			continue
-		}
 		switch key {
 		case "size":
-			out.Size = string(in.String())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.Size = string(in.String())
+			}
 		case "url":
-			out.URL = string(in.String())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.URL = string(in.String())
+			}
 		default:
 			in.SkipRecursive()
 		}
@@ -5569,30 +6145,53 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata45(in *j
 	for !in.IsDelim('}') {
 		key := in.UnsafeFieldName(false)
 		in.WantColon()
-		if in.IsNull() {
-			in.Skip()
-			in.WantComma()
-			continue
-		}
 		switch key {
 		case "id":
-			out.ID = int(in.Int())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.ID = int(in.Int())
+			}
 		case "author":
-			out.Author = string(in.String())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.Author = string(in.String())
+			}
 		case "created_at":
-			if data := in.Raw(); in.Ok() {
-				in.AddError((out.CreatedAt).UnmarshalJSON(data))
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				if data := in.Raw(); in.Ok() {
+					in.AddError((out.CreatedAt).UnmarshalJSON(data))
+				}
 			}
 		case "updated_at":
-			if data := in.Raw(); in.Ok() {
-				in.AddError((out.UpdatedAt).UnmarshalJSON(data))
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				if data := in.Raw(); in.Ok() {
+					in.AddError((out.UpdatedAt).UnmarshalJSON(data))
+				}
 			}
 		case "headline":
-			out.Headline = string(in.String())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.Headline = string(in.String())
+			}
 		case "summary":
-			out.Summary = string(in.String())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.Summary = string(in.String())
+			}
 		case "content":
-			out.Content = string(in.String())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.Content = string(in.String())
+			}
 		case "images":
 			if in.IsNull() {
 				in.Skip()
@@ -5610,14 +6209,22 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata45(in *j
 				}
 				for !in.IsDelim(']') {
 					var v82 NewsImage
-					(v82).UnmarshalEasyJSON(in)
+					if in.IsNull() {
+						in.Skip()
+					} else {
+						(v82).UnmarshalEasyJSON(in)
+					}
 					out.Images = append(out.Images, v82)
 					in.WantComma()
 				}
 				in.Delim(']')
 			}
 		case "url":
-			out.URL = string(in.String())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.URL = string(in.String())
+			}
 		case "symbols":
 			if in.IsNull() {
 				in.Skip()
@@ -5635,7 +6242,11 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata45(in *j
 				}
 				for !in.IsDelim(']') {
 					var v83 string
-					v83 = string(in.String())
+					if in.IsNull() {
+						in.Skip()
+					} else {
+						v83 = string(in.String())
+					}
 					out.Symbols = append(out.Symbols, v83)
 					in.WantComma()
 				}
@@ -5766,25 +6377,44 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata46(in *j
 	for !in.IsDelim('}') {
 		key := in.UnsafeFieldName(false)
 		in.WantColon()
-		if in.IsNull() {
-			in.Skip()
-			in.WantComma()
-			continue
-		}
 		switch key {
 		case "id":
-			out.ID = string(in.String())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.ID = string(in.String())
+			}
 		case "new_symbol":
-			out.NewSymbol = string(in.String())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.NewSymbol = string(in.String())
+			}
 		case "new_cusip":
-			out.NewCusip = string(in.String())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.NewCusip = string(in.String())
+			}
 		case "old_symbol":
-			out.OldSymbol = string(in.String())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.OldSymbol = string(in.String())
+			}
 		case "old_cusip":
-			out.OldCusip = string(in.String())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.OldCusip = string(in.String())
+			}
 		case "process_date":
-			if data := in.UnsafeBytes(); in.Ok() {
-				in.AddError((out.ProcessDate).UnmarshalText(data))
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				if data := in.UnsafeBytes(); in.Ok() {
+					in.AddError((out.ProcessDate).UnmarshalText(data))
+				}
 			}
 		default:
 			in.SkipRecursive()
@@ -5869,29 +6499,52 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata47(in *j
 	for !in.IsDelim('}') {
 		key := in.UnsafeFieldName(false)
 		in.WantColon()
-		if in.IsNull() {
-			in.Skip()
-			in.WantComma()
-			continue
-		}
 		switch key {
 		case "id":
-			out.ID = string(in.String())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.ID = string(in.String())
+			}
 		case "symbol":
-			out.Symbol = string(in.String())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.Symbol = string(in.String())
+			}
 		case "cusip":
-			out.Cusip = string(in.String())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.Cusip = string(in.String())
+			}
 		case "new_rate":
-			out.NewRate = float64(in.Float64())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.NewRate = float64(in.Float64())
+			}
 		case "old_rate":
-			out.OldRate = float64(in.Float64())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.OldRate = float64(in.Float64())
+			}
 		case "process_date":
-			if data := in.UnsafeBytes(); in.Ok() {
-				in.AddError((out.ProcessDate).UnmarshalText(data))
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				if data := in.UnsafeBytes(); in.Ok() {
+					in.AddError((out.ProcessDate).UnmarshalText(data))
+				}
 			}
 		case "ex_date":
-			if data := in.UnsafeBytes(); in.Ok() {
-				in.AddError((out.ExDate).UnmarshalText(data))
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				if data := in.UnsafeBytes(); in.Ok() {
+					in.AddError((out.ExDate).UnmarshalText(data))
+				}
 			}
 		case "record_date":
 			if in.IsNull() {
@@ -5901,8 +6554,12 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata47(in *j
 				if out.RecordDate == nil {
 					out.RecordDate = new(civil.Date)
 				}
-				if data := in.UnsafeBytes(); in.Ok() {
-					in.AddError((*out.RecordDate).UnmarshalText(data))
+				if in.IsNull() {
+					in.Skip()
+				} else {
+					if data := in.UnsafeBytes(); in.Ok() {
+						in.AddError((*out.RecordDate).UnmarshalText(data))
+					}
 				}
 			}
 		case "payable_date":
@@ -5913,8 +6570,12 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata47(in *j
 				if out.PayableDate == nil {
 					out.PayableDate = new(civil.Date)
 				}
-				if data := in.UnsafeBytes(); in.Ok() {
-					in.AddError((*out.PayableDate).UnmarshalText(data))
+				if in.IsNull() {
+					in.Skip()
+				} else {
+					if data := in.UnsafeBytes(); in.Ok() {
+						in.AddError((*out.PayableDate).UnmarshalText(data))
+					}
 				}
 			}
 		case "due_bill_redemption_date":
@@ -5925,8 +6586,12 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata47(in *j
 				if out.DueBillRedemptionDate == nil {
 					out.DueBillRedemptionDate = new(civil.Date)
 				}
-				if data := in.UnsafeBytes(); in.Ok() {
-					in.AddError((*out.DueBillRedemptionDate).UnmarshalText(data))
+				if in.IsNull() {
+					in.Skip()
+				} else {
+					if data := in.UnsafeBytes(); in.Ok() {
+						in.AddError((*out.DueBillRedemptionDate).UnmarshalText(data))
+					}
 				}
 			}
 		default:
@@ -6032,22 +6697,33 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata48(in *j
 	for !in.IsDelim('}') {
 		key := in.UnsafeFieldName(false)
 		in.WantColon()
-		if in.IsNull() {
-			in.Skip()
-			in.WantComma()
-			continue
-		}
 		switch key {
 		case "t":
-			if data := in.Raw(); in.Ok() {
-				in.AddError((out.Timestamp).UnmarshalJSON(data))
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				if data := in.Raw(); in.Ok() {
+					in.AddError((out.Timestamp).UnmarshalJSON(data))
+				}
 			}
 		case "p":
-			out.Price = float64(in.Float64())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.Price = float64(in.Float64())
+			}
 		case "ytm":
-			out.YieldToMaturity = float64(in.Float64())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.YieldToMaturity = float64(in.Float64())
+			}
 		case "ytw":
-			out.YieldToWorst = float64(in.Float64())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.YieldToWorst = float64(in.Float64())
+			}
 		default:
 			in.SkipRecursive()
 		}
@@ -6121,15 +6797,14 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata49(in *j
 	for !in.IsDelim('}') {
 		key := in.UnsafeFieldName(false)
 		in.WantColon()
-		if in.IsNull() {
-			in.Skip()
-			in.WantComma()
-			continue
-		}
 		switch key {
 		case "d":
-			if data := in.UnsafeBytes(); in.Ok() {
-				in.AddError((out.Date).UnmarshalText(data))
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				if data := in.UnsafeBytes(); in.Ok() {
+					in.AddError((out.Date).UnmarshalText(data))
+				}
 			}
 		case "o":
 			if in.IsNull() {
@@ -6148,7 +6823,11 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata49(in *j
 				}
 				for !in.IsDelim(']') {
 					var v88 Auction
-					(v88).UnmarshalEasyJSON(in)
+					if in.IsNull() {
+						in.Skip()
+					} else {
+						(v88).UnmarshalEasyJSON(in)
+					}
 					out.Opening = append(out.Opening, v88)
 					in.WantComma()
 				}
@@ -6171,7 +6850,11 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata49(in *j
 				}
 				for !in.IsDelim(']') {
 					var v89 Auction
-					(v89).UnmarshalEasyJSON(in)
+					if in.IsNull() {
+						in.Skip()
+					} else {
+						(v89).UnmarshalEasyJSON(in)
+					}
 					out.Closing = append(out.Closing, v89)
 					in.WantComma()
 				}
@@ -6267,24 +6950,39 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata50(in *j
 	for !in.IsDelim('}') {
 		key := in.UnsafeFieldName(false)
 		in.WantColon()
-		if in.IsNull() {
-			in.Skip()
-			in.WantComma()
-			continue
-		}
 		switch key {
 		case "t":
-			if data := in.Raw(); in.Ok() {
-				in.AddError((out.Timestamp).UnmarshalJSON(data))
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				if data := in.Raw(); in.Ok() {
+					in.AddError((out.Timestamp).UnmarshalJSON(data))
+				}
 			}
 		case "p":
-			out.Price = float64(in.Float64())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.Price = float64(in.Float64())
+			}
 		case "s":
-			out.Size = float64(in.Float64())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.Size = float64(in.Float64())
+			}
 		case "i":
-			out.ID = int64(in.Int64())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.ID = int64(in.Int64())
+			}
 		case "tks":
-			out.TakerSide = string(in.String())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.TakerSide = string(in.String())
+			}
 		default:
 			in.SkipRecursive()
 		}
@@ -6363,11 +7061,6 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata51(in *j
 	for !in.IsDelim('}') {
 		key := in.UnsafeFieldName(false)
 		in.WantColon()
-		if in.IsNull() {
-			in.Skip()
-			in.WantComma()
-			continue
-		}
 		switch key {
 		case "snapshots":
 			if in.IsNull() {
@@ -6379,7 +7072,11 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata51(in *j
 					key := string(in.String())
 					in.WantColon()
 					var v94 CryptoSnapshot
-					(v94).UnmarshalEasyJSON(in)
+					if in.IsNull() {
+						in.Skip()
+					} else {
+						(v94).UnmarshalEasyJSON(in)
+					}
 					(out.Snapshots)[key] = v94
 					in.WantComma()
 				}
@@ -6459,11 +7156,6 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata52(in *j
 	for !in.IsDelim('}') {
 		key := in.UnsafeFieldName(false)
 		in.WantColon()
-		if in.IsNull() {
-			in.Skip()
-			in.WantComma()
-			continue
-		}
 		switch key {
 		case "latestTrade":
 			if in.IsNull() {
@@ -6473,7 +7165,11 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata52(in *j
 				if out.LatestTrade == nil {
 					out.LatestTrade = new(CryptoTrade)
 				}
-				(*out.LatestTrade).UnmarshalEasyJSON(in)
+				if in.IsNull() {
+					in.Skip()
+				} else {
+					(*out.LatestTrade).UnmarshalEasyJSON(in)
+				}
 			}
 		case "latestQuote":
 			if in.IsNull() {
@@ -6483,7 +7179,11 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata52(in *j
 				if out.LatestQuote == nil {
 					out.LatestQuote = new(CryptoQuote)
 				}
-				(*out.LatestQuote).UnmarshalEasyJSON(in)
+				if in.IsNull() {
+					in.Skip()
+				} else {
+					(*out.LatestQuote).UnmarshalEasyJSON(in)
+				}
 			}
 		case "minuteBar":
 			if in.IsNull() {
@@ -6493,7 +7193,11 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata52(in *j
 				if out.MinuteBar == nil {
 					out.MinuteBar = new(CryptoBar)
 				}
-				(*out.MinuteBar).UnmarshalEasyJSON(in)
+				if in.IsNull() {
+					in.Skip()
+				} else {
+					(*out.MinuteBar).UnmarshalEasyJSON(in)
+				}
 			}
 		case "dailyBar":
 			if in.IsNull() {
@@ -6503,7 +7207,11 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata52(in *j
 				if out.DailyBar == nil {
 					out.DailyBar = new(CryptoBar)
 				}
-				(*out.DailyBar).UnmarshalEasyJSON(in)
+				if in.IsNull() {
+					in.Skip()
+				} else {
+					(*out.DailyBar).UnmarshalEasyJSON(in)
+				}
 			}
 		case "prevDailyBar":
 			if in.IsNull() {
@@ -6513,7 +7221,11 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata52(in *j
 				if out.PrevDailyBar == nil {
 					out.PrevDailyBar = new(CryptoBar)
 				}
-				(*out.PrevDailyBar).UnmarshalEasyJSON(in)
+				if in.IsNull() {
+					in.Skip()
+				} else {
+					(*out.PrevDailyBar).UnmarshalEasyJSON(in)
+				}
 			}
 		default:
 			in.SkipRecursive()
@@ -6613,24 +7325,39 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata53(in *j
 	for !in.IsDelim('}') {
 		key := in.UnsafeFieldName(false)
 		in.WantColon()
-		if in.IsNull() {
-			in.Skip()
-			in.WantComma()
-			continue
-		}
 		switch key {
 		case "t":
-			if data := in.Raw(); in.Ok() {
-				in.AddError((out.Timestamp).UnmarshalJSON(data))
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				if data := in.Raw(); in.Ok() {
+					in.AddError((out.Timestamp).UnmarshalJSON(data))
+				}
 			}
 		case "bp":
-			out.BidPrice = float64(in.Float64())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.BidPrice = float64(in.Float64())
+			}
 		case "bs":
-			out.BidSize = float64(in.Float64())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.BidSize = float64(in.Float64())
+			}
 		case "ap":
-			out.AskPrice = float64(in.Float64())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.AskPrice = float64(in.Float64())
+			}
 		case "as":
-			out.AskSize = float64(in.Float64())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.AskSize = float64(in.Float64())
+			}
 		default:
 			in.SkipRecursive()
 		}
@@ -6709,27 +7436,46 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata54(in *j
 	for !in.IsDelim('}') {
 		key := in.UnsafeFieldName(false)
 		in.WantColon()
-		if in.IsNull() {
-			in.Skip()
-			in.WantComma()
-			continue
-		}
 		switch key {
 		case "ip":
-			out.IndexPrice = float64(in.Float64())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.IndexPrice = float64(in.Float64())
+			}
 		case "mp":
-			out.MarkPrice = float64(in.Float64())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.MarkPrice = float64(in.Float64())
+			}
 		case "fr":
-			out.FundingRate = float64(in.Float64())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.FundingRate = float64(in.Float64())
+			}
 		case "oi":
-			out.OpenInterest = float64(in.Float64())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.OpenInterest = float64(in.Float64())
+			}
 		case "t":
-			if data := in.Raw(); in.Ok() {
-				in.AddError((out.Timestamp).UnmarshalJSON(data))
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				if data := in.Raw(); in.Ok() {
+					in.AddError((out.Timestamp).UnmarshalJSON(data))
+				}
 			}
 		case "ft":
-			if data := in.Raw(); in.Ok() {
-				in.AddError((out.NextFundingTime).UnmarshalJSON(data))
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				if data := in.Raw(); in.Ok() {
+					in.AddError((out.NextFundingTime).UnmarshalJSON(data))
+				}
 			}
 		default:
 			in.SkipRecursive()
@@ -6814,30 +7560,57 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata55(in *j
 	for !in.IsDelim('}') {
 		key := in.UnsafeFieldName(false)
 		in.WantColon()
-		if in.IsNull() {
-			in.Skip()
-			in.WantComma()
-			continue
-		}
 		switch key {
 		case "t":
-			if data := in.Raw(); in.Ok() {
-				in.AddError((out.Timestamp).UnmarshalJSON(data))
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				if data := in.Raw(); in.Ok() {
+					in.AddError((out.Timestamp).UnmarshalJSON(data))
+				}
 			}
 		case "o":
-			out.Open = float64(in.Float64())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.Open = float64(in.Float64())
+			}
 		case "h":
-			out.High = float64(in.Float64())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.High = float64(in.Float64())
+			}
 		case "l":
-			out.Low = float64(in.Float64())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.Low = float64(in.Float64())
+			}
 		case "c":
-			out.Close = float64(in.Float64())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.Close = float64(in.Float64())
+			}
 		case "v":
-			out.Volume = float64(in.Float64())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.Volume = float64(in.Float64())
+			}
 		case "n":
-			out.TradeCount = uint64(in.Uint64())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.TradeCount = uint64(in.Uint64())
+			}
 		case "vw":
-			out.VWAP = float64(in.Float64())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.VWAP = float64(in.Float64())
+			}
 		default:
 			in.SkipRecursive()
 		}
@@ -6931,11 +7704,6 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata56(in *j
 	for !in.IsDelim('}') {
 		key := in.UnsafeFieldName(false)
 		in.WantColon()
-		if in.IsNull() {
-			in.Skip()
-			in.WantComma()
-			continue
-		}
 		switch key {
 		case "reverse_splits":
 			if in.IsNull() {
@@ -6954,7 +7722,11 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata56(in *j
 				}
 				for !in.IsDelim(']') {
 					var v96 ReverseSplit
-					(v96).UnmarshalEasyJSON(in)
+					if in.IsNull() {
+						in.Skip()
+					} else {
+						(v96).UnmarshalEasyJSON(in)
+					}
 					out.ReverseSplits = append(out.ReverseSplits, v96)
 					in.WantComma()
 				}
@@ -6977,7 +7749,11 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata56(in *j
 				}
 				for !in.IsDelim(']') {
 					var v97 ForwardSplit
-					(v97).UnmarshalEasyJSON(in)
+					if in.IsNull() {
+						in.Skip()
+					} else {
+						(v97).UnmarshalEasyJSON(in)
+					}
 					out.ForwardSplits = append(out.ForwardSplits, v97)
 					in.WantComma()
 				}
@@ -7000,7 +7776,11 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata56(in *j
 				}
 				for !in.IsDelim(']') {
 					var v98 UnitSplit
-					(v98).UnmarshalEasyJSON(in)
+					if in.IsNull() {
+						in.Skip()
+					} else {
+						(v98).UnmarshalEasyJSON(in)
+					}
 					out.UnitSplits = append(out.UnitSplits, v98)
 					in.WantComma()
 				}
@@ -7023,7 +7803,11 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata56(in *j
 				}
 				for !in.IsDelim(']') {
 					var v99 CashDividend
-					(v99).UnmarshalEasyJSON(in)
+					if in.IsNull() {
+						in.Skip()
+					} else {
+						(v99).UnmarshalEasyJSON(in)
+					}
 					out.CashDividends = append(out.CashDividends, v99)
 					in.WantComma()
 				}
@@ -7046,7 +7830,11 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata56(in *j
 				}
 				for !in.IsDelim(']') {
 					var v100 CashMerger
-					(v100).UnmarshalEasyJSON(in)
+					if in.IsNull() {
+						in.Skip()
+					} else {
+						(v100).UnmarshalEasyJSON(in)
+					}
 					out.CashMergers = append(out.CashMergers, v100)
 					in.WantComma()
 				}
@@ -7069,7 +7857,11 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata56(in *j
 				}
 				for !in.IsDelim(']') {
 					var v101 StockMerger
-					(v101).UnmarshalEasyJSON(in)
+					if in.IsNull() {
+						in.Skip()
+					} else {
+						(v101).UnmarshalEasyJSON(in)
+					}
 					out.StockMergers = append(out.StockMergers, v101)
 					in.WantComma()
 				}
@@ -7092,7 +7884,11 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata56(in *j
 				}
 				for !in.IsDelim(']') {
 					var v102 StockAndCashMerger
-					(v102).UnmarshalEasyJSON(in)
+					if in.IsNull() {
+						in.Skip()
+					} else {
+						(v102).UnmarshalEasyJSON(in)
+					}
 					out.StockAndCashMergers = append(out.StockAndCashMergers, v102)
 					in.WantComma()
 				}
@@ -7115,7 +7911,11 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata56(in *j
 				}
 				for !in.IsDelim(']') {
 					var v103 StockDividend
-					(v103).UnmarshalEasyJSON(in)
+					if in.IsNull() {
+						in.Skip()
+					} else {
+						(v103).UnmarshalEasyJSON(in)
+					}
 					out.StockDividends = append(out.StockDividends, v103)
 					in.WantComma()
 				}
@@ -7138,7 +7938,11 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata56(in *j
 				}
 				for !in.IsDelim(']') {
 					var v104 Redemption
-					(v104).UnmarshalEasyJSON(in)
+					if in.IsNull() {
+						in.Skip()
+					} else {
+						(v104).UnmarshalEasyJSON(in)
+					}
 					out.Redemptions = append(out.Redemptions, v104)
 					in.WantComma()
 				}
@@ -7161,7 +7965,11 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata56(in *j
 				}
 				for !in.IsDelim(']') {
 					var v105 SpinOff
-					(v105).UnmarshalEasyJSON(in)
+					if in.IsNull() {
+						in.Skip()
+					} else {
+						(v105).UnmarshalEasyJSON(in)
+					}
 					out.SpinOffs = append(out.SpinOffs, v105)
 					in.WantComma()
 				}
@@ -7184,7 +7992,11 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata56(in *j
 				}
 				for !in.IsDelim(']') {
 					var v106 NameChange
-					(v106).UnmarshalEasyJSON(in)
+					if in.IsNull() {
+						in.Skip()
+					} else {
+						(v106).UnmarshalEasyJSON(in)
+					}
 					out.NameChanges = append(out.NameChanges, v106)
 					in.WantComma()
 				}
@@ -7207,7 +8019,11 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata56(in *j
 				}
 				for !in.IsDelim(']') {
 					var v107 WorthlessRemoval
-					(v107).UnmarshalEasyJSON(in)
+					if in.IsNull() {
+						in.Skip()
+					} else {
+						(v107).UnmarshalEasyJSON(in)
+					}
 					out.WorthlessRemovals = append(out.WorthlessRemovals, v107)
 					in.WantComma()
 				}
@@ -7230,7 +8046,11 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata56(in *j
 				}
 				for !in.IsDelim(']') {
 					var v108 RightsDistribution
-					(v108).UnmarshalEasyJSON(in)
+					if in.IsNull() {
+						in.Skip()
+					} else {
+						(v108).UnmarshalEasyJSON(in)
+					}
 					out.RightsDistributions = append(out.RightsDistributions, v108)
 					in.WantComma()
 				}
@@ -7253,7 +8073,11 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata56(in *j
 				}
 				for !in.IsDelim(']') {
 					var v109 PartialCall
-					(v109).UnmarshalEasyJSON(in)
+					if in.IsNull() {
+						in.Skip()
+					} else {
+						(v109).UnmarshalEasyJSON(in)
+					}
 					out.PartialCalls = append(out.PartialCalls, v109)
 					in.WantComma()
 				}
@@ -7276,7 +8100,11 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata56(in *j
 				}
 				for !in.IsDelim(']') {
 					var v110 Reorganization
-					(v110).UnmarshalEasyJSON(in)
+					if in.IsNull() {
+						in.Skip()
+					} else {
+						(v110).UnmarshalEasyJSON(in)
+					}
 					out.Reorganizations = append(out.Reorganizations, v110)
 					in.WantComma()
 				}
@@ -7616,14 +8444,13 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata57(in *j
 	for !in.IsDelim('}') {
 		key := in.UnsafeFieldName(false)
 		in.WantColon()
-		if in.IsNull() {
-			in.Skip()
-			in.WantComma()
-			continue
-		}
 		switch key {
 		case "id":
-			out.ID = string(in.String())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.ID = string(in.String())
+			}
 		case "acquirer_symbol":
 			if in.IsNull() {
 				in.Skip()
@@ -7632,7 +8459,11 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata57(in *j
 				if out.AcquirerSymbol == nil {
 					out.AcquirerSymbol = new(string)
 				}
-				*out.AcquirerSymbol = string(in.String())
+				if in.IsNull() {
+					in.Skip()
+				} else {
+					*out.AcquirerSymbol = string(in.String())
+				}
 			}
 		case "acquirer_cusip":
 			if in.IsNull() {
@@ -7642,21 +8473,45 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata57(in *j
 				if out.AcquirerCusip == nil {
 					out.AcquirerCusip = new(string)
 				}
-				*out.AcquirerCusip = string(in.String())
+				if in.IsNull() {
+					in.Skip()
+				} else {
+					*out.AcquirerCusip = string(in.String())
+				}
 			}
 		case "acquiree_symbol":
-			out.AcquireeSymbol = string(in.String())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.AcquireeSymbol = string(in.String())
+			}
 		case "acquiree_cusip":
-			out.AcquireeCusip = string(in.String())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.AcquireeCusip = string(in.String())
+			}
 		case "rate":
-			out.Rate = float64(in.Float64())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.Rate = float64(in.Float64())
+			}
 		case "process_date":
-			if data := in.UnsafeBytes(); in.Ok() {
-				in.AddError((out.ProcessDate).UnmarshalText(data))
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				if data := in.UnsafeBytes(); in.Ok() {
+					in.AddError((out.ProcessDate).UnmarshalText(data))
+				}
 			}
 		case "effective_date":
-			if data := in.UnsafeBytes(); in.Ok() {
-				in.AddError((out.EffectiveDate).UnmarshalText(data))
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				if data := in.UnsafeBytes(); in.Ok() {
+					in.AddError((out.EffectiveDate).UnmarshalText(data))
+				}
 			}
 		case "payable_date":
 			if in.IsNull() {
@@ -7666,8 +8521,12 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata57(in *j
 				if out.PayableDate == nil {
 					out.PayableDate = new(civil.Date)
 				}
-				if data := in.UnsafeBytes(); in.Ok() {
-					in.AddError((*out.PayableDate).UnmarshalText(data))
+				if in.IsNull() {
+					in.Skip()
+				} else {
+					if data := in.UnsafeBytes(); in.Ok() {
+						in.AddError((*out.PayableDate).UnmarshalText(data))
+					}
 				}
 			}
 		default:
@@ -7768,33 +8627,64 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata58(in *j
 	for !in.IsDelim('}') {
 		key := in.UnsafeFieldName(false)
 		in.WantColon()
-		if in.IsNull() {
-			in.Skip()
-			in.WantComma()
-			continue
-		}
 		switch key {
 		case "id":
-			out.ID = string(in.String())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.ID = string(in.String())
+			}
 		case "symbol":
-			out.Symbol = string(in.String())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.Symbol = string(in.String())
+			}
 		case "cusip":
-			out.Cusip = string(in.String())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.Cusip = string(in.String())
+			}
 		case "rate":
-			out.Rate = float64(in.Float64())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.Rate = float64(in.Float64())
+			}
 		case "foreign":
-			out.Foreign = bool(in.Bool())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.Foreign = bool(in.Bool())
+			}
 		case "special":
-			out.Special = bool(in.Bool())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.Special = bool(in.Bool())
+			}
 		case "sub_type":
-			out.SubType = string(in.String())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.SubType = string(in.String())
+			}
 		case "process_date":
-			if data := in.UnsafeBytes(); in.Ok() {
-				in.AddError((out.ProcessDate).UnmarshalText(data))
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				if data := in.UnsafeBytes(); in.Ok() {
+					in.AddError((out.ProcessDate).UnmarshalText(data))
+				}
 			}
 		case "ex_date":
-			if data := in.UnsafeBytes(); in.Ok() {
-				in.AddError((out.ExDate).UnmarshalText(data))
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				if data := in.UnsafeBytes(); in.Ok() {
+					in.AddError((out.ExDate).UnmarshalText(data))
+				}
 			}
 		case "record_date":
 			if in.IsNull() {
@@ -7804,8 +8694,12 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata58(in *j
 				if out.RecordDate == nil {
 					out.RecordDate = new(civil.Date)
 				}
-				if data := in.UnsafeBytes(); in.Ok() {
-					in.AddError((*out.RecordDate).UnmarshalText(data))
+				if in.IsNull() {
+					in.Skip()
+				} else {
+					if data := in.UnsafeBytes(); in.Ok() {
+						in.AddError((*out.RecordDate).UnmarshalText(data))
+					}
 				}
 			}
 		case "payable_date":
@@ -7816,8 +8710,12 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata58(in *j
 				if out.PayableDate == nil {
 					out.PayableDate = new(civil.Date)
 				}
-				if data := in.UnsafeBytes(); in.Ok() {
-					in.AddError((*out.PayableDate).UnmarshalText(data))
+				if in.IsNull() {
+					in.Skip()
+				} else {
+					if data := in.UnsafeBytes(); in.Ok() {
+						in.AddError((*out.PayableDate).UnmarshalText(data))
+					}
 				}
 			}
 		case "due_bill_off_date":
@@ -7828,8 +8726,12 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata58(in *j
 				if out.DueBillOffDate == nil {
 					out.DueBillOffDate = new(civil.Date)
 				}
-				if data := in.UnsafeBytes(); in.Ok() {
-					in.AddError((*out.DueBillOffDate).UnmarshalText(data))
+				if in.IsNull() {
+					in.Skip()
+				} else {
+					if data := in.UnsafeBytes(); in.Ok() {
+						in.AddError((*out.DueBillOffDate).UnmarshalText(data))
+					}
 				}
 			}
 		case "due_bill_on_date":
@@ -7840,8 +8742,12 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata58(in *j
 				if out.DueBillOnDate == nil {
 					out.DueBillOnDate = new(civil.Date)
 				}
-				if data := in.UnsafeBytes(); in.Ok() {
-					in.AddError((*out.DueBillOnDate).UnmarshalText(data))
+				if in.IsNull() {
+					in.Skip()
+				} else {
+					if data := in.UnsafeBytes(); in.Ok() {
+						in.AddError((*out.DueBillOnDate).UnmarshalText(data))
+					}
 				}
 			}
 		default:
@@ -7962,30 +8868,57 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata59(in *j
 	for !in.IsDelim('}') {
 		key := in.UnsafeFieldName(false)
 		in.WantColon()
-		if in.IsNull() {
-			in.Skip()
-			in.WantComma()
-			continue
-		}
 		switch key {
 		case "t":
-			if data := in.Raw(); in.Ok() {
-				in.AddError((out.Timestamp).UnmarshalJSON(data))
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				if data := in.Raw(); in.Ok() {
+					in.AddError((out.Timestamp).UnmarshalJSON(data))
+				}
 			}
 		case "o":
-			out.Open = float64(in.Float64())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.Open = float64(in.Float64())
+			}
 		case "h":
-			out.High = float64(in.Float64())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.High = float64(in.Float64())
+			}
 		case "l":
-			out.Low = float64(in.Float64())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.Low = float64(in.Float64())
+			}
 		case "c":
-			out.Close = float64(in.Float64())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.Close = float64(in.Float64())
+			}
 		case "v":
-			out.Volume = uint64(in.Uint64())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.Volume = uint64(in.Uint64())
+			}
 		case "n":
-			out.TradeCount = uint64(in.Uint64())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.TradeCount = uint64(in.Uint64())
+			}
 		case "vw":
-			out.VWAP = float64(in.Float64())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.VWAP = float64(in.Float64())
+			}
 		default:
 			in.SkipRecursive()
 		}
@@ -8079,24 +9012,39 @@ func easyjson3e8ab7adDecodeGithubComAlpacahqAlpacaTradeApiGoV3Marketdata60(in *j
 	for !in.IsDelim('}') {
 		key := in.UnsafeFieldName(false)
 		in.WantColon()
-		if in.IsNull() {
-			in.Skip()
-			in.WantComma()
-			continue
-		}
 		switch key {
 		case "t":
-			if data := in.Raw(); in.Ok() {
-				in.AddError((out.Timestamp).UnmarshalJSON(data))
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				if data := in.Raw(); in.Ok() {
+					in.AddError((out.Timestamp).UnmarshalJSON(data))
+				}
 			}
 		case "p":
-			out.Price = float64(in.Float64())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.Price = float64(in.Float64())
+			}
 		case "s":
-			out.Size = uint32(in.Uint32())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.Size = uint32(in.Uint32())
+			}
 		case "x":
-			out.Exchange = string(in.String())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.Exchange = string(in.String())
+			}
 		case "c":
-			out.Condition = string(in.String())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.Condition = string(in.String())
+			}
 		default:
 			in.SkipRecursive()
 		}
