@@ -1128,6 +1128,9 @@ func (c *Client) GetLatestCryptoPerpTrade(symbol string, req GetLatestCryptoTrad
 	if err != nil {
 		return nil, err
 	}
+	if latestTrade == nil {
+		return nil, nil
+	}
 
 	perpsTrade := CryptoPerpTrade(*latestTrade)
 	return &perpsTrade, nil
@@ -1206,6 +1209,9 @@ func (c *Client) GetLatestCryptoPerpQuote(symbol string, req GetLatestCryptoQuot
 	latestQuote, err := c.GetLatestCryptoQuote(symbol, req)
 	if err != nil {
 		return nil, err
+	}
+	if latestQuote == nil {
+		return nil, nil
 	}
 
 	perpsQuote := CryptoPerpQuote(*latestQuote)

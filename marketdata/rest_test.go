@@ -1566,6 +1566,14 @@ func TestLatestCryptoPerpTrade(t *testing.T) {
 	}, *got)
 }
 
+func TestLatestCryptoPerpTradeMissingSymbol(t *testing.T) {
+	c := NewClient(ClientOpts{})
+	c.do = mockResp(`{"trades": {}}`)
+	got, err := c.GetLatestCryptoPerpTrade("BTC-PERP", GetLatestCryptoTradeRequest{})
+	require.NoError(t, err)
+	assert.Nil(t, got)
+}
+
 func TestLatestCryptoPerpTrades(t *testing.T) {
 	c := DefaultClient
 	c.do = mockResp(`{"trades": {"ETH-PERP": {"i": 1028100310,"p": 3678.81,"s": 0.01,"t": "2024-12-19T10:16:20.124Z","tks": "B"},"BTC-PERP": {"i": 1805344202,"p": 101868,"s": 0.0009,"t": "2024-12-19T10:16:19.31Z","tks": "S"}}}`)
@@ -1595,6 +1603,14 @@ func TestLatestCryptoPerpQuote(t *testing.T) {
 		AskPrice:  101675.1,
 		AskSize:   3.087,
 	}, *got)
+}
+
+func TestLatestCryptoPerpQuoteMissingSymbol(t *testing.T) {
+	c := NewClient(ClientOpts{})
+	c.do = mockResp(`{"quotes": {}}`)
+	got, err := c.GetLatestCryptoPerpQuote("BTC-PERP", GetLatestCryptoQuoteRequest{})
+	require.NoError(t, err)
+	assert.Nil(t, got)
 }
 
 func TestLatestCryptoPerpQuotes(t *testing.T) {
