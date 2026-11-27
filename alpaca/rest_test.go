@@ -1058,7 +1058,10 @@ func TestCancelOrder(t *testing.T) {
 	c := DefaultClient
 	// successful
 	c.do = func(_ *Client, _ *http.Request) (*http.Response, error) {
-		return &http.Response{}, nil
+		return &http.Response{
+			StatusCode: http.StatusNoContent,
+			Body:       http.NoBody,
+		}, nil
 	}
 
 	require.NoError(t, c.CancelOrder("some_order_id"))

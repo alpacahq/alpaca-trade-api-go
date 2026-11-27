@@ -16,6 +16,8 @@ import (
 	"cloud.google.com/go/civil"
 	"github.com/mailru/easyjson"
 	"github.com/shopspring/decimal"
+
+	"github.com/alpacahq/alpaca-trade-api-go/v3/internal/httptransport"
 )
 
 // ClientOpts contains options for the alpaca client
@@ -25,10 +27,16 @@ type ClientOpts struct {
 	BrokerKey    string
 	BrokerSecret string
 	OAuth        string
-	BaseURL      string
-	RetryLimit   int
-	RetryDelay   time.Duration
-	// HTTPClient to be used for each http request.
+	// BaseURL is the base URL of the Alpaca Trading API. Configure the final
+	// HTTPS endpoint directly because cross-origin redirects (including HTTP to
+	// HTTPS or host changes) strip SDK credentials.
+	BaseURL    string
+	RetryLimit int
+	RetryDelay time.Duration
+	// HTTPClient to be used for each HTTP request. Its configuration is
+	// shallow-cloned by NewClient to enforce credential-safe redirects.
+	// Configure its fields before calling NewClient; later field assignments
+	// on the original client are not observed.
 	HTTPClient *http.Client
 }
 
@@ -70,6 +78,7 @@ func NewClient(opts ClientOpts) *Client {
 			Timeout: 10 * time.Second,
 		}
 	}
+	httpClient = httptransport.CloneWithSafeRedirects(httpClient)
 	return &Client{
 		opts:       opts,
 		httpClient: httpClient,
@@ -121,6 +130,16 @@ RetryLoop:
 		time.Sleep(c.opts.RetryDelay)
 	}
 
+	if err = httptransport.NormalizeResponseEncoding(resp); err != nil {
+		if resp.StatusCode >= http.StatusMultipleChoices {
+			defer resp.Body.Close()
+			return nil, APIErrorFromResponse(resp)
+		}
+		if resp.Body != nil {
+			_ = resp.Body.Close()
+		}
+		return nil, err
+	}
 	if err = verify(resp); err != nil {
 		return nil, err
 	}
@@ -684,7 +703,11 @@ func (c *Client) CancelOrder(orderID string) error {
 		return err
 	}
 
-	return verify(resp)
+	if err = verify(resp); err != nil {
+		return err
+	}
+	closeResp(resp)
+	return nil
 }
 
 // CancelAllOrders submits a request to cancel all orders.
@@ -698,7 +721,11 @@ func (c *Client) CancelAllOrders() error {
 	if err != nil {
 		return err
 	}
-	return verify(resp)
+	if err = verify(resp); err != nil {
+		return err
+	}
+	closeResp(resp)
+	return nil
 }
 
 type GetAssetsRequest struct {
@@ -871,7 +898,10 @@ func (c *Client) GetOptionContracts(req GetOptionContractsRequest) ([]OptionCont
 		}
 
 		var response optionContractsResponse
-		if err = unmarshal(resp, &response); err != nil {
+		decodeErr := unmarshal(resp, &response)
+		closeResp(resp)
+		if decodeErr != nil {
+			err = decodeErr
 			return nil, err
 		}
 
@@ -882,7 +912,6 @@ func (c *Client) GetOptionContracts(req GetOptionContractsRequest) ([]OptionCont
 		}
 
 		q.Set("page_token", *response.NextPageToken)
-		closeResp(resp)
 	}
 
 	return optionContracts, nil

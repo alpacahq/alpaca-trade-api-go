@@ -16,6 +16,7 @@ import (
 	"github.com/mailru/easyjson"
 
 	"github.com/alpacahq/alpaca-trade-api-go/v3/alpaca"
+	"github.com/alpacahq/alpaca-trade-api-go/v3/internal/httptransport"
 )
 
 // ClientOpts contains options for the alpaca marketdata client.
@@ -28,9 +29,12 @@ type ClientOpts struct {
 	BrokerKey    string
 	BrokerSecret string
 	OAuth        string
-	BaseURL      string
-	RetryLimit   int
-	RetryDelay   time.Duration
+	// BaseURL is the base URL of the Alpaca Market Data API. Configure the final
+	// HTTPS endpoint directly because cross-origin redirects (including HTTP to
+	// HTTPS or host changes) strip SDK credentials.
+	BaseURL    string
+	RetryLimit int
+	RetryDelay time.Duration
 	// Feed is the default feed to be used by all requests. Can be overridden per request.
 	Feed Feed
 	// CryptoFeed is the default crypto feed to be used by all requests. Can be overridden per request.
@@ -38,7 +42,10 @@ type ClientOpts struct {
 	// Currency is the default currency to be used by all requests. Can be overridden per request.
 	// For the latest endpoints this is the only way to set this parameter.
 	Currency string
-	// HTTPClient to be used for each http request.
+	// HTTPClient to be used for each HTTP request. Its configuration is
+	// shallow-cloned by NewClient to enforce credential-safe redirects.
+	// Configure its fields before calling NewClient; later field assignments
+	// on the original client are not observed.
 	HTTPClient *http.Client
 	// Host used to set the http request's host
 	RequestHost string
@@ -82,6 +89,7 @@ func NewClient(opts ClientOpts) *Client {
 			Timeout: 10 * time.Second,
 		}
 	}
+	httpClient = httptransport.CloneWithSafeRedirects(httpClient)
 	return &Client{
 		opts:       opts,
 		httpClient: httpClient,
@@ -130,6 +138,16 @@ RetryLoop:
 		time.Sleep(c.opts.RetryDelay)
 	}
 
+	if err = httptransport.NormalizeResponseEncoding(resp); err != nil {
+		if resp.StatusCode >= http.StatusMultipleChoices {
+			defer resp.Body.Close()
+			return nil, alpaca.APIErrorFromResponse(resp)
+		}
+		if resp.Body != nil {
+			_ = resp.Body.Close()
+		}
+		return nil, err
+	}
 	if resp.StatusCode >= http.StatusMultipleChoices {
 		defer resp.Body.Close()
 		return nil, alpaca.APIErrorFromResponse(resp)
@@ -256,13 +274,8 @@ func (c *Client) GetMultiTrades(symbols []string, req GetTradesRequest) (map[str
 		setQueryLimit(q, req.TotalLimit, req.PageLimit, received, v2MaxLimit)
 		u.RawQuery = q.Encode()
 
-		resp, err := c.get(u)
-		if err != nil {
-			return nil, err
-		}
-
 		var tradeResp multiTradeResponse
-		if err = unmarshal(resp, &tradeResp); err != nil {
+		if err = c.getAndUnmarshal(u, &tradeResp); err != nil {
 			return nil, err
 		}
 
@@ -332,13 +345,8 @@ func (c *Client) GetMultiQuotes(symbols []string, req GetQuotesRequest) (map[str
 		setQueryLimit(q, req.TotalLimit, req.PageLimit, received, v2MaxLimit)
 		u.RawQuery = q.Encode()
 
-		resp, err := c.get(u)
-		if err != nil {
-			return nil, err
-		}
-
 		var quoteResp multiQuoteResponse
-		if err = unmarshal(resp, &quoteResp); err != nil {
+		if err = c.getAndUnmarshal(u, &quoteResp); err != nil {
 			return nil, err
 		}
 
@@ -428,13 +436,8 @@ func (c *Client) GetMultiBars(symbols []string, req GetBarsRequest) (map[string]
 		setQueryLimit(q, req.TotalLimit, req.PageLimit, received, v2MaxLimit)
 		u.RawQuery = q.Encode()
 
-		resp, err := c.get(u)
-		if err != nil {
-			return nil, err
-		}
-
 		var barResp multiBarResponse
-		if err = unmarshal(resp, &barResp); err != nil {
+		if err = c.getAndUnmarshal(u, &barResp); err != nil {
 			return nil, err
 		}
 
@@ -504,13 +507,8 @@ func (c *Client) GetMultiAuctions(
 		setQueryLimit(q, req.TotalLimit, req.PageLimit, received, v2MaxLimit)
 		u.RawQuery = q.Encode()
 
-		resp, err := c.get(u)
-		if err != nil {
-			return nil, err
-		}
-
 		var auctionsResp multiAuctionsResponse
-		if err = unmarshal(resp, &auctionsResp); err != nil {
+		if err = c.getAndUnmarshal(u, &auctionsResp); err != nil {
 			return nil, err
 		}
 
@@ -796,13 +794,8 @@ func (c *Client) GetCryptoMultiTrades(symbols []string, req GetCryptoTradesReque
 		setQueryLimit(q, req.TotalLimit, req.PageLimit, received, v2MaxLimit)
 		u.RawQuery = q.Encode()
 
-		resp, err := c.get(u)
-		if err != nil {
-			return nil, err
-		}
-
 		var tradeResp cryptoMultiTradeResponse
-		if err = unmarshal(resp, &tradeResp); err != nil {
+		if err = c.getAndUnmarshal(u, &tradeResp); err != nil {
 			return nil, err
 		}
 
@@ -870,13 +863,8 @@ func (c *Client) GetCryptoMultiQuotes(symbols []string, req GetCryptoQuotesReque
 		setQueryLimit(q, req.TotalLimit, req.PageLimit, received, v2MaxLimit)
 		u.RawQuery = q.Encode()
 
-		resp, err := c.get(u)
-		if err != nil {
-			return nil, err
-		}
-
 		var quoteResp cryptoMultiQuoteResponse
-		if err = unmarshal(resp, &quoteResp); err != nil {
+		if err = c.getAndUnmarshal(u, &quoteResp); err != nil {
 			return nil, err
 		}
 
@@ -956,13 +944,8 @@ func (c *Client) GetCryptoMultiBars(symbols []string, req GetCryptoBarsRequest) 
 		setQueryLimit(q, req.TotalLimit, req.PageLimit, received, v2MaxLimit)
 		u.RawQuery = q.Encode()
 
-		resp, err := c.get(u)
-		if err != nil {
-			return nil, err
-		}
-
 		var barResp cryptoMultiBarResponse
-		if err = unmarshal(resp, &barResp); err != nil {
+		if err = c.getAndUnmarshal(u, &barResp); err != nil {
 			return nil, err
 		}
 
@@ -1451,7 +1434,10 @@ func (c *Client) GetNews(req GetNewsRequest) ([]News, error) {
 		}
 
 		var newsResp newsResponse
-		if err = unmarshal(resp, &newsResp); err != nil {
+		decodeErr := unmarshal(resp, &newsResp)
+		closeResp(resp)
+		if decodeErr != nil {
+			err = decodeErr
 			return nil, fmt.Errorf("failed to unmarshal news: %w", err)
 		}
 
@@ -1542,13 +1528,8 @@ func (c *Client) GetCorporateActions(req GetCorporateActionsRequest) (CorporateA
 		setQueryLimit(q, req.TotalLimit, req.PageLimit, received, v2MaxLimit)
 		u.RawQuery = q.Encode()
 
-		resp, err := c.get(u)
-		if err != nil {
-			return cas, err
-		}
-
 		var casResp corporateActionsResponse
-		if err = unmarshal(resp, &casResp); err != nil {
+		if err = c.getAndUnmarshal(u, &casResp); err != nil {
 			return cas, err
 		}
 		c := casResp.CorporateActions
@@ -1851,6 +1832,15 @@ func unmarshal(resp *http.Response, v easyjson.Unmarshaler) error {
 		reader = resp.Body
 	}
 	return easyjson.UnmarshalFromReader(reader, v)
+}
+
+func (c *Client) getAndUnmarshal(u *url.URL, v easyjson.Unmarshaler) error {
+	resp, err := c.get(u)
+	if err != nil {
+		return err
+	}
+	defer closeResp(resp)
+	return unmarshal(resp, v)
 }
 
 func closeResp(resp *http.Response) {

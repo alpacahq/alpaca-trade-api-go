@@ -12,6 +12,8 @@ import (
 	"net/http"
 	"net/url"
 	"time"
+
+	"github.com/alpacahq/alpaca-trade-api-go/v3/internal/httptransport"
 )
 
 type StreamTradeUpdatesRequest struct {
@@ -31,9 +33,9 @@ func (c *Client) StreamTradeUpdates(
 			return d.DialContext(ctx, network, addr)
 		},
 	}
-	client := http.Client{
+	client := httptransport.CloneWithSafeRedirects(&http.Client{
 		Transport: &transport,
-	}
+	})
 	u, err := url.Parse(c.opts.BaseURL + "/v2/events/trades")
 	if err != nil {
 		return err
