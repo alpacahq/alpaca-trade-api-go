@@ -1,0 +1,37 @@
+{
+  "retrieval_date": "2026-11-09",
+  "schema_version": 1,
+  "selected_specs": {
+    "market-data": {
+      "canonical_sha256": "28aaaed7e89c1c7358edecb2fa334da3b40d72d169cdec36be8502fa9807a110",
+      "component_schema_count": 145,
+      "info_version": "1.1",
+      "openapi": "3.1.2",
+      "operation_count": 42,
+      "path": "tools/generated-sdk/specs/market-data.openapi.json",
+      "reachable_schema_identity_count": 722,
+      "redirect_equivalent_url": "https://docs.alpaca.markets/openapi/market-data-api.json",
+      "redirect_raw_sha256": "89102a39b026ffc3c75b2874e5daee1267ff64907ad81134f617b52342c6d960",
+      "retrieval_attestation": "recorded-source-and-redirect-bytes",
+      "retrieval_date": "2026-11-09",
+      "source_raw_sha256": "89102a39b026ffc3c75b2874e5daee1267ff64907ad81134f617b52342c6d960",
+      "source_url": "https://docs.alpaca.markets/us/openapi/market-data-api.json"
+    },
+    "trading": {
+      "canonical_sha256": "6114a39affa96fceb9a03bcb458f1ba721b8acd00c5a04fca61c2bd76deb1d59",
+      "component_schema_count": 167,
+      "info_version": "2.0.1",
+      "openapi": "3.1.2",
+      "operation_count": 58,
+      "path": "tools/generated-sdk/specs/trading.openapi.json",
+      "reachable_schema_identity_count": 999,
+      "redirect_equivalent_url": "https://docs.alpaca.markets/openapi/trading-api.json",
+      "redirect_raw_sha256": "90a6e9ac527d51dc329324ee87dbb713fa68dced1cc2975cc1a20b63cb50390f",
+      "retrieval_attestation": "recorded-source-and-redirect-bytes",
+      "retrieval_date": "2026-11-09",
+      "source_raw_sha256": "90a6e9ac527d51dc329324ee87dbb713fa68dced1cc2975cc1a20b63cb50390f",
+      "source_url": "https://docs.alpaca.markets/us/openapi/trading-api.json"
+    }
+  },
+  "selection_rationale": "The canonical pinned public documentation snapshots are the authoritative offline generator inputs. Acquisition metadata records the observed raw bytes for both approved URL forms; the online drift check revalidates their current equivalence."
+}

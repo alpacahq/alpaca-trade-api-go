@@ -1,0 +1,222 @@
+{
+  "components": {
+    "schemas": {
+      "DiscriminatedFirst": {
+        "additionalProperties": true,
+        "properties": {
+          "kind": {
+            "enum": [
+              "first"
+            ],
+            "type": "string"
+          },
+          "value": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "value"
+        ],
+        "type": "object"
+      },
+      "DiscriminatedSecond": {
+        "additionalProperties": true,
+        "properties": {
+          "kind": {
+            "enum": [
+              "second"
+            ],
+            "type": "string"
+          },
+          "number": {
+            "format": "int32",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "kind",
+          "number"
+        ],
+        "type": "object"
+      },
+      "ExtensibleModel": {
+        "additionalProperties": true,
+        "properties": {
+          "count": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "kind": {
+            "not": {
+              "enum": [
+                "forbidden"
+              ]
+            },
+            "type": "string"
+          }
+        },
+        "required": [
+          "count"
+        ],
+        "type": "object"
+      },
+      "FirstBranch": {
+        "additionalProperties": true,
+        "properties": {
+          "kind": {
+            "type": "string"
+          },
+          "value": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "value"
+        ],
+        "type": "object"
+      },
+      "OneOfFirst": {
+        "additionalProperties": false,
+        "properties": {
+          "common": {
+            "type": "string"
+          },
+          "first_only": {
+            "type": "string"
+          },
+          "selector": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "common"
+        ],
+        "type": "object"
+      },
+      "OneOfSecond": {
+        "additionalProperties": false,
+        "properties": {
+          "common": {
+            "type": "string"
+          },
+          "second_only": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "selector": {
+            "format": "int32",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "common"
+        ],
+        "type": "object"
+      },
+      "PolicyEnum": {
+        "enum": [
+          "alpha",
+          "beta"
+        ],
+        "type": "string"
+      },
+      "PolicyDiscriminatedOneOf": {
+        "discriminator": {
+          "mapping": {
+            "first": "#/components/schemas/DiscriminatedFirst",
+            "second": "#/components/schemas/DiscriminatedSecond"
+          },
+          "propertyName": "kind"
+        },
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/DiscriminatedFirst"
+          },
+          {
+            "$ref": "#/components/schemas/DiscriminatedSecond"
+          }
+        ]
+      },
+      "PolicyUnion": {
+        "anyOf": [
+          {
+            "$ref": "#/components/schemas/FirstBranch"
+          },
+          {
+            "$ref": "#/components/schemas/SecondBranch"
+          }
+        ]
+      },
+      "PolicyOneOf": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/OneOfFirst"
+          },
+          {
+            "$ref": "#/components/schemas/OneOfSecond"
+          }
+        ]
+      },
+      "SecondBranch": {
+        "additionalProperties": true,
+        "properties": {
+          "kind": {
+            "type": "string"
+          },
+          "number": {
+            "format": "int32",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "kind",
+          "number"
+        ],
+        "type": "object"
+      },
+      "StrictModel": {
+        "additionalProperties": false,
+        "properties": {
+          "count": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "count",
+          "name"
+        ],
+        "type": "object"
+      }
+    }
+  },
+  "info": {
+    "title": "Generated SDK template policy fixture",
+    "version": "1.0.0"
+  },
+  "openapi": "3.1.2",
+  "paths": {
+    "/fixture": {
+      "get": {
+        "operationId": "getFixture",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PolicyUnion"
+                }
+              }
+            },
+            "description": "fixture"
+          }
+        }
+      }
+    }
+  }
+}

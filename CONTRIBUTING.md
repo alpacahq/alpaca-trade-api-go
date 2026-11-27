@@ -93,7 +93,7 @@ After running `make generate`, inspect the diff and commit expected generated ch
 
 ## Generated and hand-written code
 
-The SDK clients, requests, responses, streaming behavior, and public API are hand-written Go. This repository currently uses [easyjson](https://github.com/mailru/easyjson) only to generate JSON serialization code for selected entities.
+The currently installed SDK clients, requests, responses, streaming behavior, and public API are hand-written Go. Repository checkouts also contain a candidate-only [Trading and Market Data generator platform](https://github.com/alpacahq/alpaca-trade-api-go/blob/master/tools/generated-sdk/README.md), but it is excluded from the published root Go module and does not install generated client source or change public routing. [easyjson](https://github.com/mailru/easyjson) remains the only generator used by the installed SDK source.
 
 Do not edit these generated files directly:
 

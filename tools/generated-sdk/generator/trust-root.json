@@ -1,0 +1,174 @@
+{
+  "configs": {
+    "market-data": {
+      "path": "tools/generated-sdk/generator/config/market-data.json",
+      "sha256": "93d0e0ad7ae59b0dd4a864dcadde5607a7eb95d9947385bb0ad37c573c48335b"
+    },
+    "trading": {
+      "path": "tools/generated-sdk/generator/config/trading.json",
+      "sha256": "acad28d0a2de371dcc49c6eebfce8c0f3158f58dba7a868769b6898dfd0c42b0"
+    }
+  },
+  "container": {
+    "image_repository": "docker.io/library/eclipse-temurin",
+    "jdk_version": "17.0.21+9",
+    "platforms": [
+      {
+        "digest": "sha256:101376794254cc58a1aa952a35ade1709cbc0f5942d5da35e226009171dde46e",
+        "platform": "linux/amd64"
+      },
+      {
+        "digest": "sha256:80fbefa720be4552d66b64b8d6b77a5e8daf3d75effe2a544c2acc8d7a4237d5",
+        "platform": "linux/arm64/v8"
+      }
+    ]
+  },
+  "custom_templates": {
+    "entries": [
+      {
+        "custom_path": "tools/generated-sdk/generator/templates/go/model_enum.mustache",
+        "custom_sha256": "153e3a586982664544edb2849c8c7fd517a7cea5a635825f5219f755bdb2b2d3",
+        "name": "model_enum.mustache",
+        "status": "reviewed",
+        "stock_path": "go/model_enum.mustache",
+        "stock_sha256": "c7a5069f3c2896887abf53add1d1a83717a96dec4d25f79d8154c4227aeffda7"
+      },
+      {
+        "custom_path": "tools/generated-sdk/generator/templates/go/model_anyof.mustache",
+        "custom_sha256": "9e3c6e71d63ac079227786a43c7e73273f6967c7fbcc2771e6145df59da81e99",
+        "name": "model_anyof.mustache",
+        "status": "reviewed",
+        "stock_path": "go/model_anyof.mustache",
+        "stock_sha256": "29694d9c68575cbba5c8fd9af3de3633437a31836a4e17588a143951c8c15741"
+      },
+      {
+        "custom_path": "tools/generated-sdk/generator/templates/go/model_oneof.mustache",
+        "custom_sha256": "667441f070b77e2bd07100f16942bad440a8afb949c242b207f2f1e1d2848041",
+        "name": "model_oneof.mustache",
+        "status": "reviewed",
+        "stock_path": "go/model_oneof.mustache",
+        "stock_sha256": "98148bb5ed88123a26e1f0ec0c1f2b18744934732407858cd2359702b2c0ec5c"
+      },
+      {
+        "custom_path": "tools/generated-sdk/generator/templates/go/model_simple.mustache",
+        "custom_sha256": "e0ea8a1b093106f9bb8a2b283779523e38bc15674a20136f3c80e7eb227de70d",
+        "name": "model_simple.mustache",
+        "status": "reviewed",
+        "stock_path": "go/model_simple.mustache",
+        "stock_sha256": "80293db777ee6940cfc7f489e73d0c540990263a4e6d75a41aad5a711d7ff861"
+      }
+    ],
+    "status": "reviewed"
+  },
+  "environment": {
+    "allowed_variables": {
+      "JAVA_HOME": "/opt/java/openjdk",
+      "LANG": "C.UTF-8",
+      "LC_ALL": "C.UTF-8",
+      "PATH": "/opt/java/openjdk/bin:/usr/bin:/bin",
+      "TZ": "UTC"
+    },
+    "clearing_policy": "env-i",
+    "network": "disabled",
+    "pass_through_variables": []
+  },
+  "generator": {
+    "jar": {
+      "cache_path": "tools/generated-sdk/.cache/openapi-generator-cli-7.27.0.jar",
+      "sha256": "db9c4b738727698748746144394cb7ee96512fe50166555baaeeca9311ee1dba",
+      "source_url": "https://repo1.maven.org/maven2/org/openapitools/openapi-generator-cli/7.27.0/openapi-generator-cli-7.27.0.jar"
+    },
+    "version": "7.27.0"
+  },
+  "go_toolchains": [
+    "1.26.10",
+    "1.27.3"
+  ],
+  "policy_artifacts": {
+    "feature_allowlist": {
+      "path": "tools/generated-sdk/specs/feature-allowlist.json",
+      "sha256": "3cb2844789080021f1d39bdf567efefbaf3b7fcf40e22bf5f0d040cf5baace28"
+    },
+    "provenance": {
+      "path": "tools/generated-sdk/specs/provenance.json",
+      "sha256": "4966932671989ac5660f12a88e404e4205a4965f85c92a659af382d5e668322f"
+    }
+  },
+  "schema_version": 1,
+  "specifications": {
+    "market-data": {
+      "path": "tools/generated-sdk/specs/market-data.openapi.json",
+      "sha256": "28aaaed7e89c1c7358edecb2fa334da3b40d72d169cdec36be8502fa9807a110"
+    },
+    "trading": {
+      "path": "tools/generated-sdk/specs/trading.openapi.json",
+      "sha256": "6114a39affa96fceb9a03bcb458f1ba721b8acd00c5a04fca61c2bd76deb1d59"
+    }
+  },
+  "stock_templates": [
+    {
+      "path": "go/model_anyof.mustache",
+      "sha256": "29694d9c68575cbba5c8fd9af3de3633437a31836a4e17588a143951c8c15741"
+    },
+    {
+      "path": "go/model_enum.mustache",
+      "sha256": "c7a5069f3c2896887abf53add1d1a83717a96dec4d25f79d8154c4227aeffda7"
+    },
+    {
+      "path": "go/model_oneof.mustache",
+      "sha256": "98148bb5ed88123a26e1f0ec0c1f2b18744934732407858cd2359702b2c0ec5c"
+    },
+    {
+      "path": "go/model_simple.mustache",
+      "sha256": "80293db777ee6940cfc7f489e73d0c540990263a4e6d75a41aad5a711d7ff861"
+    }
+  ],
+  "template_artifacts": {
+    "fixture_mod": {
+      "path": "tools/generated-sdk/generator/fixtures/template-fixture.mod",
+      "sha256": "d791a2e15e0cb120c3f3694ca0274bf24283a89060dc0692a256e3647cac5ca6"
+    },
+    "fixture_spec": {
+      "path": "tools/generated-sdk/generator/fixtures/template-policy.openapi.json",
+      "sha256": "a95b8c220c94ed4e0375ec8e82aae873e801545e1a1b71e8b67a8f6de104716f"
+    },
+    "fixture_sum": {
+      "path": "tools/generated-sdk/generator/fixtures/template-fixture.sum",
+      "sha256": "eca8ec9378c8637435ba9725cb7c1375b8dbb5ab404f8e128b18e9fe01d14d68"
+    },
+    "fixture_test": {
+      "path": "tools/generated-sdk/generator/fixtures/template_policy_test.go.tmpl",
+      "sha256": "b9d08503731e40ea19c6214083f9b2ab990067881921ce25a6a6c407c2c1cfcd"
+    },
+    "overlays": {
+      "path": "tools/generated-sdk/generator/overlays.json",
+      "sha256": "198a6b242f27a3fb58b3db89c3a3fddbf0a03ac40af0fdfbdf4b52e7fddd697c"
+    },
+    "stock_digests": {
+      "path": "tools/generated-sdk/generator/stock-template-digests.json",
+      "sha256": "ac7f6728c9fbe62ef3a038f7fa55012a605e9ffbfcc359a598672d3eef91bda1"
+    },
+    "template_deltas": {
+      "path": "tools/generated-sdk/generator/template-deltas.json",
+      "sha256": "243deab978be1588bb79f517d8b36df93b28a010bd7ed217a396eb13fd78ab5c"
+    }
+  },
+  "test_container": {
+    "go_version": "1.27.3",
+    "image_repository": "docker.io/library/golang",
+    "platforms": [
+      {
+        "digest": "sha256:025eefc1e8dbe63201734a72aaa0a55d7a077f2d8410432f8ae2f3e939f32871",
+        "platform": "linux/amd64"
+      },
+      {
+        "digest": "sha256:bc8d7053145982971b2c25138ba67b259d9a2df739a7a715d45ca6368c25c1e0",
+        "platform": "linux/arm64/v8"
+      }
+    ]
+  },
+  "wrapper": {
+    "path": "tools/generated-sdk/generator/run-pinned.sh",
+    "sha256": "70cbf141e09748aac15a5b7734d749acc535b8768753fe4af6e7dba760fb8980"
+  }
+}

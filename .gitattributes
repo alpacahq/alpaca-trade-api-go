@@ -1,0 +1,3 @@
+# Collapse large canonical OpenAPI inputs and generated feature policy in GitHub diffs.
+tools/generated-sdk/specs/*.openapi.json linguist-generated=true
+tools/generated-sdk/specs/feature-allowlist.json linguist-generated=true

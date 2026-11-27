@@ -1,0 +1,35 @@
+{
+  "additionalProperties": {
+    "disallowAdditionalPropertiesIfNotPresent": false,
+    "enumClassPrefix": true,
+    "enumUnknownDefaultCase": false,
+    "generateInterfaces": false,
+    "generateMarshalJSON": true,
+    "generateUnmarshalJSON": true,
+    "hideGenerationTimestamp": true,
+    "isGoSubmodule": false,
+    "packageName": "marketdata",
+    "packageVersion": "0.0.0-internal",
+    "prependFormOrBodyParameters": false,
+    "structPrefix": false,
+    "useDefaultValuesForRequiredVars": false,
+    "useHttpHeaderSet": false,
+    "useOneOfDiscriminatorLookup": true,
+    "withAWSV4Signature": false,
+    "withGoMod": false,
+    "withXml": false
+  },
+  "generatorName": "go",
+  "globalProperties": {
+    "apiDocs": "false",
+    "apiTests": "false",
+    "modelDocs": "false",
+    "modelTests": "false"
+  },
+  "inputSpec": "/workspace/tools/generated-sdk/specs/market-data.openapi.json",
+  "outputDir": "/output/market-data",
+  "templateDir": "/workspace/tools/generated-sdk/generator/templates/go",
+  "typeMappings": {
+    "string+decimal": "string"
+  }
+}
