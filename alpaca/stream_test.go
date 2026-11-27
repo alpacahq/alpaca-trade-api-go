@@ -74,6 +74,36 @@ func TestStreamTradeUpdates_Error(t *testing.T) {
 	assert.Equal(t, "req-stream", apiErr.RequestID)
 }
 
+func TestStreamTradeUpdates_StripsCredentialsOnCrossOriginRedirect(t *testing.T) {
+	targetHeaders := make(chan http.Header, 1)
+	target := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		targetHeaders <- r.Header.Clone()
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer target.Close()
+
+	source := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, target.URL, http.StatusFound)
+	}))
+	defer source.Close()
+
+	client := NewClient(ClientOpts{
+		APIKey:    "key",
+		APISecret: "secret",
+		BaseURL:   source.URL,
+	})
+	err := client.StreamTradeUpdates(
+		context.Background(),
+		func(TradeUpdate) {},
+		StreamTradeUpdatesRequest{},
+	)
+	require.NoError(t, err)
+
+	headers := <-targetHeaders
+	assert.Empty(t, headers.Get("APCA-API-KEY-ID"))
+	assert.Empty(t, headers.Get("APCA-API-SECRET-KEY"))
+}
+
 func TestStreamTradeUpdatesInBackground_ReconnectsAfterServerClose(t *testing.T) {
 	var conns atomic.Int32
 	reconnected := make(chan string, 1)

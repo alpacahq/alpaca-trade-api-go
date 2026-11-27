@@ -18,6 +18,7 @@ type trackingBody struct {
 	r              *strings.Reader
 	eof            bool
 	closed         bool
+	closeCalls     int
 	eofBeforeClose bool
 }
 
@@ -34,6 +35,7 @@ func (b *trackingBody) Close() error {
 		b.eofBeforeClose = b.eof
 	}
 	b.closed = true
+	b.closeCalls++
 	return nil
 }
 
@@ -89,6 +91,7 @@ func newScriptedClient(t *testing.T, tr *scriptedTransport, retryLimit int) *Cli
 func assertClosedAfterDrain(t *testing.T, b *trackingBody, msgAndArgs ...interface{}) {
 	t.Helper()
 	assert.True(t, b.closed, msgAndArgs...)
+	assert.Equal(t, 1, b.closeCalls, msgAndArgs...)
 	assert.True(t, b.eofBeforeClose, msgAndArgs...)
 }
 

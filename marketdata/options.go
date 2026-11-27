@@ -56,13 +56,8 @@ func (c *Client) GetOptionMultiTrades(symbols []string, req GetOptionTradesReque
 		setQueryLimit(q, req.TotalLimit, req.PageLimit, received, v2MaxLimit)
 		u.RawQuery = q.Encode()
 
-		resp, err := c.get(u)
-		if err != nil {
-			return nil, err
-		}
-
 		var tradeResp multiOptionTradeResponse
-		if err = unmarshal(resp, &tradeResp); err != nil {
+		if err = c.getAndUnmarshal(u, &tradeResp); err != nil {
 			return nil, err
 		}
 
@@ -131,13 +126,8 @@ func (c *Client) GetMultiOptionBars(symbols []string, req GetOptionBarsRequest) 
 		setQueryLimit(q, req.TotalLimit, req.PageLimit, received, v2MaxLimit)
 		u.RawQuery = q.Encode()
 
-		resp, err := c.get(u)
-		if err != nil {
-			return nil, err
-		}
-
 		var barResp multiOptionBarResponse
-		if err = unmarshal(resp, &barResp); err != nil {
+		if err = c.getAndUnmarshal(u, &barResp); err != nil {
 			return nil, err
 		}
 
@@ -281,13 +271,8 @@ func (c *Client) GetOptionSnapshots(symbols []string, req GetOptionSnapshotReque
 		setQueryLimit(q, req.TotalLimit, req.PageLimit, received, v2MaxLimit)
 		u.RawQuery = q.Encode()
 
-		resp, err := c.get(u)
-		if err != nil {
-			return nil, err
-		}
-
 		var snapshotsResp optionSnapshotsResponse
-		if err := unmarshal(resp, &snapshotsResp); err != nil {
+		if err := c.getAndUnmarshal(u, &snapshotsResp); err != nil {
 			return nil, err
 		}
 
@@ -365,13 +350,8 @@ func (c *Client) GetOptionChain(underlyingSymbol string, req GetOptionChainReque
 		setQueryLimit(q, req.TotalLimit, req.PageLimit, received, v2MaxLimit)
 		u.RawQuery = q.Encode()
 
-		resp, err := c.get(u)
-		if err != nil {
-			return nil, err
-		}
-
 		var snapshotsResp optionSnapshotsResponse
-		if err := unmarshal(resp, &snapshotsResp); err != nil {
+		if err := c.getAndUnmarshal(u, &snapshotsResp); err != nil {
 			return nil, err
 		}
 

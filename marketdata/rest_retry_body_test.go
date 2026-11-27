@@ -20,6 +20,7 @@ type trackingBody struct {
 	r              *strings.Reader
 	eof            bool
 	closed         bool
+	closeCalls     int
 	eofBeforeClose bool
 }
 
@@ -36,6 +37,7 @@ func (b *trackingBody) Close() error {
 		b.eofBeforeClose = b.eof
 	}
 	b.closed = true
+	b.closeCalls++
 	return nil
 }
 
@@ -46,6 +48,7 @@ type scriptedTransport struct {
 	t        *testing.T
 	statuses []int
 	bodies   []string
+	headers  []http.Header
 
 	responses        []*trackingBody
 	closedBeforeCall []bool
@@ -67,10 +70,14 @@ func (s *scriptedTransport) RoundTrip(req *http.Request) (*http.Response, error)
 
 	body := &trackingBody{r: strings.NewReader(s.bodies[i])}
 	s.responses = append(s.responses, body)
+	header := http.Header{}
+	if i < len(s.headers) && s.headers[i] != nil {
+		header = s.headers[i].Clone()
+	}
 	return &http.Response{
 		StatusCode: s.statuses[i],
 		Status:     http.StatusText(s.statuses[i]),
-		Header:     http.Header{},
+		Header:     header,
 		Body:       body,
 		Request:    req,
 	}, nil
@@ -91,6 +98,7 @@ func newScriptedClient(t *testing.T, tr *scriptedTransport, retryLimit int) *Cli
 func assertClosedAfterDrain(t *testing.T, b *trackingBody, msgAndArgs ...interface{}) {
 	t.Helper()
 	assert.True(t, b.closed, msgAndArgs...)
+	assert.Equal(t, 1, b.closeCalls, msgAndArgs...)
 	assert.True(t, b.eofBeforeClose, msgAndArgs...)
 }
 
