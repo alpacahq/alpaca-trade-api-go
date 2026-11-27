@@ -150,6 +150,30 @@ func TestCompareKeepsIncompatibleStructAndEnumChangesInPublicChanged(t *testing.
 			proposed: "package p\nvar OtherValues = []string{\"a\", \"b\"}\n",
 			want:     "m.go:var OtherValues",
 		},
+		{
+			name:     "comparable struct loses comparability via slice field",
+			baseline: "package p\ntype CaEventReorganizationStockMovement struct { Cusip string; Isin *string; Symbol string }\n",
+			proposed: "package p\ntype CaEventReorganizationStockMovement struct { Cusip string; Isin *string; Symbol string; Notes []string }\n",
+			want:     "m.go:type CaEventReorganizationStockMovement",
+		},
+		{
+			name:     "comparable struct loses comparability via map field",
+			baseline: "package p\ntype M struct { ID string }\n",
+			proposed: "package p\ntype M struct { ID string; Meta map[string]string }\n",
+			want:     "m.go:type M",
+		},
+		{
+			name:     "comparable struct loses comparability via json.RawMessage field",
+			baseline: "package p\nimport \"encoding/json\"\ntype M struct { ID string; _ *json.RawMessage }\n",
+			proposed: "package p\nimport \"encoding/json\"\ntype M struct { ID string; _ *json.RawMessage; Raw json.RawMessage }\n",
+			want:     "m.go:type M",
+		},
+		{
+			name:     "strictly comparable struct degrades to interface comparability",
+			baseline: "package p\ntype M struct { ID string }\n",
+			proposed: "package p\ntype M struct { ID string; Payload any }\n",
+			want:     "m.go:type M",
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -168,6 +192,46 @@ func TestCompareKeepsIncompatibleStructAndEnumChangesInPublicChanged(t *testing.
 				t.Fatalf("unexpectedly classified %q as PublicAdditive: %#v", test.want, result.Summary)
 			}
 		})
+	}
+}
+
+func TestCompareTracksPackageComparabilityAcrossFilesAndIncomparableBaselines(t *testing.T) {
+	baseline := t.TempDir()
+	proposed := t.TempDir()
+	writeTestFile(t, baseline, "pkg/utils.go", "package pkg\ntype NullableString struct { value *string; isSet bool }\n")
+	writeTestFile(t, baseline, "pkg/movement.go", "package pkg\ntype Movement struct { Symbol string }\n")
+	writeTestFile(t, baseline, "pkg/wrapper.go", "package pkg\ntype Wrapper struct { Item Movement }\n")
+	writeTestFile(t, baseline, "pkg/extensible.go", "package pkg\nimport \"encoding/json\"\ntype ExtensibleOrder struct { ID string; AdditionalProperties map[string]json.RawMessage }\n")
+	writeTestFile(t, baseline, "pkg/comparable_keep.go", "package pkg\nimport \"time\"\ntype ComparableEvent struct { ID string }\nvar _ time.Time\n")
+
+	writeTestFile(t, proposed, "pkg/utils.go", "package pkg\ntype NullableString struct { value *string; isSet bool }\n")
+	writeTestFile(t, proposed, "pkg/movement.go", "package pkg\ntype Movement struct { Symbol string; Notes []string }\n")
+	writeTestFile(t, proposed, "pkg/wrapper.go", "package pkg\ntype Wrapper struct { Item Movement }\n")
+	writeTestFile(t, proposed, "pkg/extensible.go", "package pkg\nimport \"encoding/json\"\ntype ExtensibleOrder struct { ID string; Tags []string; AdditionalProperties map[string]json.RawMessage }\n")
+	writeTestFile(t, proposed, "pkg/comparable_keep.go", "package pkg\nimport \"time\"\ntype ComparableEvent struct { ID string; At time.Time; Note NullableString; Items *[]string }\n")
+
+	result, err := Compare(baseline, proposed)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, wantChanged := range []string{
+		"pkg/movement.go:type Movement",
+		"pkg/wrapper.go:type Wrapper",
+	} {
+		if !slices.Contains(result.Summary.PublicChanged, wantChanged) {
+			t.Fatalf("missing comparability-breaking declaration %q in PublicChanged: %#v", wantChanged, result.Summary)
+		}
+	}
+	for _, wantAdditive := range []string{
+		"pkg/extensible.go:type ExtensibleOrder",
+		"pkg/comparable_keep.go:type ComparableEvent",
+	} {
+		if !slices.Contains(result.Summary.PublicAdditive, wantAdditive) {
+			t.Fatalf("missing additive declaration %q in PublicAdditive: %#v", wantAdditive, result.Summary)
+		}
+		if slices.Contains(result.Summary.PublicChanged, wantAdditive) {
+			t.Fatalf("unexpectedly marked %q as PublicChanged: %#v", wantAdditive, result.Summary)
+		}
 	}
 }
 

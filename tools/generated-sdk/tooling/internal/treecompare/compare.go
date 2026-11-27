@@ -8,8 +8,10 @@ import (
 	"go/parser"
 	"go/token"
 	"io/fs"
+	"path"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/alpacahq/alpaca-trade-api-go/v3/tools/generated-sdk/tooling/internal/safetree"
@@ -55,24 +57,26 @@ func Compare(baselineRoot, proposedRoot string) (Result, error) {
 			ProposedTreeSHA256: treeDigest(proposed),
 		},
 	}
+	baselineTrees := buildTreeIndex(baseline)
+	proposedTrees := buildTreeIndex(proposed)
 	var diff bytes.Buffer
 	paths := unionPaths(baseline, proposed)
-	for _, path := range paths {
-		before, hadBefore := baseline[path]
-		after, hasAfter := proposed[path]
+	for _, filePath := range paths {
+		before, hadBefore := baseline[filePath]
+		after, hasAfter := proposed[filePath]
 		switch {
 		case !hadBefore:
-			result.Summary.AddedFiles = append(result.Summary.AddedFiles, path)
-			writeDiff(&diff, path, nil, after)
+			result.Summary.AddedFiles = append(result.Summary.AddedFiles, filePath)
+			writeDiff(&diff, filePath, nil, after)
 		case !hasAfter:
-			result.Summary.RemovedFiles = append(result.Summary.RemovedFiles, path)
-			writeDiff(&diff, path, before, nil)
+			result.Summary.RemovedFiles = append(result.Summary.RemovedFiles, filePath)
+			writeDiff(&diff, filePath, before, nil)
 		case !bytes.Equal(before, after):
-			result.Summary.ChangedFiles = append(result.Summary.ChangedFiles, path)
-			writeDiff(&diff, path, before, after)
+			result.Summary.ChangedFiles = append(result.Summary.ChangedFiles, filePath)
+			writeDiff(&diff, filePath, before, after)
 		}
-		if filepath.Ext(path) == ".go" {
-			comparePublicDeclarations(&result.Summary, path, before, after)
+		if filepath.Ext(filePath) == ".go" {
+			comparePublicDeclarations(&result.Summary, filePath, baselineTrees, proposedTrees)
 		}
 	}
 	slices.Sort(result.Summary.PublicAdded)
@@ -164,42 +168,110 @@ func splitLines(data []byte) []string {
 
 type declarationInfo struct {
 	formatted string
+	imports   map[string]string
 	name      string
 	node      ast.Node
+	pkgKey    string
 	tok       token.Token
 }
 
-func comparePublicDeclarations(summary *Summary, path string, before, after []byte) {
-	oldDeclarations := declarations(before)
-	newDeclarations := declarations(after)
+type packageTypeDef struct {
+	imports map[string]string
+	spec    *ast.TypeSpec
+}
+
+type treeIndex struct {
+	declarationsByFile map[string]map[string]declarationInfo
+	typesByPackage     map[string]map[string]packageTypeDef
+}
+
+func buildTreeIndex(files map[string][]byte) *treeIndex {
+	index := &treeIndex{
+		declarationsByFile: make(map[string]map[string]declarationInfo, len(files)),
+		typesByPackage:     map[string]map[string]packageTypeDef{},
+	}
+	for filePath, data := range files {
+		if filepath.Ext(filePath) != ".go" || len(data) == 0 {
+			continue
+		}
+		parsed, err := parser.ParseFile(token.NewFileSet(), filePath, data, 0)
+		if err != nil {
+			continue
+		}
+		pkgKey := path.Dir(filePath) + "\x00" + parsed.Name.Name
+		imports := fileImports(parsed)
+		pkgTypes := index.typesByPackage[pkgKey]
+		if pkgTypes == nil {
+			pkgTypes = map[string]packageTypeDef{}
+			index.typesByPackage[pkgKey] = pkgTypes
+		}
+		for _, declaration := range parsed.Decls {
+			genDecl, ok := declaration.(*ast.GenDecl)
+			if !ok || genDecl.Tok != token.TYPE {
+				continue
+			}
+			for _, specNode := range genDecl.Specs {
+				typeSpec, ok := specNode.(*ast.TypeSpec)
+				if !ok {
+					continue
+				}
+				pkgTypes[typeSpec.Name.Name] = packageTypeDef{
+					imports: imports,
+					spec:    typeSpec,
+				}
+			}
+		}
+		index.declarationsByFile[filePath] = fileDeclarations(parsed, pkgKey, imports)
+	}
+	return index
+}
+
+func fileImports(file *ast.File) map[string]string {
+	imports := map[string]string{}
+	for _, specNode := range file.Imports {
+		importPath, err := strconv.Unquote(specNode.Path.Value)
+		if err != nil {
+			continue
+		}
+		localName := path.Base(importPath)
+		if specNode.Name != nil {
+			if specNode.Name.Name == "_" || specNode.Name.Name == "." {
+				continue
+			}
+			localName = specNode.Name.Name
+		}
+		imports[localName] = importPath
+	}
+	return imports
+}
+
+func comparePublicDeclarations(summary *Summary, filePath string, baseline, proposed *treeIndex) {
+	oldDeclarations := baseline.declarationsByFile[filePath]
+	newDeclarations := proposed.declarationsByFile[filePath]
 	for name, current := range newDeclarations {
 		previous, ok := oldDeclarations[name]
 		switch {
 		case !ok:
-			summary.PublicAdded = append(summary.PublicAdded, path+":"+name)
+			summary.PublicAdded = append(summary.PublicAdded, filePath+":"+name)
 		case previous.formatted == current.formatted:
-		case isAdditiveDeclarationEvolution(previous, current):
-			summary.PublicAdditive = append(summary.PublicAdditive, path+":"+name)
+			if declarationLosesComparability(previous, current, baseline, proposed) {
+				summary.PublicChanged = append(summary.PublicChanged, filePath+":"+name)
+			}
+		case isAdditiveDeclarationEvolution(previous, current, baseline, proposed):
+			summary.PublicAdditive = append(summary.PublicAdditive, filePath+":"+name)
 		default:
-			summary.PublicChanged = append(summary.PublicChanged, path+":"+name)
+			summary.PublicChanged = append(summary.PublicChanged, filePath+":"+name)
 		}
 	}
 	for name := range oldDeclarations {
 		if _, ok := newDeclarations[name]; !ok {
-			summary.PublicRemoved = append(summary.PublicRemoved, path+":"+name)
+			summary.PublicRemoved = append(summary.PublicRemoved, filePath+":"+name)
 		}
 	}
 }
 
-func declarations(data []byte) map[string]declarationInfo {
+func fileDeclarations(file *ast.File, pkgKey string, imports map[string]string) map[string]declarationInfo {
 	result := map[string]declarationInfo{}
-	if len(data) == 0 {
-		return result
-	}
-	file, err := parser.ParseFile(token.NewFileSet(), "", data, 0)
-	if err != nil {
-		return result
-	}
 	for _, declaration := range file.Decls {
 		switch typed := declaration.(type) {
 		case *ast.FuncDecl:
@@ -212,8 +284,10 @@ func declarations(data []byte) map[string]declarationInfo {
 				signature.Body = nil
 				result[kind+typed.Name.Name] = declarationInfo{
 					formatted: formatNode(&signature),
+					imports:   imports,
 					name:      typed.Name.Name,
 					node:      &signature,
+					pkgKey:    pkgKey,
 					tok:       token.FUNC,
 				}
 			}
@@ -224,8 +298,10 @@ func declarations(data []byte) map[string]declarationInfo {
 					if item.Name.IsExported() {
 						result["type "+item.Name.Name] = declarationInfo{
 							formatted: formatNode(item),
+							imports:   imports,
 							name:      item.Name.Name,
 							node:      item,
+							pkgKey:    pkgKey,
 							tok:       token.TYPE,
 						}
 					}
@@ -234,8 +310,10 @@ func declarations(data []byte) map[string]declarationInfo {
 						if name.IsExported() {
 							result[strings.ToLower(typed.Tok.String())+" "+name.Name] = declarationInfo{
 								formatted: formatNode(item),
+								imports:   imports,
 								name:      name.Name,
 								node:      item,
+								pkgKey:    pkgKey,
 								tok:       typed.Tok,
 							}
 						}
@@ -250,11 +328,12 @@ func declarations(data []byte) map[string]declarationInfo {
 type structFieldInfo struct {
 	embedded  bool
 	exported  bool
+	expr      ast.Expr
 	fieldType string
 	tag       string
 }
 
-func isAdditiveDeclarationEvolution(previous, current declarationInfo) bool {
+func isAdditiveDeclarationEvolution(previous, current declarationInfo, baseline, proposed *treeIndex) bool {
 	if previous.tok != current.tok {
 		return false
 	}
@@ -263,6 +342,9 @@ func isAdditiveDeclarationEvolution(previous, current declarationInfo) bool {
 		oldSpec, oldOK := previous.node.(*ast.TypeSpec)
 		newSpec, newOK := current.node.(*ast.TypeSpec)
 		if !oldOK || !newOK {
+			return false
+		}
+		if declarationLosesComparability(previous, current, baseline, proposed) {
 			return false
 		}
 		return isAdditiveStructEvolution(oldSpec, newSpec)
@@ -297,7 +379,11 @@ func isAdditiveStructEvolution(oldSpec, newSpec *ast.TypeSpec) bool {
 	}
 	for key, oldField := range oldFields {
 		newField, exists := newFields[key]
-		if !exists || newField != oldField {
+		if !exists ||
+			newField.embedded != oldField.embedded ||
+			newField.exported != oldField.exported ||
+			newField.fieldType != oldField.fieldType ||
+			newField.tag != oldField.tag {
 			return false
 		}
 	}
@@ -313,6 +399,192 @@ func isAdditiveStructEvolution(oldSpec, newSpec *ast.TypeSpec) bool {
 		}
 	}
 	return true
+}
+
+type comparabilityKind int
+
+const (
+	compFalse comparabilityKind = iota
+	compUnknown
+	compInterface
+	compStrict
+)
+
+func declarationLosesComparability(previous, current declarationInfo, baseline, proposed *treeIndex) bool {
+	if previous.tok != token.TYPE || current.tok != token.TYPE {
+		return false
+	}
+	oldSpec, oldOK := previous.node.(*ast.TypeSpec)
+	newSpec, newOK := current.node.(*ast.TypeSpec)
+	if !oldOK || !newOK {
+		return false
+	}
+	oldPkg := baseline.typesByPackage[previous.pkgKey]
+	newPkg := proposed.typesByPackage[current.pkgKey]
+	oldStruct, oldIsStruct := oldSpec.Type.(*ast.StructType)
+	newStruct, newIsStruct := newSpec.Type.(*ast.StructType)
+	if oldIsStruct && newIsStruct && !oldSpec.Assign.IsValid() && !newSpec.Assign.IsValid() {
+		return structLosesComparability(oldStruct, previous.imports, oldPkg, newStruct, current.imports, newPkg)
+	}
+	oldComp := exprComparability(oldSpec.Type, previous.imports, oldPkg, map[string]bool{oldSpec.Name.Name: true})
+	newComp := exprComparability(newSpec.Type, current.imports, newPkg, map[string]bool{newSpec.Name.Name: true})
+	return comparabilityDegraded(oldComp, newComp)
+}
+
+func structLosesComparability(
+	oldStruct *ast.StructType,
+	oldImports map[string]string,
+	oldPkg map[string]packageTypeDef,
+	newStruct *ast.StructType,
+	newImports map[string]string,
+	newPkg map[string]packageTypeDef,
+) bool {
+	oldFields, _ := extractStructFields(oldStruct)
+	newFields, _ := extractStructFields(newStruct)
+	oldOverall := compStrict
+	oldFieldComp := make(map[string]comparabilityKind, len(oldFields))
+	for key, field := range oldFields {
+		comp := exprComparability(field.expr, oldImports, oldPkg, map[string]bool{})
+		oldFieldComp[key] = comp
+		oldOverall = combineComparability(oldOverall, comp)
+	}
+	if oldOverall == compFalse {
+		return false
+	}
+	newOverall := compStrict
+	for key, field := range newFields {
+		comp := exprComparability(field.expr, newImports, newPkg, map[string]bool{})
+		if oldField, existed := oldFields[key]; existed &&
+			oldField.fieldType == field.fieldType &&
+			oldFieldComp[key] == compUnknown &&
+			comp == compUnknown {
+			// An unchanged unresolved external field contributes the same unknown comparability on both sides;
+			// still require every newly added or changed field to preserve comparability.
+			continue
+		}
+		newOverall = combineComparability(newOverall, comp)
+	}
+	return comparabilityDegraded(oldOverall, newOverall)
+}
+
+func comparabilityDegraded(before, after comparabilityKind) bool {
+	if before == compFalse {
+		return false
+	}
+	// If baseline could be comparable (compStrict, compInterface, or unknown external type),
+	// proposed must be provably comparable (not compFalse and not compUnknown).
+	if after == compFalse || after == compUnknown {
+		return true
+	}
+	// If baseline had panic-free concrete comparability (compStrict), adding an interface field
+	// degrades == to a potential runtime panic on dynamic slice/map values.
+	if before == compStrict && after == compInterface {
+		return true
+	}
+	return false
+}
+
+func combineComparability(left, right comparabilityKind) comparabilityKind {
+	if left < right {
+		return left
+	}
+	return right
+}
+
+func exprComparability(
+	expr ast.Expr,
+	imports map[string]string,
+	pkgTypes map[string]packageTypeDef,
+	visiting map[string]bool,
+) comparabilityKind {
+	switch typed := expr.(type) {
+	case *ast.ParenExpr:
+		return exprComparability(typed.X, imports, pkgTypes, visiting)
+	case *ast.StarExpr, *ast.ChanType:
+		return compStrict
+	case *ast.MapType, *ast.FuncType:
+		return compFalse
+	case *ast.ArrayType:
+		if typed.Len == nil {
+			return compFalse
+		}
+		return exprComparability(typed.Elt, imports, pkgTypes, visiting)
+	case *ast.InterfaceType:
+		return compInterface
+	case *ast.StructType:
+		overall := compStrict
+		if typed.Fields == nil {
+			return overall
+		}
+		for _, field := range typed.Fields.List {
+			overall = combineComparability(overall, exprComparability(field.Type, imports, pkgTypes, visiting))
+			if overall == compFalse {
+				return compFalse
+			}
+		}
+		return overall
+	case *ast.Ident:
+		if def, exists := pkgTypes[typed.Name]; exists {
+			if visiting[typed.Name] {
+				return compUnknown
+			}
+			if def.spec.TypeParams != nil && len(def.spec.TypeParams.List) > 0 {
+				return compUnknown
+			}
+			nextVisiting := make(map[string]bool, len(visiting)+1)
+			for k, v := range visiting {
+				nextVisiting[k] = v
+			}
+			nextVisiting[typed.Name] = true
+			return exprComparability(def.spec.Type, def.imports, pkgTypes, nextVisiting)
+		}
+		return predeclaredComparability(typed.Name)
+	case *ast.SelectorExpr:
+		pkgIdent, ok := typed.X.(*ast.Ident)
+		if !ok {
+			return compUnknown
+		}
+		importPath, ok := imports[pkgIdent.Name]
+		if !ok {
+			importPath = pkgIdent.Name
+		}
+		return stdlibComparability(importPath, typed.Sel.Name)
+	default:
+		return compUnknown
+	}
+}
+
+func predeclaredComparability(name string) comparabilityKind {
+	switch name {
+	case "bool", "byte", "rune",
+		"int", "int8", "int16", "int32", "int64",
+		"uint", "uint8", "uint16", "uint32", "uint64", "uintptr",
+		"float32", "float64", "complex64", "complex128",
+		"string":
+		return compStrict
+	case "any", "error", "comparable":
+		return compInterface
+	default:
+		return compUnknown
+	}
+}
+
+func stdlibComparability(importPath, typeName string) comparabilityKind {
+	switch importPath + "." + typeName {
+	case "time.Time", "net/url.URL":
+		return compStrict
+	case "encoding/json.RawMessage",
+		"net/http.Header", "net/http.Request", "net/http.Response",
+		"net/url.Values", "bytes.Buffer", "regexp.Regexp",
+		"mime/multipart.FileHeader":
+		return compFalse
+	case "context.Context",
+		"io.Reader", "io.Writer", "io.Closer", "io.ReadCloser", "io.ReadWriter",
+		"net/http.RoundTripper", "mime/multipart.File":
+		return compInterface
+	default:
+		return compUnknown
+	}
 }
 
 func extractStructFields(st *ast.StructType) (map[string]structFieldInfo, bool) {
@@ -335,6 +607,7 @@ func extractStructFields(st *ast.StructType) (map[string]structFieldInfo, bool) 
 			fields["embedded:"+fieldType] = structFieldInfo{
 				embedded:  true,
 				exported:  exported,
+				expr:      field.Type,
 				fieldType: fieldType,
 				tag:       tag,
 			}
@@ -347,6 +620,7 @@ func extractStructFields(st *ast.StructType) (map[string]structFieldInfo, bool) 
 			}
 			fields["field:"+ident.Name] = structFieldInfo{
 				exported:  exported,
+				expr:      field.Type,
 				fieldType: fieldType,
 				tag:       tag,
 			}
