@@ -1,7 +1,7 @@
 {
   "entries": [
     {
-      "custom_sha256": "9e3c6e71d63ac079227786a43c7e73273f6967c7fbcc2771e6145df59da81e99",
+      "custom_sha256": "0e4d10580c8801b9de78c1a1904d9e27ad75041934416fd7d495aa88445f20b6",
       "hunks": [
         {
           "custom_lines": [
@@ -27,17 +27,13 @@
         },
         {
           "custom_lines": [
-            "\tdst.raw = append(dst.raw[:0], data...)"
-          ],
-          "custom_start": 21,
-          "semantic": "capture a copy before stock branch decoding",
-          "stock_lines": [],
-          "stock_start": 15
-        },
-        {
-          "custom_lines": [
+            "\t{{#anyOf}}",
+            "\tdst.{{#lambda.type-to-name}}{{{.}}}{{/lambda.type-to-name}} = nil",
+            "\t{{/anyOf}}",
+            "\tdst.raw = nil",
             "\tif string(data) == \"null\" {",
             "\t\t{{#isNullable}}",
+            "\t\tdst.raw = append(dst.raw[:0], data...)",
             "\t\treturn nil",
             "\t\t{{/isNullable}}",
             "\t\t{{^isNullable}}",
@@ -45,16 +41,25 @@
             "\t\t{{/isNullable}}",
             "\t}"
           ],
-          "custom_start": 23,
-          "semantic": "accept null only when the direct union is nullable",
+          "custom_start": 22,
+          "semantic": "clear branch pointers and raw storage before decode and accept null only when the direct union is nullable",
           "stock_lines": [],
           "stock_start": 16
         },
         {
           "custom_lines": [
+            "\t\tdst.raw = append(dst.raw[:0], data...)"
+          ],
+          "custom_start": 38,
+          "semantic": "retain raw JSON when nullable empty payload is accepted",
+          "stock_lines": [],
+          "stock_start": 19
+        },
+        {
+          "custom_lines": [
             "\t\tif err == nil \u0026\u0026 dst.{{{modelName}}} != nil {"
           ],
-          "custom_start": 53,
+          "custom_start": 58,
           "semantic": "require discriminator decoding to produce a non-nil branch pointer",
           "stock_lines": [
             "\t\tif err == nil {"
@@ -63,9 +68,18 @@
         },
         {
           "custom_lines": [
+            "\t\t\t\tdst.raw = append(dst.raw[:0], data...)"
+          ],
+          "custom_start": 63,
+          "semantic": "retain raw JSON only after discriminator branch decoding succeeds",
+          "stock_lines": [],
+          "stock_start": 43
+        },
+        {
+          "custom_lines": [
             "\tif err == nil \u0026\u0026 dst.{{#lambda.type-to-name}}{{{.}}}{{/lambda.type-to-name}} != nil {"
           ],
-          "custom_start": 70,
+          "custom_start": 76,
           "semantic": "require generic decoding to produce a non-nil branch pointer",
           "stock_lines": [
             "\tif err == nil {"
@@ -74,18 +88,27 @@
         },
         {
           "custom_lines": [
+            "\t\t\tdst.raw = append(dst.raw[:0], data...)"
+          ],
+          "custom_start": 81,
+          "semantic": "retain raw JSON only after generic branch decoding succeeds",
+          "stock_lines": [],
+          "stock_start": 60
+        },
+        {
+          "custom_lines": [
             "\tif src.raw != nil {",
             "\t\treturn src.RawJSON(), nil",
             "\t}"
           ],
-          "custom_start": 87,
+          "custom_start": 94,
           "semantic": "prefer retained raw JSON before stock branch marshal",
           "stock_lines": [],
           "stock_start": 72
         },
         {
           "custom_lines": [],
-          "custom_start": 112,
+          "custom_start": 119,
           "semantic": "remove the stock trailing blank line to preserve established generated source bytes",
           "stock_lines": [
             ""
@@ -95,10 +118,10 @@
       ],
       "line_stats": {
         "deletions": 3,
-        "insertions": 20
+        "insertions": 27
       },
       "name": "model_anyof.mustache",
-      "policy": "Retain a private copy of the original union JSON, expose it through copying RawJSON, reject null for non-nullable direct unions, require decoded branch pointers to be non-nil, and prefer retained JSON during marshal.",
+      "policy": "Clear branch pointers and retained raw JSON before every decode, retain a private copy of the original union JSON on accepted decodes, expose it through copying RawJSON, reject null for non-nullable direct unions, require decoded branch pointers to be non-nil, and prefer retained JSON during marshal.",
       "stock_sha256": "29694d9c68575cbba5c8fd9af3de3633437a31836a4e17588a143951c8c15741"
     },
     {
@@ -153,7 +176,7 @@
       "stock_sha256": "c7a5069f3c2896887abf53add1d1a83717a96dec4d25f79d8154c4227aeffda7"
     },
     {
-      "custom_sha256": "667441f070b77e2bd07100f16942bad440a8afb949c242b207f2f1e1d2848041",
+      "custom_sha256": "1c0058a441cf6121b22e675206ec8ce2058394e6baa85b0248248c63d561a59f",
       "hunks": [
         {
           "custom_lines": [
@@ -205,11 +228,14 @@
         },
         {
           "custom_lines": [
+            "\t{{#oneOf}}",
+            "\tdst.{{#lambda.type-to-name}}{{{.}}}{{/lambda.type-to-name}} = nil",
+            "\t{{/oneOf}}",
             "\tdst.raw = nil",
             "\tdst.matchedSchemas = dst.matchedSchemas[:0]"
           ],
           "custom_start": 62,
-          "semantic": "clear retained decode metadata before every stock decode attempt",
+          "semantic": "clear all branch pointers and retained decode metadata before every stock decode attempt",
           "stock_lines": [],
           "stock_start": 22
         },
@@ -219,7 +245,7 @@
             "\t\t\tdst.raw = append(dst.raw[:0], data...)",
             "\t\t\tdst.matchedSchemas = append(dst.matchedSchemas, \"{{{modelName}}}\")"
           ],
-          "custom_start": 87,
+          "custom_start": 90,
           "semantic": "require discriminator branches to preserve input field presence and retain raw JSON and the selected branch",
           "stock_lines": [
             "\t\tif err == nil {"
@@ -233,7 +259,7 @@
             "\t\t\t}",
             "\t\t\treturn fmt.Errorf(\"failed to unmarshal {{classname}} as {{{modelName}}}: required fields do not match\")"
           ],
-          "custom_start": 93,
+          "custom_start": 96,
           "semantic": "distinguish discriminator decode errors from branches that synthesize absent fields",
           "stock_lines": [
             "\t\t\treturn fmt.Errorf(\"failed to unmarshal {{classname}} as {{{modelName}}}: %s\", err.Error())"
@@ -244,7 +270,7 @@
           "custom_lines": [
             "\treturn fmt.Errorf(\"data failed to match schemas in oneOf({{classname}})\")"
           ],
-          "custom_start": 101,
+          "custom_start": 104,
           "semantic": "fail closed when no discriminator mapping matches",
           "stock_lines": [
             "\treturn nil"
@@ -255,7 +281,7 @@
           "custom_lines": [
             "\tif err == nil \u0026\u0026 {{classname}}BranchMatchesRequiredFields(data, dst.{{#lambda.type-to-name}}{{{.}}}{{/lambda.type-to-name}}) {"
           ],
-          "custom_start": 108,
+          "custom_start": 111,
           "semantic": "reject permissive branch decodes that synthesize absent fields",
           "stock_lines": [
             "\tif err == nil {"
@@ -266,7 +292,7 @@
           "custom_lines": [
             "\t\t\tdst.matchedSchemas = append(dst.matchedSchemas, \"{{#lambda.type-to-name}}{{{.}}}{{/lambda.type-to-name}}\")"
           ],
-          "custom_start": 114,
+          "custom_start": 117,
           "semantic": "record every branch accepted by stock permissive decoding",
           "stock_lines": [],
           "stock_start": 67
@@ -277,7 +303,7 @@
             "\t\tdst.raw = append(dst.raw[:0], data...)",
             "\t\treturn nil"
           ],
-          "custom_start": 121,
+          "custom_start": 124,
           "semantic": "accept one or more permissive matches without erasing ambiguous branches and retain authoritative raw JSON",
           "stock_lines": [
             "\tif match \u003e 1 { // more than 1 match",
@@ -296,7 +322,7 @@
           "custom_lines": [
             "\tif err == nil \u0026\u0026 {{classname}}BranchMatchesRequiredFields(data, dst.{{#lambda.type-to-name}}{{{.}}}{{/lambda.type-to-name}}) {"
           ],
-          "custom_start": 138,
+          "custom_start": 141,
           "semantic": "reject strict branch decodes that synthesize absent fields before stock validation",
           "stock_lines": [
             "\tif err == nil {"
@@ -307,7 +333,7 @@
           "custom_lines": [
             "\t\t\t\tdst.matchedSchemas = append(dst.matchedSchemas, \"{{#lambda.type-to-name}}{{{.}}}{{/lambda.type-to-name}}\")"
           ],
-          "custom_start": 147,
+          "custom_start": 150,
           "semantic": "record every branch accepted by stock strict decoding and validation",
           "stock_lines": [],
           "stock_start": 105
@@ -318,7 +344,7 @@
             "\t\tdst.raw = append(dst.raw[:0], data...)",
             "\t\treturn nil"
           ],
-          "custom_start": 155,
+          "custom_start": 158,
           "semantic": "accept one or more validated matches without erasing ambiguous branches and retain authoritative raw JSON",
           "stock_lines": [
             "\tif match \u003e 1 { // more than 1 match",
@@ -339,7 +365,7 @@
             "\t\treturn src.RawJSON(), nil",
             "\t}"
           ],
-          "custom_start": 171,
+          "custom_start": 174,
           "semantic": "marshal retained raw JSON before inspecting decoded branches",
           "stock_lines": [],
           "stock_start": 134
@@ -348,7 +374,7 @@
           "custom_lines": [
             "\tif obj == nil || obj.IsAmbiguous() {"
           ],
-          "custom_start": 185,
+          "custom_start": 188,
           "semantic": "do not claim a unique actual pointer for ambiguous decoded JSON",
           "stock_lines": [
             "\tif obj == nil {"
@@ -361,14 +387,14 @@
             "\t\treturn nil",
             "\t}"
           ],
-          "custom_start": 200,
+          "custom_start": 203,
           "semantic": "do not claim a unique actual value for ambiguous decoded JSON",
           "stock_lines": [],
           "stock_start": 160
         },
         {
           "custom_lines": [],
-          "custom_start": 214,
+          "custom_start": 217,
           "semantic": "end the template with exactly one newline",
           "stock_lines": [
             ""
@@ -378,10 +404,10 @@
       ],
       "line_stats": {
         "deletions": 25,
-        "insertions": 67
+        "insertions": 70
       },
       "name": "model_oneof.mustache",
-      "policy": "Retain exact raw JSON and stock branch attempts, reject branch decodes that synthesize absent fields, fail closed on unknown discriminator values, accept one or more matches in non-discriminator matching, reject zero matches, preserve ambiguous branch state, expose copied match metadata, and prefer raw bytes during marshal.",
+      "policy": "Clear all branch pointers and decode metadata before every decode, retain exact raw JSON and stock branch attempts, reject branch decodes that synthesize absent fields, fail closed on unknown discriminator values, accept one or more matches in non-discriminator matching, reject zero matches, preserve ambiguous branch state, expose copied match metadata, and prefer raw bytes during marshal.",
       "stock_sha256": "98148bb5ed88123a26e1f0ec0c1f2b18744934732407858cd2359702b2c0ec5c"
     },
     {

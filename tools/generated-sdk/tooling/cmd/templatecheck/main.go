@@ -162,11 +162,15 @@ func verifyPinnedOneOfAmbiguities(
 			return "", writeErr
 		}
 	}
-	outputDir, err := os.MkdirTemp("", "generated-sdk-production-oneof-generated-*")
+	scratchDir, err := os.MkdirTemp("", "generated-sdk-production-oneof-generated-*")
 	if err != nil {
 		return "", err
 	}
-	defer removeTemporaryDirectory(outputDir, &err)
+	defer removeTemporaryDirectory(scratchDir, &err)
+	outputDir := filepath.Join(scratchDir, "module")
+	if err := os.Mkdir(outputDir, 0o700); err != nil {
+		return "", err
+	}
 	jar := filepath.Join(repoRoot, "tools/generated-sdk/.cache/openapi-generator-cli-7.27.0.jar")
 	specification := filepath.Join(repoRoot, "tools/generated-sdk/specs/trading.openapi.json")
 	generationOutput, err := runGenerator(ctx, repoRoot, docker, jar, specification, outputDir, templateDir, platform, image,
@@ -204,7 +208,7 @@ func TestStockOneOfAmbiguities(t *testing.T) {
 	}
 }
 `
-	if err := safetree.WriteNew(filepath.Join(outputDir, "oneof_stock_test.go"), []byte(testSource), 0o600); err != nil {
+	if err := safetree.WriteNew(filepath.Join(outputDir, "oneof_stock_test.go"), []byte(testSource), 0o644); err != nil {
 		return generationOutput, err
 	}
 	if err := gosandbox.Vendor(ctx, goCommand, outputDir); err != nil {
@@ -253,11 +257,15 @@ func generateAndTest(
 		}
 		templateDir = mutantDir
 	}
-	outputDir, err := os.MkdirTemp("", "generated-sdk-template-generated-*")
+	scratchDir, err := os.MkdirTemp("", "generated-sdk-template-generated-*")
 	if err != nil {
 		return "", err
 	}
-	defer removeTemporaryDirectory(outputDir, &err)
+	defer removeTemporaryDirectory(scratchDir, &err)
+	outputDir := filepath.Join(scratchDir, "module")
+	if err := os.Mkdir(outputDir, 0o700); err != nil {
+		return "", err
+	}
 	jar := filepath.Join(repoRoot, "tools/generated-sdk/.cache/openapi-generator-cli-7.27.0.jar")
 	fixture := filepath.Join(repoRoot, "tools/generated-sdk/generator/fixtures/template-policy.openapi.json")
 	generationOutput, err := runGenerator(ctx, repoRoot, docker, jar, fixture, outputDir, templateDir, platform, image,
@@ -277,7 +285,7 @@ func generateAndTest(
 	if err != nil {
 		return generationOutput, err
 	}
-	if err := safetree.WriteNew(filepath.Join(outputDir, "template_policy_test.go"), testSource, 0o600); err != nil {
+	if err := safetree.WriteNew(filepath.Join(outputDir, "template_policy_test.go"), testSource, 0o644); err != nil {
 		return generationOutput, err
 	}
 	if err := gosandbox.Vendor(ctx, goCommand, outputDir); err != nil {

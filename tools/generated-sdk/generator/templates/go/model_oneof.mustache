@@ -59,6 +59,9 @@ func {{#lambda.type-to-name}}{{{.}}}{{/lambda.type-to-name}}As{{classname}}(v *{
 // Unmarshal JSON data into one of the pointers in the struct
 func (dst *{{classname}}) UnmarshalJSON(data []byte) error {
 	var err error
+	{{#oneOf}}
+	dst.{{#lambda.type-to-name}}{{{.}}}{{/lambda.type-to-name}} = nil
+	{{/oneOf}}
 	dst.raw = nil
 	dst.matchedSchemas = dst.matchedSchemas[:0]
 	{{#isNullable}}

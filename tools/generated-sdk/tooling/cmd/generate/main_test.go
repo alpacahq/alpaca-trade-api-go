@@ -258,18 +258,22 @@ func TestGeneratedTreeOperationsRejectSymlinks(t *testing.T) {
 func TestCompileCandidateUsesIsolatedFixtureModule(t *testing.T) {
 	t.Setenv("GOMODCACHE", t.TempDir())
 	workspace := t.TempDir()
+	moduleDir := filepath.Join(workspace, "module")
+	if err := os.Mkdir(moduleDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
 	if err := os.WriteFile(
-		filepath.Join(workspace, "go.mod"),
+		filepath.Join(moduleDir, "go.mod"),
 		[]byte("module example.com/generated-fixture\n\ngo 1.23.0\n"),
 		0o644,
 	); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(workspace, "go.sum"), nil, 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(moduleDir, "go.sum"), nil, 0o644); err != nil {
 		t.Fatal(err)
 	}
 	for _, packageName := range []string{"trading", "marketdata"} {
-		dir := filepath.Join(workspace, "generated", packageName)
+		dir := filepath.Join(moduleDir, "generated", packageName)
 		if err := os.MkdirAll(dir, 0o755); err != nil {
 			t.Fatal(err)
 		}
@@ -286,11 +290,16 @@ func TestCompileCandidateUsesIsolatedFixtureModule(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := vendorCandidateDependencies(context.Background(), goCommand, workspace); err != nil {
+	if err := vendorCandidateDependencies(context.Background(), goCommand, moduleDir); err != nil {
 		t.Fatal(err)
 	}
-	if err := compileCandidatePackages(context.Background(), workspace, []string{version}); err != nil {
+	if err := compileCandidatePackages(context.Background(), workspace, moduleDir, []string{version}); err != nil {
 		t.Fatal(err)
+	}
+	for _, scratchName := range []string{".compile", ".gocache", ".vendor-cache"} {
+		if _, err := os.Lstat(filepath.Join(moduleDir, scratchName)); !os.IsNotExist(err) {
+			t.Fatalf("host scratch directory %s leaked into mounted moduleDir", scratchName)
+		}
 	}
 }
 

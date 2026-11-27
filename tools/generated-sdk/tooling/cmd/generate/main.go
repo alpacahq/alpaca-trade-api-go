@@ -739,6 +739,10 @@ func compileCandidate(
 	testPlatform generatortrust.Platform,
 ) error {
 	return withCompileWorkspace(func(workspace string) error {
+		moduleDir := filepath.Join(workspace, "module")
+		if err := os.Mkdir(moduleDir, 0o700); err != nil {
+			return err
+		}
 		for destination, source := range map[string]string{
 			"go.mod": "tools/generated-sdk/generator/fixtures/template-fixture.mod",
 			"go.sum": "tools/generated-sdk/generator/fixtures/template-fixture.sum",
@@ -747,25 +751,25 @@ func compileCandidate(
 			if err != nil {
 				return err
 			}
-			// #nosec G703 -- workspace is a fresh temporary directory and destination is one of two fixed module filenames.
-			if err := os.WriteFile(filepath.Join(workspace, destination), data, 0o644); err != nil {
+			// #nosec G703 -- moduleDir is a fresh temporary directory and destination is one of two fixed module filenames.
+			if err := os.WriteFile(filepath.Join(moduleDir, destination), data, 0o644); err != nil {
 				return err
 			}
 		}
-		if err := copyTree(candidate, filepath.Join(workspace, "generated")); err != nil {
+		if err := copyTree(candidate, filepath.Join(moduleDir, "generated")); err != nil {
 			return err
 		}
-		if err := writeGeneratedBehaviorTests(workspace); err != nil {
+		if err := writeGeneratedBehaviorTests(moduleDir); err != nil {
 			return err
 		}
 		vendorGo, err := goBinaryForToolchain(ctx, trust.TestContainer.GoVersion)
 		if err != nil {
 			return err
 		}
-		if err := vendorCandidateDependencies(ctx, vendorGo, workspace); err != nil {
+		if err := vendorCandidateDependencies(ctx, vendorGo, moduleDir); err != nil {
 			return err
 		}
-		if err := compileCandidatePackages(ctx, workspace, trust.GoToolchains); err != nil {
+		if err := compileCandidatePackages(ctx, workspace, moduleDir, trust.GoToolchains); err != nil {
 			return err
 		}
 		docker, err := exec.LookPath("docker")
@@ -777,7 +781,7 @@ func compileCandidate(
 			docker,
 			testPlatform.Platform,
 			generatortrust.TestImageReference(trust, testPlatform),
-			workspace,
+			moduleDir,
 		)
 		if err != nil {
 			return fmt.Errorf("generated-code behavior tests: %w: %s", err, strings.TrimSpace(testOutput))
@@ -786,7 +790,7 @@ func compileCandidate(
 	})
 }
 
-func compileCandidatePackages(ctx context.Context, workspace string, toolchains []string) error {
+func compileCandidatePackages(ctx context.Context, workspace, moduleDir string, toolchains []string) error {
 	compileDir := filepath.Join(workspace, ".compile")
 	if err := os.MkdirAll(compileDir, 0o700); err != nil {
 		return err
@@ -807,7 +811,7 @@ func compileCandidatePackages(ctx context.Context, workspace string, toolchains 
 				goCommand,
 				"test", "-c", "-o", binary, "./generated/"+packageName,
 			)
-			command.Dir = workspace
+			command.Dir = moduleDir
 			command.Env = replaceEnvironment(
 				gosandbox.CompileEnvironment("-mod=vendor"),
 				map[string]string{"GOCACHE": cache},
@@ -826,18 +830,18 @@ func compileCandidatePackages(ctx context.Context, workspace string, toolchains 
 	return nil
 }
 
-func vendorCandidateDependencies(ctx context.Context, goCommand, workspace string) error {
-	return gosandbox.Vendor(ctx, goCommand, workspace)
+func vendorCandidateDependencies(ctx context.Context, goCommand, moduleDir string) error {
+	return gosandbox.Vendor(ctx, goCommand, moduleDir)
 }
 
 func runGeneratedBehaviorTests(
 	ctx context.Context,
-	docker, platform, image, workspace string,
+	docker, platform, image, moduleDir string,
 ) (string, error) {
-	return gosandbox.RunTests(ctx, docker, platform, image, workspace, "test", "-count=1", "./generated/...")
+	return gosandbox.RunTests(ctx, docker, platform, image, moduleDir, "test", "-count=1", "./generated/...")
 }
 
-func writeGeneratedBehaviorTests(workspace string) error {
+func writeGeneratedBehaviorTests(moduleDir string) error {
 	for _, fixture := range []struct {
 		activityTest bool
 		packageName  string
@@ -846,12 +850,12 @@ func writeGeneratedBehaviorTests(workspace string) error {
 		{activityTest: true, packageName: "trading"},
 	} {
 		source := generatedClientBehaviorTest(fixture.packageName, fixture.activityTest)
-		path := filepath.Join(workspace, "generated", fixture.packageName, "generated_policy_test.go")
-		if err := safetree.WriteNew(path, []byte(source), 0o600); err != nil {
+		path := filepath.Join(moduleDir, "generated", fixture.packageName, "generated_policy_test.go")
+		if err := safetree.WriteNew(path, []byte(source), 0o644); err != nil {
 			return err
 		}
 	}
-	return safetree.Validate(workspace)
+	return safetree.Validate(moduleDir)
 }
 
 func generatedClientBehaviorTest(packageName string, activityTest bool) string {
@@ -874,6 +878,26 @@ func TestUnknownNonFillActivityFallback(t *testing.T) {
 	}
 	if !bytes.Equal(value.RawJSON(), payload) {
 		t.Fatalf("retained activity JSON = %s, want %s", value.RawJSON(), payload)
+	}
+	if value.GetActualInstance() != value.NonTradeActivities {
+		t.Fatalf("unknown non-FILL GetActualInstance = %T, want *NonTradeActivities", value.GetActualInstance())
+	}
+
+	fillPayload := []byte(` + "`" + `{"activity_type":"FILL","cum_qty":"2","id":"synthetic-fill-1","leaves_qty":"0","order_id":"00000000-0000-4000-8000-000000000004","order_status":"filled","price":"100.00","qty":"2","side":"buy","symbol":"AAPL","transaction_time":"2020-01-02T03:04:05Z","type":"fill"}` + "`" + `)
+	if err := json.Unmarshal(fillPayload, &value); err != nil {
+		t.Fatalf("reused FILL activity decode failed: %v", err)
+	}
+	if value.NonTradeActivities != nil || value.TradingActivities == nil {
+		t.Fatalf("reused FILL branch = non-trade:%v trading:%v, want non-trade:false trading:true", value.NonTradeActivities != nil, value.TradingActivities != nil)
+	}
+	if value.GetActualInstance() != value.TradingActivities {
+		t.Fatalf("reused FILL GetActualInstance = %T, want *TradingActivities", value.GetActualInstance())
+	}
+	if got := value.MatchedSchemas(); len(got) != 1 || got[0] != "TradingActivities" {
+		t.Fatalf("reused FILL matched schemas = %v, want [TradingActivities]", got)
+	}
+	if !bytes.Equal(value.RawJSON(), fillPayload) {
+		t.Fatalf("reused FILL retained JSON = %s, want %s", value.RawJSON(), fillPayload)
 	}
 }
 `

@@ -738,6 +738,7 @@ func report(manifest Manifest) []byte {
 	fmt.Fprintf(&output, "- Changed files: %d\n", len(manifest.Generated.ChangedFiles))
 	fmt.Fprintf(&output, "- Removed files: %d\n", len(manifest.Generated.RemovedFiles))
 	fmt.Fprintf(&output, "- Added public declarations: %d\n", len(manifest.Generated.PublicAdded))
+	fmt.Fprintf(&output, "- Additive public declaration evolutions: %d\n", len(manifest.Generated.PublicAdditive))
 	fmt.Fprintf(&output, "- Changed public declarations: %d\n", len(manifest.Generated.PublicChanged))
 	fmt.Fprintf(&output, "- Removed public declarations: %d\n", len(manifest.Generated.PublicRemoved))
 	output.WriteString("\nThis report describes generator inputs and an isolated candidate. It does not activate generated clients or approve an SDK release.\n")

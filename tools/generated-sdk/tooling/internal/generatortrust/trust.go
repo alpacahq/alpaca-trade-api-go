@@ -710,15 +710,15 @@ func ValidateManifest(trust *TrustRoot) error {
 		},
 		"fixture_test": {
 			Path:   "tools/generated-sdk/generator/fixtures/template_policy_test.go.tmpl",
-			SHA256: "b9d08503731e40ea19c6214083f9b2ab990067881921ce25a6a6c407c2c1cfcd",
+			SHA256: "35b13985459f5df81be430eeb0a25553019ecb7ff4472e8e474919778e453344",
 		},
 		"stock_digests": {
 			Path:   "tools/generated-sdk/generator/stock-template-digests.json",
-			SHA256: "ac7f6728c9fbe62ef3a038f7fa55012a605e9ffbfcc359a598672d3eef91bda1",
+			SHA256: "15bbf674cb0bfa3274fa2e6e5b7afee5d8594fd03975c08d14038b0aed5c9d22",
 		},
 		"template_deltas": {
 			Path:   "tools/generated-sdk/generator/template-deltas.json",
-			SHA256: "243deab978be1588bb79f517d8b36df93b28a010bd7ed217a396eb13fd78ab5c",
+			SHA256: "3c7fe4ab0faa1327c7cca0fd406dcb774bca571581432787f4673f6aea3f7434",
 		},
 	}
 	overlay, ok := trust.TemplateArtifacts["overlays"]
@@ -977,13 +977,13 @@ func validateCustomTemplates(custom CustomTemplates) error {
 			Name: "model_anyof.mustache", Status: "reviewed",
 			StockPath: "go/model_anyof.mustache", StockSHA256: "29694d9c68575cbba5c8fd9af3de3633437a31836a4e17588a143951c8c15741",
 			CustomPath:   "tools/generated-sdk/generator/templates/go/model_anyof.mustache",
-			CustomSHA256: "9e3c6e71d63ac079227786a43c7e73273f6967c7fbcc2771e6145df59da81e99",
+			CustomSHA256: "0e4d10580c8801b9de78c1a1904d9e27ad75041934416fd7d495aa88445f20b6",
 		},
 		"model_oneof.mustache": {
 			Name: "model_oneof.mustache", Status: "reviewed",
 			StockPath: "go/model_oneof.mustache", StockSHA256: "98148bb5ed88123a26e1f0ec0c1f2b18744934732407858cd2359702b2c0ec5c",
 			CustomPath:   "tools/generated-sdk/generator/templates/go/model_oneof.mustache",
-			CustomSHA256: "667441f070b77e2bd07100f16942bad440a8afb949c242b207f2f1e1d2848041",
+			CustomSHA256: "1c0058a441cf6121b22e675206ec8ce2058394e6baa85b0248248c63d561a59f",
 		},
 		"model_simple.mustache": {
 			Name: "model_simple.mustache", Status: "reviewed",

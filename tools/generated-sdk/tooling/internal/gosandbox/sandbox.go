@@ -2,9 +2,12 @@ package gosandbox
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"runtime"
 	"strings"
 
@@ -26,12 +29,21 @@ func CompileEnvironment(goFlags string) []string {
 	})
 }
 
-func Vendor(ctx context.Context, goCommand, moduleDir string) error {
+func Vendor(ctx context.Context, goCommand, moduleDir string) (resultErr error) {
+	vendorCache, err := os.MkdirTemp("", "generated-sdk-vendor-cache-")
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if cleanupErr := os.RemoveAll(vendorCache); cleanupErr != nil {
+			resultErr = errors.Join(resultErr, fmt.Errorf("remove vendor cache: %w", cleanupErr))
+		}
+	}()
 	command := exec.CommandContext(ctx, goCommand, "mod", "vendor")
 	command.Dir = moduleDir
 	command.Env = replaceEnvironment(
 		CompileEnvironment("-mod=readonly"),
-		map[string]string{"GOCACHE": moduleDir + string(os.PathSeparator) + ".vendor-cache"},
+		map[string]string{"GOCACHE": vendorCache},
 	)
 	if output, err := command.CombinedOutput(); err != nil {
 		return fmt.Errorf("vendor generated dependencies: %w: %s", err, strings.TrimSpace(string(output)))
@@ -39,11 +51,34 @@ func Vendor(ctx context.Context, goCommand, moduleDir string) error {
 	return safetree.Validate(moduleDir)
 }
 
+func prepareReadOnlyMount(moduleDir string) error {
+	if err := safetree.Validate(moduleDir); err != nil {
+		return err
+	}
+	return filepath.WalkDir(moduleDir, func(path string, entry fs.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		if entry.Type()&os.ModeSymlink != 0 {
+			return fmt.Errorf("symlink is forbidden in sandbox mount: %s", path)
+		}
+		if entry.IsDir() {
+			// #nosec G122,G302 -- moduleDir is validated symlink-free inside a private 0700 host temp parent; container UID 65534 needs 0755 to traverse /workspace.
+			return os.Chmod(path, 0o755)
+		}
+		// #nosec G122,G302 -- moduleDir is validated symlink-free inside a private 0700 host temp parent; container UID 65534 needs 0644 to read /workspace files.
+		return os.Chmod(path, 0o644)
+	})
+}
+
 func RunTests(
 	ctx context.Context,
 	docker, platform, image, moduleDir string,
 	goArguments ...string,
 ) (string, error) {
+	if err := prepareReadOnlyMount(moduleDir); err != nil {
+		return "", err
+	}
 	arguments := []string{
 		"run", "--rm", "--pull=never", "--network=none", "--read-only",
 		"--platform=" + platform,

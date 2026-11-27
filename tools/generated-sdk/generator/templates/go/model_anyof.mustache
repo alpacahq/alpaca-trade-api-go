@@ -18,10 +18,14 @@ func (src {{classname}}) RawJSON() []byte {
 
 // Unmarshal JSON data into any of the pointers in the struct
 func (dst *{{classname}}) UnmarshalJSON(data []byte) error {
-	dst.raw = append(dst.raw[:0], data...)
 	var err error
+	{{#anyOf}}
+	dst.{{#lambda.type-to-name}}{{{.}}}{{/lambda.type-to-name}} = nil
+	{{/anyOf}}
+	dst.raw = nil
 	if string(data) == "null" {
 		{{#isNullable}}
+		dst.raw = append(dst.raw[:0], data...)
 		return nil
 		{{/isNullable}}
 		{{^isNullable}}
@@ -31,6 +35,7 @@ func (dst *{{classname}}) UnmarshalJSON(data []byte) error {
 	{{#isNullable}}
 	// this object is nullable so check if the payload is null or empty string
 	if string(data) == "" || string(data) == "{}" {
+		dst.raw = append(dst.raw[:0], data...)
 		return nil
 	}
 
@@ -55,6 +60,7 @@ func (dst *{{classname}}) UnmarshalJSON(data []byte) error {
 			if string(json{{{modelName}}}) == "{}" { // empty struct
 				dst.{{{modelName}}} = nil
 			} else {
+				dst.raw = append(dst.raw[:0], data...)
 				return nil // data stored in dst.{{{modelName}}}, return on the first match
 			}
 		} else {
@@ -72,6 +78,7 @@ func (dst *{{classname}}) UnmarshalJSON(data []byte) error {
 		if string(json{{#lambda.type-to-name}}{{{.}}}{{/lambda.type-to-name}}) == "{}" { // empty struct
 			dst.{{#lambda.type-to-name}}{{{.}}}{{/lambda.type-to-name}} = nil
 		} else {
+			dst.raw = append(dst.raw[:0], data...)
 			return nil // data stored in dst.{{#lambda.type-to-name}}{{{.}}}{{/lambda.type-to-name}}, return on the first match
 		}
 	} else {

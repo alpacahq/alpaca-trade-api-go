@@ -22,9 +22,9 @@ const (
 )
 
 var acceptedCustomDigests = map[string]string{
-	"model_anyof.mustache":  "9e3c6e71d63ac079227786a43c7e73273f6967c7fbcc2771e6145df59da81e99",
+	"model_anyof.mustache":  "0e4d10580c8801b9de78c1a1904d9e27ad75041934416fd7d495aa88445f20b6",
 	"model_enum.mustache":   "153e3a586982664544edb2849c8c7fd517a7cea5a635825f5219f755bdb2b2d3",
-	"model_oneof.mustache":  "667441f070b77e2bd07100f16942bad440a8afb949c242b207f2f1e1d2848041",
+	"model_oneof.mustache":  "1c0058a441cf6121b22e675206ec8ce2058394e6baa85b0248248c63d561a59f",
 	"model_simple.mustache": "e0ea8a1b093106f9bb8a2b283779523e38bc15674a20136f3c80e7eb227de70d",
 }
 

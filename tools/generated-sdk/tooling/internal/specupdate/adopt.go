@@ -96,6 +96,7 @@ func Adopt(ctx context.Context, options AdoptOptions) (resultErr error) {
 		return err
 	}
 	journalCreated := true
+	releaseLock = false
 	committed := false
 	defer func() {
 		if resultErr != nil && journalCreated && !committed {
@@ -192,7 +193,9 @@ func Rollback(repoRoot string) error {
 			lockPath := filepath.Join(repoRoot, filepath.FromSlash(transactionLockPath))
 			if _, lockErr := os.Lstat(lockPath); lockErr == nil {
 				for _, suffix := range []string{".initial", ".next"} {
-					_ = os.Remove(journalPath + suffix)
+					if removeErr := removeStaleJournalTemp(journalPath + suffix); removeErr != nil {
+						return removeErr
+					}
 				}
 				return removeTransactionLock(lockPath)
 			}
@@ -276,6 +279,9 @@ func prepareTransactionEntries(
 func rollbackTransaction(repoRoot, journalPath string) error {
 	journal, err := loadTransaction(journalPath)
 	if err != nil {
+		return err
+	}
+	if err := removeStaleJournalTemp(journalPath + ".initial"); err != nil {
 		return err
 	}
 	if journal.Phase == "committed" {
@@ -380,10 +386,30 @@ func updateJournal(path string, journal transaction) error {
 		return err
 	}
 	temporary := path + ".next"
+	if err := removeStaleJournalTemp(temporary); err != nil {
+		return err
+	}
 	if err := writeExclusiveSynced(temporary, data, 0o600); err != nil {
 		return err
 	}
 	if err := os.Rename(temporary, path); err != nil {
+		return err
+	}
+	return syncDirectory(filepath.Dir(path))
+}
+
+func removeStaleJournalTemp(path string) error {
+	info, err := os.Lstat(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return err
+	}
+	if info.Mode()&os.ModeSymlink != 0 || !info.Mode().IsRegular() {
+		return fmt.Errorf("stale journal temporary %s is not a regular file", filepath.Base(path))
+	}
+	if err := os.Remove(path); err != nil {
 		return err
 	}
 	return syncDirectory(filepath.Dir(path))

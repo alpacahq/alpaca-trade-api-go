@@ -119,6 +119,13 @@ func TestAdoptRejectsStaleBaseline(t *testing.T) {
 }
 
 func TestAdditiveAdoptionRejectsGeneratedPublicChange(t *testing.T) {
+	additive := Manifest{Generated: treecompare.Summary{
+		PublicAdded:    []string{"model_order.go:method *Order.GetLabel"},
+		PublicAdditive: []string{"model_order.go:type Order", "model_status.go:var AllowedStatusEnumValues"},
+	}}
+	if err := validateAdoptionClassification(additive, false); err != nil {
+		t.Fatalf("additive generated declaration evolution unexpectedly failed additive adoption: %v", err)
+	}
 	manifest := Manifest{Generated: treecompare.Summary{PublicChanged: []string{"client.go:type Client"}}}
 	if err := validateAdoptionClassification(manifest, false); err == nil {
 		t.Fatal("generated public change unexpectedly passed additive adoption")
@@ -162,6 +169,80 @@ func TestRollbackResumesAfterDestinationWasBackedUp(t *testing.T) {
 	}
 	if string(data) != "original:"+entry.Destination+"\n" {
 		t.Fatalf("restored data = %q", data)
+	}
+}
+
+func TestRollbackRecoversAfterInterruptedJournalUpdate(t *testing.T) {
+	repoRoot, bundleRoot, manifest := adoptionFixture(t, spec.ClassificationAdditive)
+	lockPath := filepath.Join(repoRoot, filepath.FromSlash(transactionLockPath))
+	if err := acquireTransactionLock(repoRoot, lockPath); err != nil {
+		t.Fatal(err)
+	}
+	entries, _, err := prepareTransactionEntries(repoRoot, bundleRoot, manifest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	journal := transaction{
+		Applied: 1, Entries: entries, Phase: "applying",
+		PlanDigest: manifest.PlanDigest, SchemaVersion: 1,
+	}
+	journalPath := filepath.Join(repoRoot, filepath.FromSlash(transactionPath))
+	if err := createJournal(journalPath, journal); err != nil {
+		t.Fatal(err)
+	}
+	entry := entries[0]
+	if err := os.Rename(
+		filepath.Join(repoRoot, filepath.FromSlash(entry.Destination)),
+		filepath.Join(repoRoot, filepath.FromSlash(entry.BackupPath)),
+	); err != nil {
+		t.Fatal(err)
+	}
+	// Simulate a crash after writing spec-update.json.next (and a lingering .initial) before os.Rename.
+	if err := os.WriteFile(journalPath+".next", []byte("partial-journal"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(journalPath+".initial", []byte("initial-journal"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := Rollback(repoRoot); err != nil {
+		t.Fatalf("rollback failed with leftover .next file: %v", err)
+	}
+	data, err := os.ReadFile(filepath.Join(repoRoot, filepath.FromSlash(entry.Destination)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(data) != "original:"+entry.Destination+"\n" {
+		t.Fatalf("restored data = %q", data)
+	}
+	for _, path := range []string{journalPath, journalPath + ".next", journalPath + ".initial", lockPath} {
+		if _, err := os.Lstat(path); !os.IsNotExist(err) {
+			t.Fatalf("transaction artifact %s remained after rollback: %v", path, err)
+		}
+	}
+}
+
+func TestAdoptRetainsLockWhenRollbackFails(t *testing.T) {
+	repoRoot, bundleRoot, manifest := adoptionFixture(t, spec.ClassificationAdditive)
+	err := Adopt(context.Background(), AdoptOptions{
+		AcceptPlan: manifest.PlanDigest, BundleDir: bundleRoot, RepoRoot: repoRoot,
+		Validator: validatorFunc(func(_ context.Context, root string) (CandidateResult, error) {
+			backupPath := filepath.Join(root, "tools", "generated-sdk", ".transactions", "backup-00")
+			if writeErr := os.WriteFile(backupPath, []byte("corrupted backup\n"), 0o644); writeErr != nil {
+				return CandidateResult{}, writeErr
+			}
+			return CandidateResult{}, errors.New("validation failed")
+		}),
+	})
+	if err == nil {
+		t.Fatal("failed validation and rollback unexpectedly passed")
+	}
+	lockPath := filepath.Join(repoRoot, filepath.FromSlash(transactionLockPath))
+	if _, statErr := os.Lstat(lockPath); statErr != nil {
+		t.Fatalf("transaction lock was released despite incomplete rollback: %v", statErr)
+	}
+	journalPath := filepath.Join(repoRoot, filepath.FromSlash(transactionPath))
+	if _, statErr := os.Lstat(journalPath); statErr != nil {
+		t.Fatalf("transaction journal disappeared despite failed rollback: %v", statErr)
 	}
 }
 
@@ -267,7 +348,7 @@ func adoptionFixture(t *testing.T, classification spec.Classification) (string, 
 		},
 		Generated: treecompare.Summary{
 			AddedFiles: []string{}, ChangedFiles: []string{}, PublicAdded: []string{},
-			PublicChanged: []string{}, PublicRemoved: []string{}, RemovedFiles: []string{},
+			PublicAdditive: []string{}, PublicChanged: []string{}, PublicRemoved: []string{}, RemovedFiles: []string{},
 			BaselineTreeSHA256: spec.Digest([]byte("baseline")),
 			ProposedTreeSHA256: spec.Digest([]byte("proposed")),
 		},

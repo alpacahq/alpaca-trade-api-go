@@ -20,6 +20,7 @@ type Summary struct {
 	AddedFiles         []string `json:"added_files"`
 	ChangedFiles       []string `json:"changed_files"`
 	PublicAdded        []string `json:"public_declarations_added"`
+	PublicAdditive     []string `json:"public_declarations_additive"`
 	PublicChanged      []string `json:"public_declarations_changed"`
 	PublicRemoved      []string `json:"public_declarations_removed"`
 	RemovedFiles       []string `json:"removed_files"`
@@ -46,6 +47,7 @@ func Compare(baselineRoot, proposedRoot string) (Result, error) {
 			AddedFiles:         []string{},
 			ChangedFiles:       []string{},
 			PublicAdded:        []string{},
+			PublicAdditive:     []string{},
 			PublicChanged:      []string{},
 			PublicRemoved:      []string{},
 			RemovedFiles:       []string{},
@@ -74,6 +76,7 @@ func Compare(baselineRoot, proposedRoot string) (Result, error) {
 		}
 	}
 	slices.Sort(result.Summary.PublicAdded)
+	slices.Sort(result.Summary.PublicAdditive)
 	slices.Sort(result.Summary.PublicChanged)
 	slices.Sort(result.Summary.PublicRemoved)
 	result.Diff = diff.Bytes()
@@ -159,6 +162,13 @@ func splitLines(data []byte) []string {
 	return strings.Split(strings.TrimSuffix(string(data), "\n"), "\n")
 }
 
+type declarationInfo struct {
+	formatted string
+	name      string
+	node      ast.Node
+	tok       token.Token
+}
+
 func comparePublicDeclarations(summary *Summary, path string, before, after []byte) {
 	oldDeclarations := declarations(before)
 	newDeclarations := declarations(after)
@@ -167,7 +177,10 @@ func comparePublicDeclarations(summary *Summary, path string, before, after []by
 		switch {
 		case !ok:
 			summary.PublicAdded = append(summary.PublicAdded, path+":"+name)
-		case previous != current:
+		case previous.formatted == current.formatted:
+		case isAdditiveDeclarationEvolution(previous, current):
+			summary.PublicAdditive = append(summary.PublicAdditive, path+":"+name)
+		default:
 			summary.PublicChanged = append(summary.PublicChanged, path+":"+name)
 		}
 	}
@@ -178,8 +191,8 @@ func comparePublicDeclarations(summary *Summary, path string, before, after []by
 	}
 }
 
-func declarations(data []byte) map[string]string {
-	result := map[string]string{}
+func declarations(data []byte) map[string]declarationInfo {
+	result := map[string]declarationInfo{}
 	if len(data) == 0 {
 		return result
 	}
@@ -197,19 +210,34 @@ func declarations(data []byte) map[string]string {
 				}
 				signature := *typed
 				signature.Body = nil
-				result[kind+typed.Name.Name] = formatNode(&signature)
+				result[kind+typed.Name.Name] = declarationInfo{
+					formatted: formatNode(&signature),
+					name:      typed.Name.Name,
+					node:      &signature,
+					tok:       token.FUNC,
+				}
 			}
 		case *ast.GenDecl:
 			for _, specification := range typed.Specs {
 				switch item := specification.(type) {
 				case *ast.TypeSpec:
 					if item.Name.IsExported() {
-						result["type "+item.Name.Name] = formatNode(item)
+						result["type "+item.Name.Name] = declarationInfo{
+							formatted: formatNode(item),
+							name:      item.Name.Name,
+							node:      item,
+							tok:       token.TYPE,
+						}
 					}
 				case *ast.ValueSpec:
 					for _, name := range item.Names {
 						if name.IsExported() {
-							result[strings.ToLower(typed.Tok.String())+" "+name.Name] = formatNode(item)
+							result[strings.ToLower(typed.Tok.String())+" "+name.Name] = declarationInfo{
+								formatted: formatNode(item),
+								name:      name.Name,
+								node:      item,
+								tok:       typed.Tok,
+							}
 						}
 					}
 				}
@@ -217,6 +245,187 @@ func declarations(data []byte) map[string]string {
 		}
 	}
 	return result
+}
+
+type structFieldInfo struct {
+	embedded  bool
+	exported  bool
+	fieldType string
+	tag       string
+}
+
+func isAdditiveDeclarationEvolution(previous, current declarationInfo) bool {
+	if previous.tok != current.tok {
+		return false
+	}
+	switch previous.tok {
+	case token.TYPE:
+		oldSpec, oldOK := previous.node.(*ast.TypeSpec)
+		newSpec, newOK := current.node.(*ast.TypeSpec)
+		if !oldOK || !newOK {
+			return false
+		}
+		return isAdditiveStructEvolution(oldSpec, newSpec)
+	case token.VAR:
+		oldSpec, oldOK := previous.node.(*ast.ValueSpec)
+		newSpec, newOK := current.node.(*ast.ValueSpec)
+		if !oldOK || !newOK {
+			return false
+		}
+		return isAdditiveAllowedEnumValuesEvolution(previous.name, oldSpec, newSpec)
+	default:
+		return false
+	}
+}
+
+func isAdditiveStructEvolution(oldSpec, newSpec *ast.TypeSpec) bool {
+	if oldSpec.Assign.IsValid() || newSpec.Assign.IsValid() {
+		return false
+	}
+	if formatOptionalNode(oldSpec.TypeParams) != formatOptionalNode(newSpec.TypeParams) {
+		return false
+	}
+	oldStruct, oldOK := oldSpec.Type.(*ast.StructType)
+	newStruct, newOK := newSpec.Type.(*ast.StructType)
+	if !oldOK || !newOK {
+		return false
+	}
+	oldFields, oldHasUnexported := extractStructFields(oldStruct)
+	newFields, _ := extractStructFields(newStruct)
+	if len(newFields) <= len(oldFields) {
+		return false
+	}
+	for key, oldField := range oldFields {
+		newField, exists := newFields[key]
+		if !exists || newField != oldField {
+			return false
+		}
+	}
+	for key, newField := range newFields {
+		if _, existed := oldFields[key]; existed {
+			continue
+		}
+		if newField.embedded {
+			return false
+		}
+		if !newField.exported && !oldHasUnexported {
+			return false
+		}
+	}
+	return true
+}
+
+func extractStructFields(st *ast.StructType) (map[string]structFieldInfo, bool) {
+	fields := map[string]structFieldInfo{}
+	hasUnexported := false
+	if st == nil || st.Fields == nil {
+		return fields, false
+	}
+	for _, field := range st.Fields.List {
+		fieldType := formatNode(field.Type)
+		tag := ""
+		if field.Tag != nil {
+			tag = field.Tag.Value
+		}
+		if len(field.Names) == 0 {
+			exported := embeddedTypeExported(field.Type)
+			if !exported {
+				hasUnexported = true
+			}
+			fields["embedded:"+fieldType] = structFieldInfo{
+				embedded:  true,
+				exported:  exported,
+				fieldType: fieldType,
+				tag:       tag,
+			}
+			continue
+		}
+		for _, ident := range field.Names {
+			exported := ident.IsExported()
+			if !exported {
+				hasUnexported = true
+			}
+			fields["field:"+ident.Name] = structFieldInfo{
+				exported:  exported,
+				fieldType: fieldType,
+				tag:       tag,
+			}
+		}
+	}
+	return fields, hasUnexported
+}
+
+func embeddedTypeExported(expr ast.Expr) bool {
+	if star, ok := expr.(*ast.StarExpr); ok {
+		expr = star.X
+	}
+	switch typed := expr.(type) {
+	case *ast.Ident:
+		return typed.IsExported()
+	case *ast.SelectorExpr:
+		return typed.Sel.IsExported()
+	case *ast.IndexExpr:
+		return embeddedTypeExported(typed.X)
+	case *ast.IndexListExpr:
+		return embeddedTypeExported(typed.X)
+	default:
+		return false
+	}
+}
+
+func isAdditiveAllowedEnumValuesEvolution(name string, oldSpec, newSpec *ast.ValueSpec) bool {
+	if !strings.HasPrefix(name, "Allowed") || !strings.HasSuffix(name, "EnumValues") {
+		return false
+	}
+	if len(oldSpec.Names) != 1 || len(newSpec.Names) != 1 || len(oldSpec.Values) != 1 || len(newSpec.Values) != 1 {
+		return false
+	}
+	if formatOptionalNode(oldSpec.Type) != formatOptionalNode(newSpec.Type) {
+		return false
+	}
+	oldLit, oldOK := oldSpec.Values[0].(*ast.CompositeLit)
+	newLit, newOK := newSpec.Values[0].(*ast.CompositeLit)
+	if !oldOK || !newOK {
+		return false
+	}
+	oldSlice, oldOK := oldLit.Type.(*ast.ArrayType)
+	newSlice, newOK := newLit.Type.(*ast.ArrayType)
+	if !oldOK || !newOK || oldSlice.Len != nil || newSlice.Len != nil {
+		return false
+	}
+	if formatNode(oldLit.Type) != formatNode(newLit.Type) {
+		return false
+	}
+	oldElements := map[string]bool{}
+	for _, elt := range oldLit.Elts {
+		oldElements[formatNode(elt)] = true
+	}
+	newElements := map[string]bool{}
+	for _, elt := range newLit.Elts {
+		newElements[formatNode(elt)] = true
+	}
+	if len(newElements) <= len(oldElements) {
+		return false
+	}
+	for element := range oldElements {
+		if !newElements[element] {
+			return false
+		}
+	}
+	return true
+}
+
+func formatOptionalNode(node ast.Node) string {
+	if node == nil {
+		return ""
+	}
+	switch typed := node.(type) {
+	case *ast.FieldList:
+		if typed == nil {
+			return ""
+		}
+	}
+	return formatNode(node)
 }
 
 func formatNode(node any) string {

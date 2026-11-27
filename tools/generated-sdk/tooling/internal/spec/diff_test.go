@@ -163,3 +163,140 @@ func TestCompareMixedChangesFailClosed(t *testing.T) {
 		})
 	}
 }
+
+func TestComparePreservesPropertiesNamedLikeDocumentationFields(t *testing.T) {
+	for _, field := range []string{"description", "summary", "example", "examples", "externalDocs"} {
+		t.Run(field, func(t *testing.T) {
+			withField := strings.Replace(
+				baseDocument,
+				`"id": {"type": "string", "format": "uuid"},`,
+				`"id": {"type": "string", "format": "uuid"}, "`+field+`": {"type": "string", "description": "initial doc"},`,
+				1,
+			)
+			added, err := Compare("test", []byte(baseDocument), []byte(withField))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if added.Classification != ClassificationAdditive {
+				t.Fatalf("adding property %q = %q, want additive: %#v", field, added.Classification, added.Changes)
+			}
+			if !hasChange(added.Changes, "property-added", "Widget."+field) {
+				t.Fatalf("missing property-added for %q: %#v", field, added.Changes)
+			}
+
+			typeChanged := strings.Replace(
+				withField,
+				`"`+field+`": {"type": "string", "description": "initial doc"},`,
+				`"`+field+`": {"type": "integer", "description": "initial doc"},`,
+				1,
+			)
+			changed, err := Compare("test", []byte(withField), []byte(typeChanged))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if changed.Classification != ClassificationBreaking {
+				t.Fatalf("changing property %q = %q, want breaking: %#v", field, changed.Classification, changed.Changes)
+			}
+			if !hasChange(changed.Changes, "property-changed", "Widget."+field) {
+				t.Fatalf("missing property-changed for %q: %#v", field, changed.Changes)
+			}
+
+			removed, err := Compare("test", []byte(withField), []byte(baseDocument))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if removed.Classification != ClassificationBreaking {
+				t.Fatalf("removing property %q = %q, want breaking: %#v", field, removed.Classification, removed.Changes)
+			}
+			if !hasChange(removed.Changes, "property-removed", "Widget."+field) {
+				t.Fatalf("missing property-removed for %q: %#v", field, removed.Changes)
+			}
+
+			docChanged := strings.Replace(
+				withField,
+				`"description": "initial doc"`,
+				`"description": "updated doc"`,
+				1,
+			)
+			docOnly, err := Compare("test", []byte(withField), []byte(docChanged))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if docOnly.Classification != ClassificationDocumentationOnly {
+				t.Fatalf("editing doc string inside property %q = %q, want documentation-only: %#v", field, docOnly.Classification, docOnly.Changes)
+			}
+		})
+	}
+}
+
+func TestComparePreservesLiteralValuesAndInlineSchemaDocs(t *testing.T) {
+	withDefaultObject := strings.Replace(
+		baseDocument,
+		`"id": {"type": "string", "format": "uuid"},`,
+		`"id": {"type": "string", "format": "uuid"}, "meta": {"type": "object", "default": {"description": "v1"}},`,
+		1,
+	)
+	changedDefaultObject := strings.Replace(withDefaultObject, `"default": {"description": "v1"}`, `"default": {"description": "v2"}`, 1)
+	comparison, err := Compare("test", []byte(withDefaultObject), []byte(changedDefaultObject))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if comparison.Classification != ClassificationBreaking {
+		t.Fatalf("changing literal default object key 'description' = %q, want breaking: %#v", comparison.Classification, comparison.Changes)
+	}
+
+	inlineParamDoc := strings.Replace(
+		baseDocument,
+		`"schema": {"type": "string", "format": "uuid"}`,
+		`"schema": {"type": "string", "format": "uuid", "description": "Widget identifier."}`,
+		1,
+	)
+	docComparison, err := Compare("test", []byte(baseDocument), []byte(inlineParamDoc))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if docComparison.Classification != ClassificationDocumentationOnly {
+		t.Fatalf("inline parameter schema description change = %q, want documentation-only: %#v", docComparison.Classification, docComparison.Changes)
+	}
+}
+
+func TestCompareClassifiesTopLevelComponentEnumEvolution(t *testing.T) {
+	withEnum := strings.Replace(
+		baseDocument,
+		`"Widget": {`,
+		`"WidgetState": {"type": "string", "enum": ["open", "closed"]}, "Widget": {`,
+		1,
+	)
+	added := strings.Replace(withEnum, `["open", "closed"]`, `["open", "closed", "pending"]`, 1)
+	comparison, err := Compare("test", []byte(withEnum), []byte(added))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if comparison.Classification != ClassificationAdditive {
+		t.Fatalf("top-level enum addition = %q, want additive: %#v", comparison.Classification, comparison.Changes)
+	}
+	if !hasChange(comparison.Changes, "enum-value-added", "WidgetState") {
+		t.Fatalf("missing top-level enum-value-added: %#v", comparison.Changes)
+	}
+
+	removed := strings.Replace(withEnum, `["open", "closed"]`, `["open"]`, 1)
+	comparison, err = Compare("test", []byte(withEnum), []byte(removed))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if comparison.Classification != ClassificationBreaking {
+		t.Fatalf("top-level enum removal = %q, want breaking: %#v", comparison.Classification, comparison.Changes)
+	}
+	if !hasChange(comparison.Changes, "enum-value-removed", "WidgetState") {
+		t.Fatalf("missing top-level enum-value-removed: %#v", comparison.Changes)
+	}
+}
+
+func hasChange(changes []Change, kind, subject string) bool {
+	for _, change := range changes {
+		if change.Kind == kind && change.Subject == subject {
+			return true
+		}
+	}
+	return false
+}

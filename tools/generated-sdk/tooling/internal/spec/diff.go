@@ -169,7 +169,7 @@ func compareParameters(comparison *Comparison, operationID string, baseline, pro
 			addChange(comparison, Change{Classification: classification, Kind: "parameter-added", Subject: operationID + ":" + key, Detail: requiredDetail(current.Required)})
 			continue
 		}
-		if canonicalValue(previous) != canonicalValue(current) {
+		if canonicalValue(normalizeParameterForDiff(previous)) != canonicalValue(normalizeParameterForDiff(current)) {
 			addChange(comparison, Change{Classification: ClassificationBreaking, Kind: "parameter-changed", Subject: operationID + ":" + key, Detail: "serialization, requiredness, or schema changed"})
 		}
 	}
@@ -192,7 +192,7 @@ func compareRequestBody(comparison *Comparison, operationID string, baseline, pr
 		addChange(comparison, Change{Classification: classification, Kind: "request-body-added", Subject: operationID, Detail: requiredDetail(proposed.Required)})
 	case proposed == nil:
 		addChange(comparison, Change{Classification: ClassificationBreaking, Kind: "request-body-removed", Subject: operationID, Detail: "request body was removed"})
-	case canonicalValue(baseline) != canonicalValue(proposed):
+	case canonicalValue(normalizeRequestBodyForDiff(baseline)) != canonicalValue(normalizeRequestBodyForDiff(proposed)):
 		addChange(comparison, Change{Classification: ClassificationBreaking, Kind: "request-body-changed", Subject: operationID, Detail: "requiredness, media type, or schema changed"})
 	}
 }
@@ -206,7 +206,7 @@ func compareResponses(comparison *Comparison, operationID string, baseline, prop
 			addChange(comparison, Change{Classification: ClassificationManualReview, Kind: "response-added", Subject: operationID + ":" + status, Detail: "new response handling can alter generated result types"})
 			continue
 		}
-		if canonicalValue(previous) != canonicalValue(current) {
+		if canonicalValue(normalizeResponseForDiff(previous)) != canonicalValue(normalizeResponseForDiff(current)) {
 			addChange(comparison, Change{Classification: ClassificationBreaking, Kind: "response-changed", Subject: operationID + ":" + status, Detail: "response media type, headers, or schema changed"})
 		}
 	}
@@ -236,7 +236,7 @@ func compareComponentSchemas(comparison *Comparison, baseline, proposed map[stri
 }
 
 func compareSchema(comparison *Comparison, name string, baseline, proposed any) {
-	if canonicalValue(stripDocumentation(baseline)) == canonicalValue(stripDocumentation(proposed)) {
+	if canonicalValue(stripSchemaDocumentation(baseline)) == canonicalValue(stripSchemaDocumentation(proposed)) {
 		if canonicalValue(baseline) != canonicalValue(proposed) {
 			addChange(comparison, Change{Classification: ClassificationDocumentationOnly, Kind: "schema-documentation", Subject: name, Detail: "schema documentation changed"})
 		}
@@ -246,6 +246,9 @@ func compareSchema(comparison *Comparison, name string, baseline, proposed any) 
 	newSchema, newOK := proposed.(map[string]any)
 	if !oldOK || !newOK {
 		addChange(comparison, Change{Classification: ClassificationManualReview, Kind: "schema-changed", Subject: name, Detail: "schema shape requires manual review"})
+		return
+	}
+	if classifyEnumChange(comparison, name, oldSchema, newSchema) {
 		return
 	}
 	oldRequired := stringSet(oldSchema["required"])
@@ -272,7 +275,7 @@ func compareSchema(comparison *Comparison, name string, baseline, proposed any) 
 			addChange(comparison, Change{Classification: classification, Kind: "property-added", Subject: name + "." + property, Detail: requiredDetail(newRequired[property])})
 			continue
 		}
-		if canonicalValue(stripDocumentation(previous)) == canonicalValue(stripDocumentation(current)) {
+		if canonicalValue(stripSchemaDocumentation(previous)) == canonicalValue(stripSchemaDocumentation(current)) {
 			continue
 		}
 		if classifyEnumChange(comparison, name+"."+property, previous, current) {
@@ -285,8 +288,8 @@ func compareSchema(comparison *Comparison, name string, baseline, proposed any) 
 			addChange(comparison, Change{Classification: ClassificationBreaking, Kind: "property-removed", Subject: name + "." + property, Detail: "property was removed"})
 		}
 	}
-	oldRest := cloneWithout(oldSchema, "description", "summary", "examples", "example", "required", "properties")
-	newRest := cloneWithout(newSchema, "description", "summary", "examples", "example", "required", "properties")
+	oldRest := stripSchemaDocumentation(cloneWithout(oldSchema, "required", "properties"))
+	newRest := stripSchemaDocumentation(cloneWithout(newSchema, "required", "properties"))
 	if canonicalValue(oldRest) != canonicalValue(newRest) {
 		addChange(comparison, Change{Classification: ClassificationManualReview, Kind: "schema-keyword-changed", Subject: name, Detail: "a non-property schema keyword changed"})
 	}
@@ -298,8 +301,8 @@ func classifyEnumChange(comparison *Comparison, subject string, baseline, propos
 	if !oldOK || !newOK {
 		return false
 	}
-	oldRest := cloneWithout(oldSchema, "description", "summary", "examples", "example", "enum")
-	newRest := cloneWithout(newSchema, "description", "summary", "examples", "example", "enum")
+	oldRest := stripSchemaDocumentation(cloneWithout(oldSchema, "enum"))
+	newRest := stripSchemaDocumentation(cloneWithout(newSchema, "enum"))
 	if canonicalValue(oldRest) != canonicalValue(newRest) {
 		return false
 	}
@@ -324,31 +327,416 @@ func classifyEnumChange(comparison *Comparison, subject string, baseline, propos
 }
 
 func documentationOnlyDifference(baseline, proposed map[string]any) bool {
-	return canonicalValue(stripDocumentation(baseline)) == canonicalValue(stripDocumentation(proposed))
+	return canonicalValue(stripRootDocumentation(baseline)) == canonicalValue(stripRootDocumentation(proposed))
 }
 
-func stripDocumentation(value any) any {
-	switch typed := value.(type) {
-	case map[string]any:
-		result := make(map[string]any, len(typed))
-		for key, child := range typed {
-			switch key {
-			case "description", "summary", "example", "examples", "externalDocs":
-				continue
-			default:
-				result[key] = stripDocumentation(child)
-			}
+func normalizeSchemaSummaryForDiff(summary SchemaSummary) SchemaSummary {
+	normalized := summary
+	normalized.Schema = stripSchemaDocumentation(summary.Schema)
+	if strings.HasPrefix(summary.Identity, "inline:") {
+		normalized.Identity = "inline"
+	}
+	normalized.Digest = canonicalValue(normalized.Schema)
+	return normalized
+}
+
+func normalizeParameterForDiff(parameter Parameter) Parameter {
+	parameter.Schema = normalizeSchemaSummaryForDiff(parameter.Schema)
+	return parameter
+}
+
+func normalizeMediaSchemasForDiff(media []MediaSchema) []MediaSchema {
+	if len(media) == 0 {
+		return media
+	}
+	result := make([]MediaSchema, len(media))
+	for index, item := range media {
+		item.Schema = normalizeSchemaSummaryForDiff(item.Schema)
+		result[index] = item
+	}
+	return result
+}
+
+func normalizeRequestBodyForDiff(body *RequestBody) *RequestBody {
+	if body == nil {
+		return nil
+	}
+	normalized := *body
+	normalized.Content = normalizeMediaSchemasForDiff(body.Content)
+	return &normalized
+}
+
+func normalizeResponseForDiff(response Response) Response {
+	response.Content = normalizeMediaSchemasForDiff(response.Content)
+	if len(response.Headers) != 0 {
+		headers := make([]Header, len(response.Headers))
+		for index, header := range response.Headers {
+			header.Schema = normalizeSchemaSummaryForDiff(header.Schema)
+			headers[index] = header
 		}
-		return result
-	case []any:
-		result := make([]any, len(typed))
-		for index, child := range typed {
-			result[index] = stripDocumentation(child)
+		response.Headers = headers
+	}
+	return response
+}
+
+func stripRootDocumentation(root map[string]any) map[string]any {
+	if root == nil {
+		return nil
+	}
+	result := make(map[string]any, len(root))
+	for key, child := range root {
+		switch key {
+		case "externalDocs":
+			continue
+		case "info":
+			result[key] = stripObjectDocKeys(child, "description", "summary")
+		case "servers":
+			result[key] = stripServerListDocumentation(child)
+		case "tags":
+			result[key] = stripTagListDocumentation(child)
+		case "paths":
+			result[key] = stripPathsDocumentation(child)
+		case "components":
+			result[key] = stripComponentsDocumentation(child)
+		default:
+			result[key] = child
 		}
-		return result
-	default:
+	}
+	return result
+}
+
+func stripServerListDocumentation(value any) any {
+	items, ok := value.([]any)
+	if !ok {
 		return value
 	}
+	result := make([]any, len(items))
+	for index, item := range items {
+		server, ok := item.(map[string]any)
+		if !ok {
+			result[index] = item
+			continue
+		}
+		cleaned := make(map[string]any, len(server))
+		for key, child := range server {
+			switch key {
+			case "description":
+				continue
+			case "variables":
+				cleaned[key] = stripMapValues(child, func(entry any) any {
+					return stripObjectDocKeys(entry, "description")
+				})
+			default:
+				cleaned[key] = child
+			}
+		}
+		result[index] = cleaned
+	}
+	return result
+}
+
+func stripTagListDocumentation(value any) any {
+	items, ok := value.([]any)
+	if !ok {
+		return value
+	}
+	result := make([]any, len(items))
+	for index, item := range items {
+		result[index] = stripObjectDocKeys(item, "description", "externalDocs")
+	}
+	return result
+}
+
+func stripComponentsDocumentation(value any) any {
+	components, ok := value.(map[string]any)
+	if !ok {
+		return value
+	}
+	result := make(map[string]any, len(components))
+	for key, child := range components {
+		switch key {
+		case "examples":
+			continue
+		case "schemas":
+			result[key] = stripMapValues(child, stripSchemaDocumentation)
+		case "responses":
+			result[key] = stripMapValues(child, stripResponseDocumentation)
+		case "parameters":
+			result[key] = stripMapValues(child, stripParameterDocumentation)
+		case "requestBodies":
+			result[key] = stripMapValues(child, stripRequestBodyDocumentation)
+		case "headers":
+			result[key] = stripMapValues(child, stripParameterDocumentation)
+		case "securitySchemes":
+			result[key] = stripMapValues(child, func(entry any) any {
+				return stripObjectDocKeys(entry, "description")
+			})
+		case "links":
+			result[key] = stripMapValues(child, func(entry any) any {
+				return stripObjectDocKeys(entry, "description")
+			})
+		case "callbacks":
+			result[key] = stripMapValues(child, stripCallbackDocumentation)
+		case "pathItems":
+			result[key] = stripMapValues(child, stripPathItemDocumentation)
+		default:
+			result[key] = child
+		}
+	}
+	return result
+}
+
+func stripPathsDocumentation(value any) any {
+	paths, ok := value.(map[string]any)
+	if !ok {
+		return value
+	}
+	result := make(map[string]any, len(paths))
+	for key, child := range paths {
+		if strings.HasPrefix(key, "x-") {
+			result[key] = child
+			continue
+		}
+		result[key] = stripPathItemDocumentation(child)
+	}
+	return result
+}
+
+func stripCallbackDocumentation(value any) any {
+	callback, ok := value.(map[string]any)
+	if !ok {
+		return value
+	}
+	result := make(map[string]any, len(callback))
+	for key, child := range callback {
+		if key == "$ref" || strings.HasPrefix(key, "x-") {
+			result[key] = child
+			continue
+		}
+		result[key] = stripPathItemDocumentation(child)
+	}
+	return result
+}
+
+func stripPathItemDocumentation(value any) any {
+	pathItem, ok := value.(map[string]any)
+	if !ok {
+		return value
+	}
+	result := make(map[string]any, len(pathItem))
+	for key, child := range pathItem {
+		switch {
+		case key == "summary" || key == "description":
+			continue
+		case key == "servers":
+			result[key] = stripServerListDocumentation(child)
+		case key == "parameters":
+			result[key] = stripParameterListDocumentation(child)
+		case httpMethods[strings.ToLower(key)]:
+			result[key] = stripOperationDocumentation(child)
+		default:
+			result[key] = child
+		}
+	}
+	return result
+}
+
+func stripOperationDocumentation(value any) any {
+	operation, ok := value.(map[string]any)
+	if !ok {
+		return value
+	}
+	result := make(map[string]any, len(operation))
+	for key, child := range operation {
+		switch key {
+		case "summary", "description", "externalDocs":
+			continue
+		case "parameters":
+			result[key] = stripParameterListDocumentation(child)
+		case "requestBody":
+			result[key] = stripRequestBodyDocumentation(child)
+		case "responses":
+			result[key] = stripMapValues(child, stripResponseDocumentation)
+		case "callbacks":
+			result[key] = stripMapValues(child, stripCallbackDocumentation)
+		case "servers":
+			result[key] = stripServerListDocumentation(child)
+		default:
+			result[key] = child
+		}
+	}
+	return result
+}
+
+func stripParameterListDocumentation(value any) any {
+	items, ok := value.([]any)
+	if !ok {
+		return value
+	}
+	result := make([]any, len(items))
+	for index, item := range items {
+		result[index] = stripParameterDocumentation(item)
+	}
+	return result
+}
+
+func stripParameterDocumentation(value any) any {
+	parameter, ok := value.(map[string]any)
+	if !ok {
+		return value
+	}
+	result := make(map[string]any, len(parameter))
+	for key, child := range parameter {
+		switch key {
+		case "description", "example", "examples":
+			continue
+		case "schema":
+			result[key] = stripSchemaDocumentation(child)
+		case "content":
+			result[key] = stripMapValues(child, stripMediaTypeDocumentation)
+		default:
+			result[key] = child
+		}
+	}
+	return result
+}
+
+func stripRequestBodyDocumentation(value any) any {
+	body, ok := value.(map[string]any)
+	if !ok {
+		return value
+	}
+	result := make(map[string]any, len(body))
+	for key, child := range body {
+		switch key {
+		case "description":
+			continue
+		case "content":
+			result[key] = stripMapValues(child, stripMediaTypeDocumentation)
+		default:
+			result[key] = child
+		}
+	}
+	return result
+}
+
+func stripResponseDocumentation(value any) any {
+	response, ok := value.(map[string]any)
+	if !ok {
+		return value
+	}
+	result := make(map[string]any, len(response))
+	for key, child := range response {
+		switch key {
+		case "description":
+			continue
+		case "headers":
+			result[key] = stripMapValues(child, stripParameterDocumentation)
+		case "content":
+			result[key] = stripMapValues(child, stripMediaTypeDocumentation)
+		case "links":
+			result[key] = stripMapValues(child, func(entry any) any {
+				return stripObjectDocKeys(entry, "description")
+			})
+		default:
+			result[key] = child
+		}
+	}
+	return result
+}
+
+func stripMediaTypeDocumentation(value any) any {
+	media, ok := value.(map[string]any)
+	if !ok {
+		return value
+	}
+	result := make(map[string]any, len(media))
+	for key, child := range media {
+		switch key {
+		case "example", "examples":
+			continue
+		case "schema":
+			result[key] = stripSchemaDocumentation(child)
+		case "encoding":
+			result[key] = stripMapValues(child, stripEncodingDocumentation)
+		default:
+			result[key] = child
+		}
+	}
+	return result
+}
+
+func stripEncodingDocumentation(value any) any {
+	encoding, ok := value.(map[string]any)
+	if !ok {
+		return value
+	}
+	result := make(map[string]any, len(encoding))
+	for key, child := range encoding {
+		if key == "headers" {
+			result[key] = stripMapValues(child, stripParameterDocumentation)
+			continue
+		}
+		result[key] = child
+	}
+	return result
+}
+
+func stripSchemaDocumentation(value any) any {
+	schema, ok := value.(map[string]any)
+	if !ok {
+		return value
+	}
+	result := make(map[string]any, len(schema))
+	for key, child := range schema {
+		switch key {
+		case "description", "summary", "example", "examples", "externalDocs":
+			continue
+		case "properties", "patternProperties", "$defs", "definitions", "dependentSchemas":
+			// Map keys in these collections are property or definition identifiers, never OpenAPI doc fields.
+			result[key] = stripMapValues(child, stripSchemaDocumentation)
+		case "items", "additionalProperties", "contains", "not", "if", "then", "else", "propertyNames", "unevaluatedItems", "unevaluatedProperties", "contentSchema":
+			result[key] = stripSchemaDocumentation(child)
+		case "allOf", "anyOf", "oneOf", "prefixItems":
+			result[key] = stripSchemaListDocumentation(child)
+		default:
+			// Preserve literal and opaque keywords (enum, const, default, discriminator, required, x-*, etc.) verbatim.
+			result[key] = child
+		}
+	}
+	return result
+}
+
+func stripSchemaListDocumentation(value any) any {
+	items, ok := value.([]any)
+	if !ok {
+		return value
+	}
+	result := make([]any, len(items))
+	for index, item := range items {
+		result[index] = stripSchemaDocumentation(item)
+	}
+	return result
+}
+
+func stripMapValues(value any, transform func(any) any) any {
+	mapping, ok := value.(map[string]any)
+	if !ok {
+		return value
+	}
+	result := make(map[string]any, len(mapping))
+	for key, child := range mapping {
+		result[key] = transform(child)
+	}
+	return result
+}
+
+func stripObjectDocKeys(value any, docKeys ...string) any {
+	object, ok := value.(map[string]any)
+	if !ok {
+		return value
+	}
+	return cloneWithout(object, docKeys...)
 }
 
 func addChange(comparison *Comparison, change Change) {
