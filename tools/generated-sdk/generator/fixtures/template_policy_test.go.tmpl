@@ -1,0 +1,327 @@
+package templatefixture
+
+import (
+	"bytes"
+	"encoding/json"
+	"reflect"
+	"testing"
+)
+
+func TestDiscriminatedOneOfPolicy(t *testing.T) {
+	payload := []byte(`{"kind":"first","value":"selected","future":{"kept":true}}`)
+	var value PolicyDiscriminatedOneOf
+	if err := json.Unmarshal(payload, &value); err != nil {
+		t.Fatalf("mapped discriminator branch was rejected: %v", err)
+	}
+	if value.DiscriminatedFirst == nil || value.DiscriminatedSecond != nil {
+		t.Fatalf(
+			"discriminator branch state = first:%v second:%v",
+			value.DiscriminatedFirst != nil,
+			value.DiscriminatedSecond != nil,
+		)
+	}
+	if value.GetActualInstance() != value.DiscriminatedFirst {
+		t.Fatalf("GetActualInstance = %T, want *DiscriminatedFirst", value.GetActualInstance())
+	}
+	if got := callStringsMethod(t, value, "MatchedSchemas"); !reflect.DeepEqual(got, []string{"DiscriminatedFirst"}) {
+		t.Fatalf("discriminator matched schemas = %v, want [DiscriminatedFirst]", got)
+	}
+
+	// Reuse the same union across discriminator branches (first -> second -> first) and verify no stale pointers remain.
+	secondPayload := []byte(`{"kind":"second","number":7}`)
+	if err := json.Unmarshal(secondPayload, &value); err != nil {
+		t.Fatalf("reused discriminator second branch was rejected: %v", err)
+	}
+	if value.DiscriminatedFirst != nil || value.DiscriminatedSecond == nil {
+		t.Fatalf(
+			"reused discriminator branch state = first:%v second:%v, want first:false second:true",
+			value.DiscriminatedFirst != nil,
+			value.DiscriminatedSecond != nil,
+		)
+	}
+	if value.GetActualInstance() != value.DiscriminatedSecond {
+		t.Fatalf("reused GetActualInstance = %T, want *DiscriminatedSecond", value.GetActualInstance())
+	}
+	if !reflect.DeepEqual(value.GetActualInstanceValue(), *value.DiscriminatedSecond) {
+		t.Fatalf("reused GetActualInstanceValue = %#v, want %#v", value.GetActualInstanceValue(), *value.DiscriminatedSecond)
+	}
+	if got := callStringsMethod(t, value, "MatchedSchemas"); !reflect.DeepEqual(got, []string{"DiscriminatedSecond"}) {
+		t.Fatalf("reused discriminator matched schemas = %v, want [DiscriminatedSecond]", got)
+	}
+	if callBoolMethod(t, value, "IsAmbiguous") {
+		t.Fatal("reused discriminator union unexpectedly reported ambiguous")
+	}
+	if !bytes.Equal(callBytesMethod(t, value, "RawJSON"), secondPayload) {
+		t.Fatalf("reused discriminator raw JSON = %s, want %s", callBytesMethod(t, value, "RawJSON"), secondPayload)
+	}
+
+	firstAgainPayload := []byte(`{"kind":"first","value":"again"}`)
+	if err := json.Unmarshal(firstAgainPayload, &value); err != nil {
+		t.Fatalf("reused discriminator first branch was rejected: %v", err)
+	}
+	if value.DiscriminatedFirst == nil || value.DiscriminatedSecond != nil {
+		t.Fatalf(
+			"reused discriminator reverse state = first:%v second:%v, want first:true second:false",
+			value.DiscriminatedFirst != nil,
+			value.DiscriminatedSecond != nil,
+		)
+	}
+	if value.GetActualInstance() != value.DiscriminatedFirst {
+		t.Fatalf("reused reverse GetActualInstance = %T, want *DiscriminatedFirst", value.GetActualInstance())
+	}
+
+	if err := json.Unmarshal([]byte(`{"kind":"first"}`), &value); err == nil {
+		t.Fatal("discriminator branch accepted missing required fields")
+	}
+	if value.DiscriminatedFirst != nil || value.DiscriminatedSecond != nil || value.GetActualInstance() != nil {
+		t.Fatal("failed discriminator decode retained stale branch state")
+	}
+	if err := json.Unmarshal([]byte(`{"kind":"future","value":"kept"}`), &value); err == nil {
+		t.Fatal("unknown discriminator value unexpectedly matched")
+	}
+	if value.DiscriminatedFirst != nil || value.DiscriminatedSecond != nil || len(callBytesMethod(t, value, "RawJSON")) != 0 {
+		t.Fatal("unknown discriminator decode retained stale union state")
+	}
+}
+
+func TestEnumPolicy(t *testing.T) {
+	var value PolicyEnum
+	if err := json.Unmarshal([]byte(`"future_value"`), &value); err != nil {
+		t.Fatalf("unknown enum value was rejected: %v", err)
+	}
+	if value != PolicyEnum("future_value") {
+		t.Fatalf("unknown enum value = %q, want future_value", value)
+	}
+	if value.IsValid() {
+		t.Fatal("unknown enum value unexpectedly reported valid")
+	}
+	encoded, err := json.Marshal(value)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(encoded) != `"future_value"` {
+		t.Fatalf("unknown enum round trip = %s, want %q", encoded, "future_value")
+	}
+}
+
+func TestAnyOfPolicy(t *testing.T) {
+	payload := []byte("{\n  \"kind\": \"second\",\n  \"number\": 42,\n  \"future\": {\"kept\": true}\n}")
+	var value PolicyUnion
+	if err := json.Unmarshal(payload, &value); err != nil {
+		t.Fatal(err)
+	}
+	raw := value.RawJSON()
+	if !bytes.Equal(raw, payload) {
+		t.Fatalf("retained JSON = %s, want %s", raw, payload)
+	}
+	raw[0] = '['
+	if bytes.Equal(value.RawJSON(), raw) {
+		t.Fatal("RawJSON exposed mutable retained storage")
+	}
+	var discriminator struct {
+		Kind string `json:"kind"`
+	}
+	if err := json.Unmarshal(value.RawJSON(), &discriminator); err != nil {
+		t.Fatal(err)
+	}
+	if discriminator.Kind != "second" {
+		t.Fatalf("discriminator = %q, want second", discriminator.Kind)
+	}
+	var branch SecondBranch
+	if err := json.Unmarshal(value.RawJSON(), &branch); err != nil {
+		t.Fatal(err)
+	}
+	if branch.Number != 42 {
+		t.Fatalf("explicitly selected branch number = %d, want 42", branch.Number)
+	}
+	encoded, err := json.Marshal(value)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var before, after any
+	if err := json.Unmarshal(payload, &before); err != nil {
+		t.Fatal(err)
+	}
+	if err := json.Unmarshal(encoded, &after); err != nil {
+		t.Fatal(err)
+	}
+	beforeJSON, _ := json.Marshal(before)
+	afterJSON, _ := json.Marshal(after)
+	if !bytes.Equal(beforeJSON, afterJSON) {
+		t.Fatalf("union round trip lost data: got %s, want %s", afterJSON, beforeJSON)
+	}
+	firstPayload := []byte(`{"kind":"first","value":"reused"}`)
+	if err := json.Unmarshal(firstPayload, &value); err != nil {
+		t.Fatalf("reused anyOf union failed: %v", err)
+	}
+	if value.FirstBranch == nil || value.SecondBranch != nil {
+		t.Fatalf("reused anyOf branch state = first:%v second:%v, want first:true second:false", value.FirstBranch != nil, value.SecondBranch != nil)
+	}
+	if !bytes.Equal(value.RawJSON(), firstPayload) {
+		t.Fatalf("reused anyOf retained JSON = %s, want %s", value.RawJSON(), firstPayload)
+	}
+	if err := json.Unmarshal([]byte(`null`), &value); err == nil {
+		t.Fatal("non-nullable anyOf accepted null")
+	}
+	if value.FirstBranch != nil || value.SecondBranch != nil || len(value.RawJSON()) != 0 {
+		t.Fatal("failed non-nullable anyOf null decode retained stale state")
+	}
+}
+
+func TestOneOfSingleMatch(t *testing.T) {
+	payload := []byte(`{"common":"one","first_only":"selected","selector":"first"}`)
+	var value PolicyOneOf
+	if err := json.Unmarshal(payload, &value); err != nil {
+		t.Fatalf("single oneOf match was rejected: %v", err)
+	}
+	if value.OneOfFirst == nil || value.OneOfSecond != nil {
+		t.Fatalf("single oneOf branch state = first:%v second:%v", value.OneOfFirst != nil, value.OneOfSecond != nil)
+	}
+	if !bytes.Equal(callBytesMethod(t, value, "RawJSON"), payload) {
+		t.Fatal("single oneOf match did not retain exact raw JSON")
+	}
+	if got := callStringsMethod(t, value, "MatchedSchemas"); !reflect.DeepEqual(got, []string{"OneOfFirst"}) {
+		t.Fatalf("single oneOf matched schemas = %v, want [OneOfFirst]", got)
+	}
+	secondPayload := []byte(`{"common":"two","second_only":9,"selector":9}`)
+	if err := json.Unmarshal(secondPayload, &value); err != nil {
+		t.Fatalf("reused oneOf second match was rejected: %v", err)
+	}
+	if value.OneOfFirst != nil || value.OneOfSecond == nil || value.GetActualInstance() != value.OneOfSecond {
+		t.Fatalf("reused oneOf branch state = first:%v second:%v", value.OneOfFirst != nil, value.OneOfSecond != nil)
+	}
+	sameBranchOmitted := []byte(`{"common":"one_again","selector":"first"}`)
+	if err := json.Unmarshal(sameBranchOmitted, &value); err != nil {
+		t.Fatalf("reused oneOf first match was rejected: %v", err)
+	}
+	if value.OneOfFirst == nil || value.OneOfSecond != nil || value.OneOfFirst.FirstOnly != nil {
+		t.Fatalf("reused oneOf leaked omitted optional field or stale branch: first=%#v second=%#v", value.OneOfFirst, value.OneOfSecond)
+	}
+}
+
+func TestOneOfMultipleMatch(t *testing.T) {
+	payload := []byte("{\n  \"common\": \"both\"\n}")
+	var value PolicyOneOf
+	if err := json.Unmarshal(payload, &value); err != nil {
+		t.Fatalf("multiple oneOf match was rejected: %v", err)
+	}
+	if value.OneOfFirst == nil || value.OneOfSecond == nil {
+		t.Fatalf("ambiguous oneOf branch state = first:%v second:%v", value.OneOfFirst != nil, value.OneOfSecond != nil)
+	}
+	if got := callStringsMethod(t, value, "MatchedSchemas"); !reflect.DeepEqual(got, []string{"OneOfFirst", "OneOfSecond"}) {
+		t.Fatalf("ambiguous oneOf matched schemas = %v", got)
+	}
+	if !callBoolMethod(t, value, "IsAmbiguous") {
+		t.Fatal("multiple oneOf match was not exposed as ambiguous")
+	}
+	raw := callBytesMethod(t, value, "RawJSON")
+	if !bytes.Equal(raw, payload) {
+		t.Fatalf("ambiguous oneOf raw JSON = %s, want %s", raw, payload)
+	}
+	raw[0] = '['
+	if bytes.Equal(callBytesMethod(t, value, "RawJSON"), raw) {
+		t.Fatal("oneOf RawJSON exposed mutable retained storage")
+	}
+	encoded, err := value.MarshalJSON()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(encoded, payload) {
+		t.Fatalf("ambiguous oneOf exact round trip = %s, want %s", encoded, payload)
+	}
+}
+
+func TestOneOfZeroMatch(t *testing.T) {
+	var value PolicyOneOf
+	if err := json.Unmarshal([]byte(`{"common":42}`), &value); err == nil {
+		t.Fatal("zero oneOf matches were accepted")
+	}
+}
+
+func TestSimpleModelPolicy(t *testing.T) {
+	var strict StrictModel
+	if err := json.Unmarshal([]byte(`{}`), &strict); err != nil {
+		t.Fatalf("normal model rejected missing required response fields: %v", err)
+	}
+	var extensible ExtensibleModel
+	if err := json.Unmarshal([]byte(`{}`), &extensible); err != nil {
+		t.Fatalf("additional-properties model rejected missing required response fields: %v", err)
+	}
+	if err := json.Unmarshal([]byte(`{"count":"bad","name":"ok"}`), &strict); err == nil {
+		t.Fatal("normal model accepted a property type error")
+	}
+	if err := json.Unmarshal([]byte(`{"count":"bad","kind":"known"}`), &extensible); err == nil {
+		t.Fatal("additional-properties model accepted a property type error")
+	}
+	if err := json.Unmarshal([]byte(`{"count":1,"kind":"forbidden"}`), &extensible); err == nil {
+		t.Fatal("inline enum validation was disabled")
+	}
+	if err := json.Unmarshal([]byte(`{"count":1,"kind":"known","future":{"kept":true}}`), &extensible); err != nil {
+		t.Fatal(err)
+	}
+	futureJSON, err := json.Marshal(extensible.AdditionalProperties["future"])
+	if err != nil {
+		t.Fatal(err)
+	}
+	var future map[string]any
+	if err := json.Unmarshal(futureJSON, &future); err != nil || future["kept"] != true {
+		t.Fatalf("additional property was not retained: %#v", extensible.AdditionalProperties)
+	}
+	extensible.AdditionalProperties["count"] = json.RawMessage(`999`)
+	encoded, err := json.Marshal(extensible)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var roundTrip struct {
+		Count int32 `json:"count"`
+	}
+	if err := json.Unmarshal(encoded, &roundTrip); err != nil {
+		t.Fatal(err)
+	}
+	if roundTrip.Count != 1 {
+		t.Fatalf("additional property overrode declared count: %s", encoded)
+	}
+}
+
+func callBytesMethod(t *testing.T, value any, name string) []byte {
+	t.Helper()
+	result := callMethod(t, value, name)
+	bytesValue, ok := result.Interface().([]byte)
+	if !ok {
+		t.Fatalf("%s returned %T, want []byte", name, result.Interface())
+	}
+	return bytesValue
+}
+
+func callStringsMethod(t *testing.T, value any, name string) []string {
+	t.Helper()
+	result := callMethod(t, value, name)
+	stringsValue, ok := result.Interface().([]string)
+	if !ok {
+		t.Fatalf("%s returned %T, want []string", name, result.Interface())
+	}
+	return stringsValue
+}
+
+func callBoolMethod(t *testing.T, value any, name string) bool {
+	t.Helper()
+	result := callMethod(t, value, name)
+	boolValue, ok := result.Interface().(bool)
+	if !ok {
+		t.Fatalf("%s returned %T, want bool", name, result.Interface())
+	}
+	return boolValue
+}
+
+func callMethod(t *testing.T, value any, name string) reflect.Value {
+	t.Helper()
+	method := reflect.ValueOf(value).MethodByName(name)
+	if !method.IsValid() {
+		t.Fatalf("%s method is missing", name)
+	}
+	result := method.Call(nil)
+	if len(result) != 1 {
+		t.Fatalf("%s returned %d values, want 1", name, len(result))
+	}
+	return result[0]
+}

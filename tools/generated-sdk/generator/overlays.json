@@ -1,0 +1,96 @@
+{
+  "schema_version": 2,
+  "purpose": "public-compatibility-overlays",
+  "status": "accepted",
+  "operations": [
+    {
+      "target": "market-data",
+      "operation": "replace",
+      "pointer": "/components/schemas/stock_trade/properties/i/format",
+      "before": "uint64",
+      "value": "int64",
+      "reason": "preserve the existing public Go Trade.ID int64 range"
+    },
+    {
+      "target": "trading",
+      "operation": "remove",
+      "pointer": "/components/schemas/Watchlist/properties/created_at/format",
+      "before": "date-time",
+      "reason": "preserve the existing public Go Watchlist.CreatedAt string"
+    },
+    {
+      "target": "trading",
+      "operation": "remove",
+      "pointer": "/components/schemas/Watchlist/properties/updated_at/format",
+      "before": "date-time",
+      "reason": "preserve the existing public Go Watchlist.UpdatedAt string"
+    },
+    {
+      "target": "trading",
+      "operation": "replace",
+      "pointer": "/components/schemas/Error/properties/code/type",
+      "before": "number",
+      "value": "integer",
+      "reason": "preserve Alpaca error codes as exact integers"
+    },
+    {
+      "target": "trading",
+      "operation": "add",
+      "pointer": "/components/schemas/PortfolioHistory/properties/base_value/format",
+      "value": "double",
+      "reason": "preserve the existing public Go portfolio-history float64 precision"
+    },
+    {
+      "target": "trading",
+      "operation": "add",
+      "pointer": "/components/schemas/PortfolioHistory/properties/cashflow/additionalProperties/items/format",
+      "value": "double",
+      "reason": "preserve the existing public Go portfolio-history float64 precision"
+    },
+    {
+      "target": "trading",
+      "operation": "add",
+      "pointer": "/components/schemas/PortfolioHistory/properties/equity/items/format",
+      "value": "double",
+      "reason": "preserve the existing public Go portfolio-history float64 precision"
+    },
+    {
+      "target": "trading",
+      "operation": "add",
+      "pointer": "/components/schemas/PortfolioHistory/properties/profit_loss/items/format",
+      "value": "double",
+      "reason": "preserve the existing public Go portfolio-history float64 precision"
+    },
+    {
+      "target": "trading",
+      "operation": "add",
+      "pointer": "/components/schemas/PortfolioHistory/properties/profit_loss_pct/items/format",
+      "value": "double",
+      "reason": "preserve the existing public Go portfolio-history float64 precision"
+    },
+    {
+      "target": "trading",
+      "operation": "add",
+      "pointer": "/paths/~1v2~1account~1activities/get/responses/200/content/application~1json/schema/items/discriminator",
+      "value": {
+        "propertyName": "activity_type",
+        "mapping": {
+          "FILL": "#/components/schemas/TradingActivities"
+        }
+      },
+      "reason": "decode trade activities through their stable FILL discriminator"
+    },
+    {
+      "target": "trading",
+      "operation": "add",
+      "pointer": "/paths/~1v2~1account~1activities~1{activity_type}/get/responses/200/content/application~1json/schema/items/discriminator",
+      "value": {
+        "propertyName": "activity_type",
+        "mapping": {
+          "FILL": "#/components/schemas/TradingActivities"
+        }
+      },
+      "reason": "decode FILL explicitly and let reviewed oneOf fallback decode current or future non-trade activity codes"
+    }
+  ]
+}

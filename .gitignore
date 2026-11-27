@@ -18,3 +18,9 @@ vendor
 
 # Temp directory
 tmp/
+
+# Verified generated SDK tool cache
+tools/generated-sdk/.cache/
+
+# Recoverable generated SDK specification adoption state
+tools/generated-sdk/.transactions/

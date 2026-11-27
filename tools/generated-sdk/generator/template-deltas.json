@@ -1,0 +1,615 @@
+{
+  "entries": [
+    {
+      "custom_sha256": "0e4d10580c8801b9de78c1a1904d9e27ad75041934416fd7d495aa88445f20b6",
+      "hunks": [
+        {
+          "custom_lines": [
+            "\traw json.RawMessage"
+          ],
+          "custom_start": 8,
+          "semantic": "add private retained raw JSON storage",
+          "stock_lines": [],
+          "stock_start": 8
+        },
+        {
+          "custom_lines": [
+            "// RawJSON returns a copy of the original JSON used to decode the union.",
+            "func (src {{classname}}) RawJSON() []byte {",
+            "\treturn append([]byte(nil), src.raw...)",
+            "}",
+            ""
+          ],
+          "custom_start": 14,
+          "semantic": "add a copying RawJSON accessor",
+          "stock_lines": [],
+          "stock_start": 13
+        },
+        {
+          "custom_lines": [
+            "\t{{#anyOf}}",
+            "\tdst.{{#lambda.type-to-name}}{{{.}}}{{/lambda.type-to-name}} = nil",
+            "\t{{/anyOf}}",
+            "\tdst.raw = nil",
+            "\tif string(data) == \"null\" {",
+            "\t\t{{#isNullable}}",
+            "\t\tdst.raw = append(dst.raw[:0], data...)",
+            "\t\treturn nil",
+            "\t\t{{/isNullable}}",
+            "\t\t{{^isNullable}}",
+            "\t\treturn fmt.Errorf(\"data failed to match schemas in anyOf({{classname}})\")",
+            "\t\t{{/isNullable}}",
+            "\t}"
+          ],
+          "custom_start": 22,
+          "semantic": "clear branch pointers and raw storage before decode and accept null only when the direct union is nullable",
+          "stock_lines": [],
+          "stock_start": 16
+        },
+        {
+          "custom_lines": [
+            "\t\tdst.raw = append(dst.raw[:0], data...)"
+          ],
+          "custom_start": 38,
+          "semantic": "retain raw JSON when nullable empty payload is accepted",
+          "stock_lines": [],
+          "stock_start": 19
+        },
+        {
+          "custom_lines": [
+            "\t\tif err == nil \u0026\u0026 dst.{{{modelName}}} != nil {"
+          ],
+          "custom_start": 58,
+          "semantic": "require discriminator decoding to produce a non-nil branch pointer",
+          "stock_lines": [
+            "\t\tif err == nil {"
+          ],
+          "stock_start": 38
+        },
+        {
+          "custom_lines": [
+            "\t\t\t\tdst.raw = append(dst.raw[:0], data...)"
+          ],
+          "custom_start": 63,
+          "semantic": "retain raw JSON only after discriminator branch decoding succeeds",
+          "stock_lines": [],
+          "stock_start": 43
+        },
+        {
+          "custom_lines": [
+            "\tif err == nil \u0026\u0026 dst.{{#lambda.type-to-name}}{{{.}}}{{/lambda.type-to-name}} != nil {"
+          ],
+          "custom_start": 76,
+          "semantic": "require generic decoding to produce a non-nil branch pointer",
+          "stock_lines": [
+            "\tif err == nil {"
+          ],
+          "stock_start": 55
+        },
+        {
+          "custom_lines": [
+            "\t\t\tdst.raw = append(dst.raw[:0], data...)"
+          ],
+          "custom_start": 81,
+          "semantic": "retain raw JSON only after generic branch decoding succeeds",
+          "stock_lines": [],
+          "stock_start": 60
+        },
+        {
+          "custom_lines": [
+            "\tif src.raw != nil {",
+            "\t\treturn src.RawJSON(), nil",
+            "\t}"
+          ],
+          "custom_start": 94,
+          "semantic": "prefer retained raw JSON before stock branch marshal",
+          "stock_lines": [],
+          "stock_start": 72
+        },
+        {
+          "custom_lines": [],
+          "custom_start": 119,
+          "semantic": "remove the stock trailing blank line to preserve established generated source bytes",
+          "stock_lines": [
+            ""
+          ],
+          "stock_start": 94
+        }
+      ],
+      "line_stats": {
+        "deletions": 3,
+        "insertions": 27
+      },
+      "name": "model_anyof.mustache",
+      "policy": "Clear branch pointers and retained raw JSON before every decode, retain a private copy of the original union JSON on accepted decodes, expose it through copying RawJSON, reject null for non-nullable direct unions, require decoded branch pointers to be non-nil, and prefer retained JSON during marshal.",
+      "stock_sha256": "29694d9c68575cbba5c8fd9af3de3633437a31836a4e17588a143951c8c15741"
+    },
+    {
+      "custom_sha256": "153e3a586982664544edb2849c8c7fd517a7cea5a635825f5219f755bdb2b2d3",
+      "hunks": [
+        {
+          "custom_lines": [
+            ""
+          ],
+          "custom_start": 30,
+          "semantic": "formatting-only blank line retained by the established generated source bytes",
+          "stock_lines": [],
+          "stock_start": 30
+        },
+        {
+          "custom_lines": [
+            "\t*v = enumTypeValue"
+          ],
+          "custom_start": 39,
+          "semantic": "replace fallback selection with assignment of the decoded raw enum value",
+          "stock_lines": [
+            "\t{{#enumUnknownDefaultCase}}",
+            "\t{{#allowableValues}}",
+            "\t{{#enumVars}}",
+            "\t{{#-last}}",
+            "\t*v = {{#enumClassPrefix}}{{{classname.toUpperCase}}}_{{/enumClassPrefix}}{{{name}}}"
+          ],
+          "stock_start": 38
+        },
+        {
+          "custom_lines": [],
+          "custom_start": 41,
+          "semantic": "remove unknown-default and rejection branches while retaining the common nil return",
+          "stock_lines": [
+            "\t{{/-last}}",
+            "\t{{/enumVars}}",
+            "\t{{/allowableValues}}",
+            "\t{{/enumUnknownDefaultCase}}",
+            "\t{{^enumUnknownDefaultCase}}",
+            "\treturn fmt.Errorf(\"%+v is not a valid {{classname}}\", value)",
+            "\t{{/enumUnknownDefaultCase}}"
+          ],
+          "stock_start": 44
+        }
+      ],
+      "line_stats": {
+        "deletions": 12,
+        "insertions": 2
+      },
+      "name": "model_enum.mustache",
+      "policy": "Preserve the decoded raw enum value after known-value checks while leaving IsValid unchanged.",
+      "stock_sha256": "c7a5069f3c2896887abf53add1d1a83717a96dec4d25f79d8154c4227aeffda7"
+    },
+    {
+      "custom_sha256": "1c0058a441cf6121b22e675206ec8ce2058394e6baa85b0248248c63d561a59f",
+      "hunks": [
+        {
+          "custom_lines": [
+            "\traw []byte",
+            "\tmatchedSchemas []string",
+            "}",
+            "",
+            "// RawJSON returns a copy of the original JSON used to decode the union.",
+            "func (src {{classname}}) RawJSON() []byte {",
+            "\treturn append([]byte(nil), src.raw...)",
+            "}",
+            "",
+            "// MatchedSchemas returns every oneOf branch accepted by the reviewed response-decoding policy.",
+            "func (src {{classname}}) MatchedSchemas() []string {",
+            "\treturn append([]string(nil), src.matchedSchemas...)",
+            "}",
+            "",
+            "// IsAmbiguous reports whether more than one oneOf branch accepted the original JSON.",
+            "func (src {{classname}}) IsAmbiguous() bool {",
+            "\treturn len(src.matchedSchemas) \u003e 1",
+            "}",
+            "",
+            "// branchMatchesRequiredFields rejects a branch when decoding synthesized a",
+            "// required zero-value field that was absent from the input object.",
+            "func {{classname}}BranchMatchesRequiredFields(data []byte, candidate interface{}) bool {",
+            "\tvar input map[string]json.RawMessage",
+            "\tif err := json.Unmarshal(data, \u0026input); err != nil || input == nil {",
+            "\t\treturn false",
+            "\t}",
+            "\tencoded, err := json.Marshal(candidate)",
+            "\tif err != nil {",
+            "\t\treturn false",
+            "\t}",
+            "\tvar output map[string]json.RawMessage",
+            "\tif err := json.Unmarshal(encoded, \u0026output); err != nil || output == nil {",
+            "\t\treturn false",
+            "\t}",
+            "\tfor key := range output {",
+            "\t\tif _, present := input[key]; !present {",
+            "\t\t\treturn false",
+            "\t\t}",
+            "\t}",
+            "\treturn true"
+          ],
+          "custom_start": 6,
+          "semantic": "retain private raw JSON and exact stock branch-match metadata, expose copying accessors, and reject branch decodes that synthesize absent fields",
+          "stock_lines": [],
+          "stock_start": 6
+        },
+        {
+          "custom_lines": [
+            "\t{{#oneOf}}",
+            "\tdst.{{#lambda.type-to-name}}{{{.}}}{{/lambda.type-to-name}} = nil",
+            "\t{{/oneOf}}",
+            "\tdst.raw = nil",
+            "\tdst.matchedSchemas = dst.matchedSchemas[:0]"
+          ],
+          "custom_start": 62,
+          "semantic": "clear all branch pointers and retained decode metadata before every stock decode attempt",
+          "stock_lines": [],
+          "stock_start": 22
+        },
+        {
+          "custom_lines": [
+            "\t\tif err == nil \u0026\u0026 {{classname}}BranchMatchesRequiredFields(data, dst.{{{modelName}}}) {",
+            "\t\t\tdst.raw = append(dst.raw[:0], data...)",
+            "\t\t\tdst.matchedSchemas = append(dst.matchedSchemas, \"{{{modelName}}}\")"
+          ],
+          "custom_start": 90,
+          "semantic": "require discriminator branches to preserve input field presence and retain raw JSON and the selected branch",
+          "stock_lines": [
+            "\t\tif err == nil {"
+          ],
+          "stock_start": 45
+        },
+        {
+          "custom_lines": [
+            "\t\t\tif err != nil {",
+            "\t\t\t\treturn fmt.Errorf(\"failed to unmarshal {{classname}} as {{{modelName}}}: %w\", err)",
+            "\t\t\t}",
+            "\t\t\treturn fmt.Errorf(\"failed to unmarshal {{classname}} as {{{modelName}}}: required fields do not match\")"
+          ],
+          "custom_start": 96,
+          "semantic": "distinguish discriminator decode errors from branches that synthesize absent fields",
+          "stock_lines": [
+            "\t\t\treturn fmt.Errorf(\"failed to unmarshal {{classname}} as {{{modelName}}}: %s\", err.Error())"
+          ],
+          "stock_start": 49
+        },
+        {
+          "custom_lines": [
+            "\treturn fmt.Errorf(\"data failed to match schemas in oneOf({{classname}})\")"
+          ],
+          "custom_start": 104,
+          "semantic": "fail closed when no discriminator mapping matches",
+          "stock_lines": [
+            "\treturn nil"
+          ],
+          "stock_start": 54
+        },
+        {
+          "custom_lines": [
+            "\tif err == nil \u0026\u0026 {{classname}}BranchMatchesRequiredFields(data, dst.{{#lambda.type-to-name}}{{{.}}}{{/lambda.type-to-name}}) {"
+          ],
+          "custom_start": 111,
+          "semantic": "reject permissive branch decodes that synthesize absent fields",
+          "stock_lines": [
+            "\tif err == nil {"
+          ],
+          "stock_start": 61
+        },
+        {
+          "custom_lines": [
+            "\t\t\tdst.matchedSchemas = append(dst.matchedSchemas, \"{{#lambda.type-to-name}}{{{.}}}{{/lambda.type-to-name}}\")"
+          ],
+          "custom_start": 117,
+          "semantic": "record every branch accepted by stock permissive decoding",
+          "stock_lines": [],
+          "stock_start": 67
+        },
+        {
+          "custom_lines": [
+            "\tif match \u003e= 1 {",
+            "\t\tdst.raw = append(dst.raw[:0], data...)",
+            "\t\treturn nil"
+          ],
+          "custom_start": 124,
+          "semantic": "accept one or more permissive matches without erasing ambiguous branches and retain authoritative raw JSON",
+          "stock_lines": [
+            "\tif match \u003e 1 { // more than 1 match",
+            "\t\t// reset to nil",
+            "\t\t{{#oneOf}}",
+            "\t\tdst.{{#lambda.type-to-name}}{{{.}}}{{/lambda.type-to-name}} = nil",
+            "\t\t{{/oneOf}}",
+            "",
+            "\t\treturn fmt.Errorf(\"data matches more than one schema in oneOf({{classname}})\")",
+            "\t} else if match == 1 {",
+            "\t\treturn nil // exactly one match"
+          ],
+          "stock_start": 73
+        },
+        {
+          "custom_lines": [
+            "\tif err == nil \u0026\u0026 {{classname}}BranchMatchesRequiredFields(data, dst.{{#lambda.type-to-name}}{{{.}}}{{/lambda.type-to-name}}) {"
+          ],
+          "custom_start": 141,
+          "semantic": "reject strict branch decodes that synthesize absent fields before stock validation",
+          "stock_lines": [
+            "\tif err == nil {"
+          ],
+          "stock_start": 96
+        },
+        {
+          "custom_lines": [
+            "\t\t\t\tdst.matchedSchemas = append(dst.matchedSchemas, \"{{#lambda.type-to-name}}{{{.}}}{{/lambda.type-to-name}}\")"
+          ],
+          "custom_start": 150,
+          "semantic": "record every branch accepted by stock strict decoding and validation",
+          "stock_lines": [],
+          "stock_start": 105
+        },
+        {
+          "custom_lines": [
+            "\tif match \u003e= 1 {",
+            "\t\tdst.raw = append(dst.raw[:0], data...)",
+            "\t\treturn nil"
+          ],
+          "custom_start": 158,
+          "semantic": "accept one or more validated matches without erasing ambiguous branches and retain authoritative raw JSON",
+          "stock_lines": [
+            "\tif match \u003e 1 { // more than 1 match",
+            "\t\t// reset to nil",
+            "\t\t{{#oneOf}}",
+            "\t\tdst.{{#lambda.type-to-name}}{{{.}}}{{/lambda.type-to-name}} = nil",
+            "\t\t{{/oneOf}}",
+            "",
+            "\t\treturn fmt.Errorf(\"data matches more than one schema in oneOf({{classname}})\")",
+            "\t} else if match == 1 {",
+            "\t\treturn nil // exactly one match"
+          ],
+          "stock_start": 112
+        },
+        {
+          "custom_lines": [
+            "\tif src.raw != nil {",
+            "\t\treturn src.RawJSON(), nil",
+            "\t}"
+          ],
+          "custom_start": 174,
+          "semantic": "marshal retained raw JSON before inspecting decoded branches",
+          "stock_lines": [],
+          "stock_start": 134
+        },
+        {
+          "custom_lines": [
+            "\tif obj == nil || obj.IsAmbiguous() {"
+          ],
+          "custom_start": 188,
+          "semantic": "do not claim a unique actual pointer for ambiguous decoded JSON",
+          "stock_lines": [
+            "\tif obj == nil {"
+          ],
+          "stock_start": 145
+        },
+        {
+          "custom_lines": [
+            "\tif obj.IsAmbiguous() {",
+            "\t\treturn nil",
+            "\t}"
+          ],
+          "custom_start": 203,
+          "semantic": "do not claim a unique actual value for ambiguous decoded JSON",
+          "stock_lines": [],
+          "stock_start": 160
+        },
+        {
+          "custom_lines": [],
+          "custom_start": 217,
+          "semantic": "end the template with exactly one newline",
+          "stock_lines": [
+            ""
+          ],
+          "stock_start": 171
+        }
+      ],
+      "line_stats": {
+        "deletions": 25,
+        "insertions": 70
+      },
+      "name": "model_oneof.mustache",
+      "policy": "Clear all branch pointers and decode metadata before every decode, retain exact raw JSON and stock branch attempts, reject branch decodes that synthesize absent fields, fail closed on unknown discriminator values, accept one or more matches in non-discriminator matching, reject zero matches, preserve ambiguous branch state, expose copied match metadata, and prefer raw bytes during marshal.",
+      "stock_sha256": "98148bb5ed88123a26e1f0ec0c1f2b18744934732407858cd2359702b2c0ec5c"
+    },
+    {
+      "custom_sha256": "e0ea8a1b093106f9bb8a2b283779523e38bc15674a20136f3c80e7eb227de70d",
+      "hunks": [
+        {
+          "custom_lines": [
+            "\tAdditionalProperties map[string]json.RawMessage"
+          ],
+          "custom_start": 26,
+          "semantic": "store additional properties as exact raw JSON values",
+          "stock_lines": [
+            "\tAdditionalProperties map[string]interface{}"
+          ],
+          "stock_start": 26
+        },
+        {
+          "custom_lines": [
+            "\t\tswitch key {",
+            "\t\t{{#vars}}",
+            "\t\tcase \"{{{baseName}}}\":",
+            "\t\t\tcontinue",
+            "\t\t{{/vars}}",
+            "\t\t}"
+          ],
+          "custom_start": 436,
+          "semantic": "prevent additional properties from overriding declared fields during marshal",
+          "stock_lines": [],
+          "stock_start": 436
+        },
+        {
+          "custom_lines": [
+            "{{#hasRequired}}",
+            "\t// Required-field presence is intentionally not enforced during generated model decoding.",
+            "\t_ = fmt.Errorf",
+            "{{/hasRequired}}"
+          ],
+          "custom_start": 452,
+          "semantic": "anchor fmt only for required additional-properties models whose removed checks otherwise supplied fmt usage",
+          "stock_lines": [],
+          "stock_start": 446
+        },
+        {
+          "custom_lines": [
+            "\t// Required-field presence is intentionally not enforced during generated model decoding.",
+            "\t_ = fmt.Errorf"
+          ],
+          "custom_start": 465,
+          "semantic": "anchor fmt only for required normal models whose removed checks otherwise supplied fmt usage",
+          "stock_lines": [],
+          "stock_start": 455
+        },
+        {
+          "custom_lines": [],
+          "custom_start": 474,
+          "semantic": "remove required-property presence rejection and required-default insertion from both unmarshal branches",
+          "stock_lines": [
+            "{{#hasRequired}}",
+            "\t// This validates that all required properties are included in the JSON object",
+            "\t// by unmarshalling the object into a generic map with string keys and checking",
+            "\t// that every required field exists as a key in the generic map.",
+            "\trequiredProperties := []string{",
+            "{{#requiredVars}}",
+            "\t\t\"{{baseName}}\",",
+            "{{/requiredVars}}",
+            "\t}",
+            "",
+            "{{#useDefaultValuesForRequiredVars}}",
+            "\t// defaultValueFuncMap captures the default values for required properties.",
+            "\t// These values are used when required properties are missing from the payload.",
+            "\tdefaultValueFuncMap := map[string]func() interface{} {",
+            "{{#requiredVars}}",
+            "{{#defaultValue}}",
+            "{{^isReadOnly}}",
+            "\t\t\"{{baseName}}\": o.GetDefault{{nameInPascalCase}},",
+            "{{/isReadOnly}}",
+            "{{/defaultValue}}",
+            "{{/requiredVars}}",
+            "\t}",
+            "\tvar defaultValueApplied bool",
+            "{{/useDefaultValuesForRequiredVars}}",
+            "\tallProperties := make(map[string]interface{})",
+            "",
+            "\terr = json.Unmarshal(data, \u0026allProperties)",
+            "",
+            "\tif err != nil {",
+            "\t\treturn err;",
+            "\t}",
+            "",
+            "{{#vendorExtensions.x-go-enum-required-case-fold}}",
+            "\tlookupRequiredProperty := func(requiredProperty string) (interface{}, string, bool) {",
+            "\t\tif value, exists := allProperties[requiredProperty]; exists {",
+            "\t\t\treturn value, requiredProperty, true",
+            "\t\t}",
+            "\t\tfor name, value := range allProperties {",
+            "\t\t\tif strings.EqualFold(name, requiredProperty) {",
+            "\t\t\t\treturn value, name, true",
+            "\t\t\t}",
+            "\t\t}",
+            "\t\treturn nil, \"\", false",
+            "\t}",
+            "{{/vendorExtensions.x-go-enum-required-case-fold}}",
+            "\tfor _, requiredProperty := range(requiredProperties) {",
+            "\t\t{{#useDefaultValuesForRequiredVars}}",
+            "{{#vendorExtensions.x-go-enum-required-case-fold}}",
+            "\t\tif value, matchedKey, exists := lookupRequiredProperty(requiredProperty); !exists || value == \"\" {",
+            "{{/vendorExtensions.x-go-enum-required-case-fold}}",
+            "{{^vendorExtensions.x-go-enum-required-case-fold}}",
+            "\t\tif value, exists := allProperties[requiredProperty]; !exists || value == \"\" {",
+            "{{/vendorExtensions.x-go-enum-required-case-fold}}",
+            "\t\t\tif _, ok := defaultValueFuncMap[requiredProperty]; ok {",
+            "{{#vendorExtensions.x-go-enum-required-case-fold}}",
+            "\t\t\t\tif exists \u0026\u0026 matchedKey != requiredProperty {",
+            "\t\t\t\t\tdelete(allProperties, matchedKey)",
+            "\t\t\t\t}",
+            "{{/vendorExtensions.x-go-enum-required-case-fold}}",
+            "\t\t\t\tallProperties[requiredProperty] = defaultValueFuncMap[requiredProperty]()",
+            "\t\t\t\tdefaultValueApplied = true",
+            "\t\t\t}",
+            "\t\t}",
+            "{{#vendorExtensions.x-go-enum-required-case-fold}}",
+            "\t\tif value, _, exists := lookupRequiredProperty(requiredProperty); !exists || value == \"\"{",
+            "{{/vendorExtensions.x-go-enum-required-case-fold}}",
+            "{{^vendorExtensions.x-go-enum-required-case-fold}}",
+            "\t\tif value, exists := allProperties[requiredProperty]; !exists || value == \"\"{",
+            "{{/vendorExtensions.x-go-enum-required-case-fold}}",
+            "\t\t{{/useDefaultValuesForRequiredVars}}",
+            "\t\t{{^useDefaultValuesForRequiredVars}}",
+            "{{#vendorExtensions.x-go-enum-required-case-fold}}",
+            "\t\tif _, _, exists := lookupRequiredProperty(requiredProperty); !exists {",
+            "{{/vendorExtensions.x-go-enum-required-case-fold}}",
+            "{{^vendorExtensions.x-go-enum-required-case-fold}}",
+            "\t\tif _, exists := allProperties[requiredProperty]; !exists {",
+            "{{/vendorExtensions.x-go-enum-required-case-fold}}",
+            "\t\t{{/useDefaultValuesForRequiredVars}}",
+            "\t\t\treturn fmt.Errorf(\"no value given for required property %v\", requiredProperty)",
+            "\t\t}",
+            "\t}",
+            "",
+            "\t{{#useDefaultValuesForRequiredVars}}",
+            "\tif defaultValueApplied {",
+            "\t\tdata, err = json.Marshal(allProperties)",
+            "\t\tif err != nil{",
+            "\t\t\treturn err",
+            "\t\t}",
+            "\t}",
+            "\t{{/useDefaultValuesForRequiredVars}}",
+            "{{/hasRequired}}"
+          ],
+          "stock_start": 462
+        },
+        {
+          "custom_lines": [
+            "\tadditionalProperties := make(map[string]json.RawMessage)"
+          ],
+          "custom_start": 513,
+          "semantic": "capture embedded-model additional properties as exact raw JSON values",
+          "stock_lines": [
+            "\tadditionalProperties := make(map[string]interface{})"
+          ],
+          "stock_start": 592
+        },
+        {
+          "custom_lines": [
+            "\tadditionalProperties := make(map[string]json.RawMessage)"
+          ],
+          "custom_start": 554,
+          "semantic": "capture mapped-model additional properties as exact raw JSON values",
+          "stock_lines": [
+            "\tadditionalProperties := make(map[string]interface{})"
+          ],
+          "stock_start": 633
+        },
+        {
+          "custom_lines": [
+            "\tadditionalProperties := make(map[string]json.RawMessage)"
+          ],
+          "custom_start": 577,
+          "semantic": "capture normal-model additional properties as exact raw JSON values",
+          "stock_lines": [
+            "\tadditionalProperties := make(map[string]interface{})"
+          ],
+          "stock_start": 656
+        },
+        {
+          "custom_lines": [],
+          "custom_start": 644,
+          "semantic": "end the template with exactly one newline",
+          "stock_lines": [
+            ""
+          ],
+          "stock_start": 723
+        }
+      ],
+      "line_stats": {
+        "deletions": 96,
+        "insertions": 16
+      },
+      "name": "model_simple.mustache",
+      "policy": "Remove required-property presence and default insertion during decode, preserve unknown additional-property JSON as exact raw values without allowing it to override declared fields, and retain stock type decode, enum validation, and marshal behavior.",
+      "stock_sha256": "80293db777ee6940cfc7f489e73d0c540990263a4e6d75a41aad5a711d7ff861"
+    }
+  ],
+  "schema_version": 1
+}

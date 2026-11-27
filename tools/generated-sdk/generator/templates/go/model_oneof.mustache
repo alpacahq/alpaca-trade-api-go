@@ -1,0 +1,216 @@
+// {{classname}} - {{{description}}}{{^description}}struct for {{{classname}}}{{/description}}
+type {{classname}} struct {
+	{{#oneOf}}
+	{{#lambda.type-to-name}}{{{.}}}{{/lambda.type-to-name}} *{{{.}}}
+	{{/oneOf}}
+	raw []byte
+	matchedSchemas []string
+}
+
+// RawJSON returns a copy of the original JSON used to decode the union.
+func (src {{classname}}) RawJSON() []byte {
+	return append([]byte(nil), src.raw...)
+}
+
+// MatchedSchemas returns every oneOf branch accepted by the reviewed response-decoding policy.
+func (src {{classname}}) MatchedSchemas() []string {
+	return append([]string(nil), src.matchedSchemas...)
+}
+
+// IsAmbiguous reports whether more than one oneOf branch accepted the original JSON.
+func (src {{classname}}) IsAmbiguous() bool {
+	return len(src.matchedSchemas) > 1
+}
+
+// branchMatchesRequiredFields rejects a branch when decoding synthesized a
+// required zero-value field that was absent from the input object.
+func {{classname}}BranchMatchesRequiredFields(data []byte, candidate interface{}) bool {
+	var input map[string]json.RawMessage
+	if err := json.Unmarshal(data, &input); err != nil || input == nil {
+		return false
+	}
+	encoded, err := json.Marshal(candidate)
+	if err != nil {
+		return false
+	}
+	var output map[string]json.RawMessage
+	if err := json.Unmarshal(encoded, &output); err != nil || output == nil {
+		return false
+	}
+	for key := range output {
+		if _, present := input[key]; !present {
+			return false
+		}
+	}
+	return true
+}
+
+{{#oneOf}}
+// {{{.}}}As{{classname}} is a convenience function that returns {{{.}}} wrapped in {{classname}}
+func {{#lambda.type-to-name}}{{{.}}}{{/lambda.type-to-name}}As{{classname}}(v *{{{.}}}) {{classname}} {
+	return {{classname}}{
+		{{#lambda.type-to-name}}{{{.}}}{{/lambda.type-to-name}}: v,
+	}
+}
+
+{{/oneOf}}
+
+{{#vendorExtensions.x-go-generate-unmarshal-json}}
+// Unmarshal JSON data into one of the pointers in the struct
+func (dst *{{classname}}) UnmarshalJSON(data []byte) error {
+	var err error
+	{{#oneOf}}
+	dst.{{#lambda.type-to-name}}{{{.}}}{{/lambda.type-to-name}} = nil
+	{{/oneOf}}
+	dst.raw = nil
+	dst.matchedSchemas = dst.matchedSchemas[:0]
+	{{#isNullable}}
+	// this object is nullable so check if the payload is null or empty string
+	if string(data) == "" || string(data) == "{}" {
+		return nil
+	}
+
+	{{/isNullable}}
+	{{#useOneOfDiscriminatorLookup}}
+	{{#discriminator}}
+	{{#mappedModels}}
+	{{#-first}}
+	// use discriminator value to speed up the lookup
+	var jsonDict map[string]interface{}
+	err = newStrictDecoder(data).Decode(&jsonDict)
+	if err != nil {
+		return fmt.Errorf("failed to unmarshal JSON into map for the discriminator lookup")
+	}
+
+	{{/-first}}
+	// check if the discriminator value is '{{{mappingName}}}'
+	if jsonDict["{{{propertyBaseName}}}"] == "{{{mappingName}}}" {
+		// try to unmarshal JSON data into {{{modelName}}}
+		err = json.Unmarshal(data, &dst.{{{modelName}}})
+		if err == nil && {{classname}}BranchMatchesRequiredFields(data, dst.{{{modelName}}}) {
+			dst.raw = append(dst.raw[:0], data...)
+			dst.matchedSchemas = append(dst.matchedSchemas, "{{{modelName}}}")
+			return nil // data stored in dst.{{{modelName}}}, return on the first match
+		} else {
+			dst.{{{modelName}}} = nil
+			if err != nil {
+				return fmt.Errorf("failed to unmarshal {{classname}} as {{{modelName}}}: %w", err)
+			}
+			return fmt.Errorf("failed to unmarshal {{classname}} as {{{modelName}}}: required fields do not match")
+		}
+	}
+
+	{{/mappedModels}}
+	return fmt.Errorf("data failed to match schemas in oneOf({{classname}})")
+	{{/discriminator}}
+	{{^discriminator}}
+	match := 0
+	{{#oneOf}}
+	// try to unmarshal data into {{#lambda.type-to-name}}{{{.}}}{{/lambda.type-to-name}}
+	err = json.Unmarshal(data, &dst.{{#lambda.type-to-name}}{{{.}}}{{/lambda.type-to-name}})
+	if err == nil && {{classname}}BranchMatchesRequiredFields(data, dst.{{#lambda.type-to-name}}{{{.}}}{{/lambda.type-to-name}}) {
+		json{{#lambda.type-to-name}}{{{.}}}{{/lambda.type-to-name}}, _ := json.Marshal(dst.{{#lambda.type-to-name}}{{{.}}}{{/lambda.type-to-name}})
+		if string(json{{#lambda.type-to-name}}{{{.}}}{{/lambda.type-to-name}}) == "{}" { // empty struct
+			dst.{{#lambda.type-to-name}}{{{.}}}{{/lambda.type-to-name}} = nil
+		} else {
+			match++
+			dst.matchedSchemas = append(dst.matchedSchemas, "{{#lambda.type-to-name}}{{{.}}}{{/lambda.type-to-name}}")
+		}
+	} else {
+		dst.{{#lambda.type-to-name}}{{{.}}}{{/lambda.type-to-name}} = nil
+	}
+
+	{{/oneOf}}
+	if match >= 1 {
+		dst.raw = append(dst.raw[:0], data...)
+		return nil
+	} else { // no match
+		if err != nil {
+			return fmt.Errorf("data failed to match schemas in oneOf({{classname}}): %v", err)
+		}
+
+		return fmt.Errorf("data failed to match schemas in oneOf({{classname}})")
+	}
+	{{/discriminator}}
+	{{/useOneOfDiscriminatorLookup}}
+	{{^useOneOfDiscriminatorLookup}}
+	match := 0
+	{{#oneOf}}
+	// try to unmarshal data into {{#lambda.type-to-name}}{{{.}}}{{/lambda.type-to-name}}
+	err = newStrictDecoder(data).Decode(&dst.{{#lambda.type-to-name}}{{{.}}}{{/lambda.type-to-name}})
+	if err == nil && {{classname}}BranchMatchesRequiredFields(data, dst.{{#lambda.type-to-name}}{{{.}}}{{/lambda.type-to-name}}) {
+		json{{#lambda.type-to-name}}{{{.}}}{{/lambda.type-to-name}}, _ := json.Marshal(dst.{{#lambda.type-to-name}}{{{.}}}{{/lambda.type-to-name}})
+		if string(json{{#lambda.type-to-name}}{{{.}}}{{/lambda.type-to-name}}) == "{}" { // empty struct
+			dst.{{#lambda.type-to-name}}{{{.}}}{{/lambda.type-to-name}} = nil
+		} else {
+			if err = validator.Validate(dst.{{#lambda.type-to-name}}{{{.}}}{{/lambda.type-to-name}}); err != nil {
+				dst.{{#lambda.type-to-name}}{{{.}}}{{/lambda.type-to-name}} = nil
+			} else {
+				match++
+				dst.matchedSchemas = append(dst.matchedSchemas, "{{#lambda.type-to-name}}{{{.}}}{{/lambda.type-to-name}}")
+			}
+		}
+	} else {
+		dst.{{#lambda.type-to-name}}{{{.}}}{{/lambda.type-to-name}} = nil
+	}
+
+	{{/oneOf}}
+	if match >= 1 {
+		dst.raw = append(dst.raw[:0], data...)
+		return nil
+	} else { // no match
+		if err != nil {
+			return fmt.Errorf("data failed to match schemas in oneOf({{classname}}): %v", err)
+		}
+
+		return fmt.Errorf("data failed to match schemas in oneOf({{classname}})")
+	}
+	{{/useOneOfDiscriminatorLookup}}
+}
+
+{{/vendorExtensions.x-go-generate-unmarshal-json}}
+// Marshal data from the first non-nil pointers in the struct to JSON
+func (src {{classname}}) MarshalJSON() ([]byte, error) {
+	if src.raw != nil {
+		return src.RawJSON(), nil
+	}
+{{#oneOf}}
+	if src.{{#lambda.type-to-name}}{{{.}}}{{/lambda.type-to-name}} != nil {
+		return json.Marshal(&src.{{#lambda.type-to-name}}{{{.}}}{{/lambda.type-to-name}})
+	}
+
+{{/oneOf}}
+	return nil, nil // no data in oneOf schemas
+}
+
+// Get the actual instance
+func (obj *{{classname}}) GetActualInstance() (interface{}) {
+	if obj == nil || obj.IsAmbiguous() {
+		return nil
+	}
+{{#oneOf}}
+	if obj.{{#lambda.type-to-name}}{{{.}}}{{/lambda.type-to-name}} != nil {
+		return obj.{{#lambda.type-to-name}}{{{.}}}{{/lambda.type-to-name}}
+	}
+
+{{/oneOf}}
+	// all schemas are nil
+	return nil
+}
+
+// Get the actual instance value
+func (obj {{classname}}) GetActualInstanceValue() (interface{}) {
+	if obj.IsAmbiguous() {
+		return nil
+	}
+{{#oneOf}}
+	if obj.{{#lambda.type-to-name}}{{{.}}}{{/lambda.type-to-name}} != nil {
+		return *obj.{{#lambda.type-to-name}}{{{.}}}{{/lambda.type-to-name}}
+	}
+
+{{/oneOf}}
+	// all schemas are nil
+	return nil
+}
+
+{{>nullable_model}}

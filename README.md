@@ -174,6 +174,8 @@ The `make lint` target installs the linter version pinned by the repository work
 make generate
 ```
 
+Maintainers working from a repository checkout should follow the candidate-only [Trading and Market Data generator platform guide](https://github.com/alpacahq/alpaca-trade-api-go/blob/master/tools/generated-sdk/README.md). The tooling is intentionally excluded from the published root Go module, and its checks do not install generated source or alter the public SDK implementation.
+
 ## Support
 
 For failed API calls, share the `RequestID` from `*alpaca.APIError` only through private Alpaca Support channels. It contains the `X-Request-ID` response header (see [Handling API errors](#handling-api-errors)).

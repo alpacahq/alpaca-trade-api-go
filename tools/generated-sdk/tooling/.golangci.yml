@@ -1,0 +1,69 @@
+version: "2"
+
+run:
+  timeout: 3m
+  relative-path-mode: gomod
+
+linters:
+  default: none
+  enable:
+    - asciicheck
+    - bidichk
+    - bodyclose
+    - durationcheck
+    - errcheck
+    - errorlint
+    - gocheckcompilerdirectives
+    - gochecksumtype
+    - gosec
+    - govet
+    - ineffassign
+    - makezero
+    - nilerr
+    - nilnesserr
+    - nolintlint
+    - staticcheck
+    - unconvert
+    - unused
+    - wastedassign
+  settings:
+    errcheck:
+      check-type-assertions: false
+    govet:
+      disable:
+        - fieldalignment
+        - shadow
+    nolintlint:
+      require-explanation: true
+      require-specific: true
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    rules:
+      - linters:
+          - gosec
+        text: "G306:"
+        path: "_test\\.go$"
+      - linters:
+          - gosec
+        text: "G703:"
+        path: "_test\\.go$"
+      - linters:
+          - gosec
+        text: "G306:"
+        path: "tooling/(cmd/(generate|templatecheck)/main\\.go|internal/(generatortrust/trust|specupdate/proposal)\\.go)$"
+
+issues:
+  max-same-issues: 50
+
+formatters:
+  enable:
+    - goimports
+  settings:
+    goimports:
+      local-prefixes:
+        - github.com/alpacahq/
